@@ -112,7 +112,6 @@
     <div class="shell">
         <div class="cta-panel" data-reveal>
             <div class="cta-spark cta-spark-one" aria-hidden="true">✳</div><div class="cta-spark cta-spark-two" aria-hidden="true">✳</div>
-            <span class="eyebrow eyebrow-dark"><span class="signal-dot dark"></span> Um produto da Escotilha Produtora</span>
             <h2>Mais tempo para o que importa.<br><em>Menos tempo apagando incêndio.</em></h2>
             <p>O Cardapim está em desenvolvimento. Vem acompanhar essa próxima fase.</p>
             <a class="button button-dark button-large" href="/cadastro">Quero começar <span aria-hidden="true">↗</span></a>

@@ -49,6 +49,7 @@ $description = htmlspecialchars($pageDescription ?? 'Gestão de restaurantes do 
                 <img class="brand-logo" src="/assets/img/logo-branca.svg" width="176" height="57" alt="Cardapim">
             </a>
             <span>Menos complicação. Mais restaurante.</span>
+            <span>Um produto da Escotilha Produtora · CNPJ 64.069.224/0001-32</span>
             <span>© <?= date('Y') ?> Cardapim</span>
         </div>
     </footer>
