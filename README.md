@@ -18,6 +18,7 @@ A proposta é centralizar a operação diária de cada negócio em uma experiên
 - **Delivery:** despacho, atribuição de entregadores, acompanhamento de status e rastreamento consentido durante entregas próprias.
 - **Gestão empresarial:** painéis de vendas, margem, desempenho, ticket médio, produtos mais vendidos e auditoria.
 - **SaaS multi-restaurante:** cadastro de empresas, unidades, usuários, permissões, planos, assinaturas e limites de uso.
+- **WhatsApp por restaurante (WPPConnect):** cada unidade conecta seu número por QR Code, atende conversas em uma caixa de entrada própria, recebe solicitações, acompanha pedidos e configura mensagens/fluxos automáticos com supervisão humana.
 
 ### Princípios
 
@@ -28,6 +29,7 @@ A proposta é centralizar a operação diária de cada negócio em uma experiên
 5. **Interfaces por função:** cada colaborador vê apenas o que precisa para trabalhar.
 6. **Segurança e rastreabilidade:** permissões, logs, consentimento de localização, backup e observabilidade.
 7. **Mobile-first/PWA:** garçom, cliente e entregador precisam funcionar bem no celular.
+8. **Comunicações isoladas:** nenhuma sessão, mensagem, token ou automação do WhatsApp de uma loja pode alcançar outra sem autorização explícita.
 
 ---
 
@@ -61,7 +63,7 @@ O sistema deve ter testes de isolamento entre tenants e preferencialmente chaves
 
 ### Assinaturas
 
-- Planos mensais com limites configuráveis (unidades, usuários, pedidos/recursos, armazenamento e integrações).
+- Planos mensais com limites configuráveis (unidades, usuários, pedidos/recursos, armazenamento e integrações), incluindo **quantidade de conexões WhatsApp/sessões ativas**.
 - Período de teste opcional, cobrança recorrente, vencimento, renovação, inadimplência e cancelamento.
 - Bloqueio/grace period com regras claras, preservação de dados e acesso administrativo quando aplicável.
 - Gateway de cobrança desacoplado por interface (ex.: Asaas, se escolhido futuramente).
@@ -78,6 +80,7 @@ As permissões são **RBAC por tenant/unidade**, com possibilidade de criar fun�
 | **Superadmin Cardapim** | Plataforma | Gerenciar tenants, planos, assinaturas, suporte e segurança global |
 | **Administrador / proprietário** | Empresa/unidade | Configurações, catálogo, colaboradores, estoque, relatórios e financeiro |
 | **Gerente** *(sugerido)* | Unidade | Supervisionar pedidos, equipe, estoque e operações autorizadas |
+| **Atendente WhatsApp** *(permissão atribuível)* | Unidade | Responder conversas autorizadas, criar rascunhos de pedidos, transferir atendimento e consultar status sem acesso ao financeiro completo |
 | **Caixa** | Unidade | PDV, abertura/fechamento de turno, pagamentos, sangria, suprimento, troco, estornos autorizados |
 | **Garçom** | Unidade | Abrir comandas, lançar pedidos/adicionais, gerir mesas e solicitar fechamento |
 | **Cozinha** | Unidade/setor | Visualizar fila, iniciar preparo, marcar itens/pratos prontos e sinalizar indisponibilidade |
@@ -86,7 +89,7 @@ As permissões são **RBAC por tenant/unidade**, com possibilidade de criar fun�
 
 O perfil **ADM do restaurante não equivale ao superadmin da plataforma**. A autorização ocorre em **toda requisição HTTP e assinatura de canal WebSocket**, não apenas escondendo botões na interface.
 
-Permissões granulares previstas: `orders.create`, `orders.cancel`, `orders.discount`, `cash.open`, `cash.close`, `cash.refund`, `inventory.adjust`, `finance.read`, `finance.manage`, `users.manage`, `settings.manage`, `integrations.manage`, entre outras.
+Permissões granulares previstas: `orders.create`, `orders.cancel`, `orders.discount`, `cash.open`, `cash.close`, `cash.refund`, `inventory.adjust`, `finance.read`, `finance.manage`, `users.manage`, `settings.manage`, `integrations.manage`, `whatsapp.connect`, `whatsapp.inbox.read`, `whatsapp.messages.send`, `whatsapp.automations.manage`, entre outras.
 
 ---
 
@@ -97,6 +100,7 @@ Permissões granulares previstas: `orders.create`, `orders.cancel`, `orders.disc
 - Planos, assinatura mensal, histórico de cobranças e controle de elegibilidade.
 - Painel global de empresas, status, suporte e métricas da plataforma.
 - Parametrização por tenant e flags de recursos por plano.
+- Gestão de limites de sessões WhatsApp por plano; provisionamento/desativação auditável quando o estabelecimento muda de plano.
 
 ### 4.2 Produtos, cardápio e preços
 - Categorias, produtos, imagens, descrição, disponibilidade, SKU e código interno.
@@ -167,6 +171,43 @@ Documentação oficial:
 
 > Para integrações com múltiplas lojas, o webhook de autenticação centralizada é indicado pela documentação oficial. Webhooks podem chegar **duplicados e fora de ordem**: o código deve ser idempotente. O webhook não substitui um mecanismo de reconciliação.
 
+### 4.10 WhatsApp por restaurante — WPPConnect Server (módulo planejado)
+
+**Objetivo:** permitir que **cada estabelecimento conecte e utilize seu próprio WhatsApp** dentro do Cardapim para atendimento, solicitações de pedidos, confirmações e acompanhamento, sem acessar a sessão de outra empresa. Prever inicialmente **1 sessão por unidade**, com expansão para mais números por plano/necessidade.
+
+#### Funcionalidades e experiência
+
+1. **Conectar número:** administrador/gerente autorizado abre `Configurações → Integrações → WhatsApp`, solicita conexão, visualiza o **QR Code de pareamento** e acompanha estados `disconnected`, `pairing`, `connected`, `reconnecting`, `error`. Pode reconectar e desconectar; número e status ficam visíveis apenas a quem tem acesso à unidade.
+2. **Central de atendimento (inbox):** conversas, mensagens recebidas/enviadas, nome e telefone do contato, não lidas, responsável, tags, notas internas, busca, filtros e atribuição para atendentes, com atualização em tempo real.
+3. **Atendimento comercial:** compartilhar link do cardápio digital, receber perguntas, anexos e solicitações de clientes; cadastrar/vincular cliente e **transformar conversa em rascunho de pedido** para revisão de itens, endereço, entrega, preços e confirmação explícita antes de criar pedido operacional. Mensagem de texto livre **não deve automaticamente gerar cobrança ou baixa de estoque**.
+4. **Mensagens transacionais:** confirmação de pedido, alteração de status, retirada pronta, saiu para entrega e conclusão; respeitar preferências do cliente, viabilidade técnica e regras aplicáveis de envio.
+5. **Automação configurável por loja:** saudação, horário de funcionamento, menu de opções, respostas frequentes, aviso de indisponibilidade, consulta de status, transferência para humano e disparos por eventos de pedido. Fila de envio, tentativas limitadas, prevenção de loops, pausa manual e agendamento em horário adequado.
+6. **Operação assistida:** funcionário assume conversa a qualquer momento, suspende automação para aquele contato, registra responsável e histórico de interações. Uma falha no WhatsApp não pode impedir o PDV, a cozinha nem pedidos de outros canais.
+7. **Relatórios:** volume de mensagens, tempo de primeira resposta, conversas atendidas, pedidos originados do WhatsApp e falhas de envio por loja, sem confundir mensagens com vendas.
+8. **Mídia e segurança:** mídia suportada pelo WPPConnect pode ser exibida após validação de tamanho/tipo, acesso autenticado e armazenamento privado com retenção configurada. Nunca expor link interno do servidor WPPConnect ao cliente final.
+
+#### Arquitetura e isolamento
+
+- **WPPConnect Server** é um serviço **Node.js separado**, hospedado na VPS ou em instância dedicada, acessado **somente pelo backend PHP** via API REST autenticada. O frontend nunca recebe a chave mestra nem tokens de sessão do WPPConnect.
+- **PHP MVC continua sendo o cérebro do negócio:** controla tenant/unidade, RBAC, regras comerciais, inbox, automações, pedidos e banco MySQL. O WPPConnect cuida das **sessões WhatsApp e transporte de mensagens**, não decide valores, pagamentos ou autorização.
+- **Mapeamento obrigatório:** cada sessão WPPConnect recebe identificador interno opaco e vínculo persistente com `tenant_id` + `establishment_id`; IDs de sessão, callbacks e eventos recebidos são resolvidos **no servidor**. Não confiar em tenant, unidade ou sessão informados em payload externo.
+- **Fluxo inbound:** evento do WPPConnect → endpoint interno `/webhooks/wppconnect` autenticado/protegido → resolução da sessão → registro de evento bruto/deduplicação → job → contato, conversa e mensagem → WebSocket autorizado da inbox → opcional automação ou rascunho de pedido.
+- **Fluxo outbound:** usuário autorizado ou evento de pedido → comando PHP validado → mensagem persistida como `queued` → fila/worker com rate limit e idempotência → chamada à API do WPPConnect → atualização de status e recibos quando disponíveis. Não prometer entrega apenas pelo aceite HTTP.
+- **Conexão e QR:** o PHP obtém o QR Code/estado do serviço de sessão e o expõe somente em endpoint protegido da unidade; dados de pareamento têm vida curta e não entram em logs. Estados de conexão são refletidos na UI pelo WebSocket PHP.
+- **Escalabilidade:** múltiplas sessões consomem processos/Chromium, CPU e memória; adotar limites por plano e por nó, monitorar recursos e reiniciar sessões com supervisão. Para múltiplos nós, usar atribuição persistida de sessão a uma instância e roteamento correto; não presumir que sessões possam ser movidas sem restaurar estado.
+- **Resiliência:** eventos recebidos podem ser duplicados, atrasar ou chegar fora de ordem. Deduplicar por sessão + tipo + ID externo da mensagem/evento, registrar falhas, aplicar retry/backoff, dead-letter e reconciliação possível. As filas MySQL/Outbox e Redis são separadas da lógica de sessão.
+- **Privacidade e conformidade:** coletar apenas dados necessários, restringir acesso por tenant, controlar consentimento/preferência para campanhas e mensagens não transacionais, permitir retenção/exclusão adequada e aplicar LGPD. Respeitar regras da plataforma e limites de envio; **sem disparos em massa não solicitados**.
+- **Risco de integração:** WPPConnect é projeto independente, **não é a API oficial WhatsApp Business da Meta**; sessões podem desconectar, requerer novo QR Code ou sofrer limitações/bloqueios conforme o serviço e termos aplicáveis. Prever adaptador de provedor para eventual migração à API oficial, sem reescrever pedidos e inbox.
+- **Webhook:** proteger por rede privada/reverse proxy, credencial de serviço ou outro mecanismo de autenticação implementado e verificar origem do evento. **Não presumir assinatura criptográfica nativa** se não estiver comprovada na versão instalada.
+
+#### Dependências e documentação
+
+- [WPPConnect Server — repositório oficial](https://github.com/wppconnect-team/wppconnect-server)
+- [WPPConnect Server — documentação](https://wppconnect.io/pt-BR/docs/projects/wppserver/introduction/)
+- [WPPConnect Server — referência de API](https://wppconnect.io/swagger/wppconnect-server/)
+
+A integração está **planejada e não implementada**. Antes do desenvolvimento validar a versão escolhida, endpoints, licenças, persistência de sessões, política de backup, capacidade de hardware, regras de uso e requisitos de autenticação/webhook.
+
 ---
 
 ## 5. Arquitetura técnica proposta
@@ -181,7 +222,8 @@ Documentação oficial:
 | Eventos/jobs | **Redis** para pub/sub, cache, filas e controle de presença; worker PHP supervisionado |
 | Persistência de eventos | **Transactional Outbox** em MySQL, com retry e idempotência |
 | API | REST JSON versionada em `/api/v1`, com sessão/token conforme o consumidor |
-| Integrações | Adaptadores HTTP/Webhook separados (iFood, cobrança e mapas) |
+| WhatsApp | **WPPConnect Server em Node.js**, processo separado, com múltiplas sessões e webhooks; adaptador REST no PHP MVC |
+| Integrações | Adaptadores HTTP/Webhook separados (iFood, WPPConnect, cobrança e mapas) |
 | Aplicação móvel | Web responsivo e PWA, com restrições de navegador respeitadas |
 | Operação | systemd/Supervisor, cron/worker, logs estruturados, métricas, backup e deploy via GitHub Actions (planejado) |
 
@@ -190,12 +232,14 @@ Documentação oficial:
 ```mermaid
 flowchart LR
   A[Garçom / Caixa / Cliente / iFood] --> B[HTTP API PHP MVC]
+  W[WPPConnect Server: sessões WhatsApp] -->|Webhook autenticado| B
   B --> C[(MySQL: Pedido + Outbox)]
   C --> D[Worker de eventos]
   D --> E[(Redis Pub/Sub)]
   E --> F[Servidor WebSocket PHP]
   F --> G[Cozinha / Caixa / Garçom / Entregador]
   D --> H[Jobs: notificações e integrações]
+  H -->|Envio autorizado e enfileirado| W
 ```
 
 **Regra fundamental:** o comando de negócio entra por HTTP/API, passa por autorização e transação e é gravado no MySQL. O WebSocket **transmite eventos confirmados**; não é fonte de verdade e não executa baixas financeiras/estoque sem passar pela camada de negócio.
@@ -208,11 +252,13 @@ tenant.{tenantId}.establishment.{establishmentId}.kitchen
 tenant.{tenantId}.establishment.{establishmentId}.tables
 tenant.{tenantId}.establishment.{establishmentId}.cash
 delivery.{deliveryId}.tracking
+tenant.{tenantId}.establishment.{establishmentId}.whatsapp.inbox
+tenant.{tenantId}.establishment.{establishmentId}.whatsapp.connection
 ```
 
 Os nomes acima são exemplos internos: a assinatura exige **ticket de curta duração**, autenticação, autorização por tenant/unidade e escopo específico. O servidor valida `Origin`, limite de conexões e mensagens; não aceita IDs arbitrários do cliente como prova de permissão.
 
-Eventos típicos: `order.created`, `order.updated`, `order.cancelled`, `kitchen.ticket.created`, `kitchen.item.ready`, `table.updated`, `cash.session.closed`, `delivery.assigned`, `delivery.location.updated`. Todo evento deve trazer `event_id`, `tenant_id`, `establishment_id`, versão/ordem lógica quando cabível e `occurred_at`.
+Eventos típicos: `order.created`, `order.updated`, `order.cancelled`, `kitchen.ticket.created`, `kitchen.item.ready`, `table.updated`, `cash.session.closed`, `delivery.assigned`,  `delivery.location.updated`, `whatsapp.session.updated`, `whatsapp.message.received`, `whatsapp.message.status.updated`. Todo evento deve trazer `event_id`, `tenant_id`, `establishment_id`, versão/ordem lógica quando cabível e `occurred_at`.
 
 **Disponibilidade:** implementar reconexão com backoff, heartbeat e reidratação do estado via API. Redis Pub/Sub sozinho não garante entrega; a Outbox persiste a intenção e permite retentativas.
 
@@ -249,8 +295,10 @@ cardapim/
 │   │   ├── Customers/         # clientes e endereços
 │   │   ├── Finance/           # lançamentos, despesas, recebíveis
 │   │   ├── Reports/           # consultas e exportações
+│   │   ├── WhatsApp/          # inbox, contatos, atendentes, mensagens, automações
 │   │   ├── Integrations/
 │   │   │   ├── IFood/
+│   │   │   ├── WPPConnect/     # adaptador REST, sessões e normalização de webhooks
 │   │   │   ├── Billing/
 │   │   │   └── Maps/
 │   │   └── Notifications/
@@ -266,6 +314,7 @@ cardapim/
 │       ├── pos/
 │       ├── waiter/
 │       ├── kitchen/
+│       ├── inbox/             # atendimento WhatsApp por estabelecimento
 │       ├── courier/
 │       └── storefront/
 ├── bootstrap/
@@ -275,6 +324,7 @@ cardapim/
 │   ├── database.php
 │   ├── permissions.php
 │   ├── realtime.php
+│   ├── whatsapp.php
 │   └── services.php
 ├── database/
 │   ├── migrations/
@@ -301,6 +351,7 @@ cardapim/
 ├── workers/
 │   ├── outbox.php
 │   ├── queue.php
+│   ├── whatsapp_dispatch.php # fila de envio e automações, sem bloquear HTTP
 │   └── reconciler.php
 ├── storage/
 │   ├── logs/
@@ -354,6 +405,7 @@ Arquivos sensíveis (`.env`, tokens, uploads privados e backups) ficam fora do r
 | Clientes | `customers`, `customer_addresses`, `customer_tenant_links` | Compradores, dados de entrega e vínculo à empresa |
 | Financeiro | `financial_categories`, `financial_accounts`, `financial_entries`, `accounts_payable`, `accounts_receivable`, `settlements`, `reconciliations` | Fluxo financeiro, obrigações e repasses |
 | Integrações | `integration_connections`, `external_order_links`, `integration_events`, `integration_sync_logs` | Conexões, IDs externos e eventos |
+| WhatsApp | `whatsapp_connections`, `whatsapp_contacts`, `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_message_events`, `whatsapp_assignments`, `whatsapp_automation_flows`, `whatsapp_automation_runs`, `whatsapp_opt_ins` | Sessões por unidade, contatos e inbox, envio, eventos, atendimentos, automações e preferências |
 | Infra/eventos | `event_outbox`, `job_attempts`, `idempotency_keys`, `notification_logs` | Entrega confiável, retry e deduplicação |
 
 > Esta é uma **proposta de modelagem**, não um schema já migrado. As tabelas serão criadas por migrations versionadas e revisadas por fluxo, com restrições de tenant e índices planejados.
@@ -381,6 +433,10 @@ erDiagram
     INGREDIENTS ||--o{ RECIPE_ITEMS : compoe
     STOCK_LOCATIONS ||--o{ STOCK_MOVEMENTS : registra
     ORDERS ||--o{ EXTERNAL_ORDER_LINKS : vincula
+    ESTABLISHMENTS ||--o{ WHATSAPP_CONNECTIONS : conecta
+    WHATSAPP_CONNECTIONS ||--o{ WHATSAPP_CONVERSATIONS : organiza
+    WHATSAPP_CONVERSATIONS ||--o{ WHATSAPP_MESSAGES : possui
+    ORDERS ||--o{ WHATSAPP_CONVERSATIONS : pode_originar
 ```
 
 ### 7.3 Campos críticos (primeira migração de negócio)
@@ -401,6 +457,12 @@ erDiagram
 | `stock_movements` | `id`, `tenant_id`, `establishment_id`, `stock_location_id`, `ingredient_id`, `quantity_delta`, `unit_cost`, `reason`, `reference_type`, `reference_id`, `created_at` |
 | `deliveries` | `id`, `tenant_id`, `establishment_id`, `order_id`, `driver_id`, `status`, `assigned_at`, `picked_up_at`, `completed_at`, `tracking_token_hash` |
 | `integration_events` | `id`, `tenant_id`, `integration_connection_id`, `provider`, `external_event_id`, `event_type`, `payload_json`, `status`, `processed_at` |
+| `whatsapp_connections` | `id`, `tenant_id`, `establishment_id`, `provider`, `session_key`, `server_node`, `phone_e164`, `status`, `token_secret_ref`, `connected_at`, `disconnected_at` |
+| `whatsapp_contacts` | `id`, `tenant_id`, `establishment_id`, `external_contact_id`, `phone_e164`, `display_name`, `customer_id`, `created_at` |
+| `whatsapp_conversations` | `id`, `tenant_id`, `establishment_id`, `connection_id`, `contact_id`, `order_id` (opcional), `assigned_user_id`, `status`, `automation_paused`, `last_message_at` |
+| `whatsapp_messages` | `id`, `tenant_id`, `establishment_id`, `conversation_id`, `external_message_id`, `direction`, `message_type`, `body`, `delivery_status`, `sent_at`, `received_at` |
+| `whatsapp_message_events` | `id`, `tenant_id`, `connection_id`, `event_type`, `external_event_key`, `payload_json`, `processed_at`, `status` |
+| `whatsapp_automation_flows` | `id`, `tenant_id`, `establishment_id`, `name`, `trigger`, `configuration_json`, `is_active`, `version` |
 | `event_outbox` | `id`, `tenant_id`, `aggregate_type`, `aggregate_id`, `event_type`, `payload_json`, `status`, `attempts`, `available_at`, `published_at` |
 
 **Índices/constraints prioritários:**
@@ -408,6 +470,9 @@ erDiagram
 - Unicidade de `tenants.slug`, `establishments(tenant_id, slug)` e vínculo de usuários por escopo.
 - Índices `orders(tenant_id, establishment_id, placed_at)`, `orders(tenant_id, establishment_id, status, placed_at)` e `payments(tenant_id, paid_at)`.
 - Unicidade de eventos externos **dentro do escopo do provedor/conexão**, por exemplo `UNIQUE(integration_connection_id, external_event_id)`.
+- `whatsapp_connections`: `UNIQUE(provider, server_node, session_key)`; todas as consultas por `(tenant_id, establishment_id)`; impedir vínculo de sessão entre tenants. Limite de conexões ativas por unidade/plano validado transacionalmente.
+- `whatsapp_messages`: `UNIQUE(conversation_id, external_message_id)` quando o ID externo existir; `whatsapp_message_events`: chave idempotente composta por conexão, tipo e identificador externo. Índices de inbox por `(tenant_id, establishment_id, last_message_at)`.
+- Identificadores de contato devem preservar o ID real do provedor (incluindo variantes como LID) e não depender somente de número de telefone; normalização e vinculação de contatos precisam ser explícitas.
 - Chave externa composta com `tenant_id` quando necessário para impedir vínculos de linhas entre tenants.
 - `stock_balances` único por `(tenant_id, establishment_id, stock_location_id, ingredient_id)`; concorrência com transação e lock.
 - `event_outbox(status, available_at)` para workers e `idempotency_keys(scope, key)` com expiração.
@@ -421,12 +486,14 @@ erDiagram
 4. Pedido recebido **não equivale** a pagamento liquidado; um pedido iFood pago na plataforma gera recebível/repasse, não entrada imediata de dinheiro no caixa.
 5. Toda atualização de pedido usa máquina de estados e log de transições; mudanças inválidas são recusadas.
 6. Mudança de preço/nome no catálogo não altera o comprovante de uma venda já realizada.
+7. Mensagem WhatsApp não é pedido nem pagamento: só criar pedido após validação e confirmação pelo fluxo de Orders; novos pedidos usam a mesma transação/Outbox dos demais canais.
+8. Retry de envio ou webhook WhatsApp não duplica mensagem de saída, contato, conversa nem pedido. Segredos de sessões nunca são salvos em campos de texto comuns ou retornados ao frontend.
 
 ---
 
 ## 8. Ciclo de vida de pedidos
 
-Origens: `pos`, `waiter`, `storefront`, `ifood`, com tipo `dine_in`, `pickup` ou `delivery`. O sistema deve manter **origem, tipo, status operacional e status financeiro separados**.
+Origens: `pos`, `waiter`, `storefront`, `ifood`, `whatsapp`, com tipo `dine_in`, `pickup` ou `delivery`. O sistema deve manter **origem, tipo, status operacional e status financeiro separados**.
 
 ```text
 Novo / aguardando confirmação
@@ -474,6 +541,16 @@ GET    /api/v1/establishments/{id}/finance/summary
 GET    /api/v1/establishments/{id}/deliveries
 PATCH  /api/v1/establishments/{id}/deliveries/{id}/status
 POST   /api/v1/realtime/ticket
+GET    /api/v1/establishments/{id}/whatsapp/connection
+POST   /api/v1/establishments/{id}/whatsapp/connect
+POST   /api/v1/establishments/{id}/whatsapp/disconnect
+GET    /api/v1/establishments/{id}/whatsapp/conversations
+GET    /api/v1/establishments/{id}/whatsapp/conversations/{conversationId}/messages
+POST   /api/v1/establishments/{id}/whatsapp/conversations/{conversationId}/messages
+PATCH  /api/v1/establishments/{id}/whatsapp/conversations/{conversationId}/assignment
+GET    /api/v1/establishments/{id}/whatsapp/automations
+POST   /api/v1/establishments/{id}/whatsapp/automations
+POST   /webhooks/wppconnect
 POST   /webhooks/ifood
 POST   /webhooks/billing/{provider}
 GET    /loja/{slug}
@@ -491,7 +568,9 @@ Rotas ilustrativas, sujeitas a desenho de autorização, rate limit, paginação
 - RBAC no backend, separação por tenant/unidade, MFA para perfis críticos quando implementado e auditoria de ações sensíveis.
 - `prepared statements`/PDO, validação server-side, escape de templates, Content Security Policy e proteção de upload.
 - Segredos fora do Git; criptografia de tokens de integrações em repouso; rotação de credenciais.
-- Webhook com autenticação/assinatura conforme provedor, replay protection e deduplicação persistente.
+- Webhook com autenticação/assinatura conforme provedor, replay protection e deduplicação persistente. Para WPPConnect, definir autenticação no reverse proxy/serviço quando a versão não fornecer assinatura nativa.
+- Sessões WPPConnect, chaves mestras, tokens e perfis de navegador criptografados/protegidos em disco; serviço WPPConnect sem acesso público administrativo, com allowlist de webhook e segregação de permissões.
+- Tratar conversas como dados pessoais: políticas de retenção, acesso por perfil, anonimização/exclusão legalmente cabível e opt-in de comunicações promocionais. Evitar exibir mensagens privadas em auditoria/telemetria.
 - Backup automatizado do MySQL e uploads privados, retenção, restauração testada e alarmes para filas paradas.
 - Logs estruturados por `request_id`, `tenant_id` e `establishment_id`, **sem gravar tokens, dados completos de cartão ou localização desnecessária**.
 - LGPD: base legal/consentimento conforme finalidade, transparência, exclusão/anônimização quando cabível e retenção limitada.
@@ -512,13 +591,16 @@ Nginx → public/index.php → PHP-FPM
    ├── MySQL
    ├── Redis
    ├── Worker Outbox / Jobs (systemd)
-   └── WebSocket PHP (systemd + proxy Nginx em WSS)
+   ├── WebSocket PHP (systemd + proxy Nginx em WSS)
+   └── WPPConnect Server Node.js (container/processo isolado + volumes persistentes)
+         └── webhook privado → PHP /webhooks/wppconnect
 ```
 
 - Publicar **somente** `public/` no webroot.
 - Processos de worker e websocket independentes do pool PHP-FPM, com restart automático.
 - `wss://<dominio-configurado>/realtime` via Nginx com upgrade e TLS; o domínio exato deve ser confirmado.
-- Healthchecks para HTTP, DB, Redis, workers e WebSocket; deploy com rollback e backup antes de migrations destrutivas.
+- Healthchecks para HTTP, DB, Redis, workers, WebSocket e WPPConnect; deploy com rollback e backup antes de migrations destrutivas.
+- Isolar a API/Manager do WPPConnect por firewall/rede interna, com credenciais próprias, volumes de sessão persistentes e backups protegidos; verificar CPU/RAM, dependências do Chromium e limites de sessões simultâneas.
 - Ambientes `local`, `staging` e `production`, cada qual com segredos próprios.
 - Não executar automaticamente migrations destrutivas em produção.
 
@@ -539,6 +621,11 @@ REALTIME_PUBLIC_URL=ws://localhost:8080
 REALTIME_TICKET_SECRET=
 IFOOD_CLIENT_ID=
 IFOOD_CLIENT_SECRET=
+WPPCONNECT_BASE_URL=http://127.0.0.1:21465
+WPPCONNECT_SECRET_KEY=
+WPPCONNECT_WEBHOOK_SHARED_SECRET=
+WPPCONNECT_WEBHOOK_ALLOWED_URL=
+WHATSAPP_CONNECTIONS_LIMIT_DEFAULT=1
 BILLING_PROVIDER=
 BILLING_WEBHOOK_SECRET=
 ```
@@ -557,8 +644,9 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 | **3 — Estoque + financeiro** | Insumos, fichas técnicas, reservas/baixas, compras, relatórios, despesas e recebíveis | Venda e cancelamento geram lançamentos corretos e reversíveis |
 | **4 — Cardápio online + delivery** | QR Code, checkout público, retirada, áreas/taxas, despacho, entregador e rastreamento consentido | Cliente acompanha pedido; entregador vê apenas as suas entregas |
 | **5 — SaaS comercial** | Onboarding, planos, assinatura, cobrança, inadimplência, painel plataforma e limites | Tenant é criado, assina e acessa somente recursos do plano |
-| **6 — iFood** | Cadastro developer, OAuth/conexões, webhook/polling, status, retries, homologação e conciliação | Pedido iFood entra uma vez, percorre fluxo correto e mantém rastreabilidade |
-| **7 — Expansão** | Fiscal, impressão, BI avançado, promoções, fidelidade, integrações e múltiplas unidades avançadas | Recursos validados com usuários reais |
+| **6 — WhatsApp/WPPConnect** | Conexão por QR Code por estabelecimento, sessão e webhook, inbox com RBAC, fila de envio, automações supervisionadas e métricas | Duas lojas conectam números diferentes; mensagens e sessões não vazam entre tenants; pedido via chat exige confirmação |
+| **7 — iFood** | Cadastro developer, OAuth/conexões, webhook/polling, status, retries, homologação e conciliação | Pedido iFood entra uma vez, percorre fluxo correto e mantém rastreabilidade |
+| **8 — Expansão** | Fiscal, impressão, BI avançado, promoções, fidelidade, integrações e múltiplas unidades avançadas | Recursos validados com usuários reais |
 
 **MVP inicial recomendado:** concluir primeiro o ciclo **cadastro → produto → mesa/PDV → pedido → cozinha → pagamento → fechamento**; depois acrescentar estoque profundo, delivery, comercialização SaaS e integração oficial iFood sem reescrever o núcleo. A ordem pode mudar por necessidade de mercado, mas o isolamento multi-tenant, as regras financeiras e o modelo de eventos devem nascer na fase 0.
 
@@ -568,7 +656,8 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 - Permissões verificadas no backend por função e estabelecimento.
 - Transações e idempotência cobertas por testes de repetição/concorrência.
 - Documentação atualizada da API, migrations reversíveis quando possível e changelog.
-- Logs e tratamento de erros que permitam diagnosticar pedidos travados, divergências de caixa e falhas iFood.
+- Logs e tratamento de erros que permitam diagnosticar pedidos travados, divergências de caixa, falhas iFood e desconexões/eventos duplicados do WhatsApp.
+- Teste ponta a ponta de 2 tenants/3 unidades: conexão de WhatsApp, QR Code, inbox, RBAC, autoatendimento pausado e mensagens idempotentes em reconexão.
 
 ---
 
@@ -579,12 +668,15 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 - [x] Backend: PHP MVC; hospedagem em VPS com domínio/SSL provisionados.
 - [x] Realtime: WebSocket **próprio no servidor**, sem depender de serviço SaaS de push.
 - [x] Multi-restaurante e múltiplas funções de equipe/clientes.
+- [x] Módulo WhatsApp **planejado** via WPPConnect Server, com sessão e atendimento isolados por estabelecimento.
 - [ ] Definir domínio definitivo do app, subdomínios de lojas e ambiente de staging.
 - [ ] Validar stack real da VPS e a forma de inicialização dos workers.
 - [ ] Decidir planos/preços, limites e gateway de cobrança.
 - [ ] Definir política de baixa de estoque por tipo de pedido e manejo de perdas.
 - [ ] Escolher serviço de mapas/roteamento e retenção do rastreamento.
 - [ ] Homologar integração iFood; avaliar módulo de catálogo e financeiro separadamente.
+- [ ] Escolher versão/infra do WPPConnect Server, validar webhooks/autenticação, requisitos de memória e limites de sessões simultâneas.
+- [ ] Definir regras de retenção, consentimento e categorias de mensagens WhatsApp; testar suspensão/desconexão e eventual caminho para API oficial Meta.
 - [ ] Avaliar regras de NFC-e/NF-e, impressoras, TEF e dados fiscais por município/estado.
 - [ ] Especificar operação offline/degradação de conexão no PDV (fase futura).
 - [ ] Criar migrations, módulos, telas e testes de acordo com o roadmap.
