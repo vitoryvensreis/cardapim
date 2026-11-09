@@ -77,6 +77,8 @@ check_health() {
   [[ "$page" == *"Seu restaurante cresce"* ]] || return 1
   curl -fsS --max-time 20 "$site_url/login" >/dev/null || return 1
   curl -fsS --max-time 20 "$site_url/assets/css/site.css" >/dev/null || return 1
+  # /status so retorna HTTP 200 quando o PHP acessa o MySQL.
+  curl -fsS --max-time 20 -H 'Accept: application/json' "$site_url/status" >/dev/null || return 1
 }
 if ! check_health; then
   echo "Falha de healthcheck HTTP: revertendo symlink."

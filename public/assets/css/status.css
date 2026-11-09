@@ -1,0 +1,47 @@
+:root {
+    --status-wine: #651424;
+    --status-orange: #FF5825;
+    --status-white: #FFFFFF;
+    --status-bg: #faf7f8;
+    --status-text: #321822;
+    --status-muted: #675a60;
+    --status-line: #e9e0e3;
+    --status-ok: #176b49;
+    --status-ok-bg: #e9f7ef;
+    --status-error: #9a2937;
+    --status-error-bg: #fff0f0;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin: 0; background: var(--status-bg); color: var(--status-text); }
+a { color: inherit; text-decoration: none; }
+a:focus-visible { outline: 3px solid var(--status-orange); outline-offset: 4px; }
+.status-page { min-height: 100vh; padding: 24px; }
+.status-shell { max-width: 900px; margin-inline: auto; }
+.status-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 0 40px; }
+.status-brand img { display: block; max-width: 100%; height: auto; }
+.status-back { font-size: 0.9rem; font-weight: 650; color: var(--status-wine); }
+.status-back:hover { text-decoration: underline; }
+.status-intro { margin-bottom: 28px; }
+.status-kicker { color: var(--status-orange); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.12em; }
+.status-intro h1 { margin: 8px 0 12px; color: var(--status-wine); font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: -0.04em; }
+.status-intro > p:not(.status-kicker) { max-width: 640px; color: var(--status-muted); line-height: 1.6; }
+.status-overall { display: inline-flex; gap: 12px; align-items: center; border-radius: 12px; padding: 14px 18px; margin-top: 12px; font-size: 0.9rem; font-weight: 650; }
+.status-overall.is-online, .service-label.is-online { background: var(--status-ok-bg); color: var(--status-ok); }
+.status-overall.is-offline, .service-label.is-offline { background: var(--status-error-bg); color: var(--status-error); }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; background: currentColor; }
+.status-services { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.service-card { background: var(--status-white); padding: clamp(22px, 4vw, 34px); border-radius: 18px; border: 1px solid var(--status-line); box-shadow: 0 10px 32px rgb(61 20 35 / 4%); }
+.service-heading { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.service-heading h2 { margin: 0; font-size: 1.2rem; color: var(--status-wine); }
+.service-card p { color: var(--status-muted); line-height: 1.5; margin: 16px 0 26px; }
+.service-label { border-radius: 999px; padding: 6px 11px; font-size: 0.78rem; font-weight: 750; }
+.service-detail { border-top: 1px solid var(--status-line); padding-top: 18px; font-size: 0.86rem; font-weight: 650; }
+.status-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 24px; padding: 16px 0; font-size: 0.8rem; color: var(--status-muted); }
+@media (max-width: 640px) {
+    .status-page { padding: 16px; }
+    .status-header { padding-bottom: 28px; }
+    .status-brand img { width: 130px; }
+    .status-services { grid-template-columns: 1fr; }
+    .status-overall { align-items: flex-start; }
+}

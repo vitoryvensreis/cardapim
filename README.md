@@ -6,6 +6,16 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Primeiras tabelas e monitoramento de saúde
+
+- **/status**: página de status de PHP 8.4 e da conexão MySQL (HTTP 200 quando conectado; 503 quando indisponível). Resposta JSON com cabeçalho `Accept: application/json`.
+- **planos**: nome, descrição, valor `DECIMAL(10,2)`, período mensal/semestral/anual, ativo e timestamps.
+- **restaurantes**: nome, telefone, e-mail, CNPJ, slug, logo, status, timestamps e chave estrangeira `plano_id` para planos.
+- Duas migrations MySQL versionadas e testes de integração em CI. O deploy do código é automático quando habilitado; a criação efetiva das tabelas em produção depende de aplicar as migrations com backup.
+- [Esquema e comandos para a VPS](docs/database/initial-schema.md).
+
+---
+
 ## 🚀 Primeira entrega de código — landing page e roteamento
 
 A estrutura inicial em **PHP 8.4 MVC, pastas, URLs amigáveis, `.htaccess` Apache, configuração Nginx e landing page responsiva** foi adicionada ao repositório. As rotas `/`, `/login` e `/cadastro` estão preparadas. O hero possui animações CSS e há um botão **Entrar** no canto superior direito.
@@ -30,7 +40,7 @@ A identidade visual oficial foi fornecida nos arquivos SVG e substitui os elemen
 Os SVGs de origem incluem variações mínimas de canal de cor (`#651423` e `#FE5826`), mas **o CSS segue exatamente a paleta oficial informada: `#651424`, `#FFFFFF` e `#FF5825`**.
 
 ---
-## Deploy automatizado via GitHub (preparado, ainda não ativado)
+## Deploy automatizado via GitHub
 
 A estrutura para CI/CD está em [`.github/workflows/ci-deploy.yml`](.github/workflows/ci-deploy.yml). Cada atualização na `main` executa verificação de PHP 8.4, Composer, JavaScript e rotas da landing page. **O deploy só acontece se `CARDAPIM_DEPLOY_ENABLED=true` estiver configurado no GitHub**, com os secrets SSH, diretório e URL do CloudPanel validados.
 
@@ -38,7 +48,7 @@ O deploy será realizado por usuário não-root, com releases versionadas, armaz
 
 Informações de infraestrutura fornecidas: domínio `cardapim.escotilhaprodutora.com`, banco `cardapim`, usuário MySQL `cardapim-user`, host MySQL `127.0.0.1`, porta `3306`, usuário do site `escotilhaprodutora-cardapim`. **Nenhuma senha deve ser colocada no Git ou compartilhada no chat.**
 
-Leia o [guia completo de ativação do deploy no CloudPanel](docs/deploy/cloudpanel.md) antes de habilitar a automação. Enquanto não forem configuradas as credenciais e o vhost, o código **não está publicado na VPS** por esse pipeline.
+Leia o [guia completo de deploy no CloudPanel](docs/deploy/cloudpanel.md). O fluxo SSH e publicação da landing page foi validado na VPS em 09/11/2026; migrations automáticas permanecem desativadas até a configuração de backup.
 
 ---
 ## 1. Visão do produto
