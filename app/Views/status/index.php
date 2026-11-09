@@ -2,7 +2,7 @@
     <div class="status-shell">
         <header class="status-header">
             <a class="status-brand" href="/" aria-label="Cardapim, voltar à página inicial">
-                <img src="/assets/img/logo-colorida.svg" alt="Cardapim" width="166" height="48">
+                <img src="/assets/img/logo-preta.svg" alt="Cardapim" width="190" height="61">
             </a>
             <a class="status-back" href="/">Voltar ao site</a>
         </header>
