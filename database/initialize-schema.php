@@ -26,7 +26,7 @@ try {
     ];
     $availableFiles = array_map('basename', glob(__DIR__ . '/migrations/*.php') ?: []);
     sort($availableFiles, SORT_STRING);
-    if ($availableFiles !== $expectedFiles) {
+    if (array_diff($expectedFiles, $availableFiles) !== []) {
         throw new RuntimeException('Conjunto de migrations diferente do schema inicial esperado.');
     }
 

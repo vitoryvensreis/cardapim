@@ -38,6 +38,15 @@ WHERE TABLE_SCHEMA = DATABASE()
     AND REFERENCED_COLUMN_NAME = 'id'
 SQL)->fetchColumn();
 
+$lastPaymentType = $db->query(<<<'SQL'
+SELECT DATA_TYPE FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'restaurantes' AND COLUMN_NAME = 'ultimo_pagamento'
+SQL)->fetchColumn();
+
+if ($lastPaymentType !== 'date') {
+    throw new RuntimeException('Ultimo pagamento precisa ser DATE.');
+}
+
 if ((int) $foreignKey !== 1) {
     throw new RuntimeException('A chave estrangeira restaurantes.plano_id deve existir.');
 }
@@ -52,14 +61,20 @@ try {
     $restaurant->execute(['Restaurante de integracao', 'teste-integracao-cardapim', '85999999999', $planId]);
     $restaurantId = (int) $db->lastInsertId();
 
-    $check = $db->prepare('SELECT status_rest, plano_id FROM restaurantes WHERE id = ?');
+    $check = $db->prepare('SELECT status_rest, plano_id, ultimo_pagamento FROM restaurantes WHERE id = ?');
     $check->execute([$restaurantId]);
     $saved = $check->fetch();
 
-    if (!$saved || $saved['status_rest'] !== 'pendente' || (int) $saved['plano_id'] !== $planId) {
+    if (!$saved || $saved['status_rest'] !== 'pendente' || (int) $saved['plano_id'] !== $planId || $saved['ultimo_pagamento'] !== null) {
         throw new RuntimeException('Falha na insercao ou nos valores padrao do restaurante.');
     }
 
+    $db->prepare('UPDATE restaurantes SET ultimo_pagamento = ? WHERE id = ?')->execute(['2026-11-09', $restaurantId]);
+    $date = $db->prepare('SELECT ultimo_pagamento FROM restaurantes WHERE id = ?');
+    $date->execute([$restaurantId]);
+    if ($date->fetchColumn() !== '2026-11-09') {
+        throw new RuntimeException('Falha ao registrar data do ultimo pagamento.');
+    }
     $db->rollBack();
 } catch (Throwable $error) {
     if ($db->inTransaction()) {
