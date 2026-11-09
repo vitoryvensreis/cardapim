@@ -55,8 +55,8 @@ As operações executam no banco informado no shared/.env. Não inserir credenci
 
 O workflow de deploy continua respeitando CARDAPIM_RUN_MIGRATIONS=false; não ativar sem configurar backup privado mysql-backup.cnf e política de retenção. As tabelas são criadas vazias, sem planos ou restaurantes fictícios.
 
-## Bootstrap inicial pelo GitHub Actions
+## Bootstrap inicial concluído em 09/11/2026
 
-Uma unica execução do workflow com marcador [cardapim-initial-schema] no titulo de merge aplica o schema **somente quando o banco cardapim não possui tabelas operacionais**. Se houver tabelas não previstas, histórico incompatível ou esquema parcial, a etapa aborta sem alterar dados. O script permanece disponível na CLI para conferir a estrutura existente.
+O schema inicial foi aplicado na VPS pelo GitHub Actions #12, release 9e165516, com as duas migrations confirmadas no log e relacionamento validado. O gatilho especial de inicialização foi desativado após a execução, evitando repetição acidental em deploys futuros.
 
-Essa inicialização não ativa CARDAPIM_RUN_MIGRATIONS, que continua false para as futuras migrations exigirem plano de backup.
+O script `database/initialize-schema.php --apply` continua disponível em CLI para verificação controlada do esquema inicial; ele recusa bancos com tabelas inesperadas ou estrutura parcial. As próximas migrations exigem configuração prévia de backup. CARDAPIM_RUN_MIGRATIONS permanece false.
