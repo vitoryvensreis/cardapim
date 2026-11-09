@@ -14,7 +14,7 @@ $description = htmlspecialchars($pageDescription ?? 'Gestão de restaurantes do 
     <meta property="og:title" content="<?= $title ?>">
     <meta property="og:description" content="<?= $description ?>">
     <title><?= $title ?></title>
-    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/assets/img/icone.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -26,8 +26,7 @@ $description = htmlspecialchars($pageDescription ?? 'Gestão de restaurantes do 
     <header class="site-header" id="topo">
         <div class="shell navbar">
             <a class="brand" href="/" aria-label="Cardapim, página inicial">
-                <span class="brand-icon" aria-hidden="true"><span class="brand-leaf"></span></span>
-                <span>cardapim<span class="brand-period">.</span></span>
+                <img class="brand-logo" src="/assets/img/logo-colorida.svg" width="176" height="57" alt="Cardapim">
             </a>
             <nav class="nav-links" id="main-navigation" aria-label="Navegação principal">
                 <a href="/#recursos">Recursos</a>
@@ -47,8 +46,7 @@ $description = htmlspecialchars($pageDescription ?? 'Gestão de restaurantes do 
     <footer class="site-footer">
         <div class="shell footer-wrap">
             <a class="brand brand-footer" href="/" aria-label="Cardapim">
-                <span class="brand-icon" aria-hidden="true"><span class="brand-leaf"></span></span>
-                <span>cardapim<span class="brand-period">.</span></span>
+                <img class="brand-logo" src="/assets/img/logo-branca.svg" width="176" height="57" alt="Cardapim">
             </a>
             <span>Menos complicação. Mais restaurante.</span>
             <span>© <?= date('Y') ?> Cardapim</span>

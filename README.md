@@ -15,6 +15,21 @@ A estrutura inicial em **PHP 8.4 MVC, pastas, URLs amigáveis, `.htaccess` Apach
 Para executar localmente: `php -S localhost:8000 -t public dev/router.php`. Na VPS com Nginx/CloudPanel, o DocumentRoot deve ser a pasta `/public` e o vhost precisa da regra `try_files`. Detalhes no [guia da fase 0A](docs/implementation/phase-0.md).
 
 ---
+## Identidade visual oficial
+
+A identidade visual oficial foi fornecida nos arquivos SVG e substitui os elementos gráficos provisórios da landing page:
+
+| Cor | Hexadecimal | Uso sugerido |
+| --- | --- | --- |
+| **Vinho** | `#651424` | Fundo principal, detalhes de marca e títulos |
+| **Branco** | `#FFFFFF` | Texto em fundo escuro, áreas claras e respiro |
+| **Laranja** | `#FF5825` | Botões, chamadas de atenção e destaques |
+
+**Logos originais:** [`logo-branca.svg`](public/assets/img/logo-branca.svg), [`logo-colorida.svg`](public/assets/img/logo-colorida.svg) e [`logo-preta.svg`](public/assets/img/logo-preta.svg). **Ícone oficial:** [`icone.svg`](public/assets/img/icone.svg), também usado como favicon. A landing usa a logo colorida no cabeçalho e a branca no rodapé. Todas as versões estão preservadas sem alterações de formas.
+
+Os SVGs de origem incluem variações mínimas de canal de cor (`#651423` e `#FE5826`), mas **o CSS segue exatamente a paleta oficial informada: `#651424`, `#FFFFFF` e `#FF5825`**.
+
+---
 ## 1. Visão do produto
 
 A proposta é centralizar a operação diária de cada negócio em uma experiência simples, rápida, responsiva e automatizada:
