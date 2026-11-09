@@ -60,3 +60,17 @@ O workflow de deploy continua respeitando CARDAPIM_RUN_MIGRATIONS=false; não at
 O schema inicial foi aplicado na VPS pelo GitHub Actions #12, release 9e165516, com as duas migrations confirmadas no log e relacionamento validado. O gatilho especial de inicialização foi desativado após a execução, evitando repetição acidental em deploys futuros.
 
 O script `database/initialize-schema.php --apply` continua disponível em CLI para verificação controlada do esquema inicial; ele recusa bancos com tabelas inesperadas ou estrutura parcial. As próximas migrations exigem configuração prévia de backup. CARDAPIM_RUN_MIGRATIONS permanece false.
+
+## Planos fictícios e último pagamento (11/2026)
+
+A migration `20261109235000_add_ultimo_pagamento_restaurantes.php` adiciona `restaurantes.ultimo_pagamento DATE NULL DEFAULT NULL`. O campo registra a data do último pagamento individual de cada restaurante e permanece nulo até um pagamento real; ele **não** representa uma data comum a todos os restaurantes do mesmo plano.
+
+Três planos de demonstração, **sem cobrança real**, são semeados pelo script `php8.4 database/seed-demo-planos.php --apply`. O seeder é idempotente: não modifica planos existentes com mesmo nome e período.
+
+| Nome | Período | Valor fictício |
+| --- | --- | --- |
+| Demonstração Mensal | mensal | R$ 99,90 |
+| Demonstração Semestral | semestral | R$ 499,90 |
+| Demonstração Anual | anual | R$ 899,90 |
+
+Uma publicação única marcada com `[cardapim-demo-plans]` executará backup MySQL via mysqldump antes da migration e do seeder na VPS. O backup comprimido ficará em `shared/backups` com permissão 600. O gatilho deverá ser removido depois da primeira execução verificada. Manter `CARDAPIM_RUN_MIGRATIONS=false` para atualizações futuras não autorizadas.
