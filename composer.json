@@ -1,0 +1,14 @@
+{
+  "name": "cardapim/app",
+  "description": "Cardapim - Plataforma SaaS para restaurantes",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Cardapim\\": "app/"
+    }
+  }
+}

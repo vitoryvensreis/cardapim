@@ -6,6 +6,15 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## 🚀 Primeira entrega de código — landing page e roteamento
+
+A estrutura inicial em **PHP 8.4 MVC, pastas, URLs amigáveis, `.htaccess` Apache, configuração Nginx e landing page responsiva** foi adicionada ao repositório. As rotas `/`, `/login` e `/cadastro` estão preparadas. O hero possui animações CSS e há um botão **Entrar** no canto superior direito.
+
+**Importante:** as páginas de login e cadastro são temporárias, ainda sem autenticação. Integrações e operação dos restaurantes seguem como módulos planejados.
+
+Para executar localmente: `php -S localhost:8000 -t public dev/router.php`. Na VPS com Nginx/CloudPanel, o DocumentRoot deve ser a pasta `/public` e o vhost precisa da regra `try_files`. Detalhes no [guia da fase 0A](docs/implementation/phase-0.md).
+
+---
 ## 1. Visão do produto
 
 A proposta é centralizar a operação diária de cada negócio em uma experiência simples, rápida, responsiva e automatizada:

@@ -1,0 +1,14 @@
+# Cardapim - URLs amigaveis no Nginx.
+# CloudPanel ja possui server{}, SSL e PHP-FPM: ajustar o vhost existente.
+# NUNCA duplicar location / se ele ja existir.
+# DocumentRoot do dominio: /caminho/cardapim/public.
+#
+# location / {
+#     try_files $uri $uri/ /index.php?$query_string;
+# }
+#
+# location ~ /\.(?!well-known).* {
+#     deny all;
+# }
+#
+# O Nginx nao interpreta arquivos .htaccess.
