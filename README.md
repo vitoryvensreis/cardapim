@@ -19,6 +19,7 @@ A proposta é centralizar a operação diária de cada negócio em uma experiên
 - **Gestão empresarial:** painéis de vendas, margem, desempenho, ticket médio, produtos mais vendidos e auditoria.
 - **SaaS multi-restaurante:** cadastro de empresas, unidades, usuários, permissões, planos, assinaturas e limites de uso.
 - **WhatsApp por restaurante (WPPConnect):** cada unidade conecta seu número por QR Code, atende conversas em uma caixa de entrada própria, recebe solicitações, acompanha pedidos e configura mensagens/fluxos automáticos com supervisão humana.
+- **Pix Asaas por restaurante:** cada unidade conecta sua conta Asaas própria para receber os pedidos online, com QR dinâmico, confirmação, conciliação e financeiro isolado.
 
 ### Princípios
 
@@ -66,7 +67,7 @@ O sistema deve ter testes de isolamento entre tenants e preferencialmente chaves
 - Planos mensais com limites configuráveis (unidades, usuários, pedidos/recursos, armazenamento e integrações), incluindo **quantidade de conexões WhatsApp/sessões ativas**.
 - Período de teste opcional, cobrança recorrente, vencimento, renovação, inadimplência e cancelamento.
 - Bloqueio/grace period com regras claras, preservação de dados e acesso administrativo quando aplicável.
-- Gateway de cobrança desacoplado por interface (ex.: Asaas, se escolhido futuramente).
+- Gateway de **mensalidades da plataforma** desacoplado por interface (Asaas possível), independente das contas Asaas que os restaurantes vinculam para receber seus pedidos.
 - Webhooks de cobrança verificados, idempotentes e auditáveis; sem assumir pagamento por uma simples notificação não validada.
 
 ---
@@ -171,7 +172,86 @@ Documentação oficial:
 
 > Para integrações com múltiplas lojas, o webhook de autenticação centralizada é indicado pela documentação oficial. Webhooks podem chegar **duplicados e fora de ordem**: o código deve ser idempotente. O webhook não substitui um mecanismo de reconciliação.
 
-### 4.10 WhatsApp por restaurante — WPPConnect Server (módulo planejado)
+### 4.10 Pix online — conta Asaas de cada restaurante (planejado)
+
+**Modelo:** cada restaurante/unidade cadastra e utiliza a sua própria conta Asaas, com recebimento Pix direto nessa conta, sem passar pelo saldo da Cardapim. A conta que cobra as **mensalidades da plataforma SaaS** é separada das contas de recebimento dos restaurantes. O escopo inicial é **Pix por QR Code dinâmico** para pedidos do cardápio online, retirada e delivery próprio; outros meios, split e subcontas ficam para futura avaliação.
+
+#### Funcionalidades para o estabelecimento
+
+- Painel **Configurações → Integrações → Asaas**: conectar, verificar e desconectar a chave API da conta própria; escolher Sandbox ou Produção, visualizar apenas status, conta vinculada (quando disponível) e data da última validação. Somente ADM ou perfil autorizado pode gerenciar a conexão.
+- **Uma conta ativa por unidade** como regra inicial: cada loja pode ter credenciais distintas. O backend resolve a conta pelo `tenant_id` e `establishment_id` autenticados; não aceitar identificador de loja ou conta enviado pelo checkout como autoridade.
+- O cliente fecha o pedido online, escolhe Pix e recebe **QR Code e Pix Copia e Cola** com valor calculado no servidor. A interface apresenta status do pagamento, sem exigir atualização manual.
+- Pedido recém-criado fica em `pending_payment`, sem contabilizar recebimento. Confirmação por **webhook Asaas autenticado**, validada por conexão, cobrança, pedido e valor. Pagamento recebido atualiza pedido, caixa digital/financeiro e cozinha conforme a política de produção da loja.
+- Vendas, taxas, valores líquidos, estornos, reconciliações e pagamentos atrasados aparecem no financeiro daquela unidade. Não misturar o Pix recebido na conta Asaas com dinheiro físico em caixa.
+- Se a integração cair, não marcar nenhum pedido como pago por suposição; manter pendente e reconciliar por worker. Uma loja com credencial inválida não afeta os pagamentos de outra.
+
+#### Fluxo principal
+
+```mermaid
+flowchart TD
+  A[Cliente finaliza pedido] --> B[PHP MVC valida tenant, unidade e valor]
+  B --> C[(MySQL pedido pendente e tentativa idempotente)]
+  C --> D[Adaptador Asaas da unidade cria cobrança PIX]
+  D --> E[Checkout mostra QR Code e Copia e Cola]
+  E --> F[Cliente paga no banco]
+  F --> G[Webhook Asaas autenticado]
+  G --> H[Persistir evento, verificar cobrança e conciliar]
+  H --> I[(Atualizar pagamento e financeiro + Outbox)]
+  I --> J[WebSocket atualiza cliente, caixa e cozinha]
+```
+
+#### Integração e regras de segurança
+
+1. **API oficial:** chave da conta Asaas no header `access_token`, utilizada **somente pelo backend PHP**. Separar endpoints e credenciais de Sandbox e Produção. Criar cobrança com `billingType: PIX` em `POST /v3/payments` (ou modalidade `POST /v3/lean/payments` homologada) e buscar QR Code em `GET /v3/payments/{id}/pixQrCode`: `encodedImage`, `payload`, `expirationDate`. Recomenda-se chave Pix já cadastrada na conta. Validar validade real do QR Code; o timeout de um checkout não significa expiração do Pix.
+2. **Segredos:** chave API criptografada em repouso, suporte a rotação/revogação e permissões `asaas.manage`, `payments.read`, `payments.refund`. Nunca enviar chave ao frontend, armazená-la em logs, commitar ou reutilizar chave global da Cardapim.
+3. **Webhook por conexão:** endpoint `POST /webhooks/asaas/{connectionKey}` com chave pública opaca; token próprio por conexão configurado na conta Asaas, validado no header `asaas-access-token`. Comparação segura e conferência de `account.id`, `payment.id`, `externalReference`, valor e escopo do pedido quando disponíveis. Não aceitar callback apenas porque conhece o identificador na URL.
+4. **Idempotência:** gravar evento por `UNIQUE(connection_id, external_event_id)` antes de retornar **HTTP 200**; processar fora da requisição. Retries/duplicidades ou eventos fora de ordem não criam segunda cobrança, segundo pagamento, segunda baixa de estoque nem duplicam financeiro. Guardar a intenção e conciliar falhas de tempo limite antes de criar outra cobrança.
+5. **Estados reais:** a emissão do QR Code **não é pagamento**. O Asaas envia `PAYMENT_CREATED`, `PAYMENT_RECEIVED`, e pode enviar eventos de vencimento, estorno e outros. `PAYMENT_RECEIVED` indica valor disponível; `PAYMENT_CONFIRMED` é um evento distinto, sem equivalência automática a saldo disponível. Não retroceder pagamento já recebido para pendente; registrar reversões separadamente.
+6. **Pedidos cancelados e pagamento tardio:** cancelar o pedido é diferente de cancelar/estornar cobrança Asaas. Se um Pix chegar após timeout ou cancelamento, criar alerta e tratar reembolso/regularização com auditoria. QR Code dinâmico está vinculado à cobrança e não deve ser reutilizado para vários pedidos.
+7. **Privacidade:** dados do pagador, CPF/CNPJ e identificadores externos somente quando necessários, com acesso por unidade, retenção LGPD e logs sem segredos/dados sensíveis. Checkout público consulta apenas seu pedido por autorização/token seguro.
+8. **Mensalidades separadas:** webhook de planos SaaS continua em `/webhooks/billing/{provider}`; webhook de pagamentos de pedidos usa `/webhooks/asaas/{connectionKey}`. Não confundir nenhuma cobrança de assinatura com receitas do restaurante.
+
+#### Estrutura de pastas prevista
+
+```text
+app/Modules/Payments/               # orquestração, tentativa e estado de pagamento
+app/Modules/Integrations/Asaas/     # cliente REST, conectores por loja e webhooks
+config/payments.php                  # ambientes, limites, timeouts (sem segredos de lojas)
+workers/payment_reconcile.php       # recuperação de webhooks e conciliação
+```
+
+#### Tabelas MySQL previstas
+
+| Tabela | Principais colunas/finalidade |
+| --- | --- |
+| `asaas_connections` | `id`, `tenant_id`, `establishment_id`, `environment`, `provider_account_id`, `api_key_encrypted` (ou secret ref), `webhook_secret_ref`, `public_connection_key`, `status`, `last_validated_at` |
+| `asaas_customers` | `id`, `tenant_id`, `establishment_id`, `connection_id`, `customer_id`, `asaas_customer_id`; o cliente externo pertence àquela conta |
+| `asaas_charges` | `id`, `tenant_id`, `establishment_id`, `connection_id`, `order_id`, `asaas_payment_id`, `external_reference`, `gross_amount DECIMAL(14,2)`, `fee_amount`, `net_amount`, `status`, `due_date`, `paid_at` |
+| `asaas_webhook_events` | `id`, `tenant_id`, `establishment_id`, `connection_id`, `external_event_id`, `event_type`, `payload_json`, `status`, `processed_at` |
+| `asaas_refunds` | `id`, `tenant_id`, `establishment_id`, `charge_id`, `external_refund_id`, `amount`, `status`, `requested_by`, `created_at` |
+| `asaas_reconciliation_runs` | `id`, `tenant_id`, `establishment_id`, `connection_id`, `started_at`, `finished_at`, `status`, `result_json` |
+
+**Índices:** `UNIQUE(public_connection_key)` para conexão; `UNIQUE(connection_id, asaas_payment_id)` quando ID externo existir; `UNIQUE(connection_id, external_event_id)` para webhooks, além dos índices por `tenant_id`, `establishment_id`, `order_id` e datas. Validar vínculos com FKs compostas e manter snapshot financeiro imutável com estornos/reversões.
+
+#### API planejada
+
+```http
+GET    /api/v1/establishments/{id}/integrations/asaas
+POST   /api/v1/establishments/{id}/integrations/asaas/connect
+POST   /api/v1/establishments/{id}/integrations/asaas/rotate-key
+DELETE /api/v1/establishments/{id}/integrations/asaas
+POST   /api/v1/establishments/{id}/orders/{orderId}/pix
+GET    /api/v1/establishments/{id}/orders/{orderId}/pix
+GET    /api/v1/establishments/{id}/payments/asaas
+POST   /webhooks/asaas/{connectionKey}
+```
+
+**Fontes oficiais:** [Visão geral](https://docs.asaas.com/docs/visao-geral) · [Autenticação](https://docs.asaas.com/docs/autentica%C3%A7%C3%A3o-1) · [Cobrança Pix dinâmica](https://docs.asaas.com/docs/cobrancas-via-pix) · [Eventos de cobrança](https://docs.asaas.com/docs/webhook-para-cobrancas) · [Receber webhook](https://docs.asaas.com/docs/receba-eventos-do-asaas-no-seu-endpoint-de-webhook) · [Idempotência](https://docs.asaas.com/docs/como-implementar-idempotencia-em-webhooks).
+
+> **Implementação pendente:** homologar a API no Sandbox com duas contas/unidades e validar condições comerciais, credenciais de terceiros, retorno de webhooks, pagamento tardio, duplicação e estornos antes da produção.
+
+---
+### 4.11 WhatsApp por restaurante — WPPConnect Server (módulo planejado)
 
 **Objetivo:** permitir que **cada estabelecimento conecte e utilize seu próprio WhatsApp** dentro do Cardapim para atendimento, solicitações de pedidos, confirmações e acompanhamento, sem acessar a sessão de outra empresa. Prever inicialmente **1 sessão por unidade**, com expansão para mais números por plano/necessidade.
 
@@ -223,6 +303,7 @@ A integração está **planejada e não implementada**. Antes do desenvolvimento
 | Persistência de eventos | **Transactional Outbox** em MySQL, com retry e idempotência |
 | API | REST JSON versionada em `/api/v1`, com sessão/token conforme o consumidor |
 | WhatsApp | **WPPConnect Server em Node.js**, processo separado, com múltiplas sessões e webhooks; adaptador REST no PHP MVC |
+| Pix online | **Asaas API por estabelecimento**, com chave própria protegida, QR Code, webhook autenticado e conciliação |
 | Integrações | Adaptadores HTTP/Webhook separados (iFood, WPPConnect, cobrança e mapas) |
 | Aplicação móvel | Web responsivo e PWA, com restrições de navegador respeitadas |
 | Operação | systemd/Supervisor, cron/worker, logs estruturados, métricas, backup e deploy via GitHub Actions (planejado) |
@@ -294,11 +375,13 @@ cardapim/
 │   │   ├── Delivery/          # entregadores, despachos e tracking
 │   │   ├── Customers/         # clientes e endereços
 │   │   ├── Finance/           # lançamentos, despesas, recebíveis
+│   │   ├── Payments/          # pagamentos Pix e estado de cobranças
 │   │   ├── Reports/           # consultas e exportações
 │   │   ├── WhatsApp/          # inbox, contatos, atendentes, mensagens, automações
 │   │   ├── Integrations/
 │   │   │   ├── IFood/
 │   │   │   ├── WPPConnect/     # adaptador REST, sessões e normalização de webhooks
+│   │   │   ├── Asaas/          # Pix API, conta por loja, eventos
 │   │   │   ├── Billing/
 │   │   │   └── Maps/
 │   │   └── Notifications/
@@ -325,6 +408,7 @@ cardapim/
 │   ├── permissions.php
 │   ├── realtime.php
 │   ├── whatsapp.php
+│   ├── payments.php
 │   └── services.php
 ├── database/
 │   ├── migrations/
@@ -352,6 +436,7 @@ cardapim/
 │   ├── outbox.php
 │   ├── queue.php
 │   ├── whatsapp_dispatch.php # fila de envio e automações, sem bloquear HTTP
+│   ├── payment_reconcile.php # reconciliação assíncrona Asaas
 │   └── reconciler.php
 ├── storage/
 │   ├── logs/
@@ -406,6 +491,7 @@ Arquivos sensíveis (`.env`, tokens, uploads privados e backups) ficam fora do r
 | Financeiro | `financial_categories`, `financial_accounts`, `financial_entries`, `accounts_payable`, `accounts_receivable`, `settlements`, `reconciliations` | Fluxo financeiro, obrigações e repasses |
 | Integrações | `integration_connections`, `external_order_links`, `integration_events`, `integration_sync_logs` | Conexões, IDs externos e eventos |
 | WhatsApp | `whatsapp_connections`, `whatsapp_contacts`, `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_message_events`, `whatsapp_assignments`, `whatsapp_automation_flows`, `whatsapp_automation_runs`, `whatsapp_opt_ins` | Sessões por unidade, contatos e inbox, envio, eventos, atendimentos, automações e preferências |
+| Pix Asaas por loja | `asaas_connections`, `asaas_customers`, `asaas_charges`, `asaas_webhook_events`, `asaas_refunds`, `asaas_reconciliation_runs` | Contas independentes por unidade, cobranças Pix, confirmação, estornos e conciliação |
 | Infra/eventos | `event_outbox`, `job_attempts`, `idempotency_keys`, `notification_logs` | Entrega confiável, retry e deduplicação |
 
 > Esta é uma **proposta de modelagem**, não um schema já migrado. As tabelas serão criadas por migrations versionadas e revisadas por fluxo, com restrições de tenant e índices planejados.
@@ -437,6 +523,10 @@ erDiagram
     WHATSAPP_CONNECTIONS ||--o{ WHATSAPP_CONVERSATIONS : organiza
     WHATSAPP_CONVERSATIONS ||--o{ WHATSAPP_MESSAGES : possui
     ORDERS ||--o{ WHATSAPP_CONVERSATIONS : pode_originar
+    ESTABLISHMENTS ||--o{ ASAAS_CONNECTIONS : conecta
+    ASAAS_CONNECTIONS ||--o{ ASAAS_CHARGES : recebe
+    ORDERS ||--o{ ASAAS_CHARGES : cobra
+    ASAAS_CHARGES ||--o{ ASAAS_WEBHOOK_EVENTS : registra
 ```
 
 ### 7.3 Campos críticos (primeira migração de negócio)
@@ -514,6 +604,8 @@ Cancelado: transição autorizada a partir de estados permitidos;
            exige justificativa e compensações de estoque/financeiro.
 ```
 
+**Pagamento Pix online tem status próprio** (`pending_payment`, `paid`, `refunded`, `failed`, conforme mapeamento de eventos), independente do status de produção do pedido. Não liberar pagamento com base na simples emissão de QR Code.
+
 Estados sugeridos: `pending`, `confirmed`, `preparing`, `ready`, `served`, `out_for_delivery`, `delivered`, `picked_up`, `completed`, `cancelled`. Os estados disponíveis dependem do tipo de pedido e do provedor; integração externa mantém mapeamento de status próprio.
 
 **KDS:** um pedido pode criar tickets para diferentes estações. O status do pedido é derivado/controlado a partir das tarefas de preparo e da expedição; cada item mantém sua própria etapa.
@@ -550,6 +642,7 @@ POST   /api/v1/establishments/{id}/whatsapp/conversations/{conversationId}/messa
 PATCH  /api/v1/establishments/{id}/whatsapp/conversations/{conversationId}/assignment
 GET    /api/v1/establishments/{id}/whatsapp/automations
 POST   /api/v1/establishments/{id}/whatsapp/automations
+POST   /webhooks/asaas/{connectionKey}
 POST   /webhooks/wppconnect
 POST   /webhooks/ifood
 POST   /webhooks/billing/{provider}
@@ -626,6 +719,9 @@ WPPCONNECT_SECRET_KEY=
 WPPCONNECT_WEBHOOK_SHARED_SECRET=
 WPPCONNECT_WEBHOOK_ALLOWED_URL=
 WHATSAPP_CONNECTIONS_LIMIT_DEFAULT=1
+ASAAS_SANDBOX_BASE_URL=https://api-sandbox.asaas.com/v3
+ASAAS_PRODUCTION_BASE_URL=https://api.asaas.com/v3
+# API key de cada restaurante inserida e protegida no painel, não no .env global.
 BILLING_PROVIDER=
 BILLING_WEBHOOK_SECRET=
 ```
@@ -645,8 +741,9 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 | **4 — Cardápio online + delivery** | QR Code, checkout público, retirada, áreas/taxas, despacho, entregador e rastreamento consentido | Cliente acompanha pedido; entregador vê apenas as suas entregas |
 | **5 — SaaS comercial** | Onboarding, planos, assinatura, cobrança, inadimplência, painel plataforma e limites | Tenant é criado, assina e acessa somente recursos do plano |
 | **6 — WhatsApp/WPPConnect** | Conexão por QR Code por estabelecimento, sessão e webhook, inbox com RBAC, fila de envio, automações supervisionadas e métricas | Duas lojas conectam números diferentes; mensagens e sessões não vazam entre tenants; pedido via chat exige confirmação |
-| **7 — iFood** | Cadastro developer, OAuth/conexões, webhook/polling, status, retries, homologação e conciliação | Pedido iFood entra uma vez, percorre fluxo correto e mantém rastreabilidade |
-| **8 — Expansão** | Fiscal, impressão, BI avançado, promoções, fidelidade, integrações e múltiplas unidades avançadas | Recursos validados com usuários reais |
+| **7 — Pix Asaas por unidade** | Conexão de conta própria, QR dinâmico, checkout, webhook seguro, financeiro e reconciliação | Duas lojas usam contas distintas; confirmação não duplica financeiro ou pagamento; Pix tardio tratado | 
+| **8 — iFood** | Cadastro developer, OAuth/conexões, webhook/polling, status, retries, homologação e conciliação | Pedido iFood entra uma vez, percorre fluxo correto e mantém rastreabilidade |
+| **9 — Expansão** | Fiscal, impressão, BI avançado, promoções, fidelidade, integrações e múltiplas unidades avançadas | Recursos validados com usuários reais |
 
 **MVP inicial recomendado:** concluir primeiro o ciclo **cadastro → produto → mesa/PDV → pedido → cozinha → pagamento → fechamento**; depois acrescentar estoque profundo, delivery, comercialização SaaS e integração oficial iFood sem reescrever o núcleo. A ordem pode mudar por necessidade de mercado, mas o isolamento multi-tenant, as regras financeiras e o modelo de eventos devem nascer na fase 0.
 
@@ -669,12 +766,14 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 - [x] Realtime: WebSocket **próprio no servidor**, sem depender de serviço SaaS de push.
 - [x] Multi-restaurante e múltiplas funções de equipe/clientes.
 - [x] Módulo WhatsApp **planejado** via WPPConnect Server, com sessão e atendimento isolados por estabelecimento.
+- [x] **Asaas Pix por restaurante planejado**, com conta própria por unidade e recebimento direto, distinto da cobrança da assinatura SaaS.
 - [ ] Definir domínio definitivo do app, subdomínios de lojas e ambiente de staging.
 - [ ] Validar stack real da VPS e a forma de inicialização dos workers.
 - [ ] Decidir planos/preços, limites e gateway de cobrança.
 - [ ] Definir política de baixa de estoque por tipo de pedido e manejo de perdas.
 - [ ] Escolher serviço de mapas/roteamento e retenção do rastreamento.
 - [ ] Homologar integração iFood; avaliar módulo de catálogo e financeiro separadamente.
+- [ ] Homologar API Asaas para diferentes contas de restaurantes, webhooks individuais, segurança, conciliação, estornos, falhas e regras comerciais da integração.
 - [ ] Escolher versão/infra do WPPConnect Server, validar webhooks/autenticação, requisitos de memória e limites de sessões simultâneas.
 - [ ] Definir regras de retenção, consentimento e categorias de mensagens WhatsApp; testar suspensão/desconexão e eventual caminho para API oficial Meta.
 - [ ] Avaliar regras de NFC-e/NF-e, impressoras, TEF e dados fiscais por município/estado.
