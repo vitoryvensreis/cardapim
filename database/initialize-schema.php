@@ -14,7 +14,9 @@ require dirname(__DIR__) . '/bootstrap/app.php';
 
 try {
     $db = \Cardapim\Core\Database::connect();
-    if ($db->query('SELECT DATABASE()')->fetchColumn() !== 'cardapim') {
+    $databaseName = $db->query('SELECT DATABASE()')->fetchColumn();
+    $isCiDatabase = getenv('CI') === 'true' && $databaseName === 'cardapim_ci';
+    if ($databaseName !== 'cardapim' && !$isCiDatabase) {
         throw new RuntimeException('Database inesperado. Inicializacao interrompida.');
     }
 
