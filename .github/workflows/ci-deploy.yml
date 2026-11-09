@@ -3,6 +3,8 @@ name: Cardapim - CI e deploy
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +18,27 @@ jobs:
   quality:
     name: Validar PHP e rotas
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: cardapim_ci_root_only
+          MYSQL_DATABASE: cardapim_ci
+          MYSQL_USER: cardapim_ci
+          MYSQL_PASSWORD: cardapim_ci_only
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: cardapim_ci
+      DB_USERNAME: cardapim_ci
+      DB_PASSWORD: cardapim_ci_only
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,6 +48,7 @@ jobs:
         with:
           php-version: '8.4'
           tools: composer:v2
+          extensions: pdo_mysql
           coverage: none
 
       - name: Sintaxe PHP
@@ -39,6 +63,18 @@ jobs:
       - name: Validar JavaScript
         run: node --check public/assets/js/site.js
 
+      - name: Aplicar e testar schema MySQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          php database/migrate.php --status | tee /tmp/cardapim-migrations-before.txt
+          grep -q 'PENDENTE .*create_planos.php' /tmp/cardapim-migrations-before.txt
+          grep -q 'PENDENTE .*create_restaurantes.php' /tmp/cardapim-migrations-before.txt
+          php database/migrate.php --apply
+          php database/migrate.php --status | tee /tmp/cardapim-migrations-after.txt
+          grep -q 'Nenhuma migration pendente' /tmp/cardapim-migrations-after.txt
+          php tests/integration/schema.php
+
       - name: Smoke test HTTP local
         shell: bash
         run: |
@@ -50,6 +86,10 @@ jobs:
           for path in / /login /cadastro /assets/css/site.css /assets/js/site.js /assets/img/icone.svg; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
           done
+          code="$(curl --silent --show-error -o /tmp/cardapim-status.json -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:18080/status)"
+          test "$code" = "200"
+          php -r '$d=json_decode(file_get_contents("/tmp/cardapim-status.json"), true, 512, JSON_THROW_ON_ERROR); exit(($d["servicos"]["php"]["situacao"] === "operacional" && $d["servicos"]["mysql"]["situacao"] === "conectado") ? 0 : 1);'
+          curl --fail --silent --show-error http://127.0.0.1:18080/status | grep -q 'Banco de dados'
           page="$(curl --fail --silent --show-error http://127.0.0.1:18080/)"
           [[ "$page" == *'Seu restaurante cresce'* ]]
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/rota-inexistente)" = "404"
@@ -57,7 +97,7 @@ jobs:
   deploy:
     name: Publicar na VPS somente quando habilitado
     needs: quality
-    if: ${{ vars.CARDAPIM_DEPLOY_ENABLED == 'true' }}
+    if: ${{ github.ref == 'refs/heads/main' && vars.CARDAPIM_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
