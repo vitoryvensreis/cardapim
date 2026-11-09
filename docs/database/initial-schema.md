@@ -54,3 +54,9 @@ Na VPS, **primeiro conferir e garantir backup**; as DDL do MySQL não são desfe
 As operações executam no banco informado no shared/.env. Não inserir credenciais no terminal em linha de comando nem no repositório.
 
 O workflow de deploy continua respeitando CARDAPIM_RUN_MIGRATIONS=false; não ativar sem configurar backup privado mysql-backup.cnf e política de retenção. As tabelas são criadas vazias, sem planos ou restaurantes fictícios.
+
+## Bootstrap inicial pelo GitHub Actions
+
+Uma unica execução do workflow com marcador [cardapim-initial-schema] no titulo de merge aplica o schema **somente quando o banco cardapim não possui tabelas operacionais**. Se houver tabelas não previstas, histórico incompatível ou esquema parcial, a etapa aborta sem alterar dados. O script permanece disponível na CLI para conferir a estrutura existente.
+
+Essa inicialização não ativa CARDAPIM_RUN_MIGRATIONS, que continua false para as futuras migrations exigirem plano de backup.

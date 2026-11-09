@@ -70,9 +70,10 @@ jobs:
           php database/migrate.php --status | tee /tmp/cardapim-migrations-before.txt
           grep -q 'PENDENTE .*create_planos.php' /tmp/cardapim-migrations-before.txt
           grep -q 'PENDENTE .*create_restaurantes.php' /tmp/cardapim-migrations-before.txt
-          php database/migrate.php --apply
+          php database/initialize-schema.php --apply
           php database/migrate.php --status | tee /tmp/cardapim-migrations-after.txt
           grep -q 'Nenhuma migration pendente' /tmp/cardapim-migrations-after.txt
+          php database/initialize-schema.php --apply
           php tests/integration/schema.php
 
       - name: Smoke test HTTP local
@@ -115,6 +116,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          INITIAL_SCHEMA_RUN: ${{ contains(github.event.head_commit.message, '[cardapim-initial-schema]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -142,3 +144,8 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          # Uma unica inicializacao controlada, autorizada pelo commit de bootstrap.
+          # O script recusa schema parcial e bancos com tabelas alheias ao Cardapim.
+          if [[ "$INITIAL_SCHEMA_RUN" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "php8.4 '$DEPLOY_ROOT/current/database/initialize-schema.php' --apply"
+          fi

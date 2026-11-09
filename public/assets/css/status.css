@@ -19,7 +19,7 @@ a:focus-visible { outline: 3px solid var(--status-orange); outline-offset: 4px; 
 .status-page { min-height: 100vh; padding: 24px; }
 .status-shell { max-width: 900px; margin-inline: auto; }
 .status-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 0 40px; }
-.status-brand img { display: block; max-width: 100%; height: auto; }
+.status-brand img { display: block; width: 190px; max-width: 100%; height: auto; }
 .status-back { font-size: 0.9rem; font-weight: 650; color: var(--status-wine); }
 .status-back:hover { text-decoration: underline; }
 .status-intro { margin-bottom: 28px; }
@@ -41,7 +41,7 @@ a:focus-visible { outline: 3px solid var(--status-orange); outline-offset: 4px; 
 @media (max-width: 640px) {
     .status-page { padding: 16px; }
     .status-header { padding-bottom: 28px; }
-    .status-brand img { width: 130px; }
+    .status-brand img { width: 145px; }
     .status-services { grid-template-columns: 1fr; }
     .status-overall { align-items: flex-start; }
 }
