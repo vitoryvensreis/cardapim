@@ -3,7 +3,6 @@
     <div class="hero-mesh hero-mesh-right" aria-hidden="true"></div>
     <div class="shell hero-grid">
         <div class="hero-copy">
-            <div class="eyebrow"><span class="signal-dot"></span> Seu restaurante, em outro nível</div>
             <h1>Seu restaurante cresce. <em>A bagunça não precisa acompanhar.</em></h1>
             <p>Pedidos, mesas, caixa, cozinha e delivery no mesmo ritmo. O Cardapim está chegando para deixar a operação mais simples — do primeiro pedido ao último fechamento.</p>
             <div class="hero-buttons">
@@ -113,7 +112,7 @@
     <div class="shell">
         <div class="cta-panel" data-reveal>
             <div class="cta-spark cta-spark-one" aria-hidden="true">✳</div><div class="cta-spark cta-spark-two" aria-hidden="true">✳</div>
-            <span class="eyebrow eyebrow-dark"><span class="signal-dot dark"></span> O futuro do seu restaurante</span>
+            <span class="eyebrow eyebrow-dark"><span class="signal-dot dark"></span> Um produto da Escotilha Produtora</span>
             <h2>Mais tempo para o que importa.<br><em>Menos tempo apagando incêndio.</em></h2>
             <p>O Cardapim está em desenvolvimento. Vem acompanhar essa próxima fase.</p>
             <a class="button button-dark button-large" href="/cadastro">Quero começar <span aria-hidden="true">↗</span></a>
