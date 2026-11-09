@@ -1,0 +1,104 @@
+name: Cardapim - CI e deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cardapim-production
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Validar PHP e rotas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Sintaxe PHP
+        shell: bash
+        run: |
+          set -euo pipefail
+          find app bootstrap config database dev public routes -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
+
+      - name: Validar Composer
+        run: composer validate --no-check-publish
+
+      - name: Validar JavaScript
+        run: node --check public/assets/js/site.js
+
+      - name: Smoke test HTTP local
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:18080 -t public dev/router.php >/tmp/cardapim-php.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 2
+          for path in / /login /cadastro /assets/css/site.css /assets/js/site.js /assets/img/icone.svg; do
+            curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
+          done
+          page="$(curl --fail --silent --show-error http://127.0.0.1:18080/)"
+          [[ "$page" == *'Seu restaurante cresce'* ]]
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/rota-inexistente)" = "404"
+
+  deploy:
+    name: Publicar na VPS somente quando habilitado
+    needs: quality
+    if: ${{ vars.CARDAPIM_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enviar release por SSH e ativar
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.CARDAPIM_VPS_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.CARDAPIM_VPS_KNOWN_HOSTS }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+          RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+        run: |
+          set -euo pipefail
+          for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
+            if [[ -z "$value" ]]; then
+              echo "::error::Configure os secrets e vars CARDAPIM no GitHub antes do deploy."
+              exit 1
+            fi
+          done
+          [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "::error::Host invalido"; exit 1; }
+          [[ "$DEPLOY_USER" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "::error::Usuario invalido"; exit 1; }
+          [[ "$DEPLOY_ROOT" =~ ^/home/[A-Za-z0-9._-]+/apps/cardapim$ ]] || { echo "::error::Diretorio deve estar no home do usuario"; exit 1; }
+          [[ "$DEPLOY_URL" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || { echo "::error::URL HTTPS invalida"; exit 1; }
+          [[ "$DEPLOY_SSH_PORT" =~ ^[0-9]+$ ]] || { echo "::error::Porta SSH invalida"; exit 1; }
+          [[ "$RUN_MIGRATIONS" == "false" || "$RUN_MIGRATIONS" == "true" ]] || exit 1
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/cardapim_deploy"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/cardapim_deploy" "$HOME/.ssh/known_hosts"
+          host="$DEPLOY_USER@$DEPLOY_HOST"
+          release="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          ssh_args=(-i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
+          ssh "${ssh_args[@]}" "$host" "mkdir -p '$DEPLOY_ROOT/releases/$release'"
+          rsync -az --delete --exclude='.git/' --exclude='.github/' --exclude='.env' --exclude='storage/' --exclude='vendor/' \
+            -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
+            ./ "$host:$DEPLOY_ROOT/releases/$release/"
+          ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh

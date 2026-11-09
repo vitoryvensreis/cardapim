@@ -30,6 +30,17 @@ A identidade visual oficial foi fornecida nos arquivos SVG e substitui os elemen
 Os SVGs de origem incluem variações mínimas de canal de cor (`#651423` e `#FE5826`), mas **o CSS segue exatamente a paleta oficial informada: `#651424`, `#FFFFFF` e `#FF5825`**.
 
 ---
+## Deploy automatizado via GitHub (preparado, ainda não ativado)
+
+A estrutura para CI/CD está em [`.github/workflows/ci-deploy.yml`](.github/workflows/ci-deploy.yml). Cada atualização na `main` executa verificação de PHP 8.4, Composer, JavaScript e rotas da landing page. **O deploy só acontece se `CARDAPIM_DEPLOY_ENABLED=true` estiver configurado no GitHub**, com os secrets SSH, diretório e URL do CloudPanel validados.
+
+O deploy será realizado por usuário não-root, com releases versionadas, armazenamento e `.env` fora do código, symlink `current`, healthcheck HTTP e rollback de arquivos por symlink quando necessário. **Migrations MySQL só serão executadas se `CARDAPIM_RUN_MIGRATIONS=true`, com backup prévio e credenciais privadas.** Isso não substitui a análise dos riscos de migrations DDL.
+
+Informações de infraestrutura fornecidas: domínio `cardapim.escotilhaprodutora.com`, banco `cardapim`, usuário MySQL `cardapim-user`, host MySQL `127.0.0.1`, porta `3306`, usuário do site `escotilhaprodutora-cardapim`. **Nenhuma senha deve ser colocada no Git ou compartilhada no chat.**
+
+Leia o [guia completo de ativação do deploy no CloudPanel](docs/deploy/cloudpanel.md) antes de habilitar a automação. Enquanto não forem configuradas as credenciais e o vhost, o código **não está publicado na VPS** por esse pipeline.
+
+---
 ## 1. Visão do produto
 
 A proposta é centralizar a operação diária de cada negócio em uma experiência simples, rápida, responsiva e automatizada:
