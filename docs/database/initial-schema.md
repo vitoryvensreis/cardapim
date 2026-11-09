@@ -73,4 +73,4 @@ Três planos de demonstração, **sem cobrança real**, são semeados pelo scrip
 | Demonstração Semestral | semestral | R$ 499,90 |
 | Demonstração Anual | anual | R$ 899,90 |
 
-Uma publicação única marcada com `[cardapim-demo-plans]` executará backup MySQL via mysqldump antes da migration e do seeder na VPS. O backup comprimido ficará em `shared/backups` com permissão 600. O gatilho deverá ser removido depois da primeira execução verificada. Manter `CARDAPIM_RUN_MIGRATIONS=false` para atualizações futuras não autorizadas.
+Aplicado em produção em 09/11/2026 pela execução GitHub Actions #16 (commit `f17c8094`), com backup MySQL antes da alteração, migration aplicada e três planos verificados. O backup comprimido foi salvo em `shared/backups` com permissão 600. O gatilho temporário foi retirado após a execução confirmada. `CARDAPIM_RUN_MIGRATIONS=false` permanece para futuras alterações planejadas.
