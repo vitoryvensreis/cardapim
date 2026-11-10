@@ -4,28 +4,39 @@ declare(strict_types=1);
 
 namespace Cardapim\Controllers;
 
+use Cardapim\Core\Database;
 use Cardapim\Core\Response;
 use Cardapim\Core\View;
+use Cardapim\Repositories\PlanoRepository;
 
 final class AuthController
 {
     public function login(): Response
     {
-        return Response::html(View::render('auth/coming-soon', [
-            'pageTitle' => 'Login | Cardapim',
-            'pageDescription' => 'Area de acesso do Cardapim em preparacao.',
-            'flowTitle' => 'Seu painel esta chegando.',
-            'flowDescription' => 'Estamos preparando a area de login segura para os restaurantes. Esta rota ja esta pronta, mas a autenticacao sera desenvolvida na proxima etapa.',
-        ]));
+        return Response::html(View::render('auth/login', [
+            'pageTitle' => 'Entrar | Cardapim',
+            'pageDescription' => 'Acesse sua conta Cardapim quando a autenticação estiver disponível.',
+            'noIndex' => true,
+        ], 'layouts/public'));
     }
 
     public function register(): Response
     {
-        return Response::html(View::render('auth/coming-soon', [
-            'pageTitle' => 'Comecar | Cardapim',
-            'pageDescription' => 'Cadastro de estabelecimentos Cardapim em preparacao.',
-            'flowTitle' => 'O proximo capitulo comeca aqui.',
-            'flowDescription' => 'O cadastro e os planos ainda estao em desenvolvimento. Em breve voce podera criar seu restaurante no Cardapim.',
-        ]));
+        $id = filter_var($_GET['plano_id'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+        $plan = null;
+        if ($id !== false && $id !== null) {
+            $plan = (new PlanoRepository(Database::connect()))->buscarPublicoPorId($id);
+        }
+
+        return Response::html(View::render('auth/register', [
+            'pageTitle' => 'Criar conta | Cardapim',
+            'pageDescription' => 'Prepare seu cadastro no Cardapim.',
+            'noIndex' => true,
+            'plano' => $plan,
+            'planoInvalido' => $id !== null && $id !== false && $plan === null
+                || isset($_GET['plano_id']) && ($id === false || $id === null),
+        ], 'layouts/public'));
     }
 }

@@ -17,6 +17,18 @@
 
 ---
 
+## Telas públicas e documentos legais
+
+- `/login`: tela simples, centralizada e responsiva, com formulário visual **desativado** até implementarmos autenticação segura.
+- `/cadastro?plano_id=<id>`: prévia do formulário; valida o ID do plano no MySQL com `ativo=1` e `visibilidade=1`; mostra o plano escolhido sem aceitar cadastros nesta entrega.
+- Rotas legais: `/privacidade`, `/termos-de-uso`, `/cookies`, `/exclusao-de-dados` e `/tratamento-de-dados`. A landing possui links para todas no rodapé.
+- Rotas não encontradas retornam HTTP **404** com view própria, responsiva e sem CSS inline.
+- CSS exclusivo destas páginas em `public/assets/css/pages.css`; branding utiliza os arquivos oficiais e caminhos de logo salvos em `configuracoes` (com fallback textual em erros).
+- Os textos legais são **versões iniciais em revisão** baseadas no guia interno de segurança/LGPD: faltam confirmação de dados institucionais, endereço e canal de privacidade; não devem ser apresentados como homologação jurídica final.
+- [Pendências de revisão jurídica e operacional](docs/legal/revisao.md).
+
+---
+
 ## Usuarios e vinculo com auditoria
 
 - Tabela `user` com cargos `cliente`, `gerente`, `motoqueiro`, `garcom`, `caixa` e `adm_master`.

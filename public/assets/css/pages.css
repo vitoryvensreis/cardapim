@@ -1,0 +1,134 @@
+/* Cardapim — telas institucionais e prévias de autenticação.
+   CSS externo, mobile-first, sem bibliotecas e sem logos recriadas. */
+:root {
+  --wine: #651424;
+  --wine-dark: #3b0b16;
+  --orange: #FF5825;
+  --paper: #FFFFFF;
+  --background: #fbf7f8;
+  --ink: #32141e;
+  --muted: #665760;
+  --border: #e8dce0;
+  --soft: #fff3ef;
+  --radius: 1.25rem;
+  --content: 72rem;
+}
+*,
+*::before,
+*::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+a { color: var(--wine); text-underline-offset: .16em; }
+a:hover { color: #962447; }
+a:focus-visible,
+button:focus-visible,
+input:focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+.public-body { min-height: 100dvh; display: flex; flex-direction: column; background: var(--background); color: var(--ink); }
+.public-container { width: min(calc(100% - 2rem), var(--content)); margin-inline: auto; }
+.public-skip { position: fixed; z-index: 100; top: -6rem; left: 1rem; padding: .8rem 1rem; background: white; color: var(--wine); border: 2px solid var(--orange); }
+.public-skip:focus { top: 1rem; }
+.public-header { position: relative; z-index: 2; flex: 0 0 auto; background: var(--paper); border-bottom: 1px solid var(--border); }
+.public-header-inner { min-height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
+.public-brand { display: inline-flex; align-items: center; min-width: 0; font-size: 1.35rem; font-weight: 800; text-decoration: none; color: var(--wine); }
+.public-brand img { display: block; width: 9.25rem; max-width: 100%; height: auto; }
+.public-header-links { display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem; }
+.public-header-links a { text-decoration: none; color: var(--wine); font-size: .875rem; font-weight: 650; }
+.public-header-links a:hover { text-decoration: underline; }
+.public-header-cta { padding: .65rem 1rem; background: var(--wine); color: var(--paper) !important; border-radius: .65rem; }
+.public-header-cta:hover { background: #84273c; text-decoration: none !important; }
+.public-main { flex: 1 0 auto; min-width: 0; }
+.public-footer { background: var(--paper); border-top: 1px solid var(--border); padding-block: 1.4rem; }
+.public-footer-inner { display: flex; flex-direction: column; gap: .9rem; }
+.public-footer-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .4rem 1.2rem; }
+.public-footer-top strong { color: var(--wine); font-size: 1rem; }
+.public-footer-top span,
+.public-footer-inner small { font-size: .775rem; color: var(--muted); }
+.public-footer-links { display: flex; flex-wrap: wrap; gap: .3rem 1.3rem; }
+.public-footer-links a { font-size: .8rem; font-weight: 600; }
+.account-stage,
+.error-stage { min-height: max(34rem, calc(100dvh - 13.8rem)); display: grid; place-items: center; padding: 2.5rem 1rem; background: var(--wine); }
+.account-card,
+.error-card { width: min(100%, 28.75rem); padding: clamp(1.5rem, 4.5vw, 2.5rem); background: var(--paper); border-radius: var(--radius); box-shadow: 0 1.5rem 4rem rgb(31 5 13 / 20%); }
+.account-card-wide { width: min(100%, 34rem); }
+.account-overline { display: block; color: #ae451d; font-size: .7rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.account-card h1,
+.error-card h1 { margin: .7rem 0 .45rem; color: var(--wine); font-size: clamp(1.75rem, 1.2rem + 2vw, 2.3rem); line-height: 1.18; letter-spacing: -.035em; }
+.account-lead { color: var(--muted); margin: 0 0 1.5rem; line-height: 1.6; }
+.account-notice { border: 1px solid #eedacb; background: #fff7f0; border-radius: .75rem; padding: .85rem 1rem; margin-bottom: 1.4rem; }
+.account-notice strong { display: block; color: #703014; font-size: .85rem; }
+.account-notice p { margin: .25rem 0 0; color: #714c3b; font-size: .815rem; line-height: 1.55; }
+.account-notice-warning { border-color: #eac0bf; background: #fff1ef; }
+.account-notice a,
+.account-plan a,
+.account-plan-hint a,
+.account-switch a { font-weight: 750; }
+.account-form fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.account-field { display: flex; flex-direction: column; min-width: 0; margin-bottom: 1rem; gap: .4rem; }
+.account-field label { font-size: .84rem; color: var(--ink); font-weight: 700; }
+.account-field input { width: 100%; min-width: 0; min-height: 3.25rem; padding: .8rem .95rem; border: 1px solid var(--border); border-radius: .7rem; background: var(--paper); color: var(--ink); font: inherit; font-size: 1rem; }
+.account-field input:disabled { background: #f8f5f6; color: var(--ink); opacity: 1; cursor: not-allowed; }
+.account-field input::placeholder { color: #786c71; opacity: 1; }
+.account-field-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.account-submit { width: 100%; min-height: 3.2rem; display: inline-flex; justify-content: center; align-items: center; border: 0; border-radius: .75rem; background: var(--wine); color: white; padding: .8rem 1rem; font-family: inherit; font-weight: 750; font-size: 1rem; line-height: 1.3; text-decoration: none; text-align: center; }
+.account-submit:disabled { background: #77515b; color: #fff; cursor: not-allowed; }
+.account-submit.account-link { cursor: pointer; }
+.account-submit.account-link:hover { background: #81243b; color: #fff; }
+.account-switch { margin: 1.5rem 0 0; padding-top: 1.2rem; border-top: 1px solid var(--border); text-align: center; font-size: .86rem; color: var(--muted); }
+.account-plan { display: flex; flex-direction: column; gap: .8rem; padding: 1rem; margin-bottom: 1rem; border: 1px solid #eac6cb; border-radius: .9rem; background: #fff9f8; }
+.account-plan > div { display: flex; flex-direction: column; }
+.account-plan span { color: var(--muted); font-size: .75rem; }
+.account-plan strong { color: var(--wine); font-size: .98rem; overflow-wrap: anywhere; }
+.account-plan-value strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.account-plan a { width: max-content; font-size: .8rem; }
+.account-plan-hint { background: var(--soft); border-radius: .7rem; padding: .7rem .9rem; color: var(--muted); font-size: .84rem; }
+.account-agreement { display: flex; align-items: flex-start; gap: .6rem; color: var(--muted); font-size: .8rem; margin: .3rem 0 1.2rem; line-height: 1.5; }
+.account-agreement input { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; margin: .1rem 0 0; accent-color: var(--wine); }
+.account-agreement a { color: var(--wine); }
+.error-card { width: min(100%, 37rem); text-align: center; }
+.error-number { display: block; color: var(--orange); font-weight: 850; font-size: clamp(5rem, 13vw, 8rem); line-height: 1; letter-spacing: -.09em; }
+.error-card > p:not(.account-overline) { max-width: 28rem; margin: .75rem auto 1.8rem; color: var(--muted); }
+.error-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .9rem 1.5rem; }
+.error-actions .account-submit { width: auto; min-width: 12rem; }
+.error-secondary { font-weight: 700; }
+.legal-document { max-width: 60rem; padding-block: clamp(2rem, 5vw, 4.5rem); }
+.legal-hero { max-width: 52rem; }
+.legal-eyebrow { margin: 0 0 .6rem; color: #a43f22; font-size: .75rem; font-weight: 800; letter-spacing: .075em; }
+.legal-hero h1 { margin: 0 0 .9rem; font-size: clamp(2rem, 1.25rem + 2.3vw, 3.2rem); line-height: 1.16; color: var(--wine); letter-spacing: -.04em; overflow-wrap: anywhere; }
+.legal-lead { max-width: 43rem; margin: 0; font-size: clamp(1rem, .95rem + .3vw, 1.13rem); color: var(--muted); line-height: 1.7; }
+.legal-date { font-size: .75rem; font-weight: 650; color: var(--muted); margin: 1rem 0 1.3rem; }
+.legal-review-notice { display: flex; flex-direction: column; gap: .2rem; border-left: .2rem solid var(--orange); border-radius: 0 .6rem .6rem 0; background: #fff3ed; padding: .85rem 1.1rem; font-size: .82rem; color: #684532; }
+.legal-review-notice strong { color: #843717; }
+.legal-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0; }
+.legal-nav a { display: inline-flex; align-items: center; min-height: 2.6rem; padding: .45rem .85rem; border-radius: 100px; border: 1px solid var(--border); background: var(--paper); font-size: .79rem; text-decoration: none; font-weight: 700; color: var(--wine); }
+.legal-nav a:hover { border-color: var(--wine); }
+.legal-nav a[aria-current="page"] { background: var(--wine); border-color: var(--wine); color: white; }
+.legal-article { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius); padding: clamp(1.25rem, 4vw, 2.75rem); }
+.legal-article section + section { margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+.legal-article h2 { color: var(--wine); font-size: clamp(1.07rem, .93rem + .45vw, 1.36rem); line-height: 1.35; margin: 0 0 .85rem; }
+.legal-article p,
+.legal-article li { color: #4a4147; line-height: 1.75; overflow-wrap: anywhere; }
+.legal-article p { margin: .7rem 0 0; }
+.legal-article ul { padding-left: 1.4rem; margin: .6rem 0; }
+.legal-article li + li { margin-top: .55rem; }
+.legal-article strong { color: var(--ink); }
+@media (min-width: 37rem) {
+  .account-field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+  .account-plan { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+}
+@media (max-width: 38rem) {
+  .public-header-inner { min-height: 4.35rem; }
+  .public-header-links { gap: .75rem; }
+  .public-header-links a:first-child { display: none; }
+  .public-header-cta { padding: .55rem .75rem; }
+  .public-brand img { width: 7.5rem; }
+  .account-stage,.error-stage { padding: 1.2rem .8rem; min-height: max(32rem, calc(100dvh - 15rem)); }
+  .account-card, .error-card { padding: 1.5rem 1.25rem; border-radius: 1rem; }
+  .legal-document { padding-block: 1.8rem; }
+}
+@media (max-width: 21rem) {
+  .public-header-links a:nth-child(2) { display: none; }
+  .public-brand img { width: 7rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

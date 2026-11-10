@@ -182,3 +182,27 @@ body{background:#fff;color:#32141e}
     .plan-card,.plan-subscribe{transition:none}
     .plan-card:hover,.plan-subscribe:hover{transform:none}
 }
+
+
+/* Links legais no rodape da landing — sem alterar as regras gerais do site. */
+.footer-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  align-items: center;
+  justify-content: center;
+  max-width: 35rem;
+}
+.footer-legal-links a {
+  color: #fff;
+  font: 600 .76rem/1.5 var(--body);
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,.35);
+  text-underline-offset: .2rem;
+}
+.footer-legal-links a:hover { color: #ffb3a0; text-decoration-color: currentColor; }
+.footer-legal-links a:focus-visible { outline-color: var(--orange); }
+@media (max-width: 800px) {
+  .footer-wrap { justify-content: center; text-align: center; }
+  .footer-legal-links { order: 4; width: 100%; }
+}
