@@ -141,9 +141,9 @@ jobs:
           # Validar views reais, sem post nem autenticacao funcional nesta fase.
           login="$(curl --fail --silent --show-error http://127.0.0.1:18080/login)"
           [[ "$login" == *'Entre na sua conta.'* ]]
-          [[ "$login" == *'Login em preparação'* ]]
           [[ "$login" == *'autocomplete="current-password"'* ]]
-          [[ "$login" == *'disabled'* ]]
+          [[ "$login" == *'name="_csrf"'* ]]
+          [[ "$login" == *'action="/login"'* ]]
           [[ "$login" == *'/assets/css/pages.css'* ]]
           plan_id="$(php -r 'require "bootstrap/app.php"; $p=\Cardapim\Core\Database::connect()->query("SELECT id FROM planos WHERE ativo=1 AND visibilidade=1 ORDER BY id LIMIT 1")->fetchColumn(); echo (int)$p;')"
           test "$plan_id" -gt 0
@@ -201,7 +201,10 @@ jobs:
           grep -q 'Esse caminho não existe' /tmp/cardapim-404.html
           grep -q 'PÁGINA NÃO ENCONTRADA' /tmp/cardapim-404.html
           grep -q '/assets/css/pages.css' /tmp/cardapim-404.html
-          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/login)" = "405"
+          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/login)" = "419"
+          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/sair)" = "404"
+          php tests/http/criar-contas-ci.php
+          bash tests/http/auth.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/cadastro)" = "405"
 
   deploy:

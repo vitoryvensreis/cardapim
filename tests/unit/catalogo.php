@@ -50,6 +50,9 @@ $limiter = new RateLimiter($dir, 3, 60);
 $ok($limiter->permitir('ip') && $limiter->permitir('ip') && $limiter->permitir('ip'), 'tres tentativas permitidas');
 $ok(!$limiter->permitir('ip'), 'quarta tentativa bloqueada');
 $ok($limiter->permitir('outro-ip'), 'outra chave independente');
+$ok($limiter->excedido('ip') && !$limiter->excedido('livre'), 'consulta sem registrar');
+$limiter->limpar('ip');
+$ok(!$limiter->excedido('ip'), 'limpar zera a contagem');
 array_map('unlink', glob("$dir/*") ?: []);
 @rmdir($dir);
 

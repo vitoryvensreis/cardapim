@@ -35,6 +35,11 @@ final class Response
         return new self('', $status, ['Location' => $path]);
     }
 
+    public function comCabecalhos(array $headers): self
+    {
+        return new self($this->body, $this->status, [...$this->headers, ...$headers]);
+    }
+
     public function send(): void
     {
         http_response_code($this->status);

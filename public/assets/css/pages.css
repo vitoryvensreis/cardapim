@@ -21,6 +21,11 @@
 .notice-info > .icon { color: var(--c-orange-700); }
 .notice-warning { border-color: #f1c3be; background: var(--c-danger-bg); color: #7a1f17; }
 .notice-warning > .icon { color: var(--c-danger); }
+.notice-success { border-color: #b9e3cb; background: var(--c-success-bg); color: #14532d; }
+.notice-success > .icon { color: var(--c-success); }
+.auth-help { display: flex; align-items: flex-start; gap: .45rem; margin-top: 1rem; color: var(--c-muted); font-size: .85rem; line-height: 1.5; }
+.auth-help .icon { margin-top: .15rem; color: var(--c-wine-400); }
+.btn.is-loading { pointer-events: none; opacity: .85; }
 
 /* ---------- Acesso: login e cadastro ---------- */
 .auth {
@@ -169,7 +174,7 @@
   background: radial-gradient(circle, rgb(255 88 37 / 28%), transparent 62%); animation: auth-glow 14s ease-in-out infinite alternate;
 }
 .error-card { width: min(100%, 36rem); padding: clamp(2rem, 6vw, 3rem); border-radius: var(--r-xl); background: var(--c-white); box-shadow: var(--sh-lg); text-align: center; }
-.error-card .kicker { justify-content: center; margin-top: 1rem; }
+.error-card .kicker { display: flex; justify-content: center; margin-top: 1rem; }
 .error-card h1 { margin-top: .9rem; color: var(--c-wine); font-size: clamp(1.8rem, 1.3rem + 2vw, 2.4rem); font-weight: 800; }
 .error-card > p:not(.kicker) { margin-top: .8rem; color: var(--c-muted); }
 .error-number {

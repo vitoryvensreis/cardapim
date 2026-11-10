@@ -66,6 +66,15 @@ final class RestauranteRepository
         ];
     }
 
+    /** Area da equipe: inclui status para a regra de acesso. */
+    public function buscarPorSlugParaEquipe(string $slug): ?array
+    {
+        $query = $this->db->prepare('SELECT id, nome, slug, status_rest FROM restaurantes WHERE slug = ? LIMIT 1');
+        $query->execute([$slug]);
+        $row = $query->fetch(PDO::FETCH_ASSOC);
+        return $row ? ['id' => (int) $row['id'], 'nome' => (string) $row['nome'], 'slug' => (string) $row['slug'], 'status' => (string) $row['status_rest']] : null;
+    }
+
     /** @return array{id:int,nome:string,slug:string,logo_path:?string}|null */
     public function buscarPublicoPorSlug(string $slug): ?array
     {

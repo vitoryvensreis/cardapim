@@ -22,6 +22,23 @@ final class RateLimiter
         return new self(dirname(__DIR__, 2) . '/storage/cache/rate-limit', $maxTentativas, $janelaSegundos);
     }
 
+    /** Consulta sem registrar: o limite ja foi atingido? */
+    public function excedido(string $chave): bool
+    {
+        $file = $this->directory . '/' . hash('sha256', $chave) . '.json';
+        $data = is_file($file) ? json_decode((string) @file_get_contents($file), true) : null;
+        if (!is_array($data) || !isset($data['inicio'], $data['total']) || time() - (int) $data['inicio'] >= $this->janelaSegundos) {
+            return false;
+        }
+        return (int) $data['total'] >= $this->maxTentativas;
+    }
+
+    /** Zera a contagem (ex.: apos login bem-sucedido). */
+    public function limpar(string $chave): void
+    {
+        @unlink($this->directory . '/' . hash('sha256', $chave) . '.json');
+    }
+
     /** Registra uma tentativa e informa se ainda esta dentro do limite. */
     public function permitir(string $chave): bool
     {

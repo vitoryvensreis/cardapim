@@ -12,7 +12,7 @@ final class Slug
 {
     public const RESERVADOS = [
         'admin', 'api', 'app', 'assets', 'cadastro', 'cardapim', 'catalogo', 'conta', 'cookies',
-        'dashboard', 'entrar', 'exclusao-de-dados', 'login', 'logout', 'painel', 'planos',
+        'dashboard', 'entrar', 'exclusao-de-dados', 'login', 'logout', 'minha-conta', 'painel', 'planos',
         'politica-de-privacidade', 'privacidade', 'restaurantes', 'sair', 'status', 'storage',
         'suporte', 'termos-de-uso', 'tratamento-de-dados', 'uploads', 'webhooks', 'www',
     ];

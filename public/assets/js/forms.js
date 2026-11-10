@@ -233,6 +233,38 @@
     });
   });
 
+  /* ---------- Formularios reais: valida antes de enviar e evita clique duplo ---------- */
+  document.querySelectorAll("[data-validate-form]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      const inputs = [...form.querySelectorAll("[data-field] input")];
+      const firstInvalid = inputs.find((input) => !validate(input, true));
+      if (firstInvalid) {
+        event.preventDefault();
+        firstInvalid.focus();
+        return;
+      }
+      const button = form.querySelector("[type=submit]");
+      if (button) {
+        if (button.classList.contains("is-loading")) { event.preventDefault(); return; }
+        button.classList.add("is-loading");
+        const label = button.querySelector("span");
+        if (label && button.dataset.submitLabel) {
+          label.dataset.original = label.textContent;
+          label.textContent = button.dataset.submitLabel;
+        }
+      }
+    });
+  });
+
+  // Ao voltar pelo historico do navegador, o botao nao fica travado em "Entrando...".
+  window.addEventListener("pageshow", () => {
+    document.querySelectorAll("[data-validate-form] [type=submit].is-loading").forEach((button) => {
+      button.classList.remove("is-loading");
+      const label = button.querySelector("span");
+      if (label?.dataset.original) label.textContent = label.dataset.original;
+    });
+  });
+
   /* ---------- Previa: nunca envia dados ---------- */
   document.querySelectorAll("[data-preview-form]").forEach((form) => {
     form.addEventListener("submit", (event) => {

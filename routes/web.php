@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Cardapim\Controllers\AreaController;
 use Cardapim\Controllers\AuthController;
 use Cardapim\Controllers\CatalogoController;
 use Cardapim\Controllers\HomeController;
@@ -13,6 +14,8 @@ use Cardapim\Core\Router;
 $router = new Router();
 $router->get('/', [HomeController::class, 'index']);
 $router->get('/login', [AuthController::class, 'login']);
+$router->post('/login', [AuthController::class, 'entrar']);
+$router->post('/sair', [AuthController::class, 'sair']);
 $router->get('/cadastro', [AuthController::class, 'register']);
 $router->get('/status', [StatusController::class, 'index']);
 $router->get('/catalogo', [CatalogoController::class, 'index']);
@@ -23,6 +26,13 @@ $router->get('/termos-de-uso', [LegalController::class, 'termos']);
 $router->get('/cookies', [LegalController::class, 'cookies']);
 $router->get('/exclusao-de-dados', [LegalController::class, 'exclusao']);
 $router->get('/tratamento-de-dados', [LegalController::class, 'tratamento']);
+
+// Areas autenticadas (cargo validado no servidor em AreaController/Autorizacao).
+$router->get('/painel', [AreaController::class, 'painel']);
+$router->get('/minha-conta', [AreaController::class, 'minhaConta']);
+foreach (['gerencia', 'caixa', 'entregas'] as $area) {
+    $router->get('/{slug}/' . $area, static fn (string $slug): \Cardapim\Core\Response => (new AreaController())->restaurante($slug, $area));
+}
 
 // API JSON versionada.
 (require __DIR__ . '/api.php')($router);
