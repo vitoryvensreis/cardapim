@@ -9,8 +9,9 @@
 ## Primeiras tabelas e monitoramento de saúde
 
 - **/status**: página de status de PHP 8.4 e da conexão MySQL (HTTP 200 quando conectado; 503 quando indisponível). Resposta JSON com cabeçalho `Accept: application/json`.
-- **planos**: nome, descrição, valor `DECIMAL(10,2)`, período mensal/semestral/anual, ativo e timestamps.
-- **restaurantes**: nome, telefone, e-mail, CNPJ, slug, logo, status, timestamps e chave estrangeira `plano_id` para planos.
+- **planos**: nome, descrição, valor `DECIMAL(10,2)`, período mensal/semestral/anual, ativo, visibilidade (`1` por padrão) e timestamps.
+- **restaurantes**: nome, telefone, e-mail, CNPJ, slug, logo, status, último pagamento, timestamps e chave estrangeira `plano_id` para planos.
+- **log_user**: tabela de auditoria (`id`, `titulo`, `descricao`, `id_user`, `data_hora`, `ip`), preparada sem FK até a criação da tabela de usuários.
 - Duas migrations MySQL versionadas e testes de integração em CI. O deploy do código é automático quando habilitado; a criação efetiva das tabelas em produção depende de aplicar as migrations com backup.
 - [Esquema e comandos para a VPS](docs/database/initial-schema.md).
 
