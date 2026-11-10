@@ -50,6 +50,14 @@ $asideItems = [
                     </div>
                     <p class="field-msg" id="login-senha-msg" aria-live="polite"></p>
                 </div>
+                <label class="check check-remember">
+                    <input type="checkbox" name="lembrar" value="1"<?= !empty($lembrar) ? ' checked' : '' ?> aria-describedby="lembrar-ajuda">
+                    <span class="check-box" aria-hidden="true"><?= Icon::svg('check') ?></span>
+                    <span>
+                        <strong>Manter conectado neste aparelho</strong>
+                        <small id="lembrar-ajuda">Você continua conectado por 30 dias. Não marque em computadores compartilhados.</small>
+                    </span>
+                </label>
                 <button class="btn btn-wine btn-lg btn-block" type="submit" data-submit-label="Entrando...">
                     <?= Icon::svg('log-in') ?><span>Entrar</span>
                 </button>

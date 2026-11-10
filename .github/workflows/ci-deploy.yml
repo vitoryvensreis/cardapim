@@ -74,6 +74,7 @@ jobs:
           php tests/unit/documento.php
           php tests/unit/catalogo.php
           php tests/unit/estoque.php
+          php tests/unit/navegador.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -114,6 +115,7 @@ jobs:
           php tests/integration/cardapio-estoque.php
           php database/verify-endereco-restaurantes.php --verify
           php tests/integration/endereco-restaurantes.php
+          php database/verify-sessoes-lembradas.php --verify
           php database/seed-test-users.php --apply
           php database/seed-test-users.php --apply
           php database/seed-test-users.php --verify
@@ -217,6 +219,9 @@ jobs:
           test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/sair)" = "404"
           php tests/http/criar-contas-ci.php
           bash tests/http/auth.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          php tests/http/verificar-logs-ci.php
+          login_page="$(curl --fail --silent --show-error http://127.0.0.1:18080/login)"
+          [[ "$login_page" == *'name="lembrar"'* ]]
           test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/cadastro)" = "405"
 
   deploy:

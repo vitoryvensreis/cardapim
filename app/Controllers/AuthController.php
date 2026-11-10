@@ -35,13 +35,13 @@ final class AuthController
         $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
 
         try {
-            $resultado = Autenticacao::entrar($identificacao, $senha, $ip);
+            $resultado = Autenticacao::entrar($identificacao, $senha, $ip, ($_POST['lembrar'] ?? '') === '1');
         } catch (Throwable $exception) {
             error_log('[Cardapim] Login indisponivel: ' . get_class($exception));
             return $this->formulario('Não foi possível entrar agora. Tente novamente em instantes.', 503, $identificacao);
         }
         if (!$resultado['ok']) {
-            return $this->formulario($resultado['erro'], $resultado['status'], $identificacao);
+            return $this->formulario($resultado['erro'], $resultado['status'], $identificacao, ($_POST['lembrar'] ?? '') === '1');
         }
 
         $usuario = $resultado['usuario'];
@@ -83,7 +83,7 @@ final class AuthController
         ], 'layouts/public'));
     }
 
-    private function formulario(?string $erro = null, int $status = 200, string $identificacao = ''): Response
+    private function formulario(?string $erro = null, int $status = 200, string $identificacao = '', bool $lembrar = false): Response
     {
         Session::iniciar();
         $html = View::render('auth/login', [
@@ -95,6 +95,7 @@ final class AuthController
             'erro' => $erro,
             'saiu' => $erro === null && isset($_GET['saiu']),
             'identificacao' => mb_substr($identificacao, 0, 190),
+            'lembrar' => $lembrar,
         ], 'layouts/public');
         return Guard::semCache(Response::html($html, $status));
     }

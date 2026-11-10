@@ -162,6 +162,11 @@
 .check input:checked + .check-box .icon { opacity: 1; transform: none; }
 .check input:focus-visible + .check-box { outline: 3px solid var(--c-orange); outline-offset: 2px; }
 .check a { color: var(--c-wine); font-weight: 700; text-decoration: underline; text-underline-offset: .15em; }
+.check-remember { margin: .25rem 0 1.25rem; padding: .85rem .95rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: #fdfafb; transition: border-color var(--t-fast), background-color var(--t-fast); }
+.check-remember:hover { border-color: #e2cdd3; }
+.check-remember:has(input:checked) { border-color: rgb(101 20 36 / 35%); background: var(--c-blush); }
+.check-remember strong { display: block; color: var(--c-ink); font-size: .9rem; }
+.check-remember small { display: block; margin-top: .15rem; color: var(--c-muted); font-size: .8rem; line-height: 1.45; }
 
 /* ---------- Erros 404 / 500 ---------- */
 .error-stage {

@@ -9,6 +9,7 @@ use Cardapim\Core\RateLimiter;
 use Cardapim\Core\Session;
 use Cardapim\Repositories\LogUserRepository;
 use Cardapim\Repositories\UsuarioRepository;
+use Cardapim\Shared\Navegador;
 use Throwable;
 
 /** Login por e-mail ou usuario, sessao e logout. */
@@ -27,7 +28,7 @@ final class Autenticacao
     /**
      * @return array{ok:bool, usuario?:UsuarioLogado, erro?:string, status?:int}
      */
-    public static function entrar(string $identificacao, string $senha, string $ip): array
+    public static function entrar(string $identificacao, string $senha, string $ip, bool $lembrar = false): array
     {
         $identificacao = trim($identificacao);
         if (!str_contains($identificacao, '@')) {
@@ -76,11 +77,29 @@ final class Autenticacao
             $usuarios->atualizarHash($usuario->id, password_hash($senha, PASSWORD_DEFAULT));
         }
         $usuarios->registrarAcesso($usuario->id, date('Y-m-d H:i:s'));
-        self::log($logs, 'Login', 'Acesso realizado (' . $usuario->cargo . ').', $usuario->id, $ip);
         $limiteConta->limpar($chaveConta);
 
         Session::renovarId();
         Session::set('usuario_id', $usuario->id);
+
+        $navegador = Navegador::resumo($_SERVER['HTTP_USER_AGENT'] ?? null);
+        $lembrado = false;
+        if ($lembrar) {
+            try {
+                (new LoginLembrado($db))->criar($usuario->id, $ip, $navegador);
+                $lembrado = true;
+            } catch (Throwable $exception) {
+                // O login continua valido; so o "manter conectado" deixa de valer neste acesso.
+                error_log('[Cardapim] Manter conectado indisponivel: ' . get_class($exception));
+            }
+        }
+        self::log($logs, 'Login', sprintf(
+            'Acesso realizado como %s, por %s. Manter conectado: %s. %s.',
+            Autorizacao::rotuloCargo($usuario->cargo),
+            str_contains($identificacao, '@') ? 'e-mail' : 'nome de usuário',
+            $lembrado ? 'sim (30 dias)' : 'não',
+            $navegador,
+        ), $usuario->id, $ip);
         self::$atual = $usuario;
         self::$carregado = true;
 
@@ -94,20 +113,61 @@ final class Autenticacao
             return self::$atual;
         }
         self::$carregado = true;
-        if (!isset($_COOKIE[Session::NOME])) {
-            return null; // visitante: nao cria sessao nem cookie
+        if (isset($_COOKIE[Session::NOME])) {
+            $id = Session::get('usuario_id');
+            if (is_int($id)) {
+                $row = (new UsuarioRepository(Database::connect()))->buscarParaSessao($id);
+                $usuario = $row !== null ? UsuarioLogado::deLinha($row) : null;
+                if ($usuario !== null && Autorizacao::contaLiberada($usuario)) {
+                    return self::$atual = $usuario;
+                }
+                Session::remover('usuario_id');
+            }
         }
-        $id = Session::get('usuario_id');
-        if (!is_int($id)) {
+        // Sem sessao valida: tenta o "manter conectado". Visitante sem cookies nao cria sessao.
+        $cookie = $_COOKIE[LoginLembrado::COOKIE] ?? null;
+        return is_string($cookie) && $cookie !== '' ? self::restaurarLembrado($cookie) : null;
+    }
+
+    /** Recria a sessao a partir do cookie "manter conectado" (com rotacao do token). */
+    private static function restaurarLembrado(string $cookie): ?UsuarioLogado
+    {
+        $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+        try {
+            $db = Database::connect();
+            $lembrado = new LoginLembrado($db);
+            $resultado = $lembrado->validar($cookie);
+            $logs = new LogUserRepository($db);
+            if ($resultado['status'] === 'suspeito') {
+                LoginLembrado::limparCookie();
+                self::log($logs, 'Alerta de segurança', 'Cookie de "manter conectado" inválido (possível cópia). Todos os acessos lembrados desta conta foram encerrados.', $resultado['id_user'], $ip);
+                return null;
+            }
+            if ($resultado['status'] !== 'ok') {
+                LoginLembrado::limparCookie();
+                return null;
+            }
+            $usuarios = new UsuarioRepository($db);
+            $row = $usuarios->buscarParaSessao($resultado['id_user']);
+            $usuario = $row !== null ? UsuarioLogado::deLinha($row) : null;
+            if ($usuario === null || !Autorizacao::contaLiberada($usuario)) {
+                $lembrado->revogarTodos($resultado['id_user']);
+                LoginLembrado::limparCookie();
+                return null;
+            }
+            Session::renovarId();
+            Session::set('usuario_id', $usuario->id);
+            $usuarios->registrarAcesso($usuario->id, date('Y-m-d H:i:s'));
+            self::log($logs, 'Login automático', sprintf(
+                'Acesso restaurado pelo "manter conectado" como %s. %s.',
+                Autorizacao::rotuloCargo($usuario->cargo),
+                Navegador::resumo($_SERVER['HTTP_USER_AGENT'] ?? null),
+            ), $usuario->id, $ip);
+            return self::$atual = $usuario;
+        } catch (Throwable $exception) {
+            error_log('[Cardapim] Falha ao restaurar "manter conectado": ' . get_class($exception));
             return null;
         }
-        $row = (new UsuarioRepository(Database::connect()))->buscarParaSessao($id);
-        $usuario = $row !== null ? UsuarioLogado::deLinha($row) : null;
-        if ($usuario === null || !Autorizacao::contaLiberada($usuario)) {
-            Session::remover('usuario_id');
-            return null;
-        }
-        return self::$atual = $usuario;
     }
 
     public static function sair(string $ip): void
@@ -115,8 +175,16 @@ final class Autenticacao
         $usuario = self::usuario();
         if ($usuario !== null) {
             try {
-                self::log(new LogUserRepository(Database::connect()), 'Logout', 'Saiu da conta.', $usuario->id, $ip);
+                self::log(new LogUserRepository(Database::connect()), 'Logout', 'Saiu da conta neste aparelho.', $usuario->id, $ip);
             } catch (Throwable) {
+            }
+        }
+        $cookie = $_COOKIE[LoginLembrado::COOKIE] ?? null;
+        if (is_string($cookie) && $cookie !== '') {
+            try {
+                (new LoginLembrado(Database::connect()))->remover($cookie);
+            } catch (Throwable) {
+                LoginLembrado::limparCookie();
             }
         }
         Session::encerrar();

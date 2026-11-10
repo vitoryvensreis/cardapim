@@ -26,7 +26,8 @@
 
 - **`/login` funcionando**: entra com e-mail ou nome de usuario e leva cada cargo para sua area: `adm_master` -> `/painel`, `gerente` -> `/{slug}/gerencia`, `caixa` -> `/{slug}/caixa`, `motoqueiro` -> `/{slug}/entregas`, `garcom` e `cliente` -> `/minha-conta`.
 - **Bloqueio por cargo e por restaurante** validado no servidor: sem login vai para `/login`; sem permissao recebe 403. O gerente tambem acessa caixa e entregas do proprio restaurante; o `adm_master` acessa tudo.
-- Sessao segura, CSRF, limite de tentativas que falham, auditoria em `log_user` e `ultimo_acesso`. Detalhes: [autenticacao e acesso por cargo](docs/architecture/autenticacao.md).
+- Sessao segura, CSRF, limite de tentativas que falham, auditoria em `log_user` (login, login automatico, recusa, alerta e logout, com navegador) e `ultimo_acesso`.
+- **Manter conectado por 30 dias** (opcional no login), com token trocado a cada uso e encerramento automatico se o cookie for copiado. Tabela `user_sessoes_lembradas`. Detalhes: [autenticacao e acesso por cargo](docs/architecture/autenticacao.md).
 - As telas de cada area sao introdutorias nesta etapa; as ferramentas de cada cargo serao construidas nas proximas entregas.
 - Contas de teste em producao: senhas no arquivo privado `shared/backups/acessos-cardapim-testes.txt` da VPS. O `adm_master` de teste continua **desativado** por seguranca.
 
