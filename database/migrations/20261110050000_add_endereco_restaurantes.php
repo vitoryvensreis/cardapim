@@ -6,7 +6,8 @@ return static function (PDO $db): void {
     // Endereco do restaurante (todas opcionais: restaurantes existentes e cadastros pendentes).
     // cep somente com 8 digitos; estado = sigla da UF em maiusculas (comparacao binaria,
     // a collation padrao ignoraria maiusculas); numero aceita "S/N" e "120A".
-    // latitude/longitude preparadas para entregas e mapa (preenchidas juntas ou ambas vazias).
+    // latitude/longitude preparadas para entregas e mapa (preenchidas juntas ou ambas vazias;
+    // IS NOT NULL explicito porque CHECK com resultado NULL seria aceito).
     $db->exec(<<<'SQL'
 ALTER TABLE restaurantes
     ADD COLUMN cep CHAR(8) NULL DEFAULT NULL AFTER cnpj,
@@ -27,7 +28,8 @@ ALTER TABLE restaurantes
     )),
     ADD CONSTRAINT chk_restaurantes_coordenadas CHECK (
         (latitude IS NULL AND longitude IS NULL)
-        OR (latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)
+        OR (latitude IS NOT NULL AND longitude IS NOT NULL
+            AND latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)
     )
 SQL);
 };
