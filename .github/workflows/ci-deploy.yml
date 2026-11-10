@@ -82,6 +82,7 @@ jobs:
           php database/seed-configuracoes-restaurante.php --verify
           php tests/integration/configuracoes.php
           php tests/integration/schema.php
+          php tests/integration/planos-publicos.php
           php -r '$d=new PDO("mysql:host=127.0.0.1;port=3306;dbname=cardapim_ci;charset=utf8mb4", "cardapim_ci", "cardapim_ci_only"); $n=$d->query("SELECT COUNT(*) FROM planos WHERE nome LIKE \"Demonstração %\"")->fetchColumn(); exit((int)$n===3 ? 0 : 1);'
 
       - name: Smoke test HTTP local
@@ -102,6 +103,11 @@ jobs:
           page="$(curl --fail --silent --show-error http://127.0.0.1:18080/)"
           [[ "$page" == *'/assets/img/logo-colorida.svg'* ]]
           [[ "$page" == *'Seu restaurante cresce'* ]]
+          [[ "$page" == *'id="planos"'* ]]
+          [[ "$page" == *'Demonstração Mensal'* ]]
+          [[ "$page" == *'Demonstração Semestral'* ]]
+          [[ "$page" == *'Demonstração Anual'* ]]
+          printf '%s' "$page" | grep -Eq 'href="/cadastro\?plano_id=[1-9][0-9]*"'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/rota-inexistente)" = "404"
 
   deploy:

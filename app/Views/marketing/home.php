@@ -108,6 +108,66 @@
     </div>
 </section>
 
+<section class="plans-section section-pad" id="planos" aria-labelledby="plans-title">
+    <div class="shell">
+        <div class="section-heading plans-heading" data-reveal>
+            <span class="section-kicker">PLANOS DO CARDAPIM</span>
+            <h2 id="plans-title">Escolha um plano que <em>acompanhe seu negócio.</em></h2>
+            <p>Confira as opções disponíveis para começar com o Cardapim. Os preços apresentados correspondem ao período completo de cada plano.</p>
+        </div>
+
+        <?php if ($planos !== []): ?>
+            <div class="plans-grid">
+                <?php foreach ($planos as $plano): ?>
+                    <?php
+                    $nome = htmlspecialchars((string) $plano['nome'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    $descricao = htmlspecialchars((string) ($plano['descricao'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    $preco = number_format((float) $plano['valor'], 2, ',', '.');
+                    $periodo = match ($plano['periodo']) {
+                        'mensal' => 'Mensal',
+                        'semestral' => 'Semestral',
+                        'anual' => 'Anual',
+                        default => 'Plano',
+                    };
+                    $periodicidade = match ($plano['periodo']) {
+                        'mensal' => 'por mês',
+                        'semestral' => 'a cada 6 meses',
+                        'anual' => 'por ano',
+                        default => 'por período',
+                    };
+                    ?>
+                    <article class="plan-card" data-reveal>
+                        <div class="plan-card-heading">
+                            <span class="plan-period"><?= $periodo ?></span>
+                            <h3><?= $nome ?></h3>
+                        </div>
+                        <div class="plan-price" aria-label="R$ <?= $preco ?>, <?= $periodicidade ?>">
+                            <span class="plan-currency">R$</span>
+                            <strong><?= $preco ?></strong>
+                        </div>
+                        <span class="plan-billing"><?= $periodicidade ?></span>
+                        <?php if ($descricao !== ''): ?>
+                            <p class="plan-description"><?= $descricao ?></p>
+                        <?php endif; ?>
+                        <a class="plan-subscribe" href="/cadastro?plano_id=<?= (int) $plano['id'] ?>" aria-label="Assinar <?= $nome ?>">
+                            Assinar
+                            <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+            <p class="plans-footnote">Os planos apresentados são demonstrativos. O cadastro e a contratação ainda estão em preparação.</p>
+        <?php else: ?>
+            <div class="plans-empty" role="status">
+                <h3>Nenhum plano disponível no momento.</h3>
+                <p>Estamos preparando novas opções de assinatura. Volte em breve.</p>
+            </div>
+        <?php endif; ?>
+    </div>
+</section>
+
 <section class="final-cta">
     <div class="shell">
         <div class="cta-panel" data-reveal>
