@@ -22,14 +22,18 @@ try {
         || ($i['credenciais'] ?? '') !== 'text' || ($i['webhook_id'] ?? '') !== 'char(32)') {
         throw new RuntimeException('Colunas de integracoes incorretas.');
     }
+    // Escopo: id_restaurante (restaurante) ou 0 (plataforma), gerado pelo MySQL.
+    if (!isset($i['escopo'])) {
+        throw new RuntimeException('Coluna integracoes.escopo ausente (migration da plataforma).');
+    }
     $e = $colunas('integracao_eventos');
-    if (($e['payload'] ?? '') !== 'mediumtext' || !isset($e['id_externo'], $e['evento'], $e['recebido_em'])) {
+    if (($e['payload'] ?? '') !== 'mediumtext' || !isset($e['id_externo'], $e['evento'], $e['recebido_em'], $e['escopo'])) {
         throw new RuntimeException('Colunas de integracao_eventos incorretas.');
     }
     $unicos = $db->query(<<<'SQL'
 SELECT INDEX_NAME FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0
-  AND INDEX_NAME IN ('uq_integracoes_restaurante_provedor', 'uq_integracoes_webhook', 'uq_integracao_eventos_externo')
+  AND INDEX_NAME IN ('uq_integracoes_escopo_provedor', 'uq_integracoes_webhook', 'uq_integracao_eventos_externo')
 GROUP BY INDEX_NAME
 SQL)->fetchAll(PDO::FETCH_COLUMN);
     if (count($unicos) !== 3) {
