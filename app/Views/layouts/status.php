@@ -6,8 +6,10 @@
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#651424">
     <title>Status da plataforma | Cardapim</title>
-    <link rel="icon" href="/assets/img/icone.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/css/status.css">
+    <?php if ($iconeUrl !== null): ?>
+    <link rel="icon" href="<?= htmlspecialchars($iconeUrl, ENT_QUOTES, 'UTF-8') ?>" type="image/svg+xml">
+    <?php endif; ?>
+    <link rel="stylesheet" href="<?= \Cardapim\Core\AssetUrl::asset('css/status.css') ?>">
 </head>
 <body>
 <?= $content ?>

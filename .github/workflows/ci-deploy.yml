@@ -77,6 +77,10 @@ jobs:
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
           php database/verify-visibilidade-log-user.php --verify
+          php database/seed-configuracoes-restaurante.php --apply
+          php database/seed-configuracoes-restaurante.php --apply
+          php database/seed-configuracoes-restaurante.php --verify
+          php tests/integration/configuracoes.php
           php tests/integration/schema.php
           php -r '$d=new PDO("mysql:host=127.0.0.1;port=3306;dbname=cardapim_ci;charset=utf8mb4", "cardapim_ci", "cardapim_ci_only"); $n=$d->query("SELECT COUNT(*) FROM planos WHERE nome LIKE \"Demonstração %\"")->fetchColumn(); exit((int)$n===3 ? 0 : 1);'
 
@@ -96,6 +100,7 @@ jobs:
           php -r '$d=json_decode(file_get_contents("/tmp/cardapim-status.json"), true, 512, JSON_THROW_ON_ERROR); exit(($d["servicos"]["php"]["situacao"] === "operacional" && $d["servicos"]["mysql"]["situacao"] === "conectado") ? 0 : 1);'
           curl --fail --silent --show-error http://127.0.0.1:18080/status | grep -q 'Banco de dados'
           page="$(curl --fail --silent --show-error http://127.0.0.1:18080/)"
+          [[ "$page" == *'/assets/img/logo-colorida.svg'* ]]
           [[ "$page" == *'Seu restaurante cresce'* ]]
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/rota-inexistente)" = "404"
 
@@ -120,6 +125,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          PREPARE_CONFIG_RESTAURANT: ${{ contains(github.event.head_commit.message, '[cardapim-config-modelo]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -146,4 +152,7 @@ jobs:
           rsync -az --delete --exclude='.git/' --exclude='.github/' --exclude='.env' --exclude='storage/' --exclude='vendor/' \
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
+          if [[ "$PREPARE_CONFIG_RESTAURANT" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" < deploy/scripts/prepare-configuracoes-restaurante.sh
+          fi
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh

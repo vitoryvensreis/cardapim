@@ -2,7 +2,11 @@
     <div class="status-shell">
         <header class="status-header">
             <a class="status-brand" href="/" aria-label="Cardapim, voltar à página inicial">
-                <img src="/assets/img/logo-preta.svg" alt="Cardapim" width="190" height="61">
+                <?php if ($logoPreta !== null): ?>
+                    <img src="<?= htmlspecialchars($logoPreta, ENT_QUOTES, 'UTF-8') ?>" alt="Cardapim" width="190" height="61">
+                <?php else: ?>
+                    <span>Cardapim</span>
+                <?php endif; ?>
             </a>
             <a class="status-back" href="/">Voltar ao site</a>
         </header>

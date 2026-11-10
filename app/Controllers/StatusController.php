@@ -7,6 +7,7 @@ namespace Cardapim\Controllers;
 use Cardapim\Core\Database;
 use Cardapim\Core\Response;
 use Cardapim\Core\View;
+use Cardapim\Services\Configuracoes;
 use Throwable;
 
 final class StatusController
@@ -20,6 +21,18 @@ final class StatusController
         } catch (Throwable $exception) {
             // A rota publica nao revela host, usuario, senha, query ou detalhes do PDO.
             error_log('[Cardapim] Verificacao de MySQL indisponivel: ' . get_class($exception));
+        }
+
+        $logoPreta = null;
+        $iconeUrl = null;
+        if ($databaseReady) {
+            try {
+                $logoPreta = Configuracoes::logo('logo_preta');
+                $iconeUrl = Configuracoes::logo('icone');
+            } catch (Throwable $exception) {
+                // Sem banco/configuracao, a pagina de status continua legivel em texto.
+                error_log('[Cardapim] Branding indisponivel no status: ' . get_class($exception));
+            }
         }
 
         $httpStatus = $databaseReady ? 200 : 503;
@@ -51,6 +64,8 @@ final class StatusController
                 'databaseReady' => $databaseReady,
                 'phpVersion' => $phpVersion,
                 'checkedAt' => date('d/m/Y H:i:s'),
+                'logoPreta' => $logoPreta,
+                'iconeUrl' => $iconeUrl,
             ], 'layouts/status'),
             $httpStatus,
             [...$headers, 'Content-Type' => 'text/html; charset=UTF-8'],
