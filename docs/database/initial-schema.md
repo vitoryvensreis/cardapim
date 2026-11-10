@@ -216,3 +216,5 @@ O script salva um backup privado do banco, insere as contas e armazena as senhas
 - Validacao oficial no backend: `Cardapim\Shared\Validation\Documento::normalizarCpf()` (digitos verificadores). A mascara do navegador e apenas conforto.
 - LGPD: CPF e dado pessoal; nao registrar em logs e exibir mascarado (`***.982.247-**`).
 - Aplicacao em producao: `deploy/scripts/apply-user-cpf.sh`, acionado uma unica vez pelo CI com a marca `[cardapim-user-cpf]` na mensagem do commit. O script confere que so essa migration esta pendente, cria backup `mysqldump` validado, aplica e roda `verify-user-schema.php`. `CARDAPIM_RUN_MIGRATIONS` continua `false`.
+
+A execucao GitHub Actions **#40** (commit `2d22656`) criou o backup privado `shared/backups/cardapim-before-user-cpf-20261110T023013Z.sql.gz`, aplicou `20261110020000_add_cpf_user.php` e validou o schema (`verify-user-schema.php`). O acionamento temporario foi removido do workflow no commit seguinte. `CARDAPIM_RUN_MIGRATIONS` permanece `false`.
