@@ -91,3 +91,8 @@ Aplicado em produção em 09/11/2026 pela execução GitHub Actions #16 (commit 
 - **Apenas estrutura**, sem automação de gravação de logs nem criação de planos vitalícios.
 
 As migrations versionadas são `20261109235500_add_visibilidade_planos.php` e `20261109235600_create_log_user.php`. A operação de publicação pontual executa backup MySQL privado antes de aplicá-las; `CARDAPIM_RUN_MIGRATIONS=false` permanece. Os planos já cadastrados recebem visibilidade 1.
+
+
+### Implantação em produção
+
+As duas alterações foram aplicadas no MySQL da VPS pelo GitHub Actions **#20** (commit `f808751f`). O log confirmou o backup `shared/backups/cardapim-before-visibilidade-log-20261110T000424Z.sql.gz`, a aplicação das migrations `20261109235500_add_visibilidade_planos.php` e `20261109235600_create_log_user.php`, e a verificação das seis colunas e do valor padrão 1. O acionamento temporário foi retirado do workflow após a operação. `CARDAPIM_RUN_MIGRATIONS` permanece desativado.
