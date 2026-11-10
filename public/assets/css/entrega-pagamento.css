@@ -1,0 +1,52 @@
+/* Aba Entrega e pagamento (painel do gerente). Usa os tokens de core.css e os componentes de painel.css. */
+.opcao-modo strong { display: flex; align-items: center; gap: .4rem; }
+.opcao-modo strong .icon { color: var(--c-wine); }
+.opcao-aviso { display: flex !important; align-items: center; gap: .35rem; margin-top: .45rem !important; color: var(--c-orange-700) !important; font-weight: 600; }
+.opcao-aviso a { color: var(--c-wine); text-decoration: underline; }
+.opcoes-recebe, .formas-grade { display: grid; gap: .6rem; }
+.tempos-grade { margin-top: .5rem; }
+.tempo-par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.tempos-grade [data-tempo][hidden] { display: none; }
+.rotulo-grupo { margin: 1.1rem 0 .55rem; color: var(--c-muted); font: 800 .74rem/1.2 var(--f-head); letter-spacing: .06em; text-transform: uppercase; }
+
+.area-grupo { padding-top: 1.1rem; margin-top: 1.1rem; border-top: 1px dashed var(--c-line); }
+.area-grupo:first-of-type { margin-top: .5rem; }
+.area-grupo-titulo { display: flex; align-items: center; gap: .45rem; margin: 0 0 .75rem; color: var(--c-ink); font: 800 1rem/1.2 var(--f-head); }
+.area-grupo-titulo .icon { color: var(--c-wine); }
+.lista-areas { margin-bottom: .85rem; }
+.lista-item-pausado .lista-titulo strong, .lista-item-pausado .lista-dado { opacity: .6; }
+.area-editar { grid-column: 1 / -1; }
+.area-editar > summary {
+  display: inline-flex; align-items: center; gap: .35rem; min-height: 2.6rem; color: var(--c-wine); font: 700 .86rem/1 var(--f-head);
+  cursor: pointer; list-style: none;
+}
+.area-editar > summary::-webkit-details-marker, .area-nova > summary::-webkit-details-marker { display: none; }
+.area-editar[open] > summary { margin-bottom: .5rem; }
+.area-nova > summary { list-style: none; cursor: pointer; }
+.area-nova[open] > summary { margin-bottom: .85rem; }
+.area-form { padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: #fdfafb; }
+.area-form .form-grade { margin-bottom: .25rem; }
+.form-acoes-esquerda { justify-content: flex-start; position: static; margin: .5rem 0 0; padding: 0; border: 0; box-shadow: none; background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+.local-estado { display: grid; gap: .6rem; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.local-estado > p { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin: 0; }
+.local-estado .notice { margin: 0; }
+.local-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.local-acoes form { margin: 0; }
+
+.teste-form { margin-bottom: 1rem; }
+.teste-resultado p { margin: .2rem 0 .4rem; }
+.teste-detalhes { margin: 0; padding-left: 1.1rem; color: var(--c-muted); font-size: .88rem; }
+
+@media (min-width: 40rem) {
+  .opcoes-recebe, .formas-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .local-estado { padding: 1.1rem 1.25rem; }
+}
+@media (min-width: 64rem) {
+  .lista-areas { --colunas: minmax(0, 2fr) 8rem 9rem 7rem; }
+  .lista-areas .area-editar { padding-top: .25rem; }
+}
+
+/* Acoes da area com texto (nao so icone): "Pausar" e "Remover" claros para quem nao e da tecnologia. */
+.area-remover { color: var(--c-danger); }
+.area-remover:hover { color: #8f1c13; }

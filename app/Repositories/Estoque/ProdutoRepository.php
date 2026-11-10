@@ -20,7 +20,7 @@ final class ProdutoRepository
             'SELECT p.id, p.nome, p.preco, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
-             WHERE p.id_restaurante = ?
+             WHERE p.id_restaurante = ? AND p.ativo = 1
              ORDER BY c.ordem IS NULL, c.ordem, c.nome, p.ordem, p.nome'
         );
         $query->execute([$idRestaurante]);
@@ -104,6 +104,22 @@ final class ProdutoRepository
         foreach ($itens as $idInsumo => $quantidade) {
             $insert->execute([$idRestaurante, $idProduto, $idInsumo, $quantidade]);
         }
+    }
+
+    /** Ja foi vendido? (produto com pedidos nao e apagado: e arquivado para manter o historico) */
+    public function temPedidos(int $idRestaurante, int $id): bool
+    {
+        $q = $this->db->prepare('SELECT 1 FROM pedido_itens WHERE id_produto = ? AND id_restaurante = ? LIMIT 1');
+        $q->execute([$id, $idRestaurante]);
+        return $q->fetchColumn() !== false;
+    }
+
+    /** Arquiva: some do cardapio e do painel, libera o nome e o codigo, e os pedidos antigos continuam intactos. */
+    public function arquivar(int $idRestaurante, int $id, string $nome): void
+    {
+        $sufixo = ' (arquivado ' . $id . ')';
+        $this->db->prepare('UPDATE produtos SET ativo = 0, disponivel = 0, codigo = NULL, nome = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ? AND id_restaurante = ?')
+            ->execute([mb_substr($nome, 0, 150 - mb_strlen($sufixo)) . $sufixo, $id, $idRestaurante]);
     }
 
     /** Exclui produto e ficha. Chamar dentro de transacao. */

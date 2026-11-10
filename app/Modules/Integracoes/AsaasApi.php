@@ -78,6 +78,81 @@ class AsaasApi
         $this->chamar('DELETE', '/webhooks/' . $idWebhook, $chave, $ambiente);
     }
 
+    /** Cadastra o pagador na conta Asaas do restaurante (exigido para cobrar). @return string id (cus_...) */
+    public function criarCliente(string $chave, string $ambiente, string $nome, string $cpf, string $celular, string $referencia): string
+    {
+        $dados = $this->exigirOk($this->chamar('POST', '/customers', $chave, $ambiente, [
+            'name' => $nome,
+            'cpfCnpj' => $cpf,
+            'mobilePhone' => $celular,
+            'externalReference' => $referencia,
+            'notificationDisabled' => true,
+        ]));
+        $id = (string) ($dados['id'] ?? '');
+        if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $id) !== 1) {
+            throw new IntegracaoErro('O Asaas não devolveu o cadastro do cliente.');
+        }
+        return $id;
+    }
+
+    /**
+     * Cobranca Pix de um pedido. @return string id da cobranca (pay_...)
+     * externalReference = "pedido:{id}" liga o aviso (webhook) ao pedido.
+     */
+    public function criarCobrancaPix(string $chave, string $ambiente, string $cliente, string $valor, string $vencimento, string $descricao, string $referencia): string
+    {
+        $dados = $this->exigirOk($this->chamar('POST', '/payments', $chave, $ambiente, [
+            'customer' => $cliente,
+            'billingType' => 'PIX',
+            'value' => (float) $valor,
+            'dueDate' => $vencimento,
+            'description' => mb_substr($descricao, 0, 500),
+            'externalReference' => $referencia,
+        ]));
+        $id = (string) ($dados['id'] ?? '');
+        if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $id) !== 1) {
+            throw new IntegracaoErro('O Asaas não devolveu a cobrança Pix.');
+        }
+        return $id;
+    }
+
+    /** Codigo Pix copia e cola da cobranca. @return array{payload:string, expira_em:?string} */
+    public function qrCodePix(string $chave, string $ambiente, string $idCobranca): array
+    {
+        $dados = $this->exigirOk($this->chamar('GET', '/payments/' . self::idSeguro($idCobranca) . '/pixQrCode', $chave, $ambiente));
+        $payload = (string) ($dados['payload'] ?? '');
+        if ($payload === '' || strlen($payload) > 1000) {
+            throw new IntegracaoErro('O Asaas não devolveu o código Pix.');
+        }
+        $expira = is_string($dados['expirationDate'] ?? null) && preg_match('/\A\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?\z/', $dados['expirationDate']) === 1
+            ? $dados['expirationDate'] : null;
+        return ['payload' => $payload, 'expira_em' => $expira];
+    }
+
+    /** Situacao da cobranca (PENDING, RECEIVED, CONFIRMED, OVERDUE...). @return array{status:string, valor:string} */
+    public function cobranca(string $chave, string $ambiente, string $idCobranca): array
+    {
+        $dados = $this->exigirOk($this->chamar('GET', '/payments/' . self::idSeguro($idCobranca), $chave, $ambiente));
+        return [
+            'status' => strtoupper((string) ($dados['status'] ?? '')),
+            'valor' => number_format((float) ($dados['value'] ?? 0), 2, '.', ''),
+        ];
+    }
+
+    /** Cancela (remove) a cobranca: usado quando o pedido expira ou e cancelado antes do pagamento. */
+    public function cancelarCobranca(string $chave, string $ambiente, string $idCobranca): void
+    {
+        $this->chamar('DELETE', '/payments/' . self::idSeguro($idCobranca), $chave, $ambiente);
+    }
+
+    private static function idSeguro(string $id): string
+    {
+        if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $id) !== 1) {
+            throw new IntegracaoErro('Identificador de cobrança inválido.');
+        }
+        return $id;
+    }
+
     /** @param array<mixed>|null $corpo */
     private function chamar(string $metodo, string $caminho, string $chave, string $ambiente, ?array $corpo = null): RespostaHttp
     {

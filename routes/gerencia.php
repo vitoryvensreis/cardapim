@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Cardapim\Controllers\Gerencia\AssinaturaController;
+use Cardapim\Controllers\Gerencia\EntregaPagamentoController;
 use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
 use Cardapim\Controllers\Gerencia\IntegracoesController;
@@ -54,6 +55,17 @@ return static function (Router $router): void {
     $router->post($g . '/perfil/logo', [PerfilController::class, 'logo']);
     $router->post($g . '/perfil/logo/remover', [PerfilController::class, 'removerLogo']);
     $router->post($g . '/perfil/horarios', [PerfilController::class, 'horarios']);
+
+    // Entrega e pagamento (cardapio online)
+    $router->get($g . '/entrega-pagamento', [EntregaPagamentoController::class, 'mostrar']);
+    $router->post($g . '/entrega-pagamento', [EntregaPagamentoController::class, 'salvar']);
+    $router->get($g . '/entrega-pagamento/testar', [EntregaPagamentoController::class, 'testar']);
+    $router->post($g . '/entrega-pagamento/areas', [EntregaPagamentoController::class, 'criarArea']);
+    $router->post($g . '/entrega-pagamento/areas/{id}', [EntregaPagamentoController::class, 'atualizarArea']);
+    $router->post($g . '/entrega-pagamento/areas/{id}/pausar', [EntregaPagamentoController::class, 'alternarArea']);
+    $router->post($g . '/entrega-pagamento/areas/{id}/excluir', [EntregaPagamentoController::class, 'excluirArea']);
+    $router->post($g . '/entrega-pagamento/localizacao', [EntregaPagamentoController::class, 'local']);
+    $router->post($g . '/entrega-pagamento/localizacao/remover', [EntregaPagamentoController::class, 'removerLocal']);
 
     // Assinatura
     $router->get($g . '/assinatura', [AssinaturaController::class, 'mostrar']);

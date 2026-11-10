@@ -168,9 +168,11 @@ final class BaixaEstoque
     private function travarInsumos(int $idRestaurante, array $ids): array
     {
         $marcadores = implode(',', array_fill(0, count($ids), '?'));
+        // FOR UPDATE no MySQL; o SQLite (testes locais) ja trava o banco inteiro na transacao.
+        $trava = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
         $query = $this->db->prepare(
             "SELECT id, nome, unidade, estoque_atual, ativo FROM insumos
-             WHERE id_restaurante = ? AND id IN ($marcadores) ORDER BY id FOR UPDATE"
+             WHERE id_restaurante = ? AND id IN ($marcadores) ORDER BY id" . $trava
         );
         $query->execute([$idRestaurante, ...$ids]);
         $insumos = [];

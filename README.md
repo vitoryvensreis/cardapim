@@ -6,13 +6,22 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Pedidos, entrega e pagamento
+
+- **Tabelas `pedidos` e `pedido_itens`**: todo pedido tem o restaurante (`id_restaurante`) e de quem e: o cliente (`id_cliente`) e/ou a pessoa da equipe que registrou (`id_user`). Linha do tempo em `pedido_eventos`.
+- **Aba "Entrega e pagamento"** do gerente: entrega e/ou retirada, tempo estimado, formas aceitas (Pix pelo app via Asaas do restaurante, Pix na entrega, cartao de debito, cartao de credito e dinheiro) e **areas de entrega por bairro ou por raio em km**, cada uma com taxa e pedido minimo, com "Testar um endereco".
+- **Finalizar o pedido** no cardapio: entrega ou retirada, endereco pelo CEP (confere na hora se o restaurante entrega e quanto custa), pagamento (troco, CPF para o Pix) e tela para acompanhar o pedido.
+- Geolocalizacao **sem custo**: BrasilAPI/ViaCEP para CEP e Nominatim (OpenStreetMap) para distancia, respeitando a politica de uso (1 consulta/s e cache).
+- **Proxima etapa**: tela da equipe para receber e aceitar os pedidos (cozinha e caixa).
+- [Arquitetura, regras e rotas](docs/architecture/pedidos.md).
+
 ## Cardapio online do restaurante (cliente final)
 
 - `/{slug-do-restaurante}`: cardapio para o cliente pedir pelo celular, no estilo dos apps de delivery: capa, status aberto/fechado, horarios, busca, abas de categoria que acompanham a rolagem e produtos com botao "+".
 - **Sacola**: folha que sobe de baixo com observacao e quantidade; barra fixa "Ver sacola" no celular e painel lateral no computador; guardada no aparelho por 2 dias e **conferida no servidor** (preco e disponibilidade atuais) ao abrir a pagina.
 - **Login do cliente sem senha**: so numero do WhatsApp e nome. Codigo de 6 digitos enviado pelo **WhatsApp da plataforma** (`/painel/integracoes/whatsapp` precisa estar conectado), valido por 10 min, com limites de envio e tentativas; aparelho lembrado por 60 dias.
 - Tabelas `clientes` (nome, WhatsApp, CPF, endereco completo, ultimo acesso) e `cliente_sessoes`.
-- **Proxima etapa**: endereco, entrega/retirada, pagamento e envio do pedido. Hoje o botao "Continuar" confirma o login e avisa que a finalizacao chega na proxima atualizacao.
+- O botao "Continuar" leva para a finalizacao do pedido (secao acima).
 - [Arquitetura, rotas e seguranca](docs/architecture/cardapio-cliente.md).
 
 ## Painel da plataforma (administracao)

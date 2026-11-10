@@ -104,3 +104,11 @@ circle-exclamation-point
 wifi
 wifi-off
 chevron-down
+truck
+locate-fixed
+map
+timer
+pause
+play
+package-check
+hand-coins

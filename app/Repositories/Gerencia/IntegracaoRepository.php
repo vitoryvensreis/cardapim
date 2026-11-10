@@ -151,6 +151,13 @@ final class IntegracaoRepository
         }
     }
 
+    /** Aviso tratado (ex.: Pix do pedido confirmado). */
+    public function marcarProcessado(string $provedor, string $idExterno): void
+    {
+        $this->db->prepare('UPDATE integracao_eventos SET processado_em = ? WHERE provedor = ? AND id_externo = ? AND processado_em IS NULL')
+            ->execute([date('Y-m-d H:i:s'), $provedor, mb_substr($idExterno, 0, 120)]);
+    }
+
     /** @return list<array{evento:string,id_externo:?string,recebido_em:string}> */
     public function ultimosEventos(?int $idRestaurante, string $provedor, int $limite = 5): array
     {

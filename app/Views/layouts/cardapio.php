@@ -2,6 +2,7 @@
 /**
  * Layout do cardapio publico (/{slug}): cara de aplicativo, topo enxuto e sem o rodape grande do site.
  * Espera: $content, $restaurante (nome, slug), $pageTitle, $pageDescription.
+ * Opcional: $pageScripts/$pageStyles (troca o js/cardapio.js), $voltar [url, rotulo] e $topoFixo (nome sempre no topo).
  */
 use Cardapim\Core\Icon;
 use Cardapim\Services\Configuracoes;
@@ -11,8 +12,9 @@ $favicon = Configuracoes::logoOuPadrao('icone');
 $logoPreta = Configuracoes::logoOuPadrao('logo_preta');
 $title = $e((string) ($pageTitle ?? 'Cardápio | Cardapim'));
 $description = $e((string) ($pageDescription ?? 'Cardápio digital no Cardapim.'));
-$styles = ['css/cardapio.css'];
-$scripts = ['js/cliente.js', 'js/cardapio.js'];
+$styles = ['css/cardapio.css', ...($pageStyles ?? [])];
+$scripts = ['js/cliente.js', ...($pageScripts ?? ['js/cardapio.js'])];
+[$voltarUrl, $voltarRotulo] = $voltar ?? ['/catalogo', 'Ver outros restaurantes'];
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -21,8 +23,8 @@ $scripts = ['js/cliente.js', 'js/cardapio.js'];
 </head>
 <body class="page-cardapio" data-cardapio="<?= $e((string) $restaurante['slug']) ?>">
     <a class="skip-link" href="#cardapio">Pular para o cardápio</a>
-    <header class="cd-topo" data-topo>
-        <a class="cd-topo-btn" href="/catalogo" aria-label="Ver outros restaurantes" title="Outros restaurantes"><?= Icon::svg('arrow-left') ?></a>
+    <header class="cd-topo<?= !empty($topoFixo) ? ' is-compacto' : '' ?>" data-topo>
+        <a class="cd-topo-btn" href="<?= $e($voltarUrl) ?>" aria-label="<?= $e($voltarRotulo) ?>" title="<?= $e($voltarRotulo) ?>"><?= Icon::svg('arrow-left') ?></a>
         <p class="cd-topo-nome" data-topo-nome aria-hidden="true"><?= $e((string) $restaurante['nome']) ?></p>
         <button class="cd-conta" type="button" data-conta aria-haspopup="dialog">
             <?= Icon::svg('circle-user') ?><span data-conta-texto>Entrar</span>

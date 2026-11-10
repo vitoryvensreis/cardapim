@@ -120,16 +120,22 @@ final class ProdutoService
         if ($produto === null) {
             return Resultado::falha('Produto não encontrado. Ele pode já ter sido excluído.');
         }
+        $arquivado = $this->produtos->temPedidos($this->idRestaurante, $id);
         $this->db->beginTransaction();
         try {
-            $this->produtos->excluir($this->idRestaurante, $id);
+            if ($arquivado) {
+                $this->produtos->arquivar($this->idRestaurante, $id, (string) $produto['nome']);
+            } else {
+                $this->produtos->excluir($this->idRestaurante, $id);
+            }
             $this->db->commit();
         } catch (Throwable $exception) {
             $this->db->rollBack();
             throw $exception;
         }
-        Auditoria::registrar($this->autor, 'Produto excluído', sprintf('%s (preço %s, categoria %s).', $produto['nome'], Numero::reais((string) $produto['preco']), $produto['categoria'] ?? 'nenhuma'));
-        return Resultado::sucesso('Produto "' . $produto['nome'] . '" excluído.');
+        Auditoria::registrar($this->autor, 'Produto excluído', sprintf('%s (preço %s, categoria %s).%s', $produto['nome'], Numero::reais((string) $produto['preco']), $produto['categoria'] ?? 'nenhuma',
+            $arquivado ? ' Já tinha pedidos: foi arquivado para manter o histórico.' : ''));
+        return Resultado::sucesso('Produto "' . $produto['nome'] . '" excluído.' . ($arquivado ? ' Os pedidos antigos com ele continuam no histórico.' : ''));
     }
 
     /**

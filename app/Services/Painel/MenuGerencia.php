@@ -57,6 +57,13 @@ final class MenuGerencia
             'descricao' => 'Como seu restaurante aparece para os clientes.',
             'planejado' => ['Nome e logo', 'Endereço e telefone', 'Horário de funcionamento', 'Página pública no catálogo'],
         ],
+        'entrega-pagamento' => [
+            'titulo' => 'Entrega e pagamento',
+            'rotulo' => 'Entrega e pagamento',
+            'icone' => 'truck',
+            'descricao' => 'Como o cliente recebe e paga os pedidos do cardápio online.',
+            'planejado' => ['Formas de pagamento aceitas', 'Entrega e retirada no local', 'Áreas de entrega por bairro ou por distância, com taxa'],
+        ],
         'integracoes' => [
             'titulo' => 'Integrações',
             'rotulo' => 'Integrações',
@@ -92,7 +99,7 @@ final class MenuGerencia
         '' => ['visao-geral'],
         'Operação' => ['@caixa', '@entregas', 'mesas'],
         'Gestão' => ['estoque', 'equipe', 'financeiro'],
-        'Restaurante' => ['perfil', 'integracoes', 'assinatura'],
+        'Restaurante' => ['perfil', 'entrega-pagamento', 'integracoes', 'assinatura'],
         'Conta' => ['minha-conta', 'suporte'],
     ];
 

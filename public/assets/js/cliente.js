@@ -1,7 +1,8 @@
 /*
  * Cardapim - cliente final no cardapio: janelas em "folha", conta e login pelo WhatsApp.
  * Fluxo (como nos apps de delivery): numero -> codigo de 6 digitos no WhatsApp -> (se for novo) nome.
- * Expoe window.CardapimUI (abrir/fechar folhas) e window.CardapimCliente (atual, entrar, pronto).
+ * Expoe window.CardapimUI (abrir/fechar folhas) e window.CardapimCliente (atual, entrar, pronto, api).
+ * api(url, corpo?) = fetch JSON com o token CSRF da sessao (POST quando ha corpo); dados.http = status HTTP.
  */
 (() => {
   "use strict";
@@ -106,6 +107,7 @@
       cliente = dados.cliente;
       avisar();
     }
+    dados.http = resposta.status;
     if (!resposta.ok && dados.ok === undefined) dados.ok = false;
     if (!dados.mensagem && !resposta.ok) dados.mensagem = dados.erro || "Algo deu errado. Tente de novo.";
     return dados;
@@ -154,7 +156,7 @@
   /* ---------- Login pelo WhatsApp ---------- */
   const dLogin = document.querySelector("[data-dialogo-login]");
   if (!dLogin) {
-    window.CardapimCliente = { pronto, atual: () => cliente, entrar: () => Promise.resolve(null), ouvir: (f) => ouvintes.push(f) };
+    window.CardapimCliente = { pronto, atual: () => cliente, entrar: () => Promise.resolve(null), ouvir: (f) => ouvintes.push(f), api: chamar };
     return;
   }
   const etapas = {};
@@ -335,5 +337,5 @@
     abrir(dLogin);
   });
 
-  window.CardapimCliente = { pronto, atual: () => cliente, entrar, ouvir: (f) => { ouvintes.push(f); } };
+  window.CardapimCliente = { pronto, atual: () => cliente, entrar, ouvir: (f) => { ouvintes.push(f); }, api: chamar };
 })();

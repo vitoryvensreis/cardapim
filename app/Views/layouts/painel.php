@@ -23,7 +23,7 @@ $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
 $title = $e((string) ($pageTitle ?? 'Painel | Cardapim'));
 $description = $e($painel['descricao']);
 $noIndex = true;
-$styles = ['css/pages.css', 'css/app.css', 'css/painel.css'];
+$styles = ['css/pages.css', 'css/app.css', 'css/painel.css', ...($pageStyles ?? [])];
 $tempoReal = $painel['tempo_real'] ?? null;
 $scripts = ['js/painel.js', 'js/confirmar.js', ...($tempoReal !== null ? ['js/tempo-real.js'] : []), ...($pageScripts ?? [])];
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));

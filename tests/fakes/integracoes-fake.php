@@ -49,7 +49,90 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
     if ($metodo === 'DELETE' && str_starts_with($m[1], '/webhooks/')) {
         $responder(200, ['deleted' => true]);
     }
+    // Clientes e cobrancas Pix (pedidos do cardapio online).
+    if ($metodo === 'POST' && $m[1] === '/customers') {
+        if (trim((string) ($json['name'] ?? '')) === '' || preg_match('/\A\d{11}\z/', (string) ($json['cpfCnpj'] ?? '')) !== 1) {
+            $responder(400, ['errors' => [['description' => 'Nome e CPF obrigatorios']]]);
+        }
+        if (str_contains((string) $json['name'], 'Falha Pix')) {
+            $responder(400, ['errors' => [['description' => 'Cliente recusado (teste)']]]);
+        }
+        $responder(200, ['id' => 'cus_ci_' . substr(md5((string) $json['cpfCnpj'] . $json['name']), 0, 10)] + $json);
+    }
+    $cobrancas = $ler('asaas-cobrancas.json') ?? [];
+    if ($metodo === 'POST' && $m[1] === '/payments') {
+        if (!str_starts_with((string) ($json['customer'] ?? ''), 'cus_') || ($json['billingType'] ?? '') !== 'PIX' || (float) ($json['value'] ?? 0) <= 0
+            || preg_match('/\A\d{4}-\d{2}-\d{2}\z/', (string) ($json['dueDate'] ?? '')) !== 1) {
+            $responder(400, ['errors' => [['description' => 'Cobranca invalida']]]);
+        }
+        $id = 'pay_ci_' . (count($cobrancas) + 1) . substr(md5((string) microtime(true)), 0, 6);
+        $cobrancas[$id] = ['id' => $id, 'status' => 'PENDING', 'value' => (float) $json['value'], 'externalReference' => (string) ($json['externalReference'] ?? ''), 'customer' => $json['customer']];
+        $guardar('asaas-cobrancas.json', $cobrancas);
+        $responder(200, $cobrancas[$id]);
+    }
+    if (preg_match('~\A/payments/([A-Za-z0-9_-]+)(/pixQrCode)?\z~', $m[1], $pm)) {
+        $c = $cobrancas[$pm[1]] ?? null;
+        if ($c === null) {
+            $responder(404, ['errors' => [['description' => 'Cobranca nao encontrada']]]);
+        }
+        if ($metodo === 'GET' && ($pm[2] ?? '') === '/pixQrCode') {
+            $responder(200, ['encodedImage' => '', 'payload' => '00020126580014br.gov.bcb.pix0136ci-' . $pm[1] . '5204000053039865802BR6304ABCD', 'expirationDate' => '2027-11-10 23:59:59']);
+        }
+        if ($metodo === 'GET') {
+            $responder(200, $c);
+        }
+        if ($metodo === 'DELETE') {
+            $cobrancas[$pm[1]]['status'] = 'DELETED';
+            $guardar('asaas-cobrancas.json', $cobrancas);
+            $responder(200, ['deleted' => true, 'id' => $pm[1]]);
+        }
+    }
     $responder(404, ['errors' => [['description' => 'nao encontrado']]]);
+}
+if (preg_match('~\A/_teste/asaas-pagar/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
+    $cobrancas = $ler('asaas-cobrancas.json') ?? [];
+    if (!isset($cobrancas[$m[1]])) {
+        $responder(404, []);
+    }
+    $cobrancas[$m[1]]['status'] = 'RECEIVED';
+    $guardar('asaas-cobrancas.json', $cobrancas);
+    $responder(200, $cobrancas[$m[1]]);
+}
+if ($caminho === '/_teste/asaas-cobrancas') {
+    $responder(200, $ler('asaas-cobrancas.json') ?? []);
+}
+
+/* ---------- CEP e mapa (BrasilAPI, ViaCEP, Nominatim) ---------- */
+$enderecos = [
+    '01310100' => ['Avenida Paulista', 'Bela Vista', -23.5614, -46.6559],
+    '01414000' => ['Rua Haddock Lobo', 'Cerqueira César', -23.5600, -46.6650],
+    '05422000' => ['Rua dos Pinheiros', 'Pinheiros', -23.5670, -46.6830],
+    '04538133' => ['Avenida Brigadeiro Faria Lima', 'Itaim Bibi', -23.5900, -46.6870],
+];
+if (preg_match('~\A/brasilapi/cep/v2/(\d{8})\z~', $caminho, $m)) {
+    $d = $enderecos[$m[1]] ?? null;
+    if ($d === null) {
+        $responder(404, ['message' => 'CEP nao encontrado']);
+    }
+    // Como na BrasilAPI real, as coordenadas nem sempre vem: so no CEP do restaurante.
+    $coord = $m[1] === '01310100' ? ['latitude' => (string) $d[2], 'longitude' => (string) $d[3]] : [];
+    $responder(200, ['cep' => $m[1], 'state' => 'SP', 'city' => 'São Paulo', 'neighborhood' => $d[1], 'street' => $d[0], 'service' => 'fake', 'location' => ['type' => 'Point', 'coordinates' => $coord]]);
+}
+if (preg_match('~\A/viacep/ws/(\d{8})/json/\z~', $caminho, $m)) {
+    $d = $enderecos[$m[1]] ?? null;
+    $responder(200, $d === null ? ['erro' => 'true'] : ['cep' => $m[1], 'logradouro' => $d[0], 'bairro' => $d[1], 'localidade' => 'São Paulo', 'uf' => 'SP']);
+}
+if ($caminho === '/nominatim/search') {
+    if (!str_contains($cab('User-Agent'), 'Cardapim')) {
+        $responder(403, []);
+    }
+    $rua = mb_strtolower((string) ($_GET['street'] ?? ''));
+    foreach ($enderecos as $d) {
+        if ($rua !== '' && str_contains($rua, mb_strtolower($d[0]))) {
+            $responder(200, [['lat' => (string) $d[2], 'lon' => (string) $d[3], 'display_name' => $d[0]]]);
+        }
+    }
+    $responder(200, []);
 }
 if ($caminho === '/_teste/asaas-webhook') {
     $responder(200, $ler('asaas-webhook.json') ?? []);

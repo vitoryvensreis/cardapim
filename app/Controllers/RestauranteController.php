@@ -14,7 +14,7 @@ use Cardapim\Shared\Slug;
 
 /**
  * Cardapio publico do restaurante: /{slug}. O cliente escolhe produtos, monta a sacola (guardada no
- * navegador e conferida no servidor) e entra pelo WhatsApp. Finalizar o pedido entra na proxima etapa.
+ * navegador e conferida no servidor), entra pelo WhatsApp, finaliza em /{slug}/finalizar e acompanha em /{slug}/pedido/{id}.
  */
 final class RestauranteController
 {
@@ -60,6 +60,85 @@ final class RestauranteController
             'totalProdutos' => $menu['total'],
             'info' => $info,
         ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-cache']);
+    }
+
+    /** GET /{slug}/finalizar - entrega ou retirada, endereco, pagamento e resumo (a sacola vem do aparelho). */
+    public function finalizar(string $slug): Response
+    {
+        $restaurante = $this->restaurantePublico($slug);
+        if ($restaurante instanceof Response) {
+            return $restaurante;
+        }
+        try {
+            $config = (new \Cardapim\Services\Pedidos\CheckoutPublico(Database::connect()))->config($restaurante['id']);
+        } catch (\Throwable $exception) {
+            error_log('[Cardapim] Finalizar pedido indisponivel: ' . get_class($exception));
+            return $this->erroTemporario();
+        }
+        return Response::html(View::render('restaurante/finalizar', [
+            'pageTitle' => 'Finalizar pedido · ' . $restaurante['nome'] . ' | Cardapim',
+            'pageDescription' => 'Finalize seu pedido em ' . $restaurante['nome'] . '.',
+            'noIndex' => true,
+            'restaurante' => $restaurante,
+            'config' => $config,
+            'voltar' => ['/' . $restaurante['slug'], 'Voltar ao cardápio'],
+            'topoFixo' => true,
+            'pageScripts' => ['js/checkout.js'],
+            'pageStyles' => ['css/checkout.css'],
+        ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-store']);
+    }
+
+    /** GET /{slug}/pedido/{id} - acompanhamento do pedido (dados carregados pela API, so para o dono). */
+    public function pedido(string $slug, string $id): Response
+    {
+        $restaurante = $this->restaurantePublico($slug);
+        if ($restaurante instanceof Response) {
+            return $restaurante;
+        }
+        if (!ctype_digit($id) || strlen($id) > 18) {
+            return $this->naoEncontrado();
+        }
+        $telefone = '';
+        try {
+            $telefone = (new CardapioPublico(Database::connect()))->informacoes($restaurante['id'])['telefone'];
+        } catch (\Throwable) {
+        }
+        return Response::html(View::render('restaurante/pedido', [
+            'pageTitle' => 'Seu pedido · ' . $restaurante['nome'] . ' | Cardapim',
+            'pageDescription' => 'Acompanhe seu pedido em ' . $restaurante['nome'] . '.',
+            'noIndex' => true,
+            'restaurante' => $restaurante,
+            'idPedido' => (int) $id,
+            'telefone' => $telefone,
+            'voltar' => ['/' . $restaurante['slug'], 'Voltar ao cardápio'],
+            'topoFixo' => true,
+            'pageScripts' => ['vendor/qrcode-generator/qrcode.js', 'js/acompanhar.js'],
+            'pageStyles' => ['css/checkout.css'],
+        ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-store']);
+    }
+
+    /** @return array{id:int,nome:string,slug:string,logo_path:?string}|Response */
+    private function restaurantePublico(string $slug): array|Response
+    {
+        if (!Slug::formatoValido($slug) || Slug::reservado($slug)) {
+            return $this->naoEncontrado();
+        }
+        try {
+            $restaurante = (new RestauranteRepository(Database::connect()))->buscarPublicoPorSlug($slug);
+        } catch (\Throwable $exception) {
+            error_log('[Cardapim] Restaurante indisponivel: ' . get_class($exception));
+            return $this->erroTemporario();
+        }
+        return $restaurante ?? $this->naoEncontrado();
+    }
+
+    private function erroTemporario(): Response
+    {
+        return Response::html(View::render('errors/500', [
+            'pageTitle' => 'Erro temporário | Cardapim',
+            'pageDescription' => 'Erro temporário no Cardapim.',
+            'noIndex' => true,
+        ], 'layouts/public'), 503);
     }
 
     /** POST /api/v1/restaurantes/{slug}/sacola - confere precos e disponibilidade da sacola do navegador. */

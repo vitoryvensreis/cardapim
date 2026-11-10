@@ -1,7 +1,7 @@
 # Cardapio online e cliente final
 
 Pagina publica `/{slug}` onde o cliente escolhe produtos, monta a sacola e entra com o WhatsApp.
-Nesta etapa o pedido ainda **nao e finalizado** (endereco, entrega, pagamento e envio ficam para a proxima).
+A finalizacao (endereco, entrega, pagamento) esta em [pedidos.md](pedidos.md).
 
 ## Experiencia (UX)
 
@@ -79,7 +79,6 @@ O cliente e da plataforma (o mesmo numero pede em qualquer restaurante); os pedi
 
 `cliente_sessoes`: aparelhos lembrados (`seletor` unico, `validador_hash`, `expira_em`, IP, navegador), FK com `ON DELETE CASCADE`.
 
-## Proxima etapa
+## Finalizacao do pedido
 
-Endereco (CEP), entrega ou retirada, taxa, pagamento (Pix Asaas do restaurante ou na entrega),
-criacao do pedido com evento no outbox para a cozinha e acompanhamento pelo cliente.
+Feita: entrega ou retirada, endereco, pagamento e acompanhamento. Ver [pedidos.md](pedidos.md).

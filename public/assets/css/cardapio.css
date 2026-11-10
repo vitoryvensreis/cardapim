@@ -308,7 +308,7 @@ html.cd-sem-rolagem { overflow: hidden; }
 /* ---------- Toast e rodape ---------- */
 .cd-toast {
   position: fixed; left: 50%; bottom: calc(1.25rem + env(safe-area-inset-bottom)); z-index: 60;
-  max-width: min(92vw, 26rem); padding: .75rem 1.1rem; border-radius: var(--r-pill);
+  max-width: min(92vw, 26rem); padding: .75rem 1.1rem; border-radius: 1rem; /* texto longo quebra em linhas sem virar "bolha" */
   background: var(--c-wine-900); color: var(--c-white); box-shadow: var(--sh-lg);
   font-weight: 600; font-size: .92rem; text-align: center;
   transform: translateX(-50%); animation: cd-toast var(--t-med) var(--ease-out);
@@ -378,3 +378,15 @@ html.cd-sem-rolagem { overflow: hidden; }
   .cd-folha[open] .cd-folha-caixa, .cd-folha.is-saindo .cd-folha-caixa, .cd-barra, .cd-toast, .cd-folha::backdrop { animation: none !important; }
   .cd-topo-nome, .cd-aba, .cd-produto { transition: none; }
 }
+
+/* ---------- Pedido em andamento (atalho para acompanhar) ---------- */
+.cd-andamento {
+  display: flex; align-items: center; gap: .75rem; margin: .75rem 1rem 0; padding: .75rem .9rem; border: 1px solid #f3cdbf; border-radius: var(--r-md);
+  background: var(--c-orange-100); color: var(--c-orange-700);
+}
+.cd-andamento-icone { display: grid; place-items: center; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; border-radius: .75rem; background: var(--c-white); }
+.cd-andamento-texto { flex: 1 1 auto; min-width: 0; }
+.cd-andamento-texto strong { display: block; color: var(--c-ink); font: 700 .95rem/1.2 var(--f-head); }
+.cd-andamento-texto small { display: block; font-size: .82rem; }
+@media (min-width: 40rem) { .cd-andamento { margin-inline: 1.5rem; } }
+@media (min-width: 64rem) { .cd-andamento { width: calc(100% - 3rem); max-width: 73rem; margin: 1rem auto 0; } }

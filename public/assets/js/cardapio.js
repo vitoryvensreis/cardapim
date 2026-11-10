@@ -4,7 +4,8 @@
  *
  * Sacola: guardada neste aparelho (localStorage, uma por restaurante, vale 2 dias) para nao se perder ao
  * recarregar ou sair da pagina. Precos e disponibilidade sao sempre conferidos no servidor
- * (POST /api/v1/restaurantes/{slug}/sacola); o servidor recalcula tudo de novo ao finalizar o pedido.
+ * (POST /api/v1/restaurantes/{slug}/sacola); o servidor recalcula tudo de novo ao finalizar o pedido
+ * (/{slug}/finalizar, js/checkout.js).
  */
 (() => {
   "use strict";
@@ -218,13 +219,26 @@
     if (sacola.length === 0 && dSacola?.open) UI.fechar(dSacola);
   };
 
+  // Continuar: entra (se precisar) e vai para "Finalizar pedido" (entrega, pagamento e resumo).
   const continuarPedido = async () => {
     const cliente = await Cliente.entrar({ motivo: "para continuar seu pedido" });
     if (!cliente) return;
-    avisoContinuar = `Tudo certo, ${cliente.primeiro_nome}! Endereço, entrega e pagamento chegam na próxima atualização do Cardapim. Sua sacola fica guardada neste aparelho.`;
-    atualizar();
-    if (!window.matchMedia("(min-width: 64rem)").matches) UI.abrir(dSacola);
+    salvar();
+    window.location.assign(`/${encodeURIComponent(slug)}/finalizar`);
   };
+
+  /* ---------- Pedido em andamento (feito neste aparelho nas ultimas horas) ---------- */
+  const andamento = document.querySelector("[data-ultimo-pedido]");
+  try {
+    const ultimo = JSON.parse(window.localStorage.getItem(`cardapim:ultimo-pedido:${slug}`) || "null");
+    if (andamento && ultimo && Number.isInteger(ultimo.id) && Date.now() - (ultimo.salvo || 0) < 6 * 3600 * 1000) {
+      andamento.href = `/${encodeURIComponent(slug)}/pedido/${ultimo.id}`;
+      andamento.querySelector("[data-ultimo-numero]").textContent = `Pedido #${ultimo.numero}`;
+      andamento.hidden = false;
+    }
+  } catch (e) {
+    /* sem armazenamento */
+  }
 
   document.querySelector("[data-abrir-sacola]")?.addEventListener("click", () => UI.abrir(dSacola));
 

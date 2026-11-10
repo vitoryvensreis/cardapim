@@ -50,11 +50,41 @@ final class WebhookController
                 // A tela de Integracoes aberta mostra "chegou aviso" na hora (so o nome do evento; nada do pagamento).
                 \Cardapim\Realtime\TempoReal::publicar($integracao['id_restaurante'], 'integracoes', 'integracao.asaas.aviso', ['evento' => $evento]);
             }
+            if ($integracao['id_restaurante'] !== null) {
+                $this->pagamentoDePedido((int) $integracao['id_restaurante'], $evento, $dados, $idExterno);
+            }
             // Repetido tambem responde 200: o Asaas entrega "pelo menos uma vez".
             return self::texto('ok', 200);
         } catch (Throwable $exception) {
             error_log('[Cardapim] Falha no webhook Asaas: ' . get_class($exception));
             return self::texto('Erro temporário.', 500);
+        }
+    }
+
+    /**
+     * Pix de pedido pago: confirma o pedido (idempotente; o aviso repetido nao muda nada).
+     * Falha aqui nao derruba o aviso: a tela do cliente tambem confere a cobranca enquanto espera.
+     * @param array<string,mixed> $dados
+     */
+    private function pagamentoDePedido(int $idRestaurante, string $evento, array $dados, ?string $idExterno): void
+    {
+        if (!in_array($evento, ['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'], true)) {
+            return;
+        }
+        $pagamento = is_array($dados['payment'] ?? null) ? $dados['payment'] : [];
+        $referencia = (string) ($pagamento['externalReference'] ?? '');
+        $idCobranca = (string) ($pagamento['id'] ?? '');
+        if (preg_match('/\Apedido:\d{1,18}\z/', $referencia) !== 1 || preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $idCobranca) !== 1) {
+            return;
+        }
+        try {
+            $resultado = (new \Cardapim\Services\Pedidos\PixPedido(Database::connect()))
+                ->confirmar($idRestaurante, $idCobranca, number_format((float) ($pagamento['value'] ?? 0), 2, '.', ''), 'webhook');
+            if ($resultado !== 'nao_encontrado' && $idExterno !== null) {
+                (new IntegracaoRepository(Database::connect()))->marcarProcessado('asaas', $idExterno);
+            }
+        } catch (Throwable $exception) {
+            error_log('[Cardapim] Pix do pedido nao confirmado pelo aviso: ' . get_class($exception));
         }
     }
 
