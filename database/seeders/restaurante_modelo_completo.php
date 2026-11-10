@@ -39,19 +39,22 @@ return static function (PDO $db): void {
         'cidade' => 'Fortaleza',
         'estado' => 'CE',
         'ponto_referencia' => 'Endereço fictício para demonstração',
-        'latitude' => '-3.7319000',                // centro de Fortaleza (aproximado)
-        'longitude' => '-38.5267000',
         'logo_path' => '/assets/img/icone.svg',
         'ultimo_pagamento' => '2026-11-10',
     ];
 
     // Coluna a coluna, somente quando estiver vazia. Numero e data comparam so com NULL
     // (comparar com '' gera erro no modo estrito do MySQL).
-    $semTexto = ['latitude', 'longitude', 'ultimo_pagamento'];
+    $semTexto = ['ultimo_pagamento'];
     foreach ($dados as $coluna => $valor) {
         $vazio = in_array($coluna, $semTexto, true) ? '%1$s IS NULL' : "(%1\$s IS NULL OR %1\$s = '')";
         // Nomes de coluna fixos deste arquivo, nunca vindos de entrada externa.
         $sql = sprintf('UPDATE restaurantes SET %1$s = ? WHERE id = ? AND ' . $vazio, $coluna);
         $db->prepare($sql)->execute([$valor, (int) $id]);
     }
+
+    // Coordenadas sempre juntas (CHECK exige as duas): centro de Fortaleza, aproximado.
+    $db->prepare(
+        'UPDATE restaurantes SET latitude = ?, longitude = ? WHERE id = ? AND latitude IS NULL AND longitude IS NULL'
+    )->execute(['-3.7319000', '-38.5267000', (int) $id]);
 };
