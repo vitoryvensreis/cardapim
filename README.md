@@ -6,6 +6,17 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Usuarios e vinculo com auditoria
+
+- Tabela `user` com cargos `cliente`, `gerente`, `motoqueiro`, `garcom`, `caixa` e `adm_master`.
+- `adm_master` e global, sem vinculo a restaurante; os demais cargos exigem `id_restaurante` valido. Indices facilitam consultas isoladas por restaurante e cargo.
+- Campos de identificacao, contatos, senha em hash, ultimo acesso, codigo temporario em hash e validade do codigo. Sem credenciais em texto puro.
+- `log_user.id_user` passa a ser uma FK para `user.id`; para nao perder historico, contas com logs precisam ser desativadas (`ativo=0`), nao apagadas.
+- A estrutura de usuarios **nao inclui autenticacao, painel ou criacao automatica de uma conta master**. Os perfis e permissoes deverao ser validados no backend quando essas funcionalidades forem desenvolvidas.
+- Detalhes: [schema versionado](docs/database/initial-schema.md).
+
+---
+
 ## Planos na landing page
 
 A pagina inicial possui a secao `/#planos` e o link **Planos** na navegacao. Os cards sao gerados a partir da tabela `planos` via `PlanoRepository::listarPublicos()`, com filtro **`ativo = 1 AND visibilidade = 1`** e ordenacao mensal, semestral e anual. Cada card apresenta nome, descricao, valor total por periodo e botao **Assinar**, que leva a `/cadastro?plano_id=<id>`. O `id` corresponde diretamente a chave primaria do banco, sem valores fixos no frontend.
@@ -28,7 +39,7 @@ O fluxo de cadastro/assinatura ainda nao foi implementado nesta etapa: os links 
 - **/status**: página de status de PHP 8.4 e da conexão MySQL (HTTP 200 quando conectado; 503 quando indisponível). Resposta JSON com cabeçalho `Accept: application/json`.
 - **planos**: nome, descrição, valor `DECIMAL(10,2)`, período mensal/semestral/anual, ativo, visibilidade (`1` por padrão) e timestamps.
 - **restaurantes**: nome, telefone, e-mail, CNPJ, slug, logo, status, último pagamento, timestamps e chave estrangeira `plano_id` para planos.
-- **log_user**: tabela de auditoria (`id`, `titulo`, `descricao`, `id_user`, `data_hora`, `ip`), preparada sem FK até a criação da tabela de usuários.
+- **log_user**: tabela de auditoria (`id`, `titulo`, `descricao`, `id_user`, `data_hora`, `ip`), com FK para `user.id`.
 - Duas migrations MySQL versionadas e testes de integração em CI. O deploy do código é automático quando habilitado; a criação efetiva das tabelas em produção depende de aplicar as migrations com backup.
 - [Esquema e comandos para a VPS](docs/database/initial-schema.md).
 
