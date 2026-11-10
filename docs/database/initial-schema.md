@@ -133,3 +133,38 @@ Migration: `database/migrations/20261110001000_create_configuracoes.php`. Seeder
 ### Implantacao do schema e modelo em producao
 
 A execucao GitHub Actions **#24**, commit `63779b63`, confirmou backup MySQL privado antes da migration, aplicacao de `20261110001000_create_configuracoes.php`, seed das URLs de marca/textos e criacao/validacao do Restaurante Modelo vinculado ao plano Demonstracao Mensal. A troca de release ocorreu **depois** das alteracoes no banco, e o healthcheck HTTPS passou. Backup: `shared/backups/cardapim-before-configuracoes-20261110T003220Z.sql.gz`. O gatilho especial do workflow foi removido na etapa seguinte. `CARDAPIM_RUN_MIGRATIONS=false` permanece.
+
+
+## Usuarios e vinculacao dos logs (11/2026)
+
+Tabelas em migrations separadas:
+
+- `20261110004500_create_user.php`: cria a tabela **`user`** (nome singular, conforme solicitado).
+- `20261110004600_vincular_log_user.php`: adiciona FK `log_user.id_user → user.id` com `ON DELETE RESTRICT` para preservar as evidencias de auditoria.
+
+| Coluna | Tipo | Finalidade |
+| --- | --- | --- |
+| `id` | BIGINT UNSIGNED, PK | Identificador |
+| `id_restaurante` | BIGINT UNSIGNED NULL, FK | Restaurante do usuario |
+| `cargo` | ENUM | cliente, gerente, motoqueiro, garcom, caixa, adm_master |
+| `usuario` | VARCHAR(60) UNIQUE | Login unico |
+| `email` | VARCHAR(190) UNIQUE | E-mail de acesso |
+| `senha_hash` | VARCHAR(255) | Hash de senha (PHP `password_hash()`) |
+| `nome` | VARCHAR(120) | Primeiro nome |
+| `sobrenome` | VARCHAR(150) | Sobrenome |
+| `whatsapp` | VARCHAR(25) NULL | Telefone de contato |
+| `ultimo_acesso` | DATETIME NULL | Data do ultimo login |
+| `ultimo_codigo_hash` | VARCHAR(255) NULL | Hash do ultimo codigo de verificacao, nunca o codigo em claro |
+| `ultimo_codigo_expira_em` | DATETIME NULL | Expiracao do codigo |
+| `email_verificado_em` | DATETIME NULL | Confirmacao de e-mail |
+| `ativo` | TINYINT(1) DEFAULT 1 | Ativo ou desativado |
+| `criado_em` | DATETIME | Data e hora de criacao |
+| `atualizado_em` | DATETIME | Atualizacao |
+
+**Permissoes e multi-tenant:** apenas o papel `adm_master` possui `id_restaurante=NULL`. Os demais cargos exigem restaurante existente. CHECK no MySQL protege essas regras independentemente do frontend. Cada consulta futura precisa filtrar restaurante e validar permissoes no backend; a presente entrega cria somente a estrutura, sem implementar autenticacao nem autorizar operacoes. O escopo de cada conta e um restaurante; caso futuramente haja uma conta vinculada a varios estabelecimentos, esse relacionamento exigira tabela associativa.
+
+**Logs:** `log_user.id_user` pode ser NULL para eventos de sistema ou anteriores sem identificacao, mas, se preenchido, aponta obrigatoriamente para `user.id`. `ON DELETE RESTRICT` impede exclusao fisica de usuario com logs, por isso o caminho normal sera `ativo=0`, conservando a auditoria. Logs antigos nao sao apagados nem modificados.
+
+**Seguranca:** `senha_hash` e `ultimo_codigo_hash` nao devem guardar valores em texto puro. O ultimo codigo deve ser gerado aleatoriamente com `random_int()` ou `random_bytes()`, armazenado como hash e validado com vencimento, limite de tentativas e taxa de envio quando a autenticacao for implementada. Nao inserir master com senha de exemplo.
+
+**Aplicacao:** fazer backup privado do banco antes das duas migrations. O script `deploy/scripts/apply-user-schema.sh` valida que somente as duas migrations autorizadas estao pendentes, cria backup com `mysqldump`, aplica a versao e valida as FKs. O controle geral `CARDAPIM_RUN_MIGRATIONS=false` continua.
