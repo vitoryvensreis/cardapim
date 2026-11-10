@@ -10,6 +10,7 @@ use Cardapim\Controllers\LegalController;
 use Cardapim\Controllers\MidiaController;
 use Cardapim\Controllers\RestauranteController;
 use Cardapim\Controllers\StatusController;
+use Cardapim\Controllers\WebhookController;
 use Cardapim\Core\Router;
 
 $router = new Router();
@@ -35,6 +36,7 @@ $router->get('/tratamento-de-dados', [LegalController::class, 'tratamento']);
 $router->get('/painel', [AreaController::class, 'painel']);
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
 $router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
+$router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 (require __DIR__ . '/gerencia.php')($router);
 $router->get('/{slug}/gerencia', [AreaController::class, 'gerencia']);
 $router->get('/{slug}/gerencia/{secao}', [AreaController::class, 'gerencia']);

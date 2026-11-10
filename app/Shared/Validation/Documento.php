@@ -79,6 +79,9 @@ final class Documento
     public static function formatarTelefone(string $telefone): string
     {
         $d = self::somenteDigitos($telefone);
+        if ((strlen($d) === 12 || strlen($d) === 13) && str_starts_with($d, '55')) {
+            $d = substr($d, 2); // numero com codigo do pais (WhatsApp)
+        }
         return match (strlen($d)) {
             11 => sprintf('(%s) %s-%s', substr($d, 0, 2), substr($d, 2, 5), substr($d, 7)),
             10 => sprintf('(%s) %s-%s', substr($d, 0, 2), substr($d, 2, 4), substr($d, 6)),

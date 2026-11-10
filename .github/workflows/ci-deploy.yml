@@ -76,6 +76,7 @@ jobs:
           php tests/unit/estoque.php
           php tests/unit/navegador.php
           php tests/unit/gerencia.php
+          php tests/unit/integracoes.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -99,6 +100,7 @@ jobs:
           php database/migrate.php --status | tee /tmp/cardapim-migrations-after.txt
           grep -q 'Nenhuma migration pendente' /tmp/cardapim-migrations-after.txt
           php database/verify-gerencia-abas.php --verify
+          php database/verify-integracoes.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -135,9 +137,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MAIL_DRIVER=log php -S 127.0.0.1:18080 -t public dev/router.php >/tmp/cardapim-php.log 2>&1 &
+          # Servidor FALSO de iFood, Asaas e WPPConnect (somente testes; nada sai para a internet).
+          php -S 127.0.0.1:18099 tests/fakes/integracoes-fake.php >/tmp/cardapim-fake.log 2>&1 &
+          fake_pid=$!
+          MAIL_DRIVER=log APP_URL=https://cardapim.test \
+            ASAAS_URL_SANDBOX=http://127.0.0.1:18099/asaas/v3 ASAAS_URL_PRODUCAO=http://127.0.0.1:18099/asaas/v3 \
+            WPPCONNECT_BASE_URL=http://127.0.0.1:18099/wpp WPPCONNECT_SECRET_KEY=segredo-ci \
+            IFOOD_BASE_URL=http://127.0.0.1:18099/ifood IFOOD_CLIENT_ID=ifood-ci IFOOD_CLIENT_SECRET=ifood-segredo-ci \
+            php -S 127.0.0.1:18080 -t public dev/router.php >/tmp/cardapim-php.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$server_pid" "$fake_pid" 2>/dev/null || true' EXIT
           sleep 2
           for path in / /login /cadastro /assets/css/core.css /assets/css/site.css /assets/css/pages.css /assets/js/core.js /assets/js/site.js /assets/js/forms.js /assets/icons/lucide.svg /assets/img/icone.svg; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
@@ -225,6 +234,8 @@ jobs:
           php tests/http/verificar-logs-ci.php
           bash tests/http/gerencia.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-gerencia-ci.php
+          bash tests/http/integracoes.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null
           for path in /assets/js/estoque.js /assets/js/equipe.js /assets/js/perfil.js /assets/js/minha-conta.js /assets/js/confirmar.js /assets/vendor/qrcode-generator/qrcode.js; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
           done
@@ -253,6 +264,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          APPLY_INTEGRACOES: ${{ contains(github.event.head_commit.message, '[cardapim-integracoes]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -280,3 +292,6 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          if [[ "$APPLY_INTEGRACOES" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-integracoes.sh'"
+          fi

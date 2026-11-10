@@ -60,7 +60,7 @@ final class Cripto
         if (self::$chave !== null) {
             return self::$chave;
         }
-        $env = getenv('APP_KEY');
+        $env = \Cardapim\Core\Config::get('APP_KEY');
         if (is_string($env) && $env !== '') {
             $chave = base64_decode(str_starts_with($env, 'base64:') ? substr($env, 7) : $env, true);
             if ($chave !== false && strlen($chave) === 32) {

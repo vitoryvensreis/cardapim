@@ -96,3 +96,8 @@ circle-dollar-sign
 calendar-clock
 mail-check
 log-out
+send
+link
+unplug
+webhook
+circle-exclamation-point

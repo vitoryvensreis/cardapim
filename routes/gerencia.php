@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cardapim\Controllers\Gerencia\AssinaturaController;
 use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
+use Cardapim\Controllers\Gerencia\IntegracoesController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
 use Cardapim\Controllers\Gerencia\PerfilController;
 use Cardapim\Core\Router;
@@ -74,4 +75,24 @@ return static function (Router $router): void {
     $router->post($g . '/minha-conta/codigos', [MinhaContaController::class, 'novosCodigos']);
     $router->post($g . '/minha-conta/aparelhos/sair-todos', [MinhaContaController::class, 'sairOutros']);
     $router->post($g . '/minha-conta/aparelhos/{id}/sair', [MinhaContaController::class, 'sairAparelho']);
+
+    // Integracoes (iFood, WhatsApp, Asaas)
+    $router->get($g . '/integracoes', [IntegracoesController::class, 'inicio']);
+    $router->get($g . '/integracoes/asaas', [IntegracoesController::class, 'asaas']);
+    $router->post($g . '/integracoes/asaas', [IntegracoesController::class, 'asaasConectar']);
+    $router->post($g . '/integracoes/asaas/webhook', [IntegracoesController::class, 'asaasWebhook']);
+    $router->post($g . '/integracoes/asaas/testar', [IntegracoesController::class, 'asaasTestar']);
+    $router->post($g . '/integracoes/asaas/desconectar', [IntegracoesController::class, 'asaasDesconectar']);
+    $router->get($g . '/integracoes/whatsapp', [IntegracoesController::class, 'whatsapp']);
+    $router->post($g . '/integracoes/whatsapp/conectar', [IntegracoesController::class, 'whatsappConectar']);
+    $router->get($g . '/integracoes/whatsapp/estado', [IntegracoesController::class, 'whatsappEstado']);
+    $router->post($g . '/integracoes/whatsapp/teste', [IntegracoesController::class, 'whatsappTeste']);
+    $router->post($g . '/integracoes/whatsapp/desconectar', [IntegracoesController::class, 'whatsappDesconectar']);
+    $router->get($g . '/integracoes/ifood', [IntegracoesController::class, 'ifood']);
+    $router->post($g . '/integracoes/ifood/iniciar', [IntegracoesController::class, 'ifoodIniciar']);
+    $router->post($g . '/integracoes/ifood/concluir', [IntegracoesController::class, 'ifoodConcluir']);
+    $router->post($g . '/integracoes/ifood/loja', [IntegracoesController::class, 'ifoodLoja']);
+    $router->post($g . '/integracoes/ifood/testar', [IntegracoesController::class, 'ifoodTestar']);
+    $router->post($g . '/integracoes/ifood/cancelar', [IntegracoesController::class, 'ifoodCancelar']);
+    $router->post($g . '/integracoes/ifood/desconectar', [IntegracoesController::class, 'ifoodDesconectar']);
 };

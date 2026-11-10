@@ -14,7 +14,8 @@
 - **Assinatura**: plano atual, assinar, trocar, cancelar e desfazer, historico (cobranca automatica ainda nao ligada; a tela avisa).
 - **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
 - Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
-- Demais itens do menu (Visao geral, Mesas, Financeiro, Integracoes, Suporte) continuam com a tela "em construcao".
+- **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (WPPConnect proprio em Docker, QR Code e mensagem de teste) e iFood (codigo de vinculo, autorizacao e escolha da loja). [Detalhes](docs/architecture/integracoes.md) · [WPPConnect em Docker](docs/deploy/wppconnect-docker.md).
+- Demais itens do menu (Visao geral, Mesas, Financeiro, Suporte) continuam com a tela "em construcao".
 
 ---
 
@@ -864,6 +865,8 @@ APP_URL=http://localhost
 APP_KEY=            # opcional: base64 de 32 bytes; sem ele, storage/keys/app.key e criado sozinho
 MAIL_DRIVER=mail    # mail (padrao) ou log (CI/desenvolvimento)
 MAIL_FROM=          # opcional: remetente dos e-mails (codigo da verificacao em duas etapas)
+WPPCONNECT_BASE_URL=http://127.0.0.1:21466   # WPPConnect proprio (docs/deploy/wppconnect-docker.md)
+WPPCONNECT_SECRET_KEY=
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=cardapim

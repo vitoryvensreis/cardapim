@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Email;
 
+use Cardapim\Core\Config;
+
 /**
  * Envio de e-mails simples (texto). MAIL_DRIVER=mail (padrao) usa o mail() do servidor;
  * MAIL_DRIVER=log grava em storage/logs/mail.log (testes e desenvolvimento, nunca em producao).
@@ -16,7 +18,7 @@ final class Mailer
         if (filter_var($para, FILTER_VALIDATE_EMAIL) === false || str_ends_with(strtolower($para), '.invalid')) {
             return false;
         }
-        $driver = (string) (getenv('MAIL_DRIVER') ?: 'mail');
+        $driver = Config::get('MAIL_DRIVER', 'mail');
         if ($driver === 'log') {
             $linha = sprintf("[%s] Para: %s | Assunto: %s\n%s\n---\n", date('Y-m-d H:i:s'), $para, $assunto, $texto);
             return file_put_contents(dirname(__DIR__, 3) . '/storage/logs/mail.log', $linha, FILE_APPEND | LOCK_EX) !== false;
@@ -43,11 +45,11 @@ final class Mailer
 
     private static function remetente(): string
     {
-        $configurado = getenv('MAIL_FROM');
+        $configurado = Config::get('MAIL_FROM');
         if (is_string($configurado) && filter_var($configurado, FILTER_VALIDATE_EMAIL) !== false) {
             return $configurado;
         }
-        $host = parse_url((string) getenv('APP_URL'), PHP_URL_HOST);
+        $host = parse_url(Config::get('APP_URL'), PHP_URL_HOST);
         return 'no-reply@' . (is_string($host) && $host !== '' ? $host : 'localhost');
     }
 }

@@ -450,11 +450,43 @@
   .bloco { border: 0; }
 }
 
+/* Integracoes */
+.integracoes-grade { display: grid; gap: 1rem; margin-bottom: 1.25rem; }
+.integracao-cartao { display: flex; flex-direction: column; gap: .55rem; padding: 1.35rem; border: 1px solid var(--c-line); border-radius: var(--r-xl); background: var(--c-white); }
+.integracao-cartao h2 { color: var(--c-ink); font-size: 1.25rem; font-weight: 800; }
+.integracao-cartao > p { color: var(--c-muted); font-size: .92rem; }
+.integracao-cartao .btn { margin-top: auto; }
+.integracao-topo { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .25rem; }
+.integracao-icone { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 1rem; background: var(--c-blush); color: var(--c-wine); }
+.integracao-cartao.is-ifood .integracao-icone { background: #fdecec; color: #b3261e; }
+.integracao-cartao.is-whatsapp .integracao-icone { background: var(--c-success-bg); color: var(--c-success); }
+.integracao-cartao.is-asaas .integracao-icone { background: #e8f0fe; color: #1a56db; }
+.integracao-detalhe { color: var(--c-ink) !important; font-weight: 700; }
+.chave-curta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.manual { margin-top: 1rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: #fdfafb; }
+.manual summary { color: var(--c-wine); font-weight: 700; cursor: pointer; }
+.manual[open] summary { margin-bottom: .6rem; }
+.copiar-linha { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin-top: .6rem; }
+.copiar-linha > span { width: 100%; color: var(--c-muted); font-size: .8rem; font-weight: 700; }
+.copiar-linha code { flex: 1 1 14rem; padding: .5rem .7rem; border-radius: .6rem; background: var(--c-white); border: 1px solid var(--c-line); font: 600 .82rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.codigo-grande { display: inline-block; margin: .4rem .5rem .2rem 0; padding: .5rem 1rem; border-radius: .8rem; background: var(--c-cream); color: var(--c-wine); font: 800 1.6rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+.campo-codigo { max-width: 14rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.whatsapp-painel { display: grid; justify-items: start; gap: .75rem; }
+.whatsapp-painel[data-painel="carregando"] { justify-items: center; padding: 1.5rem 0; text-align: center; color: var(--c-muted); }
+.whatsapp-carregando .icon { color: var(--c-wine); animation: girar 1s linear infinite; }
+.whatsapp-qr { grid-template-columns: 1fr; }
+.whatsapp-qr .qr-codigo { width: 15rem; height: 15rem; margin: 0; }
+.whatsapp-qr .qr-codigo img:not([src]) { visibility: hidden; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .whatsapp-carregando .icon { animation: none; } }
+
 @media (min-width: 40rem) {
   .form-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .form-grade .col-inteira { grid-column: 1 / -1; }
   .planos-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .funcoes-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .whatsapp-qr { grid-template-columns: 15rem minmax(0, 1fr); align-items: start; gap: 1.25rem; }
+  .whatsapp-qr > .texto-suave { grid-column: 1 / -1; }
   .opcao-2fa { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
   .opcao-2fa > .btn, .opcao-2fa > form, .opcao-2fa > .texto-suave { grid-column: 3; }
   .horario-dia { grid-template-columns: 13.5rem minmax(0, 1fr); align-items: start; }
@@ -466,6 +498,7 @@
 @media (min-width: 64rem) {
   .indicadores { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .planos-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .integracoes-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .lista-cabecalho {
     display: grid; padding: .75rem 1rem; border-bottom: 1px solid var(--c-line); background: #fbf6f7;
     color: var(--c-muted); font: 800 .72rem/1 var(--f-head); letter-spacing: .06em; text-transform: uppercase;
