@@ -28,7 +28,7 @@ O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de 
 ## WhatsApp (WPPConnect próprio)
 
 - Servidor: container Docker isolado, só em `127.0.0.1` ([passo a passo](../deploy/wppconnect-docker.md)).
-  `shared/.env`: `WPPCONNECT_BASE_URL=http://127.0.0.1:21466` e `WPPCONNECT_SECRET_KEY=...`. Sem isso, a tela diz que ainda não foi liberado.
+  `shared/.env`: `WPPCONNECT_BASE_URL=http://127.0.0.1:21467` e `WPPCONNECT_SECRET_KEY=...`. Sem isso, a tela diz que ainda não foi liberado.
 - Conectar: cria a sessão `cardapim_r{id}_{aleatório}`, gera o token com a SECRET_KEY (`/api/{sessao}/{secret}/generate-token`, guardado cifrado)
   e chama `start-session`. A tela consulta `GET .../integracoes/whatsapp/estado` (JSON) a cada 3 s e mostra o QR Code (`status-session`).
   Quando o estado vira `CONNECTED`, grava o número (`host-device`) e registra o log.

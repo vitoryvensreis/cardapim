@@ -2,7 +2,7 @@
 
 Um container **só do Cardapim**, separado do WPPConnect que já existe na VPS (`wppconnect.escotilhaprodutora.com`).
 Ele fica acessível **apenas por 127.0.0.1** (dentro da própria VPS): o Cardapim roda na mesma máquina e conversa com ele
-por `http://127.0.0.1:21466`. Não precisa de domínio, proxy reverso nem porta aberta na internet.
+por `http://127.0.0.1:21467`. Não precisa de domínio, proxy reverso nem porta aberta na internet.
 
 > Não mexa no container/serviço do WPPConnect que já existe. Os nomes, a porta e os volumes abaixo são diferentes de propósito.
 
@@ -28,8 +28,9 @@ docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
 ss -tlnp | grep -E ':2146[0-9]' || echo "portas 21460-21469 livres"
 ```
 
-O WPPConnect existente provavelmente usa a 21465. Vamos usar a **21466**. Se ela aparecer ocupada, troque `21466` por outra livre
-(ex.: 21467) nos passos 4, 6 e 8.
+Na VPS de produção já existem dois WPPConnect de outros projetos: `taskesc-wppconnect` (porta 21465) e
+`leaguecut-wpp` (porta 21466). **Não mexa neles.** O do Cardapim usa a **21467** (conferido livre em 10/11/2026).
+Se um dia ela aparecer ocupada, troque `21467` por outra livre aqui e no `WPPCONNECT_BASE_URL` do passo 8.
 
 ## 3. Criar a pasta e a chave secreta
 
@@ -52,12 +53,12 @@ cat > /opt/wppconnect-cardapim/docker-compose.yml <<'YAML'
 name: wppconnect-cardapim
 services:
   wppconnect:
-    image: wppconnect/wppconnect-server:latest
+    image: wppconnect/wppconnect-server:2.10.73
     container_name: wppconnect-cardapim
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:21466:21465"
+      - "127.0.0.1:21467:21465"
     shm_size: "1gb"
     mem_limit: 2g
     volumes:
@@ -74,7 +75,7 @@ volumes:
 YAML
 ```
 
-- `127.0.0.1:21466` = só a própria VPS enxerga. **Nunca** troque por `21466:21465` (isso abriria para a internet).
+- `127.0.0.1:21467` = só a própria VPS enxerga. **Nunca** troque por `21467:21465` (isso abriria para a internet).
 - `tokens` e `userdata` guardam as sessões: reiniciar o container não desconecta os WhatsApps.
 - `shm_size` e `mem_limit`: o WPPConnect usa o Chromium; isso evita travamentos e protege o resto da VPS.
 
@@ -93,21 +94,21 @@ O `ps` deve mostrar `wppconnect-cardapim` como `running` (ou `Up`). Os logs não
 ## 6. Testar por dentro da VPS
 
 ```bash
-curl -s http://127.0.0.1:21466/healthz; echo
-curl -s -X POST "http://127.0.0.1:21466/api/teste-cardapim/$(grep SECRET_KEY /opt/wppconnect-cardapim/.env | cut -d= -f2)/generate-token"; echo
-ss -tlnp | grep 21466
+curl -s http://127.0.0.1:21467/healthz; echo
+curl -s -X POST "http://127.0.0.1:21467/api/teste-cardapim/$(grep SECRET_KEY /opt/wppconnect-cardapim/.env | cut -d= -f2)/generate-token"; echo
+ss -tlnp | grep 21467
 ```
 
 - O primeiro comando responde algo como `ok`/`{"status":"ok"}`.
 - O segundo devolve `"status":"success"` e um `token` (prova que a chave está certa).
-- O terceiro precisa mostrar **`127.0.0.1:21466`** (e não `0.0.0.0:21466`).
+- O terceiro precisa mostrar **`127.0.0.1:21467`** (e não `0.0.0.0:21467`).
 
 ## 7. (Opcional) Conferir que não está exposto
 
 No seu computador (fora da VPS):
 
 ```bash
-curl -m 5 http://IP_DA_VPS:21466/healthz
+curl -m 5 http://IP_DA_VPS:21467/healthz
 ```
 
 Tem que **falhar** (tempo esgotado ou conexão recusada).
@@ -119,7 +120,7 @@ Acrescente duas linhas no `.env` compartilhado do Cardapim (troque `COLE_A_CHAVE
 ```bash
 ENV=/home/escotilhaprodutora-cardapim/apps/cardapim/shared/.env
 cp -p "$ENV" "$ENV.bak-$(date +%Y%m%d%H%M)"
-grep -q '^WPPCONNECT_BASE_URL=' "$ENV" || printf '\nWPPCONNECT_BASE_URL=http://127.0.0.1:21466\n' >> "$ENV"
+grep -q '^WPPCONNECT_BASE_URL=' "$ENV" || printf '\nWPPCONNECT_BASE_URL=http://127.0.0.1:21467\n' >> "$ENV"
 grep -q '^WPPCONNECT_SECRET_KEY=' "$ENV" || printf 'WPPCONNECT_SECRET_KEY=%s\n' 'COLE_A_CHAVE_AQUI' >> "$ENV"
 grep -E '^WPPCONNECT_' "$ENV" | sed 's/\(SECRET_KEY=\).*/\1********/'
 ls -l "$ENV"
@@ -145,7 +146,7 @@ Entre como gerente > **Integrações** > **WhatsApp** > **Conectar WhatsApp** e 
 | Parar (mantém as sessões) | `docker compose down` |
 | Apagar tudo, inclusive sessões | `docker compose down -v` (todos os restaurantes precisam ler o QR de novo) |
 
-Depois que estiver estável, fixe a versão da imagem no `docker-compose.yml` (troque `latest` pela tag em uso) para uma atualização
+Depois que estiver estável, fixe a versão da imagem no `docker-compose.yml` (hoje: `2.10.73`, a mesma usada pelas outras instâncias da VPS) para uma atualização
 não chegar sem você querer.
 
 ## Problemas comuns
@@ -154,3 +155,8 @@ não chegar sem você querer.
 - **QR Code não aparece no painel**: confira o passo 6 e as duas linhas do passo 8 (URL com a porta certa e chave igual à do `.env` do container).
 - **"O servidor do WhatsApp recusou a conexão"** no painel: a `WPPCONNECT_SECRET_KEY` do Cardapim é diferente da `SECRET_KEY` do container.
 - **WhatsApp cai sozinho**: o celular ficou sem internet ou o aparelho foi removido em "Aparelhos conectados". Conecte de novo pelo painel.
+
+## Situação em produção
+
+Instalado em 10/11/2026: container `wppconnect-cardapim`, imagem `2.10.73`, em `127.0.0.1:21467`, pasta
+`/opt/wppconnect-cardapim`. Token de teste gerado com sucesso e `WPPCONNECT_*` gravados no `shared/.env` (com backup).
