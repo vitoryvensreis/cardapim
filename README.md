@@ -6,6 +6,15 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Cardapio, insumos e ficha tecnica (base do painel do gerente)
+
+- Tabelas `categorias`, `insumos`, `produtos` e `produto_insumos` (ficha tecnica), todas com `id_restaurante` e FKs compostas que impedem misturar dados entre restaurantes no proprio banco.
+- Insumos em `un`, `kg` ou `l` com 3 casas decimais numa unica coluna (`0.080` kg = 80 g). Estoque **nunca negativo**: faltou insumo, o produto fica indisponivel e a venda e recusada.
+- `app/Modules/Inventory`: disponibilidade (com quantas unidades ainda podem ser vendidas) e baixa atomica pela ficha tecnica, pronta para o modulo de pedidos.
+- [Detalhes das tabelas e regras](docs/database/cardapio-estoque.md).
+
+---
+
 ## Login e areas por cargo
 
 - **`/login` funcionando**: entra com e-mail ou nome de usuario e leva cada cargo para sua area: `adm_master` -> `/painel`, `gerente` -> `/{slug}/gerencia`, `caixa` -> `/{slug}/caixa`, `motoqueiro` -> `/{slug}/entregas`, `garcom` e `cliente` -> `/minha-conta`.
