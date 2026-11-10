@@ -16,7 +16,7 @@ $title = $e((string) ($pageTitle ?? 'Gerência | Cardapim'));
 $description = $e('Painel do gerente no Cardapim.');
 $noIndex = true;
 $styles = ['css/pages.css', 'css/app.css', 'css/painel.css'];
-$scripts = ['js/painel.js'];
+$scripts = ['js/painel.js', 'js/confirmar.js', ...($pageScripts ?? [])];
 $slug = (string) $restaurante['slug'];
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));
 $tituloAtual = $ativo !== null && isset(MenuGerencia::SECOES[$ativo]) ? MenuGerencia::SECOES[$ativo]['rotulo']
@@ -88,8 +88,28 @@ $tituloAtual = $ativo !== null && isset(MenuGerencia::SECOES[$ativo]) ? MenuGere
                 </p>
                 <a class="btn btn-primary btn-sm painel-caixa" href="<?= $e(MenuGerencia::url($slug, '@caixa')) ?>"><?= Icon::svg('monitor', 'icon-sm') ?>Abrir caixa</a>
             </header>
-            <main id="conteudo" class="painel-main"><?= $content ?></main>
+            <main id="conteudo" class="painel-main">
+                <?php if (!empty($flash['mensagem'])): ?>
+                    <div class="painel-flash painel-flash-<?= $e((string) $flash['tipo']) ?>" role="<?= ($flash['tipo'] ?? '') === 'erro' ? 'alert' : 'status' ?>" data-flash>
+                        <?= Icon::svg(($flash['tipo'] ?? '') === 'erro' ? 'circle-x' : (($flash['tipo'] ?? '') === 'aviso' ? 'info' : 'circle-check')) ?>
+                        <p><?= $e((string) $flash['mensagem']) ?></p>
+                        <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-flash-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
+                    </div>
+                <?php endif; ?>
+                <?= $content ?>
+            </main>
         </div>
     </div>
+    <dialog class="confirmar" data-confirmar-dialogo aria-labelledby="confirmar-titulo">
+        <form method="dialog" class="confirmar-caixa">
+            <span class="confirmar-icone" aria-hidden="true"><?= Icon::svg('info', 'icon-lg') ?></span>
+            <h2 id="confirmar-titulo" data-confirmar-titulo>Tem certeza?</h2>
+            <p data-confirmar-texto></p>
+            <div class="confirmar-acoes">
+                <button class="btn btn-outline" value="cancelar" type="submit">Voltar</button>
+                <button class="btn btn-wine confirmar-ok" value="confirmar" type="submit" data-confirmar-ok>Confirmar</button>
+            </div>
+        </form>
+    </dialog>
 </body>
 </html>

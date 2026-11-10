@@ -27,9 +27,9 @@ final class UsuarioRepository
     public function buscarParaLogin(string $identificacao): ?array
     {
         $coluna = str_contains($identificacao, '@') ? 'u.email' : 'u.usuario';
-        $query = $this->db->prepare(self::SELECT_SESSAO . ", u.senha_hash FROM `user` u
+        $query = $this->db->prepare(self::SELECT_SESSAO . ", u.senha_hash, u.dois_fatores FROM `user` u
             LEFT JOIN restaurantes r ON r.id = u.id_restaurante
-            WHERE $coluna = ? LIMIT 1");
+            WHERE $coluna = ? AND u.excluido_em IS NULL LIMIT 1");
         $query->execute([$identificacao]);
         $row = $query->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;

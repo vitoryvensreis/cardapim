@@ -7,6 +7,7 @@ use Cardapim\Controllers\AuthController;
 use Cardapim\Controllers\CatalogoController;
 use Cardapim\Controllers\HomeController;
 use Cardapim\Controllers\LegalController;
+use Cardapim\Controllers\MidiaController;
 use Cardapim\Controllers\RestauranteController;
 use Cardapim\Controllers\StatusController;
 use Cardapim\Core\Router;
@@ -15,6 +16,9 @@ $router = new Router();
 $router->get('/', [HomeController::class, 'index']);
 $router->get('/login', [AuthController::class, 'login']);
 $router->post('/login', [AuthController::class, 'entrar']);
+$router->get('/login/verificacao', [AuthController::class, 'verificacao']);
+$router->post('/login/verificacao', [AuthController::class, 'verificar']);
+$router->post('/login/verificacao/reenviar', [AuthController::class, 'reenviar']);
 $router->post('/sair', [AuthController::class, 'sair']);
 $router->get('/cadastro', [AuthController::class, 'register']);
 $router->get('/status', [StatusController::class, 'index']);
@@ -30,6 +34,8 @@ $router->get('/tratamento-de-dados', [LegalController::class, 'tratamento']);
 // Areas autenticadas (cargo validado no servidor em AreaController/Autorizacao).
 $router->get('/painel', [AreaController::class, 'painel']);
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
+$router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
+(require __DIR__ . '/gerencia.php')($router);
 $router->get('/{slug}/gerencia', [AreaController::class, 'gerencia']);
 $router->get('/{slug}/gerencia/{secao}', [AreaController::class, 'gerencia']);
 foreach (['caixa', 'entregas'] as $area) {

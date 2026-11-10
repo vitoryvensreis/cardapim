@@ -8,9 +8,11 @@ use Cardapim\Core\Database;
 use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Core\View;
+use Cardapim\Repositories\ContaRepository;
 use Cardapim\Repositories\PlanoRepository;
 use Cardapim\Services\Auth\Autenticacao;
 use Cardapim\Services\Auth\Autorizacao;
+use Cardapim\Services\Auth\DoisFatores;
 use Cardapim\Services\Auth\Guard;
 use Throwable;
 
@@ -40,11 +42,62 @@ final class AuthController
             error_log('[Cardapim] Login indisponivel: ' . get_class($exception));
             return $this->formulario('Não foi possível entrar agora. Tente novamente em instantes.', 503, $identificacao);
         }
+        if (!empty($resultado['verificacao'])) {
+            return Response::redirect('/login/verificacao', 303);
+        }
         if (!$resultado['ok']) {
             return $this->formulario($resultado['erro'], $resultado['status'], $identificacao, ($_POST['lembrar'] ?? '') === '1');
         }
+        return $this->irParaArea($resultado['usuario']);
+    }
 
-        $usuario = $resultado['usuario'];
+    /** Tela do codigo da verificacao em duas etapas. */
+    public function verificacao(): Response
+    {
+        if (Autenticacao::usuario() !== null) {
+            return Response::redirect(Autorizacao::destino(Autenticacao::usuario()));
+        }
+        if (Autenticacao::pendente() === null) {
+            return Response::redirect('/login', 303);
+        }
+        return $this->telaVerificacao();
+    }
+
+    public function verificar(): Response
+    {
+        if (!Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return $this->telaVerificacao('Sua sessão expirou. Tente de novo.', 419);
+        }
+        $codigo = is_string($_POST['codigo'] ?? null) ? mb_substr($_POST['codigo'], 0, 40) : '';
+        try {
+            $resultado = Autenticacao::verificarSegundaEtapa($codigo, (string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        } catch (Throwable $exception) {
+            error_log('[Cardapim] Verificacao indisponivel: ' . get_class($exception));
+            return $this->telaVerificacao('Não foi possível conferir o código agora. Tente novamente em instantes.', 503);
+        }
+        if ($resultado['ok']) {
+            return $this->irParaArea($resultado['usuario']);
+        }
+        if (!empty($resultado['expirou'])) {
+            return $this->formulario($resultado['erro'], $resultado['status']);
+        }
+        return $this->telaVerificacao($resultado['erro'], $resultado['status']);
+    }
+
+    public function reenviar(): Response
+    {
+        if (!Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return $this->telaVerificacao('Sua sessão expirou. Tente de novo.', 419);
+        }
+        $envio = Autenticacao::reenviarCodigo();
+        if (Autenticacao::pendente() === null) {
+            return $this->formulario($envio['mensagem'], 401);
+        }
+        return $this->telaVerificacao($envio['ok'] ? null : $envio['mensagem'], $envio['ok'] ? 200 : 429, $envio['ok'] ? $envio['mensagem'] : null);
+    }
+
+    private function irParaArea(\Cardapim\Services\Auth\UsuarioLogado $usuario): Response
+    {
         // Volta para a pagina pedida antes do login, se o cargo tiver permissao; senao, area do cargo.
         $pedido = Autorizacao::caminhoLocalSeguro(Session::flash('login_destino'));
         $destino = Autorizacao::destino($usuario);
@@ -81,6 +134,28 @@ final class AuthController
             'planoInvalido' => $id !== null && $id !== false && $plan === null
                 || isset($_GET['plano_id']) && ($id === false || $id === null),
         ], 'layouts/public'));
+    }
+
+    private function telaVerificacao(?string $erro = null, int $status = 200, ?string $aviso = null): Response
+    {
+        $pendente = Autenticacao::pendente();
+        $metodo = DoisFatores::DESATIVADO;
+        if ($pendente !== null) {
+            $conta = (new ContaRepository(Database::connect()))->buscar((int) $pendente['id']);
+            $metodo = (string) ($conta['dois_fatores'] ?? DoisFatores::DESATIVADO);
+        }
+        $flash = Session::flash('flash_verificacao');
+        $html = View::render('auth/verificacao', [
+            'pageTitle' => 'Confirme que é você | Cardapim',
+            'pageDescription' => 'Verificação em duas etapas.',
+            'noIndex' => true,
+            'pageScripts' => ['js/forms.js'],
+            'csrf' => Session::tokenCsrf(),
+            'erro' => $erro,
+            'aviso' => $aviso ?? (is_string($flash) ? $flash : null),
+            'metodo' => $metodo,
+        ], 'layouts/public');
+        return Guard::semCache(Response::html($html, $status));
     }
 
     private function formulario(?string $erro = null, int $status = 200, string $identificacao = '', bool $lembrar = false): Response

@@ -75,6 +75,26 @@ final class Documento
         return $digitos;
     }
 
+    /** "11987654321" -> "(11) 98765-4321" */
+    public static function formatarTelefone(string $telefone): string
+    {
+        $d = self::somenteDigitos($telefone);
+        return match (strlen($d)) {
+            11 => sprintf('(%s) %s-%s', substr($d, 0, 2), substr($d, 2, 5), substr($d, 7)),
+            10 => sprintf('(%s) %s-%s', substr($d, 0, 2), substr($d, 2, 4), substr($d, 6)),
+            default => $telefone,
+        };
+    }
+
+    /** "11222333000181" -> "11.222.333/0001-81" */
+    public static function formatarCnpj(string $cnpj): string
+    {
+        $d = self::somenteDigitos($cnpj);
+        return strlen($d) === 14
+            ? sprintf('%s.%s.%s/%s-%s', substr($d, 0, 2), substr($d, 2, 3), substr($d, 5, 3), substr($d, 8, 4), substr($d, 12))
+            : $cnpj;
+    }
+
     public static function formatarCpf(string $cpf): string
     {
         $d = self::somenteDigitos($cpf);

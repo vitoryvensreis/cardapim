@@ -6,10 +6,15 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
-## Painel do gerente (menu lateral)
+## Painel do gerente: Estoque, Equipe, Perfil, Assinatura e Minha conta
 
-- Menu lateral com Visao geral, Caixa (modo tela cheia), Entregas (fila e escolha do entregador), Mesas, Estoque, Equipe, Financeiro, Perfil, Integracoes, Assinatura, Minha conta e Suporte.
-- Cada item tem rota propria em `/{slug}/gerencia/...` e mostra "em construcao" com o que vai ter; as secoes serao construidas uma por vez. [Detalhes](docs/architecture/painel-gerente.md).
+- **Estoque**: resumo do que acabou, do que esta abaixo do minimo e do que esta fora de venda (com o motivo), valor parado em estoque e reposicao rapida ("chegou mercadoria"); produtos com ficha tecnica dinamica, custo e sobra estimados; insumos com barra de nivel; categorias.
+- **Equipe**: contas de caixa, garcom e entregador com senha facil de passar, bloqueio imediato, troca de senha e exclusao (anonimiza quem ja tem historico).
+- **Perfil**: nome, logo (upload seguro, regravada em WebP), telefone, endereco completo e horario de funcionamento (sempre aberto ou por dia, ate 2 turnos, passando da meia-noite) com selo "Aberto agora".
+- **Assinatura**: plano atual, assinar, trocar, cancelar e desfazer, historico (cobranca automatica ainda nao ligada; a tela avisa).
+- **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
+- Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
+- Demais itens do menu (Visao geral, Mesas, Financeiro, Integracoes, Suporte) continuam com a tela "em construcao".
 
 ---
 
@@ -856,7 +861,9 @@ Nginx → public/index.php → PHP-FPM
 ```dotenv
 APP_ENV=local
 APP_URL=http://localhost
-APP_KEY=
+APP_KEY=            # opcional: base64 de 32 bytes; sem ele, storage/keys/app.key e criado sozinho
+MAIL_DRIVER=mail    # mail (padrao) ou log (CI/desenvolvimento)
+MAIL_FROM=          # opcional: remetente dos e-mails (codigo da verificacao em duas etapas)
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=cardapim

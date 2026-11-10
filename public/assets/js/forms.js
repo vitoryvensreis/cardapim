@@ -37,6 +37,23 @@
     input.setSelectionRange(position, position);
   };
 
+  /* Dinheiro digitado como na maquininha: 2490 -> 24,90 */
+  const maskMoney = (input) => {
+    const digits = onlyDigits(input.value).replace(/^0+(?=\d)/, "").slice(0, 10);
+    if (digits === "") { input.value = ""; return; }
+    const cents = digits.padStart(3, "0");
+    const inteiro = cents.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    input.value = `${inteiro},${cents.slice(-2)}`;
+  };
+
+  /* Quantidade com ate 3 casas: aceita virgula ou ponto, mostra virgula. */
+  const maskQuantity = (input) => {
+    let value = input.value.replace(/\./g, ",").replace(/[^\d,]/g, "");
+    const [inteiro, ...resto] = value.split(",");
+    value = resto.length ? `${inteiro.slice(0, 9)},${resto.join("").slice(0, 3)}` : inteiro.slice(0, 9);
+    if (value !== input.value) input.value = value;
+  };
+
   const sanitizeUsername = (input) => {
     const cleaned = input.value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9._-]/g, "");
     if (cleaned !== input.value) input.value = cleaned;
@@ -44,7 +61,8 @@
 
   document.querySelectorAll("[data-mask]").forEach((input) => {
     const type = input.dataset.mask;
-    const handler = type === "username" ? () => sanitizeUsername(input) : () => applyMask(input, type);
+    const special = { username: sanitizeUsername, money: maskMoney, quantity: maskQuantity };
+    const handler = special[type] ? () => special[type](input) : () => applyMask(input, type);
     input.addEventListener("input", handler);
     if (input.value) handler();
   });

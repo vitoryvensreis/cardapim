@@ -248,3 +248,17 @@
   .legal-nav { position: sticky; top: 6rem; flex-direction: column; overflow: visible; }
   .legal-nav a { flex: 1 1 auto; }
 }
+
+/* Verificacao em duas etapas (login) */
+.codigo-6 input { letter-spacing: .4em; font-size: 1.35rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.codigo-6 .field-control input { padding-left: 2.85rem; }
+.auth-extra { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .25rem .6rem; margin-top: 1rem; color: var(--c-muted); font-size: .88rem; }
+.link-botao { padding: .35rem .2rem; border: 0; background: none; color: var(--c-wine); font: 700 .88rem/1.2 var(--f-body); text-decoration: underline; text-underline-offset: .2em; cursor: pointer; }
+.auth-recuperacao { margin-top: 1.25rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: #fdfafb; }
+.auth-recuperacao summary { display: flex; align-items: center; gap: .45rem; color: var(--c-wine); font-weight: 700; font-size: .9rem; cursor: pointer; }
+.auth-recuperacao form { display: grid; gap: .5rem; margin-top: .9rem; }
+.auth-recuperacao label { color: var(--c-ink); font-size: .85rem; font-weight: 700; }
+.auth-recuperacao small { color: var(--c-muted); font-size: .8rem; }
+.linha-recuperacao { display: flex; flex-wrap: wrap; gap: .5rem; }
+.linha-recuperacao input { flex: 1 1 9rem; min-height: 3rem; padding: .7rem .9rem; border: 1.5px solid var(--c-line); border-radius: .8rem; background: var(--c-white); font: 700 1rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+.linha-recuperacao input:focus { outline: none; border-color: var(--c-wine); box-shadow: 0 0 0 4px rgb(101 20 36 / 12%); }

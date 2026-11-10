@@ -12,7 +12,7 @@ final class RestauranteLogo
         if ($path === null || $path === '' || preg_match('/[\x00-\x1f\x7f"\'<>\s]/', $path) === 1) {
             return null;
         }
-        $local = preg_match('~\A/(?:assets|storage|uploads)/[a-zA-Z0-9._/-]+\.(?:svg|png|jpe?g|webp)\z~i', $path) === 1
+        $local = preg_match('~\A/(?:assets|storage|uploads|midia)/[a-zA-Z0-9._/-]+\.(?:svg|png|jpe?g|webp)\z~i', $path) === 1
             && !str_contains($path, '..');
         $remota = str_starts_with($path, 'https://') && filter_var($path, FILTER_VALIDATE_URL) !== false;
         return $local || $remota ? $path : null;

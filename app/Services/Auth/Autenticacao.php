@@ -7,12 +7,13 @@ namespace Cardapim\Services\Auth;
 use Cardapim\Core\Database;
 use Cardapim\Core\RateLimiter;
 use Cardapim\Core\Session;
+use Cardapim\Repositories\ContaRepository;
 use Cardapim\Repositories\LogUserRepository;
 use Cardapim\Repositories\UsuarioRepository;
 use Cardapim\Shared\Navegador;
 use Throwable;
 
-/** Login por e-mail ou usuario, sessao e logout. */
+/** Login por e-mail ou usuario (com verificacao em duas etapas opcional), sessao e logout. */
 final class Autenticacao
 {
     private const LIMITE_POR_CONTA = 5;   // tentativas por conta+IP
@@ -21,6 +22,10 @@ final class Autenticacao
     /** Hash de uma senha aleatoria descartada: so iguala o tempo de resposta. */
     private const HASH_FICTICIO = '$2y$10$c9CgVuOYfJGs3Gs1NwWBmOiks6hVDIeYh.P8PbWwFOyT0VblFNNka';
     private const MSG_INVALIDO = 'E-mail, usuário ou senha incorretos.';
+    /** Login aguardando o codigo da verificacao em duas etapas. */
+    private const PENDENTE = 'login_pendente';
+    private const PENDENTE_VALIDADE = 600;    // 10 minutos para digitar o codigo
+    private const PENDENTE_TENTATIVAS = 5;
 
     private static ?UsuarioLogado $atual = null;
     private static bool $carregado = false;
@@ -76,8 +81,111 @@ final class Autenticacao
         if (password_needs_rehash((string) $hash, PASSWORD_DEFAULT)) {
             $usuarios->atualizarHash($usuario->id, password_hash($senha, PASSWORD_DEFAULT));
         }
-        $usuarios->registrarAcesso($usuario->id, date('Y-m-d H:i:s'));
         $limiteConta->limpar($chaveConta);
+        $porEmail = str_contains($identificacao, '@');
+
+        // Verificacao em duas etapas: a senha confere, mas a sessao so e criada depois do codigo.
+        $metodo = (string) ($row['dois_fatores'] ?? DoisFatores::DESATIVADO);
+        if ($metodo !== DoisFatores::DESATIVADO) {
+            Session::renovarId();
+            Session::remover('usuario_id');
+            Session::set(self::PENDENTE, [
+                'id' => $usuario->id,
+                'lembrar' => $lembrar,
+                'por_email' => $porEmail,
+                'expira' => time() + self::PENDENTE_VALIDADE,
+                'tentativas' => 0,
+            ]);
+            if ($metodo === DoisFatores::EMAIL) {
+                $conta = (new ContaRepository($db))->buscar($usuario->id);
+                if ($conta !== null) {
+                    $envio = (new DoisFatores($db))->enviarCodigoEmail($conta, 'entrar');
+                    Session::set('flash_verificacao', $envio['mensagem']);
+                }
+            }
+            return ['ok' => false, 'verificacao' => true, 'metodo' => $metodo];
+        }
+
+        return ['ok' => true, 'usuario' => self::concluir($usuario, $ip, $lembrar, $porEmail)];
+    }
+
+    /** Dados do login aguardando o codigo da segunda etapa (ou null se nao ha / expirou). @return array<string,mixed>|null */
+    public static function pendente(): ?array
+    {
+        $pendente = Session::get(self::PENDENTE);
+        if (!is_array($pendente) || !is_int($pendente['id'] ?? null) || (int) ($pendente['expira'] ?? 0) < time()) {
+            Session::remover(self::PENDENTE);
+            return null;
+        }
+        return $pendente;
+    }
+
+    /**
+     * Segunda etapa do login: codigo do aplicativo, do e-mail ou de recuperacao.
+     * @return array{ok:bool, usuario?:UsuarioLogado, erro?:string, status?:int, expirou?:bool}
+     */
+    public static function verificarSegundaEtapa(string $codigo, string $ip): array
+    {
+        $pendente = self::pendente();
+        if ($pendente === null) {
+            return ['ok' => false, 'erro' => 'O tempo para digitar o código acabou. Entre de novo com sua senha.', 'status' => 401, 'expirou' => true];
+        }
+        $limiteIp = RateLimiter::padrao(self::LIMITE_POR_IP, self::JANELA_SEGUNDOS);
+        if ($limiteIp->excedido('verificacao-ip|' . $ip)) {
+            return ['ok' => false, 'erro' => 'Muitas tentativas. Aguarde 15 minutos e tente novamente.', 'status' => 429];
+        }
+        $db = Database::connect();
+        $logs = new LogUserRepository($db);
+        $conta = (new ContaRepository($db))->buscar($pendente['id']);
+        $row = (new UsuarioRepository($db))->buscarParaSessao($pendente['id']);
+        $usuario = $row !== null ? UsuarioLogado::deLinha($row) : null;
+        if ($conta === null || $usuario === null || !Autorizacao::contaLiberada($usuario)) {
+            Session::remover(self::PENDENTE);
+            return ['ok' => false, 'erro' => 'Não foi possível entrar com esta conta.', 'status' => 403, 'expirou' => true];
+        }
+        $metodo = (new DoisFatores($db))->verificarLogin($conta, $codigo);
+        if ($metodo === null) {
+            $limiteIp->permitir('verificacao-ip|' . $ip);
+            $pendente['tentativas'] = (int) $pendente['tentativas'] + 1;
+            self::log($logs, 'Verificação recusada', 'Código da verificação em duas etapas incorreto (tentativa ' . $pendente['tentativas'] . ').', $usuario->id, $ip);
+            if ($pendente['tentativas'] >= self::PENDENTE_TENTATIVAS) {
+                Session::remover(self::PENDENTE);
+                return ['ok' => false, 'erro' => 'Código errado muitas vezes. Por segurança, entre de novo com sua senha.', 'status' => 401, 'expirou' => true];
+            }
+            Session::set(self::PENDENTE, $pendente);
+            return ['ok' => false, 'erro' => 'Código incorreto ou vencido. Confira e tente de novo.', 'status' => 401];
+        }
+        Session::remover(self::PENDENTE);
+        $extra = match ($metodo) {
+            DoisFatores::APP => 'Verificado pelo aplicativo autenticador.',
+            DoisFatores::EMAIL => 'Verificado por código no e-mail.',
+            default => 'Verificado com código de recuperação (restam ' . (new ContaRepository($db))->codigosRestantes($usuario->id) . ').',
+        };
+        return ['ok' => true, 'usuario' => self::concluir($usuario, $ip, (bool) $pendente['lembrar'], (bool) $pendente['por_email'], $extra)];
+    }
+
+    /** Reenvia o codigo por e-mail do login pendente. @return array{ok:bool, mensagem:string} */
+    public static function reenviarCodigo(): array
+    {
+        $pendente = self::pendente();
+        if ($pendente === null) {
+            return ['ok' => false, 'mensagem' => 'O tempo para digitar o código acabou. Entre de novo com sua senha.'];
+        }
+        $db = Database::connect();
+        $conta = (new ContaRepository($db))->buscar($pendente['id']);
+        if ($conta === null || $conta['dois_fatores'] !== DoisFatores::EMAIL) {
+            return ['ok' => false, 'mensagem' => 'Esta conta usa o aplicativo autenticador. Abra o aplicativo para ver o código.'];
+        }
+        return (new DoisFatores($db))->enviarCodigoEmail($conta, 'entrar');
+    }
+
+    /** Cria a sessao, o "manter conectado" (se pedido) e registra o login. */
+    private static function concluir(UsuarioLogado $usuario, string $ip, bool $lembrar, bool $porEmail, string $extra = ''): UsuarioLogado
+    {
+        $db = Database::connect();
+        $usuarios = new UsuarioRepository($db);
+        $logs = new LogUserRepository($db);
+        $usuarios->registrarAcesso($usuario->id, date('Y-m-d H:i:s'));
 
         Session::renovarId();
         Session::set('usuario_id', $usuario->id);
@@ -93,17 +201,18 @@ final class Autenticacao
                 error_log('[Cardapim] Manter conectado indisponivel: ' . get_class($exception));
             }
         }
-        self::log($logs, 'Login', sprintf(
-            'Acesso realizado como %s, por %s. Manter conectado: %s. %s.',
+        self::log($logs, 'Login', trim(sprintf(
+            'Acesso realizado como %s, por %s. Manter conectado: %s. %s. %s',
             Autorizacao::rotuloCargo($usuario->cargo),
-            str_contains($identificacao, '@') ? 'e-mail' : 'nome de usuário',
+            $porEmail ? 'e-mail' : 'nome de usuário',
             $lembrado ? 'sim (30 dias)' : 'não',
             $navegador,
-        ), $usuario->id, $ip);
+            $extra,
+        )), $usuario->id, $ip);
         self::$atual = $usuario;
         self::$carregado = true;
 
-        return ['ok' => true, 'usuario' => $usuario];
+        return $usuario;
     }
 
     /** Usuario da sessao atual (null se ninguem logado ou conta bloqueada). */
