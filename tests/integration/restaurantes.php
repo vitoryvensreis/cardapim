@@ -28,7 +28,8 @@ try {
             $insert->execute(["CI CNPJ $caso", "ci-cnpj-$caso", $cnpj, $planId, 'ativo']);
             $fail("CNPJ $caso foi aceito.");
         } catch (PDOException $expected) {
-            if (!in_array((string) $expected->getCode(), ['23000', 'HY000'], true)) {
+            // 22001: maior que CHAR(14); HY000/3819: CHECK; 23000: duplicado.
+            if (!in_array((string) $expected->getCode(), ['22001', '23000', 'HY000'], true)) {
                 throw $expected;
             }
         }
