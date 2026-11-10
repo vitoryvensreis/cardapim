@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 return static function (PDO $db): void {
     // Endereco do restaurante (todas opcionais: restaurantes existentes e cadastros pendentes).
-    // cep somente com 8 digitos; estado = sigla da UF; numero aceita "S/N" e "120A".
+    // cep somente com 8 digitos; estado = sigla da UF em maiusculas (comparacao binaria,
+    // a collation padrao ignoraria maiusculas); numero aceita "S/N" e "120A".
     // latitude/longitude preparadas para entregas e mapa (preenchidas juntas ou ambas vazias).
     $db->exec(<<<'SQL'
 ALTER TABLE restaurantes
@@ -20,7 +21,7 @@ ALTER TABLE restaurantes
     ADD COLUMN longitude DECIMAL(10, 7) NULL DEFAULT NULL AFTER latitude,
     ADD KEY idx_restaurantes_localidade (estado, cidade),
     ADD CONSTRAINT chk_restaurantes_cep CHECK (cep IS NULL OR cep REGEXP '^[0-9]{8}$'),
-    ADD CONSTRAINT chk_restaurantes_estado CHECK (estado IS NULL OR estado IN (
+    ADD CONSTRAINT chk_restaurantes_estado CHECK (estado IS NULL OR (estado COLLATE utf8mb4_bin) IN (
         'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR',
         'PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
     )),
