@@ -173,3 +173,37 @@ Tabelas em migrations separadas:
 ### Aplicacao em producao
 
 A execucao GitHub Actions **#31** (commit `b0d5550b`) criou backup privado `shared/backups/cardapim-before-user-schema-20261110T011743Z.sql.gz` antes das migrations, aplicou `20261110004500_create_user.php` e `20261110004600_vincular_log_user.php` e validou chaves estrangeiras, cargos e restricoes. O acionamento temporario foi removido no workflow seguinte. `CARDAPIM_RUN_MIGRATIONS` permanece `false`.
+
+
+## Contas de teste por cargo
+
+O seeder `database/seed-test-users.php` cria seis contas com nomes previsiveis, e-mails ficticios em `@cardapim.test` e senhas aleatorias distintas **geradas somente no servidor**. O numero de WhatsApp e lido de `CARDAPIM_TEST_WHATSAPP` no arquivo privado `shared/.env` (11 digitos com DDD); nao o inserir no GitHub.
+
+| Usuario | Cargo | Restaurante | Estado |
+| --- | --- | --- | --- |
+| `teste_cliente` | cliente | Restaurante Modelo Cardapim | ativo |
+| `teste_gerente` | gerente | Restaurante Modelo Cardapim | ativo |
+| `teste_motoqueiro` | motoqueiro | Restaurante Modelo Cardapim | ativo |
+| `teste_garcom` | garcom | Restaurante Modelo Cardapim | ativo |
+| `teste_caixa` | caixa | Restaurante Modelo Cardapim | ativo |
+| `teste_adm_master` | adm_master | nenhum, global | **inativo** |
+
+O `adm_master` ficticio fica desativado para proteger a producao; habilitacao real devera ocorrer no processo de onboarding de superadmin, com MFA. Nao usar e-mails de usuarios reais sem verificacao.
+
+**Entrega de senhas:** `shared/backups/acessos-cardapim-testes.txt` fora do diretorio publico, modo `0600`. Nenhuma senha sai em logs de CI, console ou GitHub. Pelo terminal autorizado da VPS, o administrador pode consultar com `cat /home/escotilhaprodutora-cardapim/apps/cardapim/shared/backups/acessos-cardapim-testes.txt` e guardar em cofre de senhas. Nao enviar prints com senhas nem colocar esse arquivo em pasta publica.
+
+**Operacao de producao:** configurar `CARDAPIM_TEST_WHATSAPP` no `shared/.env`; criar backup privado `mysqldump` pelo `deploy/scripts/apply-test-users.sh`; o seeder requer o Restaurante Modelo no plano mensal e recusa contas preexistentes com conflitos. Para conferir sem alterar, usar `php8.4 database/seed-test-users.php --verify`. `CARDAPIM_RUN_MIGRATIONS=false` permanece. A criacao dessas contas nao implementa login, permissoes backend ou envio por WhatsApp.
+
+
+### Execucao no terminal autorizado da VPS
+
+A publicacao de codigo nao executa o seeder automaticamente para evitar expor o WhatsApp pessoal no Git e nao criar credenciais antes da confirmacao do operador. Depois do deploy, executar no terminal da Hostinger como root (o numero sera digitado de forma oculta, sem gravar no historico do shell):
+
+```bash
+read -r -s -p 'WhatsApp dos testes (11 digitos com DDD): ' TESTE_WHATSAPP
+printf '\n'
+runuser -u escotilhaprodutora-cardapim -- env CARDAPIM_TEST_WHATSAPP="$TESTE_WHATSAPP" bash /home/escotilhaprodutora-cardapim/apps/cardapim/current/deploy/scripts/apply-test-users.sh
+unset TESTE_WHATSAPP
+```
+
+O script salva um backup privado do banco, insere as contas e armazena as senhas aleatorias no arquivo mencionado acima. Nao enviar a senha em prints ou logs de suporte. O seeder nao muda contas preexistentes: em caso de conflitos, interrompe a execucao para revisao.
