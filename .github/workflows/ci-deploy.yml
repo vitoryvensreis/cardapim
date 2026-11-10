@@ -39,6 +39,7 @@ jobs:
       DB_DATABASE: cardapim_ci
       DB_USERNAME: cardapim_ci
       DB_PASSWORD: cardapim_ci_only
+      CARDAPIM_TEST_WHATSAPP: '85900000000'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -85,6 +86,9 @@ jobs:
           php tests/integration/planos-publicos.php
           php database/verify-user-schema.php --verify
           php tests/integration/user.php
+          php database/seed-test-users.php --apply
+          php database/seed-test-users.php --apply
+          php database/seed-test-users.php --verify
           php -r '$d=new PDO("mysql:host=127.0.0.1;port=3306;dbname=cardapim_ci;charset=utf8mb4", "cardapim_ci", "cardapim_ci_only"); $n=$d->query("SELECT COUNT(*) FROM planos WHERE nome LIKE \"Demonstração %\"")->fetchColumn(); exit((int)$n===3 ? 0 : 1);'
 
       - name: Smoke test HTTP local
@@ -133,6 +137,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          APPLY_TEST_USERS: ${{ contains(github.event.head_commit.message, '[cardapim-test-users]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -160,3 +165,6 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          if [[ "$APPLY_TEST_USERS" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-test-users.sh'"
+          fi
