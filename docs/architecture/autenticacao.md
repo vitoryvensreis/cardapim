@@ -73,3 +73,6 @@ Todos com `id_user`, `ip` e `data_hora`. `user.ultimo_acesso` e atualizado no lo
 
 - `tests/http/auth.sh`: 40 cenarios HTTP (inclui manter conectado, rotacao, cookie copiado e logout) (redirecionamentos, 403 por cargo e por restaurante, CSRF, conta desativada, restaurante suspenso, retorno a pagina pedida, logout, cabecalho sem cache).
 - `tests/http/criar-contas-ci.php` cria as contas `ci_*` e **recusa qualquer banco que nao seja `cardapim_ci`**.
+
+A tabela `user_sessoes_lembradas` foi criada em producao pela execucao GitHub Actions **#60** (commit `0618fdf`),
+com backup `shared/backups/cardapim-before-manter-conectado-20261110T103237Z.sql.gz`. Gatilho temporario removido no commit seguinte.
