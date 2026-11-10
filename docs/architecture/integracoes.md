@@ -52,3 +52,9 @@ O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de 
 - `tests/fakes/integracoes-fake.php`: servidor **falso** de iFood, Asaas e WPPConnect usado no CI.
 - `tests/http/integracoes.sh`: fluxo completo pelo navegador simulado (chave errada/certa, webhook com token certo/errado/repetido,
   QR Code → conectado → mensagem de teste, código de vínculo → escolher loja → testar, isolamento e CSRF).
+
+## Produção
+
+Tabelas criadas pela execução GitHub Actions **#65** (commit `d88f54b`, gatilho `[cardapim-integracoes]`), com backup
+`shared/backups/cardapim-before-integracoes-20261110T132914Z.sql.gz` verificado antes e `verify-integracoes.php` confirmando.
+Gatilho removido no commit seguinte. WhatsApp e iFood ficam "aguardando liberação" até as variáveis do `shared/.env` serem preenchidas.
