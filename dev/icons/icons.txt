@@ -101,3 +101,5 @@ link
 unplug
 webhook
 circle-exclamation-point
+wifi
+wifi-off

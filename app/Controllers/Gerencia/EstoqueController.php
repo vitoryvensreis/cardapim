@@ -13,6 +13,7 @@ use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Gerencia\CategoriaService;
 use Cardapim\Services\Gerencia\InsumoService;
 use Cardapim\Services\Gerencia\ProdutoService;
+use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Shared\Numero;
 
 /**
@@ -118,7 +119,7 @@ final class EstoqueController extends BaseGerencia
         if ($id === null) {
             return $this->naoEncontrado('Produto', $voltar);
         }
-        return $this->responder((new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->alternarDisponivel($id), $voltar);
+        return $this->responder($this->avisarEstoque((new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->alternarDisponivel($id), 'produto', 'pausado_ou_liberado', $id), $voltar);
     }
 
     public function excluirProduto(string $slug, string $idTexto): Response
@@ -130,7 +131,7 @@ final class EstoqueController extends BaseGerencia
         if ($id === null) {
             return $this->naoEncontrado('Produto', $this->url('estoque/produtos'));
         }
-        return $this->responder((new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->excluir($id), $this->url('estoque/produtos'));
+        return $this->responder($this->avisarEstoque((new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->excluir($id), 'produto', 'excluido', $id), $this->url('estoque/produtos'));
     }
 
     /* ---------- Insumos ---------- */
@@ -210,7 +211,7 @@ final class EstoqueController extends BaseGerencia
         if ($id === null) {
             return $this->naoEncontrado('Insumo', $voltar);
         }
-        return $this->responder((new InsumoService($this->db, $this->usuario, $this->restaurante['id']))->repor($id, $this->post('quantidade')), $voltar);
+        return $this->responder($this->avisarEstoque((new InsumoService($this->db, $this->usuario, $this->restaurante['id']))->repor($id, $this->post('quantidade')), 'insumo', 'reposto', $id), $voltar);
     }
 
     public function excluirInsumo(string $slug, string $idTexto): Response
@@ -222,7 +223,7 @@ final class EstoqueController extends BaseGerencia
         if ($id === null) {
             return $this->naoEncontrado('Insumo', $this->url('estoque/insumos'));
         }
-        return $this->responder((new InsumoService($this->db, $this->usuario, $this->restaurante['id']))->excluir($id), $this->url('estoque/insumos'), $this->origem($this->url('estoque/insumos')));
+        return $this->responder($this->avisarEstoque((new InsumoService($this->db, $this->usuario, $this->restaurante['id']))->excluir($id), 'insumo', 'excluido', $id), $this->url('estoque/insumos'), $this->origem($this->url('estoque/insumos')));
     }
 
     /* ---------- Categorias ---------- */
@@ -245,7 +246,7 @@ final class EstoqueController extends BaseGerencia
             return $r;
         }
         $resultado = (new CategoriaService($this->db, $this->usuario, $this->restaurante['id']))->salvar(null, $this->post('nome'));
-        return $this->responder($resultado, $this->url('estoque/categorias'));
+        return $this->responder($this->avisarEstoque($resultado, 'categoria', 'criado', $resultado->id), $this->url('estoque/categorias'));
     }
 
     public function atualizarCategoria(string $slug, string $idTexto): Response
@@ -258,7 +259,7 @@ final class EstoqueController extends BaseGerencia
             return $this->voltar($this->url('estoque/categorias'), 'erro', 'Categoria não encontrada.');
         }
         $resultado = (new CategoriaService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $this->post('nome'));
-        return $this->responder($resultado, $this->url('estoque/categorias'));
+        return $this->responder($this->avisarEstoque($resultado, 'categoria', 'editado', $id), $this->url('estoque/categorias'));
     }
 
     public function excluirCategoria(string $slug, string $idTexto): Response
@@ -270,10 +271,16 @@ final class EstoqueController extends BaseGerencia
         if ($id === null) {
             return $this->voltar($this->url('estoque/categorias'), 'erro', 'Categoria não encontrada.');
         }
-        return $this->responder((new CategoriaService($this->db, $this->usuario, $this->restaurante['id']))->excluir($id), $this->url('estoque/categorias'));
+        return $this->responder($this->avisarEstoque((new CategoriaService($this->db, $this->usuario, $this->restaurante['id']))->excluir($id), 'categoria', 'excluido', $id), $this->url('estoque/categorias'));
     }
 
     /* ---------- Internos ---------- */
+
+    /** Outras telas abertas do restaurante ficam sabendo que o estoque mudou (tempo real). */
+    private function avisarEstoque(Resultado $r, string $area, string $acao, ?int $id): Resultado
+    {
+        return $this->avisar($r, 'estoque', 'estoque.alterado', ['area' => $area, 'acao' => $acao, 'id' => $id]);
+    }
 
     private function salvarProduto(string $slug, ?string $idTexto): Response
     {
@@ -285,7 +292,7 @@ final class EstoqueController extends BaseGerencia
             return $this->naoEncontrado('Produto', $this->url('estoque/produtos'));
         }
         $resultado = (new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST);
-        if ($resultado->ok) {
+        if ($this->avisarEstoque($resultado, 'produto', $id === null ? 'criado' : 'editado', $id ?? $resultado->id)->ok) {
             return $this->voltar($this->url('estoque/produtos'), 'sucesso', $resultado->mensagem);
         }
         $produto = $id === null ? null : (new ProdutoRepository($this->db))->buscar($this->restaurante['id'], $id);
@@ -305,7 +312,7 @@ final class EstoqueController extends BaseGerencia
             return $this->naoEncontrado('Insumo', $this->url('estoque/insumos'));
         }
         $resultado = (new InsumoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST);
-        if ($resultado->ok) {
+        if ($this->avisarEstoque($resultado, 'insumo', $id === null ? 'criado' : 'editado', $id ?? $resultado->id)->ok) {
             return $this->voltar($this->url('estoque/insumos'), 'sucesso', $resultado->mensagem);
         }
         $insumo = $id === null ? null : (new InsumoRepository($this->db))->buscar($this->restaurante['id'], $id);

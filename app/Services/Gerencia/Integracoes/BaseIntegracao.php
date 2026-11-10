@@ -28,6 +28,12 @@ abstract class BaseIntegracao
         Auditoria::registrar($this->autor, $titulo, $descricao);
     }
 
+    /** Outras telas abertas do restaurante ficam sabendo da mudanca (tempo real). Nunca falha a acao. */
+    protected function avisarTela(string $canal, string $tipo, array $dados = []): void
+    {
+        \Cardapim\Realtime\TempoReal::publicar($this->idRestaurante, $canal, $tipo, [...$dados, 'autor' => $this->autor->id]);
+    }
+
     protected static function agora(): string
     {
         return date('Y-m-d H:i:s');

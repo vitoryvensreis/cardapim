@@ -5,6 +5,8 @@
  * @var \Cardapim\Services\Auth\UsuarioLogado $usuario
  */
 use Cardapim\Core\Icon;
+use Cardapim\Realtime\Canais;
+use Cardapim\Realtime\TempoReal;
 use Cardapim\Services\Auth\Autorizacao;
 use Cardapim\Services\Configuracoes;
 use Cardapim\Services\Painel\MenuGerencia;
@@ -16,7 +18,8 @@ $title = $e((string) ($pageTitle ?? 'Gerência | Cardapim'));
 $description = $e('Painel do gerente no Cardapim.');
 $noIndex = true;
 $styles = ['css/pages.css', 'css/app.css', 'css/painel.css'];
-$scripts = ['js/painel.js', 'js/confirmar.js', ...($pageScripts ?? [])];
+$tempoReal = TempoReal::ativo();
+$scripts = ['js/painel.js', 'js/confirmar.js', ...($tempoReal ? ['js/tempo-real.js'] : []), ...($pageScripts ?? [])];
 $slug = (string) $restaurante['slug'];
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));
 $tituloAtual = $ativo !== null && isset(MenuGerencia::SECOES[$ativo]) ? MenuGerencia::SECOES[$ativo]['rotulo']
@@ -27,7 +30,7 @@ $tituloAtual = $ativo !== null && isset(MenuGerencia::SECOES[$ativo]) ? MenuGere
 <head>
 <?php require __DIR__ . '/../partials/head.php'; ?>
 </head>
-<body class="page-painel">
+<body class="page-painel"<?php if ($tempoReal): ?> data-tempo-real="<?= $e('/api/v1/tempo-real/ticket?restaurante=' . rawurlencode((string) $restaurante['slug'])) ?>" data-tempo-real-canais="<?= $e(implode(',', Canais::daSecao($ativo))) ?>"<?php endif; ?>>
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <div class="painel">
         <aside class="painel-side" id="painel-menu" aria-label="Menu da gerência" data-painel-menu>
@@ -86,6 +89,13 @@ $tituloAtual = $ativo !== null && isset(MenuGerencia::SECOES[$ativo]) ? MenuGere
                     <?= Icon::svg('chevron-right', 'icon-sm') ?>
                     <strong><?= $e($tituloAtual) ?></strong>
                 </p>
+                <?php if ($tempoReal): ?>
+                    <p class="tempo-real" data-tempo-real-status data-estado="conectando" title="Quando algo muda, o Cardapim avisa nesta tela sem precisar recarregar.">
+                        <span class="tempo-real-icone tempo-real-icone-on"><?= Icon::svg('wifi', 'icon-sm') ?></span>
+                        <span class="tempo-real-icone tempo-real-icone-off"><?= Icon::svg('wifi-off', 'icon-sm') ?></span>
+                        <span data-tempo-real-texto>Conectando</span>
+                    </p>
+                <?php endif; ?>
                 <a class="btn btn-primary btn-sm painel-caixa" href="<?= $e(MenuGerencia::url($slug, '@caixa')) ?>"><?= Icon::svg('monitor', 'icon-sm') ?>Abrir caixa</a>
             </header>
             <main id="conteudo" class="painel-main">
@@ -94,6 +104,14 @@ $tituloAtual = $ativo !== null && isset(MenuGerencia::SECOES[$ativo]) ? MenuGere
                         <?= Icon::svg(($flash['tipo'] ?? '') === 'erro' ? 'circle-x' : (($flash['tipo'] ?? '') === 'aviso' ? 'info' : 'circle-check')) ?>
                         <p><?= $e((string) $flash['mensagem']) ?></p>
                         <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-flash-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
+                    </div>
+                <?php endif; ?>
+                <?php if ($tempoReal): ?>
+                    <div class="painel-flash painel-flash-aviso tempo-real-aviso" role="status" data-tempo-real-aviso hidden>
+                        <?= Icon::svg('refresh-cw') ?>
+                        <p data-tempo-real-aviso-texto></p>
+                        <button type="button" class="btn btn-outline btn-sm" data-tempo-real-atualizar>Atualizar agora</button>
+                        <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-tempo-real-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
                     </div>
                 <?php endif; ?>
                 <?= $content ?>

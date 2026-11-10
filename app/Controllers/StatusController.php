@@ -50,6 +50,7 @@ final class StatusController
                 'servicos' => [
                     'php' => ['situacao' => 'operacional', 'versao' => $phpVersion],
                     'mysql' => ['situacao' => $databaseReady ? 'conectado' : 'indisponivel'],
+                    'tempo_real' => self::tempoReal(),
                 ],
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
@@ -70,5 +71,22 @@ final class StatusController
             $httpStatus,
             [...$headers, 'Content-Type' => 'text/html; charset=UTF-8'],
         );
+    }
+
+    /**
+     * Situacao do servidor WebSocket pelo arquivo que ele atualiza a cada 10 s (nao afeta o HTTP 200/503).
+     * @return array{situacao:string, redis?:string}
+     */
+    private static function tempoReal(): array
+    {
+        $arquivo = dirname(__DIR__, 2) . '/storage/cache/tempo-real.json';
+        $dados = is_file($arquivo) ? json_decode((string) @file_get_contents($arquivo), true) : null;
+        if (!is_array($dados) || !is_int($dados['atualizado_em'] ?? null)) {
+            return ['situacao' => 'nao_iniciado'];
+        }
+        if (($dados['situacao'] ?? '') !== 'operacional' || time() - $dados['atualizado_em'] > 30) {
+            return ['situacao' => 'parado'];
+        }
+        return ['situacao' => 'operacional', 'redis' => in_array($dados['redis'] ?? '', ['conectado', 'indisponivel', 'desligado'], true) ? $dados['redis'] : 'desconhecido'];
     }
 }

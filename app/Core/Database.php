@@ -32,6 +32,12 @@ final class Database
         }
     }
 
+    /** Conexao nova e independente, para processos longos (servidor de tempo real) reconectarem. */
+    public static function novaConexao(): PDO
+    {
+        return self::open();
+    }
+
     private static function open(): PDO
     {
         $file = dirname(__DIR__, 2) . '/.env';

@@ -1,0 +1,19 @@
+# Redis do Cardapim (isolado dos outros Redis da VPS). Usado como "campainha" do tempo real
+# e, no futuro, cache e filas. Somente 127.0.0.1. Passo a passo: docs/deploy/tempo-real.md
+# A senha fica no arquivo .env desta pasta (REDIS_PASSWORD=...), nunca no Git.
+name: redis-cardapim
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis-cardapim
+    restart: unless-stopped
+    env_file: .env
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --maxmemory 128mb --maxmemory-policy allkeys-lru --save '' --appendonly no"]
+    ports:
+      - "127.0.0.1:6381:6379"
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"

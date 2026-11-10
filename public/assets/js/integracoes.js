@@ -48,6 +48,11 @@
   const teste = document.querySelector("[data-so-conectado]");
   let espera = bloco.dataset.estadoInicial === "conectado" ? 30000 : 3000;
   let erros = 0;
+  let proxima = null;
+  const agendar = (ms) => {
+    clearTimeout(proxima);
+    proxima = setTimeout(consultar, ms);
+  };
 
   const mostrar = (nome, texto) => {
     paineis.forEach((painel) => {
@@ -61,8 +66,9 @@
   };
 
   const consultar = async () => {
+    clearTimeout(proxima);
     if (document.hidden) {
-      setTimeout(consultar, 3000);
+      agendar(3000);
       return;
     }
     try {
@@ -105,8 +111,19 @@
         return;
       }
     }
-    setTimeout(consultar, espera);
+    agendar(espera);
   };
+
+  // Tempo real: o celular conectou ou caiu em outra aba/aparelho? Atualiza esta tela na hora.
+  document.addEventListener("cardapim:tempo-real", (ev) => {
+    if (!ev.detail || ev.detail.tipo !== "integracao.whatsapp.estado") return;
+    ev.preventDefault();
+    if (ev.detail.dados && ev.detail.dados.estado === "desconectado") {
+      window.location.reload();
+      return;
+    }
+    consultar();
+  });
 
   consultar();
 })();

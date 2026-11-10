@@ -6,6 +6,15 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Tempo real (WebSocket proprio)
+
+- **Servidor WebSocket em PHP** (`bin/tempo-real.php`, systemd), sem dependencias, so em 127.0.0.1 atras do Nginx (`wss://.../ws`).
+- **Transactional Outbox**: todo evento e gravado em `outbox_eventos` antes de ser transmitido; o **Redis** so avisa "tem evento novo" (sem Redis, busca a cada 1 s).
+- **Seguranca**: ticket assinado de 60 s e uso unico (`GET /api/v1/tempo-real/ticket`), origem conferida, cada restaurante so recebe os proprios eventos e cada cargo so os canais permitidos; conta bloqueada sai em ate 1 minuto.
+- **Navegador**: indicador "Ao vivo", reconexao automatica recebendo o que perdeu, aviso "Atualizar agora" quando algo muda em outra tela.
+- Ja publica: estoque alterado, aviso do Asaas recebido e WhatsApp conectado/desconectado. Pedidos, cozinha, caixa e chats usam a mesma base quando forem criados.
+- [Arquitetura e como publicar eventos](docs/architecture/tempo-real.md) · [Instalacao na VPS](docs/deploy/tempo-real.md).
+
 ## Painel do gerente: Estoque, Equipe, Perfil, Assinatura e Minha conta
 
 - **Estoque**: resumo do que acabou, do que esta abaixo do minimo e do que esta fora de venda (com o motivo), valor parado em estoque e reposicao rapida ("chegou mercadoria"); produtos com ficha tecnica dinamica, custo e sobra estimados; insumos com barra de nivel; categorias.
@@ -873,9 +882,11 @@ DB_DATABASE=cardapim
 DB_USERNAME=cardapim
 DB_PASSWORD=
 REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-REALTIME_PUBLIC_URL=ws://localhost:8080
-REALTIME_TICKET_SECRET=
+REDIS_PORT=6381     # Redis do Cardapim (vazio = tempo real sem Redis)
+REDIS_PASSWORD=
+WS_ATIVO=1          # liga o tempo real nas telas (docs/deploy/tempo-real.md)
+WS_PORTA=8091       # servidor WebSocket local (bin/tempo-real.php)
+WS_URL=             # opcional; padrao wss://{APP_URL}/ws
 IFOOD_CLIENT_ID=
 IFOOD_CLIENT_SECRET=
 WPPCONNECT_BASE_URL=http://127.0.0.1:21465

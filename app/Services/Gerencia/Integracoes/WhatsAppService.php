@@ -90,6 +90,7 @@ final class WhatsAppService extends BaseIntegracao
                 ]);
                 if ($atual['status'] !== 'conectado') {
                     $this->log('WhatsApp conectado', 'Celular conectado' . ($numero !== null ? ' (final ' . substr($numero, -4) . ')' : '') . '.');
+                    $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'conectado']);
                 }
             }
             return ['estado' => 'conectado', 'qrcode' => null, 'numero' => $numero, 'mensagem' => 'WhatsApp conectado.'];
@@ -101,6 +102,7 @@ final class WhatsAppService extends BaseIntegracao
             if ($atual['status'] === 'conectado') {
                 $this->integracoes->salvar($this->idRestaurante, 'whatsapp', ['status' => 'erro', 'ultimo_erro' => 'O WhatsApp foi desconectado do celular.']);
                 $this->log('WhatsApp desconectado pelo celular', 'A sessão caiu ou foi encerrada no aparelho.');
+                $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'erro']);
                 return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => 'O WhatsApp foi desconectado do celular. Conecte de novo.'];
             }
             return ['estado' => 'expirado', 'qrcode' => null, 'numero' => null, 'mensagem' => 'O QR Code venceu. Gere um novo.'];
@@ -156,6 +158,7 @@ final class WhatsAppService extends BaseIntegracao
         }
         $this->integracoes->limpar($this->idRestaurante, 'whatsapp');
         $this->log('WhatsApp desconectado', 'Sessão encerrada pelo painel.');
+        $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'desconectado']);
         return Resultado::sucesso('WhatsApp desconectado. O celular saiu do Cardapim.');
     }
 }

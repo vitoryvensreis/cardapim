@@ -50,6 +50,15 @@ final class Cripto
     }
 
     /** Para testes: usa uma chave fixa em memoria. */
+    /**
+     * Chave derivada para outro uso (ex.: assinar tickets do tempo real), sem expor a chave principal.
+     * Mesma chave principal + mesmo proposito = mesma chave derivada em todos os processos.
+     */
+    public static function derivarChave(string $proposito): string
+    {
+        return hash_hmac('sha256', 'cardapim:' . $proposito, self::chave(), true);
+    }
+
     public static function usarChave(?string $chaveBinaria): void
     {
         self::$chave = $chaveBinaria;

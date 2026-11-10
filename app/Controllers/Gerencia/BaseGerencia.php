@@ -103,6 +103,19 @@ abstract class BaseGerencia
         return $this->voltar($r->ok ? $urlSucesso : ($urlErro ?? $urlSucesso), $r->ok ? 'sucesso' : 'erro', $r->mensagem);
     }
 
+    /**
+     * Acao deu certo? Grava o evento para as outras telas abertas do restaurante (tempo real).
+     * Nunca atrapalha a acao: se o tempo real falhar, so registra no log.
+     * @param array<string,mixed> $dados sem segredos nem dados pessoais (a tela busca o resto)
+     */
+    protected function avisar(\Cardapim\Services\Gerencia\Resultado $r, string $canal, string $tipo, array $dados = []): \Cardapim\Services\Gerencia\Resultado
+    {
+        if ($r->ok) {
+            \Cardapim\Realtime\TempoReal::publicar($this->restaurante['id'], $canal, $tipo, [...$dados, 'autor' => $this->usuario->id]);
+        }
+        return $r;
+    }
+
     protected function naoEncontrado(string $oque, string $url): Response
     {
         return $this->voltar($url, 'erro', $oque . ' não encontrado. Ele pode ter sido excluído.');

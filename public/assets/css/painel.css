@@ -75,6 +75,32 @@
 .painel-breadcrumb strong { overflow: hidden; color: var(--c-ink); font-family: var(--f-head); text-overflow: ellipsis; white-space: nowrap; }
 .painel-breadcrumb-rest { display: none; }
 .painel-caixa { margin-left: auto; }
+
+/* ---------- Tempo real: indicador "Ao vivo" e aviso de mudanca ---------- */
+.tempo-real {
+  display: inline-flex; align-items: center; gap: .35rem; margin-left: auto; padding: .3rem .65rem;
+  border: 1px solid var(--c-line); border-radius: var(--r-pill); background: var(--c-white);
+  color: var(--c-muted); font-size: .8rem; font-weight: 600; white-space: nowrap;
+}
+.tempo-real + .painel-caixa { margin-left: 0; }
+.tempo-real-icone { display: none; }
+.tempo-real[data-estado="ao-vivo"] { border-color: #b9e3cb; background: var(--c-success-bg); color: var(--c-success); }
+.tempo-real[data-estado="ao-vivo"] .tempo-real-icone-on { display: inline-flex; }
+.tempo-real[data-estado="conectando"] .tempo-real-icone-on,
+.tempo-real[data-estado="reconectando"] .tempo-real-icone-on { display: inline-flex; animation: tempo-real-pulso 1.4s ease-in-out infinite; }
+.tempo-real[data-estado="offline"] { border-color: #f3d9cc; background: #fff6f1; color: #6e3a24; }
+.tempo-real[data-estado="offline"] .tempo-real-icone-off { display: inline-flex; }
+@keyframes tempo-real-pulso { 50% { opacity: .35; } }
+.tempo-real-aviso { align-items: center; }
+.tempo-real-aviso .btn { flex: 0 0 auto; }
+@media (max-width: 39.99rem) {
+  .tempo-real { padding: .45rem; }
+  .tempo-real [data-tempo-real-texto] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tempo-real-aviso { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tempo-real-icone-on { animation: none !important; }
+}
 .painel-main { padding: clamp(1.25rem, 3vw, 2.25rem) var(--gutter) 4rem; }
 .painel-page { max-width: 64rem; margin-inline: auto; }
 

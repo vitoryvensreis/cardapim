@@ -14,7 +14,7 @@ final class Slug
         'admin', 'api', 'app', 'assets', 'cadastro', 'cardapim', 'catalogo', 'conta', 'cookies',
         'dashboard', 'entrar', 'exclusao-de-dados', 'login', 'logout', 'midia', 'minha-conta', 'painel', 'planos',
         'politica-de-privacidade', 'privacidade', 'restaurantes', 'sair', 'status', 'storage',
-        'suporte', 'termos-de-uso', 'tratamento-de-dados', 'uploads', 'webhooks', 'www',
+        'suporte', 'termos-de-uso', 'tratamento-de-dados', 'uploads', 'webhooks', 'ws', 'www',
     ];
 
     public static function formatoValido(string $slug): bool
