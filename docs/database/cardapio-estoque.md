@@ -63,3 +63,7 @@ devolver o estoque no cancelamento e impede baixar o mesmo pedido duas vezes.
 `deploy/scripts/apply-cardapio-estoque.sh`, acionado uma unica vez pelo CI com `[cardapim-cardapio-estoque]`:
 aceita somente estas quatro migrations pendentes, faz backup `mysqldump` validado, aplica e roda
 `database/verify-cardapio-estoque.php`.
+
+A execucao GitHub Actions **#48** (commit `df601e2`) criou o backup privado
+`shared/backups/cardapim-before-cardapio-estoque-20261110T035817Z.sql.gz`, aplicou as quatro migrations
+e validou o schema. O acionamento temporario foi removido do workflow no commit seguinte.
