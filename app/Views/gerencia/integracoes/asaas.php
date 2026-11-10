@@ -1,7 +1,7 @@
 <?php
 /**
  * Asaas. Espera: $integracao, $urlWebhook, $tokenWebhook (so quando os avisos nao foram configurados),
- * $eventos, $erros, $valores, $base, $csrf.
+ * $eventos, $erros, $valores, $base, $csrf. Opcional: $plataforma (true = Asaas da administracao do Cardapim).
  */
 use Cardapim\Core\Icon;
 use Cardapim\Shared\Html\Campo;
@@ -17,6 +17,7 @@ $nomesEventos = [
     'PAYMENT_OVERDUE' => 'Cobrança vencida', 'PAYMENT_REFUNDED' => 'Pagamento estornado', 'PAYMENT_DELETED' => 'Cobrança removida',
     'PAYMENT_UPDATED' => 'Cobrança alterada',
 ];
+$plataforma = !empty($plataforma);
 $erroGeral = $erros['_geral'] ?? null;
 unset($erros['_geral']);
 
@@ -28,7 +29,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
             <legend class="rotulo-grupo">Qual conta você vai conectar?</legend>
             <label class="opcao-modo">
                 <input type="radio" name="ambiente" value="producao"<?= ($valores['ambiente'] ?? 'producao') !== 'sandbox' ? ' checked' : '' ?>>
-                <span><strong>Conta real (Produção)</strong><small>Para receber pagamentos de verdade dos clientes.</small></span>
+                <span><strong>Conta real (Produção)</strong><small>Para receber pagamentos de verdade.</small></span>
             </label>
             <label class="opcao-modo">
                 <input type="radio" name="ambiente" value="sandbox"<?= ($valores['ambiente'] ?? '') === 'sandbox' ? ' checked' : '' ?>>
@@ -53,7 +54,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
         <div>
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
             <h1>Asaas</h1>
-            <p>Receba o Pix dos pedidos online direto na conta Asaas do seu restaurante.</p>
+            <p><?= $plataforma ? 'Conta Asaas da plataforma: recebe o pagamento das assinaturas dos restaurantes.' : 'Receba o Pix dos pedidos online direto na conta Asaas do seu restaurante.' ?></p>
         </div>
         <?php require __DIR__ . '/_status.php'; ?>
     </header>

@@ -44,10 +44,11 @@ final class WebhookController
             }
             $evento = preg_replace('/[^A-Z0-9_]/', '', strtoupper($dados['event'])) ?: 'DESCONHECIDO';
             $idExterno = is_string($dados['id'] ?? null) ? $dados['id'] : null;
+            // id_restaurante null = Asaas da PLATAFORMA (pagamento das assinaturas dos restaurantes).
             $novo = (new IntegracaoRepository(Database::connect()))->registrarEvento($integracao['id_restaurante'], 'asaas', $evento, $idExterno, $corpo);
-            if ($novo) {
+            if ($novo && $integracao['id_restaurante'] !== null) {
                 // A tela de Integracoes aberta mostra "chegou aviso" na hora (so o nome do evento; nada do pagamento).
-                \Cardapim\Realtime\TempoReal::publicar((int) $integracao['id_restaurante'], 'integracoes', 'integracao.asaas.aviso', ['evento' => $evento]);
+                \Cardapim\Realtime\TempoReal::publicar($integracao['id_restaurante'], 'integracoes', 'integracao.asaas.aviso', ['evento' => $evento]);
             }
             // Repetido tambem responde 200: o Asaas entrega "pelo menos uma vez".
             return self::texto('ok', 200);

@@ -193,6 +193,19 @@
 .bloco-cabecalho { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
 .bloco-cabecalho h2 { display: flex; align-items: center; gap: .55rem; color: var(--c-ink); font-size: 1.15rem; font-weight: 800; }
 .bloco-cabecalho h2 .icon { color: var(--c-orange); }
+
+/* Atalhos (dashboard da plataforma) */
+.atalhos-lista { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+@media (min-width: 48rem) { .atalhos-lista { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.atalho {
+  display: flex; align-items: center; gap: .75rem; min-height: 3.5rem; padding: .8rem .95rem; border: 1px solid var(--c-line);
+  border-radius: var(--r-md); background: var(--c-cream); color: var(--c-ink); text-decoration: none; transition: border-color .2s, background .2s;
+}
+.atalho:hover, .atalho:focus-visible { border-color: var(--c-orange); background: var(--c-white); }
+.atalho > .icon:first-child { flex: 0 0 auto; color: var(--c-wine); }
+.atalho > span { display: grid; flex: 1 1 auto; min-width: 0; }
+.atalho small { color: var(--c-muted); font-size: .82rem; }
+.atalho > .icon:last-child { flex: 0 0 auto; color: var(--c-muted); }
 .bloco-cabecalho p { width: 100%; color: var(--c-muted); font-size: .9rem; }
 .bloco-rodape { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .6rem; margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--c-line); }
 .bloco-perigo { border-color: #f1c3be; }

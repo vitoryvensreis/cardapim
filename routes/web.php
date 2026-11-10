@@ -33,7 +33,7 @@ $router->get('/exclusao-de-dados', [LegalController::class, 'exclusao']);
 $router->get('/tratamento-de-dados', [LegalController::class, 'tratamento']);
 
 // Areas autenticadas (cargo validado no servidor em AreaController/Autorizacao).
-$router->get('/painel', [AreaController::class, 'painel']);
+(require __DIR__ . '/plataforma.php')($router);
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
 $router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);

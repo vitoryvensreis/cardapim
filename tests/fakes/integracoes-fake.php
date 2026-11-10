@@ -83,7 +83,7 @@ if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([a-z-]+)\z~', $caminho, $m)) {
             if ($estado['status'] !== 'CONNECTED' || !preg_match('/\A55\d{10,11}\z/', (string) ($json['phone'] ?? ''))) {
                 $responder(400, ['status' => 'error', 'message' => 'nao conectado ou numero invalido']);
             }
-            file_put_contents($pasta . '/wpp-mensagens.log', $json['phone'] . '|' . $json['message'] . "\n", FILE_APPEND);
+            file_put_contents($pasta . '/wpp-mensagens.log', $sessao . '|' . $json['phone'] . '|' . $json['message'] . "\n", FILE_APPEND);
             $responder(201, ['status' => 'success', 'response' => [['id' => 'msg1']]]);
         case 'logout-session':
         case 'close-session':

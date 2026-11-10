@@ -10,7 +10,10 @@ use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use PDO;
 
-/** Base dos servicos de integracao: repositorio, autor das acoes e log de auditoria. */
+/**
+ * Base dos servicos de integracao: repositorio, autor das acoes e log de auditoria.
+ * idRestaurante null = integracao da PLATAFORMA (administracao do Cardapim).
+ */
 abstract class BaseIntegracao
 {
     protected readonly IntegracaoRepository $integracoes;
@@ -18,7 +21,7 @@ abstract class BaseIntegracao
     public function __construct(
         protected readonly PDO $db,
         protected readonly UsuarioLogado $autor,
-        protected readonly int $idRestaurante,
+        protected readonly ?int $idRestaurante,
     ) {
         $this->integracoes = new IntegracaoRepository($db);
     }
@@ -31,7 +34,15 @@ abstract class BaseIntegracao
     /** Outras telas abertas do restaurante ficam sabendo da mudanca (tempo real). Nunca falha a acao. */
     protected function avisarTela(string $canal, string $tipo, array $dados = []): void
     {
+        if ($this->idRestaurante === null) {
+            return; // plataforma: o painel da administracao ainda nao usa o tempo real
+        }
         \Cardapim\Realtime\TempoReal::publicar($this->idRestaurante, $canal, $tipo, [...$dados, 'autor' => $this->autor->id]);
+    }
+
+    protected function daPlataforma(): bool
+    {
+        return $this->idRestaurante === null;
     }
 
     protected static function agora(): string

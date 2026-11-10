@@ -20,7 +20,7 @@ final class WhatsAppService extends BaseIntegracao
 {
     public const TESTES_POR_HORA = 10;
 
-    public function __construct(PDO $db, UsuarioLogado $autor, int $idRestaurante, private readonly WppConnectApi $api = new WppConnectApi())
+    public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly WppConnectApi $api = new WppConnectApi())
     {
         parent::__construct($db, $autor, $idRestaurante);
     }
@@ -36,7 +36,7 @@ final class WhatsAppService extends BaseIntegracao
         $sessao = is_string($atual['dados']['sessao'] ?? null) ? $atual['dados']['sessao'] : null;
         try {
             if ($sessao === null || empty($cred['token'])) {
-                $sessao = 'cardapim_r' . $this->idRestaurante . '_' . bin2hex(random_bytes(4));
+                $sessao = ($this->daPlataforma() ? 'cardapim_plataforma' : 'cardapim_r' . $this->idRestaurante) . '_' . bin2hex(random_bytes(4));
                 $cred = ['token' => $this->api->gerarToken($sessao)];
             }
             $this->api->iniciar($sessao, (string) $cred['token']);
@@ -131,7 +131,7 @@ final class WhatsAppService extends BaseIntegracao
             return Resultado::falha('Conecte o WhatsApp antes de enviar a mensagem de teste.');
         }
         $limite = RateLimiter::padrao(self::TESTES_POR_HORA, 3600);
-        $chave = 'wpp-teste|' . $this->idRestaurante;
+        $chave = 'wpp-teste|' . ($this->idRestaurante ?? 'plataforma');
         if ($limite->excedido($chave)) {
             return Resultado::falha('Você já enviou muitas mensagens de teste nesta hora. Tente mais tarde.');
         }

@@ -6,6 +6,12 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Painel da plataforma (administracao)
+
+- `/painel` do adm_master com menu lateral: Dashboard, Restaurantes, Planos, Faturas, Usuarios, Integracoes, Logs de auditoria, Configuracoes, Suporte e Minha conta.
+- **Pronta**: Integracoes da plataforma - Asaas para receber as assinaturas dos restaurantes e WhatsApp proprio da plataforma (sessao separada dos restaurantes), base do codigo de verificacao do cliente final.
+- Demais secoes mostram "Em construcao" com o que vai ter. [Detalhes](docs/architecture/painel-plataforma.md).
+
 ## Tempo real (WebSocket proprio)
 
 - **Servidor WebSocket em PHP** (`bin/tempo-real.php`, systemd), sem dependencias, so em 127.0.0.1 atras do Nginx (`wss://.../ws`).

@@ -8,8 +8,9 @@ use Cardapim\Shared\Seguranca\Cripto;
 use PDO;
 
 /**
- * Integracoes de cada restaurante. As credenciais sao gravadas e lidas sempre cifradas
- * (Cripto); "dados" guarda so informacoes sem segredo (para exibir na tela).
+ * Integracoes de cada restaurante e da PLATAFORMA (idRestaurante null = administracao do Cardapim).
+ * As consultas usam a coluna gerada "escopo" (id_restaurante ou 0). As credenciais sao gravadas e
+ * lidas sempre cifradas (Cripto); "dados" guarda so informacoes sem segredo (para exibir na tela).
  */
 final class IntegracaoRepository
 {
@@ -23,11 +24,11 @@ final class IntegracaoRepository
      * @return array{id:?int,provedor:string,status:string,ambiente:?string,dados:array<string,mixed>,webhook_id:?string,
      *   ultimo_erro:?string,conectado_em:?string,verificado_em:?string,tem_credenciais:bool}
      */
-    public function buscar(int $idRestaurante, string $provedor): array
+    public function buscar(?int $idRestaurante, string $provedor): array
     {
         $query = $this->db->prepare('SELECT id, provedor, status, ambiente, credenciais, dados, webhook_id, ultimo_erro, conectado_em, verificado_em
-            FROM integracoes WHERE id_restaurante = ? AND provedor = ?');
-        $query->execute([$idRestaurante, $provedor]);
+            FROM integracoes WHERE escopo = ? AND provedor = ?');
+        $query->execute([self::escopo($idRestaurante), $provedor]);
         $row = $query->fetch(PDO::FETCH_ASSOC);
         if ($row === false) {
             return [
@@ -51,7 +52,7 @@ final class IntegracaoRepository
     }
 
     /** @return array<string, array<string,mixed>> provedor => integracao */
-    public function todas(int $idRestaurante): array
+    public function todas(?int $idRestaurante): array
     {
         $todas = [];
         foreach (self::PROVEDORES as $provedor) {
@@ -61,10 +62,10 @@ final class IntegracaoRepository
     }
 
     /** @return array<string,mixed> credenciais decifradas ([] se nao houver) */
-    public function credenciais(int $idRestaurante, string $provedor): array
+    public function credenciais(?int $idRestaurante, string $provedor): array
     {
-        $query = $this->db->prepare('SELECT credenciais FROM integracoes WHERE id_restaurante = ? AND provedor = ?');
-        $query->execute([$idRestaurante, $provedor]);
+        $query = $this->db->prepare('SELECT credenciais FROM integracoes WHERE escopo = ? AND provedor = ?');
+        $query->execute([self::escopo($idRestaurante), $provedor]);
         $cifrado = $query->fetchColumn();
         if (!is_string($cifrado) || $cifrado === '') {
             return [];
@@ -77,13 +78,13 @@ final class IntegracaoRepository
      * Grava (cria ou atualiza) a integracao. Campos ausentes em $campos ficam como estao.
      * @param array{status?:string,ambiente?:?string,credenciais?:?array,dados?:array,webhook_id?:?string,ultimo_erro?:?string,conectado_em?:?string,verificado_em?:?string} $campos
      */
-    public function salvar(int $idRestaurante, string $provedor, array $campos): void
+    public function salvar(?int $idRestaurante, string $provedor, array $campos): void
     {
         if (!in_array($provedor, self::PROVEDORES, true)) {
             throw new \InvalidArgumentException('Provedor invalido.');
         }
-        $existe = $this->db->prepare('SELECT id FROM integracoes WHERE id_restaurante = ? AND provedor = ?');
-        $existe->execute([$idRestaurante, $provedor]);
+        $existe = $this->db->prepare('SELECT id FROM integracoes WHERE escopo = ? AND provedor = ?');
+        $existe->execute([self::escopo($idRestaurante), $provedor]);
         if ($existe->fetchColumn() === false) {
             $this->db->prepare('INSERT INTO integracoes (id_restaurante, provedor) VALUES (?, ?)')->execute([$idRestaurante, $provedor]);
         }
@@ -106,20 +107,20 @@ final class IntegracaoRepository
         if ($sets === []) {
             return;
         }
-        $valores[] = $idRestaurante;
+        $valores[] = self::escopo($idRestaurante);
         $valores[] = $provedor;
-        $this->db->prepare('UPDATE integracoes SET ' . implode(', ', $sets) . ' WHERE id_restaurante = ? AND provedor = ?')->execute($valores);
+        $this->db->prepare('UPDATE integracoes SET ' . implode(', ', $sets) . ' WHERE escopo = ? AND provedor = ?')->execute($valores);
     }
 
     /** Volta ao estado inicial (apaga credenciais e dados). */
-    public function limpar(int $idRestaurante, string $provedor): void
+    public function limpar(?int $idRestaurante, string $provedor): void
     {
         $this->db->prepare("UPDATE integracoes SET status = 'desconectado', ambiente = NULL, credenciais = NULL, dados = NULL,
                 webhook_id = NULL, ultimo_erro = NULL, conectado_em = NULL, verificado_em = NULL
-            WHERE id_restaurante = ? AND provedor = ?")->execute([$idRestaurante, $provedor]);
+            WHERE escopo = ? AND provedor = ?")->execute([self::escopo($idRestaurante), $provedor]);
     }
 
-    /** @return array{id_restaurante:int, credenciais:array<string,mixed>}|null integracao dona do webhook */
+    /** @return array{id_restaurante:?int, credenciais:array<string,mixed>}|null integracao dona do webhook (null = plataforma) */
     public function porWebhook(string $provedor, string $webhookId): ?array
     {
         if (preg_match('/\A[a-f0-9]{32}\z/', $webhookId) !== 1) {
@@ -127,15 +128,16 @@ final class IntegracaoRepository
         }
         $query = $this->db->prepare("SELECT id_restaurante FROM integracoes WHERE provedor = ? AND webhook_id = ? AND status <> 'desconectado'");
         $query->execute([$provedor, $webhookId]);
-        $id = $query->fetchColumn();
-        if ($id === false) {
+        $linha = $query->fetch(PDO::FETCH_NUM);
+        if ($linha === false) {
             return null;
         }
-        return ['id_restaurante' => (int) $id, 'credenciais' => $this->credenciais((int) $id, $provedor)];
+        $id = $linha[0] !== null ? (int) $linha[0] : null;
+        return ['id_restaurante' => $id, 'credenciais' => $this->credenciais($id, $provedor)];
     }
 
     /** Guarda o aviso recebido. false = ja tinha recebido este aviso (id_externo repetido). */
-    public function registrarEvento(int $idRestaurante, string $provedor, string $evento, ?string $idExterno, string $payload): bool
+    public function registrarEvento(?int $idRestaurante, string $provedor, string $evento, ?string $idExterno, string $payload): bool
     {
         try {
             $this->db->prepare('INSERT INTO integracao_eventos (id_restaurante, provedor, evento, id_externo, payload, recebido_em) VALUES (?, ?, ?, ?, ?, ?)')
@@ -150,11 +152,17 @@ final class IntegracaoRepository
     }
 
     /** @return list<array{evento:string,id_externo:?string,recebido_em:string}> */
-    public function ultimosEventos(int $idRestaurante, string $provedor, int $limite = 5): array
+    public function ultimosEventos(?int $idRestaurante, string $provedor, int $limite = 5): array
     {
         $query = $this->db->prepare('SELECT evento, id_externo, recebido_em FROM integracao_eventos
-            WHERE id_restaurante = ? AND provedor = ? ORDER BY id DESC LIMIT ' . max(1, min(50, $limite)));
-        $query->execute([$idRestaurante, $provedor]);
+            WHERE escopo = ? AND provedor = ? ORDER BY id DESC LIMIT ' . max(1, min(50, $limite)));
+        $query->execute([self::escopo($idRestaurante), $provedor]);
         return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Escopo gravado na coluna gerada: id do restaurante ou 0 (plataforma). */
+    private static function escopo(?int $idRestaurante): int
+    {
+        return $idRestaurante ?? 0;
     }
 }

@@ -12,6 +12,19 @@ Aba `/{slug}/gerencia/integracoes` (só gerente do restaurante ou adm_master). C
 - Configuração do servidor: `Core/Config` (variável de ambiente ou `shared/.env`).
 - Toda conexão, desconexão, teste e mensagem de teste gera log em `log_user` (sem chaves, tokens ou conteúdo sensível).
 
+## Integrações da plataforma (administração)
+
+As mesmas tabelas e serviços também guardam as contas da **própria plataforma** (`id_restaurante` NULL),
+usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-plataforma.md)):
+
+- **Asaas da plataforma**: recebe o pagamento das assinaturas dos restaurantes. O webhook usa a mesma rota
+  `/webhooks/asaas/{id}`; avisos da plataforma ficam em `integracao_eventos` com `id_restaurante` NULL.
+- **WhatsApp da plataforma**: sessão própria no mesmo servidor WPPConnect (`cardapim_plataforma_*`), separada das sessões
+  dos restaurantes (`cardapim_r{id}_*`). Será usado para enviar os códigos de verificação do cliente final.
+- Migration `20261110100000_integracoes_plataforma.php`: `id_restaurante` aceita NULL e a coluna gerada `escopo`
+  (id do restaurante ou 0) garante uma integração por provedor em cada escopo (`UNIQUE(escopo, provedor)`).
+- No código: `IntegracaoRepository` e os serviços recebem `?int $idRestaurante` (`null` = plataforma).
+
 ## Asaas (Pix dos pedidos online)
 
 1. O gerente escolhe Produção ou Sandbox e cola a **chave de API** da conta dele.

@@ -1,5 +1,8 @@
 <?php
-/** WhatsApp (WPPConnect). Espera: $integracao, $disponivel, $erros, $valores, $base, $csrf. */
+/**
+ * WhatsApp (WPPConnect). Espera: $integracao, $disponivel, $erros, $valores, $base, $csrf.
+ * Opcional: $plataforma (true = WhatsApp da administracao do Cardapim, separado dos restaurantes).
+ */
 use Cardapim\Core\Icon;
 use Cardapim\Shared\Html\Campo;
 use Cardapim\Shared\Validation\Documento;
@@ -8,13 +11,17 @@ $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBS
 $data = static fn (?string $v): string => $v ? date('d/m/Y H:i', (int) strtotime($v)) : '-';
 $statusIntegracao = $integracao['status'];
 $numero = (string) ($integracao['dados']['numero'] ?? '');
+$plataforma = !empty($plataforma);
+$celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
 ?>
 <div class="painel-page painel-page-form">
     <header class="painel-cabecalho">
         <div>
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
             <h1>WhatsApp</h1>
-            <p>Conecte o WhatsApp do restaurante para enviar avisos aos clientes e, depois, atender por ele.</p>
+            <p><?= $plataforma
+                ? 'Número da plataforma Cardapim: envia os códigos de verificação para os clientes entrarem só com o telefone. É separado do WhatsApp de cada restaurante.'
+                : 'Conecte o WhatsApp do restaurante para enviar avisos aos clientes e, depois, atender por ele.' ?></p>
         </div>
         <?php require __DIR__ . '/_status.php'; ?>
     </header>
@@ -24,7 +31,7 @@ $numero = (string) ($integracao['dados']['numero'] ?? '');
             <div class="lista-vazia">
                 <?= Icon::svg('clock') ?>
                 <strong>O WhatsApp ainda não foi liberado neste servidor</strong>
-                <p>A equipe do Cardapim está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.</p>
+                <p><?= $plataforma ? 'Configure WPPCONNECT_BASE_URL e WPPCONNECT_SECRET_KEY no .env do servidor (docs/deploy/wppconnect-docker.md).' : 'A equipe do Cardapim está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
             </div>
         </section>
     <?php elseif ($statusIntegracao === 'desconectado'): ?>
@@ -32,10 +39,12 @@ $numero = (string) ($integracao['dados']['numero'] ?? '');
             <div class="bloco-cabecalho"><h2 id="titulo-como"><?= Icon::svg('info') ?>Como funciona</h2></div>
             <ol class="passos-2fa">
                 <li><strong>Toque em "Conectar WhatsApp".</strong> Vai aparecer um QR Code.</li>
-                <li><strong>No celular do restaurante</strong>, abra o WhatsApp &gt; <strong>Aparelhos conectados</strong> &gt; <strong>Conectar um aparelho</strong>.</li>
+                <li><strong>No <?= $e($celular) ?></strong>, abra o WhatsApp &gt; <strong>Aparelhos conectados</strong> &gt; <strong>Conectar um aparelho</strong>.</li>
                 <li><strong>Aponte a câmera para o QR Code.</strong> Pronto: o Cardapim passa a usar esse WhatsApp.</li>
             </ol>
-            <p class="texto-suave">Use de preferência um número só do restaurante (WhatsApp ou WhatsApp Business). O celular precisa ficar com internet.</p>
+            <p class="texto-suave"><?= $plataforma
+                ? 'Use um número exclusivo da plataforma (de preferência WhatsApp Business), diferente dos números dos restaurantes. O celular precisa ficar com internet.'
+                : 'Use de preferência um número só do restaurante (WhatsApp ou WhatsApp Business). O celular precisa ficar com internet.' ?></p>
             <form class="bloco-rodape" method="post" action="<?= $e($base . '/integracoes/whatsapp/conectar') ?>">
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <button class="btn btn-primary" type="submit" data-submit-label="Preparando..."><?= Icon::svg('qr-code', 'icon-sm') ?>Conectar WhatsApp</button>
@@ -54,7 +63,7 @@ $numero = (string) ($integracao['dados']['numero'] ?? '');
             <div class="whatsapp-painel whatsapp-qr" data-painel="qrcode" hidden>
                 <div class="qr-codigo"><img alt="QR Code para conectar o WhatsApp" data-qr-imagem width="220" height="220"></div>
                 <ol class="passos-2fa">
-                    <li>Abra o <strong>WhatsApp</strong> no celular do restaurante.</li>
+                    <li>Abra o <strong>WhatsApp</strong> no <?= $e($celular) ?>.</li>
                     <li>Toque em <strong>Mais opções</strong> ou <strong>Configurações</strong> &gt; <strong>Aparelhos conectados</strong>.</li>
                     <li>Toque em <strong>Conectar um aparelho</strong> e aponte para este código.</li>
                 </ol>

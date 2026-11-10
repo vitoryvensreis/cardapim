@@ -16,7 +16,7 @@ use PDO;
  */
 final class IfoodService extends BaseIntegracao
 {
-    public function __construct(PDO $db, UsuarioLogado $autor, int $idRestaurante, private readonly IfoodApi $api = new IfoodApi())
+    public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly IfoodApi $api = new IfoodApi())
     {
         parent::__construct($db, $autor, $idRestaurante);
     }

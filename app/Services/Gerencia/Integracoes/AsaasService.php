@@ -14,7 +14,7 @@ use PDO;
 /** Asaas: cada restaurante conecta a PROPRIA conta para receber Pix dos pedidos online. */
 final class AsaasService extends BaseIntegracao
 {
-    public function __construct(PDO $db, UsuarioLogado $autor, int $idRestaurante, private readonly AsaasApi $api = new AsaasApi())
+    public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly AsaasApi $api = new AsaasApi())
     {
         parent::__construct($db, $autor, $idRestaurante);
     }

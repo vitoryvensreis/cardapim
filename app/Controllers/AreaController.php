@@ -38,18 +38,6 @@ final class AreaController
         'planejado' => ['Lista de pedidos de entrega em ordem de chegada', 'Escolher o entregador de cada pedido', 'Acompanhar o status de cada entrega', 'Histórico de entregas por entregador'],
     ];
 
-    public function painel(): Response
-    {
-        $usuario = Guard::exigirLogin();
-        if ($usuario instanceof Response) {
-            return $usuario;
-        }
-        if (!Autorizacao::podeAcessarPainel($usuario)) {
-            return Guard::proibido($usuario, 'O painel geral é exclusivo da administração do Cardapim.');
-        }
-        return $this->tela($usuario, 'area/painel', 'Painel geral', ['area' => 'painel']);
-    }
-
     /** /{slug}/gerencia (visao geral) e /{slug}/gerencia/{secao}. */
     public function gerencia(string $slug, string $secao = 'visao-geral'): Response
     {
