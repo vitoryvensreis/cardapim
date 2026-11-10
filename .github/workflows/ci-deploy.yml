@@ -76,6 +76,7 @@ jobs:
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
+          php database/verify-visibilidade-log-user.php --verify
           php tests/integration/schema.php
           php -r '$d=new PDO("mysql:host=127.0.0.1;port=3306;dbname=cardapim_ci;charset=utf8mb4", "cardapim_ci", "cardapim_ci_only"); $n=$d->query("SELECT COUNT(*) FROM planos WHERE nome LIKE \"Demonstração %\"")->fetchColumn(); exit((int)$n===3 ? 0 : 1);'
 
@@ -119,6 +120,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          APPLY_VISIBILIDADE_LOG_USER: ${{ contains(github.event.head_commit.message, '[cardapim-visibilidade-log-user]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -146,3 +148,6 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          if [[ "$APPLY_VISIBILIDADE_LOG_USER" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-visibilidade-log-user.sh'"
+          fi

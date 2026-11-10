@@ -74,3 +74,20 @@ Três planos de demonstração, **sem cobrança real**, são semeados pelo scrip
 | Demonstração Anual | anual | R$ 899,90 |
 
 Aplicado em produção em 09/11/2026 pela execução GitHub Actions #16 (commit `f17c8094`), com backup MySQL antes da alteração, migration aplicada e três planos verificados. O backup comprimido foi salvo em `shared/backups` com permissão 600. O gatilho temporário foi retirado após a execução confirmada. `CARDAPIM_RUN_MIGRATIONS=false` permanece para futuras alterações planejadas.
+
+
+## Visibilidade dos planos e logs de usuarios (11/2026)
+
+- Nova coluna `planos.visibilidade TINYINT(1) NOT NULL DEFAULT 1` com restrição CHECK para 0 ou 1. O valor 1 significa **visível para oferta pública** (padrão); 0 significa **oculto da compra pública**, para futura atribuição individual a parceiros. O campo `ativo` é independente: um plano oculto não está necessariamente inativo. A aplicação de listagem e compra ainda não foi implementada; ela precisará filtrar `visibilidade=1 AND ativo=1` quando existir.
+- Nova tabela `log_user`:
+  - `id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY`
+  - `titulo VARCHAR(200) NOT NULL`
+  - `descricao TEXT NOT NULL`
+  - `id_user BIGINT UNSIGNED NULL`
+  - `data_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`
+  - `ip VARCHAR(45) NULL` (IPv4 e IPv6)
+- Índices de consulta por `(id_user, data_hora)` e por `data_hora`.
+- Nenhuma chave estrangeira em `id_user` por enquanto: a tabela de usuários ainda não existe. Decidir o vínculo (inclusive isolamentos por tenant) na implementação da identidade e permissões.
+- **Apenas estrutura**, sem automação de gravação de logs nem criação de planos vitalícios.
+
+As migrations versionadas são `20261109235500_add_visibilidade_planos.php` e `20261109235600_create_log_user.php`. A operação de publicação pontual executa backup MySQL privado antes de aplicá-las; `CARDAPIM_RUN_MIGRATIONS=false` permanece. Os planos já cadastrados recebem visibilidade 1.

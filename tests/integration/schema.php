@@ -57,6 +57,32 @@ try {
     $plan->execute(['Teste de integracao', 'Registro temporario', '59.90', 'mensal']);
     $planId = (int) $db->lastInsertId();
 
+    $visibility = $db->prepare('SELECT visibilidade FROM planos WHERE id = ?');
+    $visibility->execute([$planId]);
+    if ((int) $visibility->fetchColumn() !== 1) {
+        throw new RuntimeException('Novos planos precisam ser visiveis por padrao.');
+    }
+    $db->prepare('UPDATE planos SET visibilidade = 0 WHERE id = ?')->execute([$planId]);
+    $visibility->execute([$planId]);
+    if ((int) $visibility->fetchColumn() !== 0) {
+        throw new RuntimeException('Plano nao pode ser ocultado.');
+    }
+
+    $log = $db->prepare(
+        'INSERT INTO log_user (titulo, descricao, id_user, ip) VALUES (?, ?, ?, ?)'
+    );
+    $log->execute(['Teste de auditoria', 'Registro de teste, removido por rollback', null, '2001:db8::1']);
+    $logId = (int) $db->lastInsertId();
+    $checkLog = $db->prepare('SELECT titulo, id_user, data_hora, ip FROM log_user WHERE id = ?');
+    $checkLog->execute([$logId]);
+    $savedLog = $checkLog->fetch();
+    if (!$savedLog || $savedLog['titulo'] !== 'Teste de auditoria'
+        || $savedLog['id_user'] !== null || $savedLog['data_hora'] === null
+        || $savedLog['ip'] !== '2001:db8::1') {
+        throw new RuntimeException('Falha ao inserir log com IPv6 e data automatica.');
+    }
+
+
     $restaurant = $db->prepare('INSERT INTO restaurantes (nome, slug, telefone, plano_id) VALUES (?, ?, ?, ?)');
     $restaurant->execute(['Restaurante de integracao', 'teste-integracao-cardapim', '85999999999', $planId]);
     $restaurantId = (int) $db->lastInsertId();
