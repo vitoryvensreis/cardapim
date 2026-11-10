@@ -67,3 +67,20 @@ aceita somente estas quatro migrations pendentes, faz backup `mysqldump` validad
 A execucao GitHub Actions **#48** (commit `df601e2`) criou o backup privado
 `shared/backups/cardapim-before-cardapio-estoque-20261110T035817Z.sql.gz`, aplicou as quatro migrations
 e validou o schema. O acionamento temporario foi removido do workflow no commit seguinte.
+
+## Cardapio de exemplo do Restaurante Modelo
+
+`database/seed-cardapio-exemplo.php --apply|--verify` (seeder `database/seeders/cardapio_exemplo_modelo.php`).
+Idempotente: cria apenas o que nao existe e nunca altera estoque, preco ou ficha ja editados.
+
+| Produto | Categoria | Preco | Ficha tecnica (por unidade) | Custo |
+| --- | --- | --- | --- | --- |
+| X-Burguer | Lanches | R$ 24,90 | pao 1 un, carne moida 0,080 kg, queijo 2 fatias, alface 0,015 kg, tomate 0,030 kg, molho 0,020 kg | R$ 6,01 |
+| Batata frita media | Porcoes | R$ 18,00 | batata 0,200 kg, oleo 0,020 L, sal 0,002 kg, embalagem media 1 un | R$ 5,18 |
+| Batata frita grande | Porcoes | R$ 26,00 | batata 0,350 kg, oleo 0,035 L, sal 0,003 kg, embalagem grande 1 un | R$ 8,87 |
+| Espetinho de carne | Espetinhos | R$ 9,00 | carne em cubos 0,100 kg, espeto de bambu 1 un, sal grosso 0,003 kg | R$ 4,35 |
+| Espetinho de frango | Espetinhos | R$ 8,00 | espetinho de frango pronto 1 un (comprado pronto) | R$ 3,50 |
+| Cerveja lata 350 ml | Bebidas | R$ 7,00 | cerveja lata 1 un | R$ 3,80 |
+| Refrigerante lata 350 ml | Bebidas | R$ 6,00 | refrigerante lata 1 un | R$ 2,90 |
+
+Custos e consumo de oleo por porcao sao estimativas de demonstracao.
