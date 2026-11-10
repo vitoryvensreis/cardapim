@@ -6,6 +6,13 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Painel do gerente (menu lateral)
+
+- Menu lateral com Visao geral, Caixa (modo tela cheia), Entregas (fila e escolha do entregador), Mesas, Estoque, Equipe, Financeiro, Perfil, Integracoes, Assinatura, Minha conta e Suporte.
+- Cada item tem rota propria em `/{slug}/gerencia/...` e mostra "em construcao" com o que vai ter; as secoes serao construidas uma por vez. [Detalhes](docs/architecture/painel-gerente.md).
+
+---
+
 ## Endereco dos restaurantes
 
 - `restaurantes` ganhou `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `ponto_referencia`, `latitude` e `longitude`, com validacao de CEP (8 digitos), UF e coordenadas no banco.

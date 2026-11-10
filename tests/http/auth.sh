@@ -64,6 +64,22 @@ esperar "login -> painel" "$(login "$tmp/a" ci_master "$senha")" "303 $base/pain
 esperar "painel" "$(codigo "$tmp/a" /painel)" "200"
 esperar "acessa qualquer restaurante" "$(codigo "$tmp/a" /ci-outro-restaurante/gerencia)" "200"
 
+echo "Painel do gerente"
+for secao in mesas estoque equipe financeiro perfil integracoes assinatura minha-conta suporte; do
+  esperar "gerente abre /gerencia/$secao" "$(codigo "$tmp/g" "/$slug/gerencia/$secao")" "200"
+done
+esperar "secao inexistente" "$(codigo "$tmp/g" "/$slug/gerencia/nao-existe")" "404"
+esperar "caixa nao abre a gerencia/equipe" "$(codigo "$tmp/c" "/$slug/gerencia/equipe")" "403"
+esperar "entregador nao abre a gerencia/estoque" "$(codigo "$tmp/m" "/$slug/gerencia/estoque")" "403"
+esperar "master abre a gerencia/perfil" "$(codigo "$tmp/a" "/$slug/gerencia/perfil")" "200"
+esperar "menu lateral com Estoque" "$(curl -s -b "$tmp/g" "$base/$slug/gerencia" | grep -c "href=\"/$slug/gerencia/estoque\"")" "1"
+esperar "modo caixa do gerente tem voltar" "$(curl -s -b "$tmp/g" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "1"
+esperar "caixa nao ve voltar a gerencia" "$(curl -s -b "$tmp/c" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "0"
+esperar "gerente em entregas escolhe entregador" "$(curl -s -b "$tmp/g" "$base/$slug/entregas" | grep -c 'Escolher o entregador')" "1"
+esperar "entregador ve as proprias entregas" "$(curl -s -b "$tmp/m" "$base/$slug/entregas" | grep -c 'Minha rota')" "1"
+curl -s -o /dev/null -c "$tmp/s" -b "$tmp/s" "$base/$slug/gerencia/estoque"
+esperar "volta para a secao pedida apos login" "$(login "$tmp/s" ci_gerente "$senha")" "303 $base/$slug/gerencia/estoque"
+
 echo "Retorno a pagina pedida e logout"
 curl -s -o /dev/null -c "$tmp/r" -b "$tmp/r" "$base/$slug/caixa"
 esperar "volta para /caixa apos login do gerente" "$(login "$tmp/r" ci_gerente "$senha")" "303 $base/$slug/caixa"

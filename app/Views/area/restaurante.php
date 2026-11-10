@@ -2,11 +2,7 @@
 use Cardapim\Core\Icon;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$modulos = [
-    'gerencia' => [['receipt', 'Pedidos'], ['clipboard-list', 'Mesas e comandas'], ['chef-hat', 'Cardápio'], ['package', 'Estoque'], ['user', 'Equipe'], ['chart-line', 'Relatórios']],
-    'caixa' => [['wallet', 'Abrir e fechar caixa'], ['store', 'Venda no balcão'], ['qr-code', 'Pagamentos'], ['receipt', 'Comprovantes']],
-    'entregas' => [['inbox', 'Entregas disponíveis'], ['bike', 'Minha rota'], ['check', 'Confirmar entrega'], ['phone', 'Falar com o restaurante']],
-][$area];
+
 ?>
 <div class="app-shell">
     <section class="app-hero" data-reveal>

@@ -26,6 +26,21 @@
 }
 .app-logout-btn:hover { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 45%); }
 .icon-flip { transform: scaleX(-1); }
+.app-back {
+  display: inline-flex; align-items: center; gap: .4rem; min-height: 2.5rem; padding: .45rem .85rem;
+  border-radius: var(--r-pill); background: var(--c-orange); color: var(--c-white); font: 700 .85rem/1 var(--f-head);
+  transition: background-color var(--t-fast);
+}
+.app-back:hover { background: #ff6a3d; }
+.app-mode {
+  display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .75rem; border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: var(--r-pill); color: var(--c-white); font: 800 .78rem/1 var(--f-head); letter-spacing: .04em; text-transform: uppercase;
+}
+@media (max-width: 39.99rem) {
+  .app-back span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .app-back { width: 2.5rem; padding: 0; justify-content: center; }
+  .app-mode { display: none; }
+}
 .app-tabs { display: flex; gap: .25rem; width: min(100% - var(--gutter) * 2, var(--shell)); margin-inline: auto; overflow-x: auto; scrollbar-width: none; }
 .app-tabs a {
   display: inline-flex; align-items: center; gap: .45rem; flex: 0 0 auto; padding: .8rem 1rem;

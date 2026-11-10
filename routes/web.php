@@ -30,7 +30,9 @@ $router->get('/tratamento-de-dados', [LegalController::class, 'tratamento']);
 // Areas autenticadas (cargo validado no servidor em AreaController/Autorizacao).
 $router->get('/painel', [AreaController::class, 'painel']);
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
-foreach (['gerencia', 'caixa', 'entregas'] as $area) {
+$router->get('/{slug}/gerencia', [AreaController::class, 'gerencia']);
+$router->get('/{slug}/gerencia/{secao}', [AreaController::class, 'gerencia']);
+foreach (['caixa', 'entregas'] as $area) {
     $router->get('/{slug}/' . $area, static fn (string $slug): \Cardapim\Core\Response => (new AreaController())->restaurante($slug, $area));
 }
 

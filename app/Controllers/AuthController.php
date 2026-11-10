@@ -106,7 +106,7 @@ final class AuthController
         if ($caminho === '/painel') {
             return Autorizacao::podeAcessarPainel($usuario);
         }
-        if (preg_match('~\A/([a-z0-9-]+)/(gerencia|caixa|entregas)\z~', $caminho, $m) === 1) {
+        if (preg_match('~\A/([a-z0-9-]+)/(gerencia|caixa|entregas)(?:/[a-z-]{1,40})?\z~', $caminho, $m) === 1) {
             return $usuario->cargo === Autorizacao::CARGO_MASTER
                 || ($usuario->restauranteSlug === $m[1] && in_array($usuario->cargo, Autorizacao::AREAS_RESTAURANTE[$m[2]], true));
         }

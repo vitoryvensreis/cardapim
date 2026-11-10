@@ -16,17 +16,6 @@ $description = $e((string) ($pageDescription ?? 'Área restrita do Cardapim.'));
 $styles = ['css/pages.css', 'css/app.css'];
 $scripts = [];
 
-// Abas: apenas as areas que o cargo pode abrir.
-$abas = [];
-if ($usuario->cargo === Autorizacao::CARGO_MASTER) {
-    $abas[] = ['/painel', 'Painel geral', 'layout-dashboard', 'painel'];
-} elseif ($usuario->restauranteSlug !== null) {
-    foreach (['gerencia' => ['Gerência', 'layout-dashboard'], 'caixa' => ['Caixa', 'wallet'], 'entregas' => ['Entregas', 'bike']] as $chave => [$rotulo, $icone]) {
-        if (in_array($usuario->cargo, Autorizacao::AREAS_RESTAURANTE[$chave], true)) {
-            $abas[] = [$usuario->urlRestaurante($chave), $rotulo, $icone, $chave];
-        }
-    }
-}
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));
 ?>
 <!doctype html>
@@ -41,6 +30,12 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
             <a class="app-brand" href="<?= $e(Autorizacao::destino($usuario)) ?>" aria-label="Cardapim, minha área">
                 <img src="<?= $e($logoBranca) ?>" width="120" height="39" alt="Cardapim">
             </a>
+            <?php if (!empty($voltar)): ?>
+                <a class="app-back" href="<?= $e($voltar) ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?><span>Voltar à gerência</span></a>
+            <?php endif; ?>
+            <?php if (!empty($modo)): ?>
+                <span class="app-mode"><?= Icon::svg('monitor', 'icon-sm') ?><?= $e($modo) ?></span>
+            <?php endif; ?>
             <span class="app-context">
                 <?= Icon::svg($usuario->cargo === Autorizacao::CARGO_MASTER ? 'shield-check' : 'store', 'icon-sm') ?>
                 <?= $e($usuario->restauranteNome ?? 'Plataforma Cardapim') ?>
@@ -57,13 +52,6 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
                 </form>
             </div>
         </div>
-        <?php if (count($abas) > 1): ?>
-            <nav class="app-tabs" aria-label="Áreas disponíveis">
-                <?php foreach ($abas as [$href, $rotulo, $icone, $chave]): ?>
-                    <a href="<?= $e($href) ?>"<?= ($area ?? '') === $chave ? ' aria-current="page"' : '' ?>><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></a>
-                <?php endforeach; ?>
-            </nav>
-        <?php endif; ?>
     </header>
     <main id="conteudo" class="app-main"><?= $content ?></main>
 </body>
