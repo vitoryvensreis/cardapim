@@ -96,3 +96,35 @@ As migrations versionadas são `20261109235500_add_visibilidade_planos.php` e `2
 ### Implantação em produção
 
 As duas alterações foram aplicadas no MySQL da VPS pelo GitHub Actions **#20** (commit `f808751f`). O log confirmou o backup `shared/backups/cardapim-before-visibilidade-log-20261110T000424Z.sql.gz`, a aplicação das migrations `20261109235500_add_visibilidade_planos.php` e `20261109235600_create_log_user.php`, e a verificação das seis colunas e do valor padrão 1. O acionamento temporário foi retirado do workflow após a operação. `CARDAPIM_RUN_MIGRATIONS` permanece desativado.
+
+
+## Configuracoes globais e restaurante modelo (11/2026)
+
+A tabela global `configuracoes` armazena apenas valores publicos (nunca senhas, tokens, segredos), com:
+
+| Coluna | Tipo | Finalidade |
+| --- | --- | --- |
+| `id` | BIGINT UNSIGNED | PK |
+| `chave` | VARCHAR(100) UNIQUE | Identificador estavel |
+| `valor` | TEXT | Texto ou URL/caminho |
+| `tipo` | ENUM('texto','imagem') | Categoria do valor |
+| `descricao` | VARCHAR(255) NULL | Explicacao |
+| `created_at, updated_at` | TIMESTAMP | Historico temporal |
+
+**Valores inicialmente cadastrados** (idempotentes, sem sobrescrever edicoes):
+
+- `logo_colorida` = `/assets/img/logo-colorida.svg`
+- `logo_branca` = `/assets/img/logo-branca.svg`
+- `logo_preta` = `/assets/img/logo-preta.svg`
+- `icone` = `/assets/img/icone.svg`
+- `nome_sistema` = `Cardapim`
+- `descricao_padrao` = `Gestão de restaurantes do jeito simples.`
+- `texto_rodape` = `Menos complicação. Mais restaurante.`
+
+As logos **sao lidas da tabela** por `CardapimServicesConfiguracoes::logo('logo_colorida')` (ou logo_branca, logo_preta, icone), usando uma unica consulta por requisicao; o service rejeita URLs inseguras e expoe somente chaves permitidas. Na tela `/status`, se o banco falhar, a marca volta a aparecer como texto e o codigo HTTP informa 503.
+
+**CSS, JS e outras imagens internas:** `CardapimCoreAssetUrl::asset('css/site.css')` retorna `/assets/css/site.css`; `::asset('js/site.js')` retorna `/assets/js/site.js`. Para links absolutos, `AssetUrl::absolute('img/icone.svg')` utiliza `APP_URL` do .env. Assim nao se duplicam URLs por arquivo no banco e futuras mudancas de dominio nao exigem updates em cada asset.
+
+**Restaurante modelo:** nome `Restaurante Modelo Cardapim`, slug `restaurante-modelo-cardapim`, plano `Demonstração Mensal`, status `ativo`. Telefone, CNPJ, e-mail, logo e ultimo pagamento permanecem vazios. O seeder e idempotente e nao altera um restaurante se o slug ja existe.
+
+Migration: `database/migrations/20261110001000_create_configuracoes.php`. Seeder: `database/seed-configuracoes-restaurante.php`. A preparacao de producao usa script pontual com backup antes da migracao e seed, antes de ativar a release. `CARDAPIM_RUN_MIGRATIONS=false` permanece.
