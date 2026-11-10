@@ -18,6 +18,28 @@ final class PlanoRepository
      *
      * @return array<int, array{id: int|string, nome: string, descricao: ?string, valor: string, periodo: string}>
      */
+
+    /**
+     * Valida novamente o plano escolhido pela URL, sem confiar no id da interface.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function buscarPublicoPorId(int $id): ?array
+    {
+        if ($id < 1) {
+            return null;
+        }
+
+        $query = $this->db->prepare(<<<'SQL'
+SELECT id, nome, descricao, valor, periodo
+FROM planos
+WHERE id = ? AND ativo = 1 AND visibilidade = 1
+LIMIT 1
+SQL);
+        $query->execute([$id]);
+        return $query->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
     public function listarPublicos(): array
     {
         $query = $this->db->query(<<<'SQL'

@@ -60,7 +60,11 @@ final class Router
                 'Allow' => implode(', ', array_unique($allowed)),
             ]);
         }
-        return Response::html('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>404 | Cardapim</title><body style="font:16px system-ui;padding:3rem"><h1>Essa pagina nao existe.</h1><p><a href="/">Voltar ao Cardapim</a></p></body></html>', 404);
+        return Response::html(View::render('errors/404', [
+            'pageTitle' => 'Página não encontrada | Cardapim',
+            'pageDescription' => 'O endereço solicitado não foi encontrado.',
+            'noIndex' => true,
+        ], 'layouts/public'), 404);
     }
 
     private function compile(string $path): string
