@@ -27,7 +27,7 @@ CREATE TABLE `user` (
     KEY idx_user_restaurante_cargo (id_restaurante, cargo),
     KEY idx_user_restaurante_ativo (id_restaurante, ativo),
     CONSTRAINT fk_user_restaurante FOREIGN KEY (id_restaurante)
-        REFERENCES restaurantes (id) ON UPDATE CASCADE ON DELETE RESTRICT,
+        REFERENCES restaurantes (id),
     CONSTRAINT chk_user_escopo CHECK (
         (cargo = 'adm_master' AND id_restaurante IS NULL)
         OR (cargo <> 'adm_master' AND id_restaurante IS NOT NULL)
