@@ -38,6 +38,7 @@ $description = htmlspecialchars($pageDescription ?? (Configuracoes::get('descric
             <nav class="nav-links" id="main-navigation" aria-label="Navegação principal">
                 <a href="/#recursos">Recursos</a>
                 <a href="/#como-funciona">Como funciona</a>
+                <a href="/#planos">Planos</a>
                 <a href="/#para-quem">Para quem é</a>
             </nav>
             <div class="nav-actions">

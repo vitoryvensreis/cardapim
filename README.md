@@ -6,6 +6,14 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Planos na landing page
+
+A pagina inicial possui a secao `/#planos` e o link **Planos** na navegacao. Os cards sao gerados a partir da tabela `planos` via `PlanoRepository::listarPublicos()`, com filtro **`ativo = 1 AND visibilidade = 1`** e ordenacao mensal, semestral e anual. Cada card apresenta nome, descricao, valor total por periodo e botao **Assinar**, que leva a `/cadastro?plano_id=<id>`. O `id` corresponde diretamente a chave primaria do banco, sem valores fixos no frontend.
+
+O fluxo de cadastro/assinatura ainda nao foi implementado nesta etapa: os links apenas carregam o parametro do plano para uso futuro. Caso nao haja planos elegiveis, a secao mostra uma mensagem orientativa em vez de cards vazios. Esta entrega nao altera tabelas nem inclui CSS/JavaScript inline.
+
+---
+
 ## Configuracoes globais e restaurante modelo
 
 - `configuracoes` centraliza os caminhos das logos oficiais, o favicon e textos publicos padrao; as paginas consultam as URLs das logos diretamente do MySQL.

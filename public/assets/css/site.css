@@ -140,3 +140,45 @@ body{background:#fff;color:#32141e}
 @media(max-width:370px){
   .brand-logo{width:124px}
 }
+
+
+/* ============================================================
+   PLANOS PUBLICOS — catalogo consultado no MySQL
+   Todos os estilos permanecem no CSS externo, inclusive mobile.
+   ============================================================ */
+.plans-section{background:#fff7f5}
+.plans-heading{max-width:780px}
+.plans-heading h2 em{color:#b64752;font-style:normal}
+.plans-heading>p{color:#71636a}
+.plans-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:stretch}
+.plan-card{display:flex;flex-direction:column;min-width:0;padding:32px;border:1px solid #f0d6dc;border-radius:24px;background:#fff;box-shadow:0 12px 36px rgba(101,20,36,.045);transition:transform .2s ease,box-shadow .2s ease}
+.plan-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px rgba(101,20,36,.10)}
+.plan-card-heading{min-height:93px}
+.plan-period{display:inline-flex;align-items:center;border:1px solid #f6d5c9;border-radius:999px;padding:5px 12px;background:#fff2ec;color:#7f2e1e;font:700 11px/1.5 var(--head);letter-spacing:.025em}
+.plan-card h3{margin:15px 0 0;font:800 clamp(20px,2vw,25px)/1.3 var(--head);color:#651424;overflow-wrap:anywhere}
+.plan-price{display:flex;align-items:baseline;gap:7px;margin-top:26px;color:#32141e;flex-wrap:wrap}
+.plan-currency{font:800 18px var(--head)}
+.plan-price strong{font:800 clamp(32px,3vw,43px)/1.16 var(--head);letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.plan-billing{font:700 13px var(--body);color:#71636a;margin-top:4px}
+.plan-description{color:#71636a;font:400 14px/1.7 var(--body);margin:24px 0 32px;overflow-wrap:anywhere;white-space:pre-line}
+.plan-subscribe{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:52px;margin-top:auto;border-radius:12px;background:#651424;color:#fff;font:800 14px var(--head);padding:13px 20px;transition:background .2s ease,transform .2s ease}
+.plan-subscribe:hover{background:#873048;transform:translateY(-2px)}
+.plan-subscribe svg{flex:0 0 auto}
+.plans-footnote{margin:25px auto 0;max-width:680px;color:#71636a;font:400 12px/1.6 var(--body);text-align:center}
+.plans-empty{padding:44px 28px;background:#fff;border:1px solid #f0d6dc;border-radius:18px;text-align:center}
+.plans-empty h3{margin:0 0 9px;color:#651424;font:800 22px/1.3 var(--head)}
+.plans-empty p{margin:0;color:#71636a;font:400 14px/1.65 var(--body)}
+@media(max-width:940px){
+    .plans-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+    .plans-grid{grid-template-columns:1fr;gap:14px}
+    .plan-card{padding:24px}
+    .plan-card-heading{min-height:0}
+    .plan-price{margin-top:18px}
+    .plan-description{margin:20px 0 24px}
+}
+@media(prefers-reduced-motion:reduce){
+    .plan-card,.plan-subscribe{transition:none}
+    .plan-card:hover,.plan-subscribe:hover{transform:none}
+}
