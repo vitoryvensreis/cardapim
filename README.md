@@ -11,7 +11,7 @@
 - Seeder privado `php8.4 database/seed-test-users.php --apply` cria somente contas de demonstracao dos cargos cliente, gerente, motoqueiro, garcom, caixa e adm_master; as cinco contas comuns sao do Restaurante Modelo Cardapim.
 - O `adm_master` de teste e global e **desativado**, para nao deixar uma conta superadministradora de demonstracao operacional na producao.
 - As senhas sao geradas com `random_bytes()`, armazenadas no MySQL via `password_hash()` e entregues exclusivamente em arquivo privado `shared/backups/acessos-cardapim-testes.txt` (permissao 600). Nunca imprimir em logs ou versionar no Git.
-- O WhatsApp dos testes e definido por `CARDAPIM_TEST_WHATSAPP` no `shared/.env` privado, nao no Git. O arquivo de exemplo contem a chave vazia.
+- O WhatsApp dos testes e definido por `CARDAPIM_TEST_WHATSAPP` no `shared/.env` privado ou como variavel temporaria no terminal autorizado, nunca no Git. O arquivo de exemplo contem a chave vazia.
 - **A rota /login ainda e uma pagina de preparacao:** as contas existem no banco, mas nao podem autenticar ate a implementacao de login.
 - [Comandos e controles de seguranca](docs/database/initial-schema.md).
 
