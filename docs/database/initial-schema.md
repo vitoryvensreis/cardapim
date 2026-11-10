@@ -225,3 +225,5 @@ A execucao GitHub Actions **#40** (commit `2d22656`) criou o backup privado `sha
 - Migration `20261110030000_check_cnpj_restaurantes.php`: `CHECK chk_restaurantes_cnpj (cnpj IS NULL OR cnpj REGEXP '^[0-9]{14}$')` e indice `idx_restaurantes_catalogo (status_rest, nome, id)` para o catalogo publico.
 - O cadastro publico exige CNPJ valido (digitos verificadores em `Documento::cnpjValido`). `NULL` segue permitido no banco para o Restaurante Modelo e registros de demonstracao.
 - Aplicacao em producao: `deploy/scripts/apply-cnpj-restaurantes.sh`, acionado uma unica vez pelo CI com `[cardapim-cnpj]` na mensagem do commit (backup validado antes, depois `verify-cnpj-restaurantes.php`).
+
+A execucao GitHub Actions **#44** (commit `a2b0cdc`) criou o backup privado `shared/backups/cardapim-before-cnpj-20261110T030359Z.sql.gz`, aplicou `20261110030000_check_cnpj_restaurantes.php` e validou o CHECK e o indice unico de `restaurantes.cnpj`. O acionamento temporario foi removido do workflow no commit seguinte.
