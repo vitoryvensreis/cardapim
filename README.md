@@ -10,7 +10,7 @@
 
 - `configuracoes` centraliza os caminhos das logos oficiais, o favicon e textos publicos padrao; as paginas consultam as URLs das logos diretamente do MySQL.
 - O dominio base (`APP_URL`) continua no arquivo privado `.env`. CSS, JS e outras imagens internas usam `AssetUrl::asset(...)`, evitando repeticao de URLs e consultas desnecessarias.
-- Um `Restaurante Modelo Cardapim` foi preparado no plano **Demonstração Mensal**, com campos de contato e pagamento vazios; os cadastros iniciais sao idempotentes.
+- Um `Restaurante Modelo Cardapim` foi cadastrado em produção no plano **Demonstração Mensal**, com campos de contato e pagamento vazios; os cadastros iniciais sao idempotentes.
 - [Schema e comandos do banco](docs/database/initial-schema.md).
 
 ---

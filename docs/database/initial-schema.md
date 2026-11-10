@@ -128,3 +128,8 @@ As logos **sao lidas da tabela** por `CardapimServicesConfiguracoes::logo('logo_
 **Restaurante modelo:** nome `Restaurante Modelo Cardapim`, slug `restaurante-modelo-cardapim`, plano `Demonstração Mensal`, status `ativo`. Telefone, CNPJ, e-mail, logo e ultimo pagamento permanecem vazios. O seeder e idempotente e nao altera um restaurante se o slug ja existe.
 
 Migration: `database/migrations/20261110001000_create_configuracoes.php`. Seeder: `database/seed-configuracoes-restaurante.php`. A preparacao de producao usa script pontual com backup antes da migracao e seed, antes de ativar a release. `CARDAPIM_RUN_MIGRATIONS=false` permanece.
+
+
+### Implantacao do schema e modelo em producao
+
+A execucao GitHub Actions **#24**, commit `63779b63`, confirmou backup MySQL privado antes da migration, aplicacao de `20261110001000_create_configuracoes.php`, seed das URLs de marca/textos e criacao/validacao do Restaurante Modelo vinculado ao plano Demonstracao Mensal. A troca de release ocorreu **depois** das alteracoes no banco, e o healthcheck HTTPS passou. Backup: `shared/backups/cardapim-before-configuracoes-20261110T003220Z.sql.gz`. O gatilho especial do workflow foi removido na etapa seguinte. `CARDAPIM_RUN_MIGRATIONS=false` permanece.
