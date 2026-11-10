@@ -87,6 +87,7 @@ jobs:
           php tests/unit/gerencia.php
           php tests/unit/integracoes.php
           php tests/unit/tempo-real.php
+          php tests/unit/cliente.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -112,6 +113,7 @@ jobs:
           php database/verify-gerencia-abas.php --verify
           php database/verify-integracoes.php --verify
           php database/verify-tempo-real.php --verify
+          php database/verify-clientes.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -212,7 +214,8 @@ jobs:
           [[ "$catalog" == *'/assets/js/catalogo.js'* ]]
           [[ "$catalog" == *'href="/restaurante-modelo-cardapim"'* ]]
           restaurant="$(curl --fail --silent --show-error http://127.0.0.1:18080/restaurante-modelo-cardapim)"
-          [[ "$restaurant" == *'Cardápio digital em preparação'* ]]
+          [[ "$restaurant" == *'id="cd-nome"'* ]]
+          [[ "$restaurant" == *'/assets/js/cardapio.js'* ]]
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/slug-que-nao-existe)" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:18080/catalogo?cursor=lixo')" = "302"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/restaurantes)" = "301"
@@ -251,6 +254,7 @@ jobs:
           php tests/http/verificar-gerencia-ci.php
           bash tests/http/integracoes.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/plataforma.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          bash tests/http/cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null
           bash tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
           grep -q 'Redis conectado' /tmp/cardapim-ws.log
@@ -289,6 +293,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          APPLY_CLIENTES: ${{ contains(github.event.head_commit.message, '[cardapim-clientes]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -316,3 +321,6 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          if [[ "$APPLY_CLIENTES" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-clientes.sh'"
+          fi

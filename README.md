@@ -6,6 +6,15 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Cardapio online do restaurante (cliente final)
+
+- `/{slug-do-restaurante}`: cardapio para o cliente pedir pelo celular, no estilo dos apps de delivery: capa, status aberto/fechado, horarios, busca, abas de categoria que acompanham a rolagem e produtos com botao "+".
+- **Sacola**: folha que sobe de baixo com observacao e quantidade; barra fixa "Ver sacola" no celular e painel lateral no computador; guardada no aparelho por 2 dias e **conferida no servidor** (preco e disponibilidade atuais) ao abrir a pagina.
+- **Login do cliente sem senha**: so numero do WhatsApp e nome. Codigo de 6 digitos enviado pelo **WhatsApp da plataforma** (`/painel/integracoes/whatsapp` precisa estar conectado), valido por 10 min, com limites de envio e tentativas; aparelho lembrado por 60 dias.
+- Tabelas `clientes` (nome, WhatsApp, CPF, endereco completo, ultimo acesso) e `cliente_sessoes`.
+- **Proxima etapa**: endereco, entrega/retirada, pagamento e envio do pedido. Hoje o botao "Continuar" confirma o login e avisa que a finalizacao chega na proxima atualizacao.
+- [Arquitetura, rotas e seguranca](docs/architecture/cardapio-cliente.md).
+
 ## Painel da plataforma (administracao)
 
 - `/painel` do adm_master com menu lateral: Dashboard, Restaurantes, Planos, Faturas, Usuarios, Integracoes, Logs de auditoria, Configuracoes, Suporte e Minha conta.

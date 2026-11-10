@@ -103,3 +103,4 @@ webhook
 circle-exclamation-point
 wifi
 wifi-off
+chevron-down
