@@ -30,3 +30,7 @@ Indice `idx_restaurantes_localidade (estado, cidade)` para futuros filtros do ca
 
 Aplicacao em producao: `deploy/scripts/apply-endereco-modelo.sh` (backup validado, migration, verificacao e seed),
 acionado uma unica vez pelo CI com `[cardapim-endereco-modelo]`.
+
+A execucao GitHub Actions **#54** (commit `fad0793`) criou o backup privado
+`shared/backups/cardapim-before-endereco-modelo-20261110T093505Z.sql.gz`, aplicou a migration,
+validou as colunas e completou o Restaurante Modelo. O acionamento temporario foi removido no commit seguinte.
