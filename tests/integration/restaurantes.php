@@ -82,7 +82,7 @@ try {
     // Disponibilidade
     $hash = password_hash('ci', PASSWORD_DEFAULT);
     $db->prepare('INSERT INTO `user` (id_restaurante, cargo, usuario, email, senha_hash, nome, sobrenome) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        ->execute([(int) $db->lastInsertId(), 'gerente', 'ci.disponivel', 'ci.disponivel@example.test', $hash, 'CI', 'Teste']);
+        ->execute([(int) $db->query("SELECT id FROM restaurantes WHERE slug = 'ci-catalogo-01'")->fetchColumn(), 'gerente', 'ci.disponivel', 'ci.disponivel@example.test', $hash, 'CI', 'Teste']);
     $disp = new Disponibilidade(new UsuarioRepository($db), $repo);
     $casos = [
         ['usuario', 'ci.disponivel', true, false],
