@@ -2,7 +2,7 @@
 $legalTitle = 'Política de Privacidade';
 $legalLead = 'Entenda quais dados podem ser tratados no Cardapim, para quê e como exercer seus direitos.';
 ?>
-<div class="legal-document public-container">
+<div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <article class="legal-article" aria-label="Conteúdo da política de privacidade">
         <section>
@@ -39,4 +39,5 @@ $legalLead = 'Entenda quais dados podem ser tratados no Cardapim, para quê e co
             <p>Este texto é uma versão inicial. Mudanças relevantes deverão ser indicadas nesta página e comunicadas aos usuários quando necessário.</p>
         </section>
     </article>
+    </div>
 </div>

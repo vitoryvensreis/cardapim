@@ -2,7 +2,7 @@
 $legalTitle = 'Política de Exclusão de Dados';
 $legalLead = 'Veja como pedidos de exclusão serão tratados e quando alguns dados poderão precisar ser preservados.';
 ?>
-<div class="legal-document public-container">
+<div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <article class="legal-article" aria-label="Conteúdo da política de exclusão de dados">
         <section>
@@ -28,4 +28,5 @@ $legalLead = 'Veja como pedidos de exclusão serão tratados e quando alguns dad
             <p>Para conhecer os demais direitos, consulte a <a href="/privacidade">Política de Privacidade</a>.</p>
         </section>
     </article>
+    </div>
 </div>

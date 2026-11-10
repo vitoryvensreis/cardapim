@@ -104,6 +104,33 @@ SQL);
         }
     }
 
+    // CPF: somente 11 digitos validos, unico, opcional (NULL permitido para varios usuarios).
+    $cpf = \Cardapim\Shared\Validation\Documento::normalizarCpf('529.982.247-25');
+    if ($cpf !== '52998224725') {
+        throw new RuntimeException('CPF de teste nao normalizado.');
+    }
+    $setCpf = $db->prepare('UPDATE `user` SET cpf = ? WHERE id = ?');
+    $setCpf->execute([$cpf, $gerenteId]);
+    $readCpf = $db->prepare('SELECT cpf FROM `user` WHERE id = ?');
+    $readCpf->execute([$gerenteId]);
+    if ($readCpf->fetchColumn() !== $cpf) {
+        throw new RuntimeException('CPF salvo incorretamente.');
+    }
+    foreach ([[$cpf, $masterId, 'CPF duplicado foi aceito.'], ['529.982.247', $masterId, 'CPF com pontuacao foi aceito.']] as [$value, $id, $message]) {
+        try {
+            $setCpf->execute([$value, $id]);
+            throw new RuntimeException($message);
+        } catch (PDOException $expected) {
+            if (!in_array((string) $expected->getCode(), ['23000', 'HY000'], true)) {
+                throw $expected;
+            }
+        }
+    }
+    $nullCpf = (int) $db->query('SELECT COUNT(*) FROM `user` WHERE cpf IS NULL AND usuario LIKE "%-ci"')->fetchColumn();
+    if ($nullCpf < 2) {
+        throw new RuntimeException('CPF NULL deveria ser permitido para varios usuarios.');
+    }
+
     $db->prepare('UPDATE `user` SET ativo = 0 WHERE id = ?')->execute([$gerenteId]);
     $checkLog->execute([$logId]);
     if ((int) $checkLog->fetchColumn() !== $gerenteId || $masterId < 1) {
@@ -118,4 +145,4 @@ SQL);
     throw $exception;
 }
 
-echo "Cargos, master, isolamento, hashes e vinculo dos logs testados sem persistir dados.\n";
+echo "Cargos, master, isolamento, CPF, hashes e vinculo dos logs testados sem persistir dados.\n";

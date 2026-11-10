@@ -2,7 +2,7 @@
 $legalTitle = 'Termos de Uso';
 $legalLead = 'Regras gerais para utilizar a plataforma Cardapim e compreender as responsabilidades de cada parte.';
 ?>
-<div class="legal-document public-container">
+<div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <article class="legal-article" aria-label="Conteúdo dos termos de uso">
         <section>
@@ -37,4 +37,5 @@ $legalLead = 'Regras gerais para utilizar a plataforma Cardapim e compreender as
             <p>Leia também a <a href="/privacidade">Política de Privacidade</a> e a <a href="/tratamento-de-dados">Política de Tratamento de Dados</a>.</p>
         </section>
     </article>
+    </div>
 </div>

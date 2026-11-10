@@ -6,6 +6,18 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Interface publica lapidada (icones, mascaras e animacoes)
+
+- **Icones Lucide** (licenca ISC) servidos por sprite local `public/assets/icons/lucide.svg`, sem CDN. Uso no PHP: `Cardapim\Core\Icon::svg('chef-hat')`. Para adicionar icones: incluir o nome em `dev/icons/icons.txt` e rodar `php dev/icons/build-sprite.php <lucide/icons>`. Emojis foram removidos das telas e o CI bloqueia emojis e estilos inline em `app/Views`.
+- **CSS organizado**: `core.css` (tokens da paleta, botoes, cabecalho, rodape, animacoes e `prefers-reduced-motion`), `site.css` (landing) e `pages.css` (acesso, erros e documentos legais).
+- **JS externo com `defer`**: `core.js` (cabecalho ao rolar, menu movel, link ativo, revelar ao rolar, voltar ao topo), `site.js` (painel 3D que acompanha o cursor, contadores, pedidos ao vivo ilustrativos, palavra rotativa, progresso das etapas) e `forms.js` (mascaras e validacao).
+- **Mascaras e validacao no navegador**: CPF, CNPJ, telefone/WhatsApp, CEP e nome de usuario, com mensagens claras, mostrar/ocultar senha e medidor de forca. O backend deve revalidar com `Cardapim\Shared\Validation\Documento` (CPF, CNPJ e telefone) quando o cadastro for ativado.
+- **Rodape** compartilhado (`app/Views/partials/footer.php`) em colunas: Produto, Acesso e Legal, com icones, CNPJ e botao voltar ao topo.
+- **Robustez**: a landing nao cai mais se o MySQL estiver indisponivel (logos oficiais locais como reserva e aviso na secao de planos); uma conexao PDO por requisicao; pagina 500 propria.
+- O formulario de cadastro aceita preenchimento para testar as mascaras, mas continua **sem envio** (`method="post"` sem rota e botao desativado).
+
+---
+
 ## Contas de teste dos seis cargos
 
 - Seeder privado `php8.4 database/seed-test-users.php --apply` cria somente contas de demonstracao dos cargos cliente, gerente, motoqueiro, garcom, caixa e adm_master; as cinco contas comuns sao do Restaurante Modelo Cardapim.
@@ -32,6 +44,7 @@
 ## Usuarios e vinculo com auditoria
 
 - Tabela `user` com cargos `cliente`, `gerente`, `motoqueiro`, `garcom`, `caixa` e `adm_master`.
+- Coluna `cpf CHAR(11) NULL` (somente digitos, unica, com `CHECK`), adicionada pela migration `20261110020000_add_cpf_user.php`. Exibir sempre mascarado (`Documento::mascararCpf`).
 - `adm_master` e global, sem vinculo a restaurante; os demais cargos exigem `id_restaurante` valido. Indices facilitam consultas isoladas por restaurante e cargo.
 - Campos de identificacao, contatos, senha em hash, ultimo acesso, codigo temporario em hash e validade do codigo. Sem credenciais em texto puro.
 - `log_user.id_user` passa a ser uma FK para `user.id`; para nao perder historico, contas com logs precisam ser desativadas (`ativo=0`), nao apagadas.

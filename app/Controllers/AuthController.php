@@ -17,6 +17,7 @@ final class AuthController
             'pageTitle' => 'Entrar | Cardapim',
             'pageDescription' => 'Acesse sua conta Cardapim quando a autenticação estiver disponível.',
             'noIndex' => true,
+            'pageScripts' => ['js/forms.js'],
         ], 'layouts/public'));
     }
 
@@ -34,6 +35,7 @@ final class AuthController
             'pageTitle' => 'Criar conta | Cardapim',
             'pageDescription' => 'Prepare seu cadastro no Cardapim.',
             'noIndex' => true,
+            'pageScripts' => ['js/forms.js'],
             'plano' => $plan,
             'planoInvalido' => $id !== null && $id !== false && $plan === null
                 || isset($_GET['plano_id']) && ($id === false || $id === null),

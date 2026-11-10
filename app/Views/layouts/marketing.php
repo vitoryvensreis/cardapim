@@ -1,72 +1,47 @@
 <?php
 /** @var string $content */
-use Cardapim\Core\AssetUrl;
+use Cardapim\Core\Icon;
 use Cardapim\Services\Configuracoes;
 
-$brandColorida = htmlspecialchars(Configuracoes::logo('logo_colorida'), ENT_QUOTES, 'UTF-8');
-$brandBranca = htmlspecialchars(Configuracoes::logo('logo_branca'), ENT_QUOTES, 'UTF-8');
-$icone = htmlspecialchars(Configuracoes::logo('icone'), ENT_QUOTES, 'UTF-8');
-$textoRodape = htmlspecialchars(Configuracoes::get('texto_rodape') ?? '', ENT_QUOTES, 'UTF-8');
-$title = htmlspecialchars($pageTitle ?? (Configuracoes::get('nome_sistema') ?? 'Cardapim'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$description = htmlspecialchars($pageDescription ?? (Configuracoes::get('descricao_padrao') ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$logoColorida = Configuracoes::logoOuPadrao('logo_colorida');
+$logoBranca = Configuracoes::logoOuPadrao('logo_branca');
+$favicon = Configuracoes::logoOuPadrao('icone');
+$textoRodape = Configuracoes::textoOuPadrao('texto_rodape', 'Menos complicação. Mais restaurante.');
+$title = $escape($pageTitle ?? Configuracoes::textoOuPadrao('nome_sistema', 'Cardapim'));
+$description = $escape($pageDescription ?? Configuracoes::textoOuPadrao('descricao_padrao', ''));
+$styles = ['css/site.css'];
+$scripts = ['js/site.js'];
 ?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#651424">
-    <meta name="description" content="<?= $description ?>">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="<?= $title ?>">
-    <meta property="og:description" content="<?= $description ?>">
-    <title><?= $title ?></title>
-    <link rel="icon" type="image/svg+xml" href="<?= $icone ?>">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= AssetUrl::asset('css/site.css') ?>">
-    <script src="<?= AssetUrl::asset('js/site.js') ?>" defer></script>
+<?php require __DIR__ . '/../partials/head.php'; ?>
 </head>
-<body>
+<body class="page-marketing">
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
-    <header class="site-header" id="topo">
+    <header class="site-header" data-site-header>
         <div class="shell navbar">
             <a class="brand" href="/" aria-label="Cardapim, página inicial">
-                <img class="brand-logo" src="<?= $brandColorida ?>" width="176" height="57" alt="Cardapim">
+                <img src="<?= $escape($logoColorida) ?>" width="156" height="50" alt="Cardapim">
             </a>
             <nav class="nav-links" id="main-navigation" aria-label="Navegação principal">
-                <a href="/#recursos">Recursos</a>
-                <a href="/#como-funciona">Como funciona</a>
-                <a href="/#planos">Planos</a>
-                <a href="/#para-quem">Para quem é</a>
+                <a href="/#recursos" data-nav-link>Recursos</a>
+                <a href="/#como-funciona" data-nav-link>Como funciona</a>
+                <a href="/#para-quem" data-nav-link>Para quem é</a>
+                <a href="/#planos" data-nav-link>Planos</a>
+                <a class="nav-links-mobile-only" href="/login">Entrar <?= Icon::svg('log-in') ?></a>
             </nav>
             <div class="nav-actions">
-                <a class="nav-login" href="/login">Entrar <span class="nav-login-arrow" aria-hidden="true">↗</span></a>
-                <a class="button button-small button-lime nav-signup" href="/cadastro">Começar agora <span aria-hidden="true">↗</span></a>
-                <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-controls="main-navigation" aria-expanded="false">
-                    <span></span><span></span><span></span>
+                <a class="nav-login" href="/login"><?= Icon::svg('log-in', 'icon-sm') ?>Entrar</a>
+                <a class="btn btn-primary btn-sm nav-signup" href="/cadastro">Começar agora <?= Icon::svg('arrow-up-right', 'icon-move') ?></a>
+                <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-controls="main-navigation" aria-expanded="false" data-menu-toggle>
+                    <?= Icon::svg('menu', 'icon-open') ?><?= Icon::svg('x', 'icon-close') ?>
                 </button>
             </div>
         </div>
     </header>
     <main id="conteudo"><?= $content ?></main>
-    <footer class="site-footer">
-        <div class="shell footer-wrap">
-            <a class="brand brand-footer" href="/" aria-label="Cardapim">
-                <img class="brand-logo" src="<?= $brandBranca ?>" width="176" height="57" alt="Cardapim">
-            </a>
-            <span><?= $textoRodape ?></span>
-            <span>Um produto da Escotilha Produtora · CNPJ 64.069.224/0001-32</span>
-            <nav class="footer-legal-links" aria-label="Documentos legais do Cardapim">
-                <a href="/privacidade">Privacidade</a>
-                <a href="/termos-de-uso">Termos de Uso</a>
-                <a href="/cookies">Cookies</a>
-                <a href="/exclusao-de-dados">Exclusão de Dados</a>
-                <a href="/tratamento-de-dados">Tratamento de Dados</a>
-            </nav>
-            <span>© <?= date('Y') ?> Cardapim</span>
-        </div>
-    </footer>
+<?php require __DIR__ . '/../partials/footer.php'; ?>
 </body>
 </html>

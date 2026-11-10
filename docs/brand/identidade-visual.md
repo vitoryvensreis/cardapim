@@ -32,3 +32,11 @@ Os assets originais foram preservados; os tokens e estilos CSS utilizam os valor
 - Manter logo colorida em fundo escuro, branca em superfícies escuras, preta em claras, conforme contraste.
 - Respeitar `prefers-reduced-motion`, foco visivel e responsividade.
 - Nunca inserir credenciais ou dados operacionais reais em elementos conceituais da landing.
+
+
+## Icones
+
+- Biblioteca unica: **Lucide** (ISC), via sprite local `public/assets/icons/lucide.svg` e helper `Cardapim\Core\Icon::svg()`.
+- Traco 2px, cantos arredondados, cor herdada do texto (`currentColor`). Tamanhos padrao: 1rem, 1.25em e 1.6rem.
+- Icone decorativo recebe `aria-hidden`; quando o icone e o unico conteudo de um botao, usar `aria-label` no botao.
+- Emojis sao proibidos nas interfaces.

@@ -36,14 +36,56 @@ final class Configuracoes
         }
 
         if (self::$cache === null) {
-            $db = Database::connect();
-            $placeholders = implode(',', array_fill(0, count(self::PUBLIC_KEYS), '?'));
-            $stmt = $db->prepare("SELECT chave, valor FROM configuracoes WHERE chave IN ($placeholders)");
-            $stmt->execute(self::PUBLIC_KEYS);
-            self::$cache = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            try {
+                $db = Database::connect();
+                $placeholders = implode(',', array_fill(0, count(self::PUBLIC_KEYS), '?'));
+                $stmt = $db->prepare("SELECT chave, valor FROM configuracoes WHERE chave IN ($placeholders)");
+                $stmt->execute(self::PUBLIC_KEYS);
+                self::$cache = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            } catch (\Throwable $exception) {
+                // Evita novas tentativas de conexao (e novos timeouts) na mesma requisicao.
+                self::$cache = [];
+                throw $exception;
+            }
         }
 
         return self::$cache[$key] ?? null;
+    }
+
+    /** Arquivos oficiais do repositorio, usados quando o banco esta indisponivel. */
+    private const LOGO_FALLBACK = [
+        'logo_colorida' => '/assets/img/logo-colorida.svg',
+        'logo_branca' => '/assets/img/logo-branca.svg',
+        'logo_preta' => '/assets/img/logo-preta.svg',
+        'icone' => '/assets/img/icone.svg',
+    ];
+
+    /**
+     * Logo do banco com retorno ao arquivo oficial local: a pagina nunca cai por branding.
+     */
+    public static function logoOuPadrao(string $key): string
+    {
+        try {
+            return self::logo($key);
+        } catch (\Throwable $exception) {
+            if (!isset(self::LOGO_FALLBACK[$key])) {
+                throw $exception;
+            }
+            error_log('[Cardapim] Logo padrao usada para ' . $key . ': ' . get_class($exception));
+            return self::LOGO_FALLBACK[$key];
+        }
+    }
+
+    /** Texto publico com valor padrao quando o banco esta indisponivel. */
+    public static function textoOuPadrao(string $key, string $default): string
+    {
+        try {
+            $value = self::get($key);
+            return $value === null || $value === '' ? $default : $value;
+        } catch (\Throwable $exception) {
+            error_log('[Cardapim] Texto padrao usado para ' . $key . ': ' . get_class($exception));
+            return $default;
+        }
     }
 
     public static function logo(string $key): string

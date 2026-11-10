@@ -9,7 +9,30 @@ use RuntimeException;
 
 final class Database
 {
+    private static ?PDO $connection = null;
+    private static ?\Throwable $failure = null;
+
+    /**
+     * Uma conexao por requisicao. Se a primeira tentativa falhar, a mesma falha e
+     * reaproveitada para nao somar varios timeouts na mesma pagina.
+     */
     public static function connect(): PDO
+    {
+        if (self::$connection !== null) {
+            return self::$connection;
+        }
+        if (self::$failure !== null) {
+            throw self::$failure;
+        }
+        try {
+            return self::$connection = self::open();
+        } catch (\Throwable $exception) {
+            self::$failure = $exception;
+            throw $exception;
+        }
+    }
+
+    private static function open(): PDO
     {
         $file = dirname(__DIR__, 2) . '/.env';
         $environment = is_file($file) ? parse_ini_file($file, false, INI_SCANNER_RAW) : [];

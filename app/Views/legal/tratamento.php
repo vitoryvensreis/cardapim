@@ -2,7 +2,7 @@
 $legalTitle = 'Tratamento de Dados';
 $legalLead = 'Entenda os papéis do Cardapim e dos restaurantes no processamento de informações pessoais.';
 ?>
-<div class="legal-document public-container">
+<div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <article class="legal-article" aria-label="Conteúdo da política de tratamento de dados">
         <section>
@@ -32,4 +32,5 @@ $legalLead = 'Entenda os papéis do Cardapim e dos restaurantes no processamento
             <p>Veja a <a href="/privacidade">Política de Privacidade</a>, os <a href="/termos-de-uso">Termos de Uso</a> e a <a href="/exclusao-de-dados">Política de Exclusão de Dados</a>.</p>
         </section>
     </article>
+    </div>
 </div>

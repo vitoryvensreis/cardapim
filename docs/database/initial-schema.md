@@ -207,3 +207,12 @@ unset TESTE_WHATSAPP
 ```
 
 O script salva um backup privado do banco, insere as contas e armazena as senhas aleatorias no arquivo mencionado acima. Nao enviar a senha em prints ou logs de suporte. O seeder nao muda contas preexistentes: em caso de conflitos, interrompe a execucao para revisao.
+
+
+## CPF na tabela user
+
+- Migration `20261110020000_add_cpf_user.php`: `cpf CHAR(11) NULL DEFAULT NULL` apos `sobrenome`, indice unico `uq_user_cpf` e `CHECK chk_user_cpf (cpf IS NULL OR cpf REGEXP '^[0-9]{11}$')`.
+- Armazenar somente os 11 digitos (sem pontuacao). `NULL` e permitido para contas existentes e para o `adm_master` global.
+- Validacao oficial no backend: `Cardapim\Shared\Validation\Documento::normalizarCpf()` (digitos verificadores). A mascara do navegador e apenas conforto.
+- LGPD: CPF e dado pessoal; nao registrar em logs e exibir mascarado (`***.982.247-**`).
+- Aplicacao em producao: `deploy/scripts/apply-user-cpf.sh`, acionado uma unica vez pelo CI com a marca `[cardapim-user-cpf]` na mensagem do commit. O script confere que so essa migration esta pendente, cria backup `mysqldump` validado, aplica e roda `verify-user-schema.php`. `CARDAPIM_RUN_MIGRATIONS` continua `false`.

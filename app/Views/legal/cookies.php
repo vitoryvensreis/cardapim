@@ -2,7 +2,7 @@
 $legalTitle = 'Política de Cookies';
 $legalLead = 'Saiba o que são cookies, para que servem e quais controles se aplicam ao Cardapim.';
 ?>
-<div class="legal-document public-container">
+<div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <article class="legal-article" aria-label="Conteúdo da política de cookies">
         <section>
@@ -32,4 +32,5 @@ $legalLead = 'Saiba o que são cookies, para que servem e quais controles se apl
             <p>Esta página será ajustada quando novos fornecedores, prazos de armazenamento ou categorias de cookies forem efetivamente utilizados. Veja também nossa <a href="/privacidade">Política de Privacidade</a>.</p>
         </section>
     </article>
+    </div>
 </div>

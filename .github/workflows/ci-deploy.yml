@@ -62,7 +62,24 @@ jobs:
         run: composer validate --no-check-publish
 
       - name: Validar JavaScript
-        run: node --check public/assets/js/site.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in public/assets/js/*.js; do node --check "$file"; done
+
+      - name: Testes unitarios sem banco
+        run: php tests/unit/documento.php
+
+      - name: Interface sem emojis e sem estilos inline
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -rnP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' app/Views; then
+            echo "::error::Emojis nao sao permitidos nas interfaces."; exit 1
+          fi
+          if grep -rnE 'style="|onclick=' app/Views public/index.php; then
+            echo "::error::Use CSS e JS externos."; exit 1
+          fi
 
       - name: Aplicar e testar schema MySQL
         shell: bash
@@ -99,7 +116,7 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           sleep 2
-          for path in / /login /cadastro /assets/css/site.css /assets/js/site.js /assets/img/icone.svg; do
+          for path in / /login /cadastro /assets/css/core.css /assets/css/site.css /assets/css/pages.css /assets/js/core.js /assets/js/site.js /assets/js/forms.js /assets/icons/lucide.svg /assets/img/icone.svg; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
           done
           code="$(curl --silent --show-error -o /tmp/cardapim-status.json -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:18080/status)"
@@ -132,6 +149,12 @@ jobs:
           [[ "$register" == *'name="usuario"'* ]]
           [[ "$register" == *'type="checkbox"'* ]]
           [[ "$register" == *'Cadastro em preparação'* ]]
+          [[ "$register" == *'name="cpf"'* ]]
+          [[ "$register" == *'data-mask="cpf"'* ]]
+          [[ "$register" == *'data-mask="phone"'* ]]
+          [[ "$register" == *'/assets/js/forms.js'* ]]
+          [[ "$page" == *'/assets/icons/lucide.svg#chef-hat'* ]]
+          [[ "$page" == *'class="site-footer"'* ]]
           invalid="$(curl --fail --silent --show-error 'http://127.0.0.1:18080/cadastro?plano_id=nao-existe')"
           [[ "$invalid" == *'Plano não encontrado'* ]]
           escaped="$(curl --fail --silent --show-error -G --data-urlencode 'plano_id=<script>alert(1)</script>' http://127.0.0.1:18080/cadastro)"
@@ -176,6 +199,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          APPLY_USER_CPF: ${{ contains(github.event.head_commit.message, '[cardapim-user-cpf]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -203,3 +227,6 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          if [[ "$APPLY_USER_CPF" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-user-cpf.sh'"
+          fi

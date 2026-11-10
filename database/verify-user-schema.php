@@ -32,6 +32,7 @@ try {
         'senha_hash' => 'varchar',
         'nome' => 'varchar',
         'sobrenome' => 'varchar',
+        'cpf' => 'char',
         'whatsapp' => 'varchar',
         'ultimo_acesso' => 'datetime',
         'ultimo_codigo_hash' => 'varchar',
@@ -49,7 +50,7 @@ try {
             throw new RuntimeException("Coluna user.$name com tipo diferente do previsto.");
         }
     }
-    foreach (['id_restaurante', 'whatsapp', 'ultimo_acesso', 'ultimo_codigo_hash',
+    foreach (['id_restaurante', 'cpf', 'whatsapp', 'ultimo_acesso', 'ultimo_codigo_hash',
               'ultimo_codigo_expira_em', 'email_verificado_em'] as $name) {
         if ($columns[$name]['IS_NULLABLE'] !== 'YES') {
             throw new RuntimeException("Coluna $name deveria aceitar NULL.");
@@ -88,13 +89,21 @@ SQL)->fetchAll();
     $checks = $db->query(<<<'SQL'
 SELECT CONSTRAINT_NAME FROM information_schema.CHECK_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA = DATABASE()
-  AND CONSTRAINT_NAME IN ('chk_user_escopo', 'chk_user_ativo')
+  AND CONSTRAINT_NAME IN ('chk_user_escopo', 'chk_user_ativo', 'chk_user_cpf')
 SQL)->fetchAll(PDO::FETCH_COLUMN);
-    if (count($checks) !== 2) {
-        throw new RuntimeException('Restricoes de escopo/ativacao ausentes.');
+    if (count($checks) !== 3) {
+        throw new RuntimeException('Restricoes de escopo/ativacao/CPF ausentes.');
+    }
+    $cpfIndex = $db->query(<<<'SQL'
+SELECT NON_UNIQUE FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user'
+  AND INDEX_NAME = 'uq_user_cpf' AND COLUMN_NAME = 'cpf'
+SQL)->fetchColumn();
+    if ($cpfIndex === false || (int) $cpfIndex !== 0) {
+        throw new RuntimeException('Indice unico de CPF ausente.');
     }
     $db->query('SELECT id FROM `user` LIMIT 1');
-    echo "Schema user confirmado: cargos, restaurante e FK log_user.id_user.\n";
+    echo "Schema user confirmado: cargos, restaurante, CPF unico e FK log_user.id_user.\n";
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Falha na verificacao do schema user: ' . get_class($exception) . "\n");
     exit(1);
