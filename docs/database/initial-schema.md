@@ -168,3 +168,8 @@ Tabelas em migrations separadas:
 **Seguranca:** `senha_hash` e `ultimo_codigo_hash` nao devem guardar valores em texto puro. O ultimo codigo deve ser gerado aleatoriamente com `random_int()` ou `random_bytes()`, armazenado como hash e validado com vencimento, limite de tentativas e taxa de envio quando a autenticacao for implementada. Nao inserir master com senha de exemplo.
 
 **Aplicacao:** fazer backup privado do banco antes das duas migrations. O script `deploy/scripts/apply-user-schema.sh` valida que somente as duas migrations autorizadas estao pendentes, cria backup com `mysqldump`, aplica a versao e valida as FKs. O controle geral `CARDAPIM_RUN_MIGRATIONS=false` continua.
+
+
+### Aplicacao em producao
+
+A execucao GitHub Actions **#31** (commit `b0d5550b`) criou backup privado `shared/backups/cardapim-before-user-schema-20261110T011743Z.sql.gz` antes das migrations, aplicou `20261110004500_create_user.php` e `20261110004600_vincular_log_user.php` e validou chaves estrangeiras, cargos e restricoes. O acionamento temporario foi removido no workflow seguinte. `CARDAPIM_RUN_MIGRATIONS` permanece `false`.
