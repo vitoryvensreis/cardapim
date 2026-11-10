@@ -6,6 +6,13 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Endereco dos restaurantes
+
+- `restaurantes` ganhou `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `ponto_referencia`, `latitude` e `longitude`, com validacao de CEP (8 digitos), UF e coordenadas no banco.
+- O Restaurante Modelo foi completado com dados de demonstracao; o e-mail e o do gerente vinculado. [Detalhes](docs/database/restaurantes-endereco.md).
+
+---
+
 ## Cardapio, insumos e ficha tecnica (base do painel do gerente)
 
 - Tabelas `categorias`, `insumos`, `produtos` e `produto_insumos` (ficha tecnica), todas com `id_restaurante` e FKs compostas que impedem misturar dados entre restaurantes no proprio banco.
