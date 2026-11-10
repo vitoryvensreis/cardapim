@@ -38,7 +38,11 @@ try {
         'ultimo_codigo_hash' => 'varchar',
         'ultimo_codigo_expira_em' => 'datetime',
         'email_verificado_em' => 'datetime',
+        'dois_fatores' => 'enum',
+        'dois_fatores_segredo' => 'varchar',
+        'dois_fatores_ativado_em' => 'datetime',
         'ativo' => 'tinyint',
+        'excluido_em' => 'datetime',
         'criado_em' => 'datetime',
         'atualizado_em' => 'datetime',
     ];
@@ -51,7 +55,8 @@ try {
         }
     }
     foreach (['id_restaurante', 'cpf', 'whatsapp', 'ultimo_acesso', 'ultimo_codigo_hash',
-              'ultimo_codigo_expira_em', 'email_verificado_em'] as $name) {
+              'ultimo_codigo_expira_em', 'email_verificado_em', 'dois_fatores_segredo',
+              'dois_fatores_ativado_em', 'excluido_em'] as $name) {
         if ($columns[$name]['IS_NULLABLE'] !== 'YES') {
             throw new RuntimeException("Coluna $name deveria aceitar NULL.");
         }
