@@ -58,6 +58,13 @@ $description = htmlspecialchars($pageDescription ?? (Configuracoes::get('descric
             </a>
             <span><?= $textoRodape ?></span>
             <span>Um produto da Escotilha Produtora · CNPJ 64.069.224/0001-32</span>
+            <nav class="footer-legal-links" aria-label="Documentos legais do Cardapim">
+                <a href="/privacidade">Privacidade</a>
+                <a href="/termos-de-uso">Termos de Uso</a>
+                <a href="/cookies">Cookies</a>
+                <a href="/exclusao-de-dados">Exclusão de Dados</a>
+                <a href="/tratamento-de-dados">Tratamento de Dados</a>
+            </nav>
             <span>© <?= date('Y') ?> Cardapim</span>
         </div>
     </footer>
