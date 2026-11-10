@@ -126,6 +126,13 @@
 .field.is-invalid .field-msg { font-weight: 600; }
 .field.is-invalid .field-control { animation: shake .4s var(--ease-out); }
 .field.is-valid input { border-color: #9fd2b6; }
+.field-msg.is-ok { color: var(--c-success); font-weight: 600; }
+.field.is-checking .field-control::after {
+  content: ""; position: absolute; right: 1rem; width: 1.1rem; height: 1.1rem; border-radius: 50%;
+  border: 2px solid var(--c-line); border-top-color: var(--c-wine); animation: spin .7s linear infinite;
+}
+.field.is-checking .field-msg { color: var(--c-wine); }
+@keyframes spin { to { transform: rotate(360deg); } }
 .field.is-valid .field-icon { color: var(--c-success); }
 @keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 

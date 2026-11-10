@@ -30,6 +30,7 @@ $scripts = ['js/site.js'];
                 <a href="/#como-funciona" data-nav-link>Como funciona</a>
                 <a href="/#para-quem" data-nav-link>Para quem é</a>
                 <a href="/#planos" data-nav-link>Planos</a>
+                <a href="/catalogo">Restaurantes</a>
                 <a class="nav-links-mobile-only" href="/login">Entrar <?= Icon::svg('log-in') ?></a>
             </nav>
             <div class="nav-actions">

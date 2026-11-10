@@ -11,7 +11,7 @@ $favicon = Configuracoes::logoOuPadrao('icone');
 $textoRodape = Configuracoes::textoOuPadrao('texto_rodape', 'Menos complicação. Mais restaurante.');
 $title = $escape((string) ($pageTitle ?? 'Cardapim'));
 $description = $escape((string) ($pageDescription ?? 'Cardapim, gestão de restaurantes.'));
-$styles = ['css/pages.css'];
+$styles = ['css/pages.css', ...($pageStyles ?? [])];
 $scripts = $pageScripts ?? [];
 ?>
 <!doctype html>
@@ -27,8 +27,9 @@ $scripts = $pageScripts ?? [];
                 <img src="<?= $escape($logoPreta) ?>" width="156" height="50" alt="Cardapim">
             </a>
             <nav class="nav-actions" aria-label="Acesso rápido">
+                <a class="nav-login nav-compact" href="/catalogo"><?= Icon::svg('store', 'icon-sm') ?><span class="nav-label">Restaurantes</span></a>
                 <a class="nav-login nav-plans" href="/#planos"><?= Icon::svg('wallet', 'icon-sm') ?>Planos</a>
-                <a class="nav-login" href="/login"><?= Icon::svg('log-in', 'icon-sm') ?>Entrar</a>
+                <a class="nav-login nav-compact" href="/login"><?= Icon::svg('log-in', 'icon-sm') ?><span class="nav-label">Entrar</span></a>
                 <a class="btn btn-wine btn-sm" href="/cadastro">Criar conta</a>
             </nav>
         </div>

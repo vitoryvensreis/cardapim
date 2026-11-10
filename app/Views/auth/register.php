@@ -106,15 +106,15 @@ $field = static function (array $f) use ($e): string {
                     <legend><span>2</span>Seu restaurante</legend>
                     <div class="field-row">
                         <?= $field(['name' => 'nome_restaurante', 'label' => 'Nome do restaurante', 'icon' => 'store', 'attrs' => ['type' => 'text', 'autocomplete' => 'organization', 'placeholder' => 'Ex.: Cantina do Zé', 'maxlength' => 180, 'data-validate' => 'required']]) ?>
-                        <?= $field(['name' => 'cnpj', 'label' => 'CNPJ', 'optional' => true, 'icon' => 'file-text', 'attrs' => ['type' => 'text', 'inputmode' => 'numeric', 'autocomplete' => 'off', 'placeholder' => '00.000.000/0000-00', 'maxlength' => 18, 'data-mask' => 'cnpj', 'data-validate' => 'cnpj']]) ?>
+                        <?= $field(['name' => 'cnpj', 'label' => 'CNPJ do restaurante', 'icon' => 'file-text', 'hint' => 'Cada CNPJ pode ter apenas um restaurante.', 'attrs' => ['type' => 'text', 'inputmode' => 'numeric', 'autocomplete' => 'off', 'placeholder' => '00.000.000/0000-00', 'maxlength' => 18, 'data-mask' => 'cnpj', 'data-validate' => 'cnpj', 'data-unique' => 'cnpj']]) ?>
                     </div>
                 </fieldset>
 
                 <fieldset class="form-group">
                     <legend><span>3</span>Seu acesso</legend>
                     <div class="field-row">
-                        <?= $field(['name' => 'usuario', 'label' => 'Nome de usuário', 'icon' => 'at-sign', 'hint' => 'Letras minúsculas, números, ponto, hífen ou sublinhado.', 'attrs' => ['type' => 'text', 'autocomplete' => 'username', 'autocapitalize' => 'none', 'spellcheck' => 'false', 'placeholder' => 'ex.: cantina.do.ze', 'maxlength' => 60, 'data-mask' => 'username', 'data-validate' => 'username']]) ?>
-                        <?= $field(['name' => 'email', 'label' => 'E-mail', 'icon' => 'mail', 'attrs' => ['type' => 'email', 'inputmode' => 'email', 'autocomplete' => 'email', 'autocapitalize' => 'none', 'spellcheck' => 'false', 'placeholder' => 'seu@email.com', 'maxlength' => 190, 'data-validate' => 'email']]) ?>
+                        <?= $field(['name' => 'usuario', 'label' => 'Nome de usuário', 'icon' => 'at-sign', 'hint' => 'Letras minúsculas, números, ponto, hífen ou sublinhado.', 'attrs' => ['type' => 'text', 'autocomplete' => 'username', 'autocapitalize' => 'none', 'spellcheck' => 'false', 'placeholder' => 'ex.: cantina.do.ze', 'maxlength' => 60, 'data-mask' => 'username', 'data-validate' => 'username', 'data-unique' => 'usuario']]) ?>
+                        <?= $field(['name' => 'email', 'label' => 'E-mail', 'icon' => 'mail', 'attrs' => ['type' => 'email', 'inputmode' => 'email', 'autocomplete' => 'email', 'autocapitalize' => 'none', 'spellcheck' => 'false', 'placeholder' => 'seu@email.com', 'maxlength' => 190, 'data-validate' => 'email', 'data-unique' => 'email']]) ?>
                     </div>
                     <?= $field(['name' => 'senha', 'label' => 'Senha', 'icon' => 'lock', 'strength' => true, 'hint' => 'Use 8 ou mais caracteres, misturando letras e números.', 'attrs' => ['type' => 'password', 'autocomplete' => 'new-password', 'placeholder' => 'Crie uma senha segura', 'minlength' => 8, 'data-validate' => 'password']]) ?>
                 </fieldset>

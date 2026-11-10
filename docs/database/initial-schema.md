@@ -218,3 +218,10 @@ O script salva um backup privado do banco, insere as contas e armazena as senhas
 - Aplicacao em producao: `deploy/scripts/apply-user-cpf.sh`, acionado uma unica vez pelo CI com a marca `[cardapim-user-cpf]` na mensagem do commit. O script confere que so essa migration esta pendente, cria backup `mysqldump` validado, aplica e roda `verify-user-schema.php`. `CARDAPIM_RUN_MIGRATIONS` continua `false`.
 
 A execucao GitHub Actions **#40** (commit `2d22656`) criou o backup privado `shared/backups/cardapim-before-user-cpf-20261110T023013Z.sql.gz`, aplicou `20261110020000_add_cpf_user.php` e validou o schema (`verify-user-schema.php`). O acionamento temporario foi removido do workflow no commit seguinte. `CARDAPIM_RUN_MIGRATIONS` permanece `false`.
+
+## CNPJ do restaurante e indice do catalogo
+
+- `restaurantes.cnpj CHAR(14) NULL` com `uq_restaurantes_cnpj` ja existia desde a migration inicial.
+- Migration `20261110030000_check_cnpj_restaurantes.php`: `CHECK chk_restaurantes_cnpj (cnpj IS NULL OR cnpj REGEXP '^[0-9]{14}$')` e indice `idx_restaurantes_catalogo (status_rest, nome, id)` para o catalogo publico.
+- O cadastro publico exige CNPJ valido (digitos verificadores em `Documento::cnpjValido`). `NULL` segue permitido no banco para o Restaurante Modelo e registros de demonstracao.
+- Aplicacao em producao: `deploy/scripts/apply-cnpj-restaurantes.sh`, acionado uma unica vez pelo CI com `[cardapim-cnpj]` na mensagem do commit (backup validado antes, depois `verify-cnpj-restaurantes.php`).

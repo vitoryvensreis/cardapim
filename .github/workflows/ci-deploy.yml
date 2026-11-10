@@ -68,7 +68,11 @@ jobs:
           for file in public/assets/js/*.js; do node --check "$file"; done
 
       - name: Testes unitarios sem banco
-        run: php tests/unit/documento.php
+        shell: bash
+        run: |
+          set -euo pipefail
+          php tests/unit/documento.php
+          php tests/unit/catalogo.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -103,6 +107,8 @@ jobs:
           php tests/integration/planos-publicos.php
           php database/verify-user-schema.php --verify
           php tests/integration/user.php
+          php database/verify-cnpj-restaurantes.php --verify
+          php tests/integration/restaurantes.php
           php database/seed-test-users.php --apply
           php database/seed-test-users.php --apply
           php database/seed-test-users.php --verify
@@ -155,6 +161,26 @@ jobs:
           [[ "$register" == *'/assets/js/forms.js'* ]]
           [[ "$page" == *'/assets/icons/lucide.svg#chef-hat'* ]]
           [[ "$page" == *'class="site-footer"'* ]]
+          [[ "$page" == *'href="/catalogo"'* ]]
+          [[ "$register" == *'data-unique="usuario"'* ]]
+          [[ "$register" == *'data-unique="email"'* ]]
+          [[ "$register" == *'data-unique="cnpj"'* ]]
+          catalog="$(curl --fail --silent --show-error http://127.0.0.1:18080/catalogo)"
+          [[ "$catalog" == *'Restaurante Modelo Cardapim'* ]]
+          [[ "$catalog" == *'data-catalog-list'* ]]
+          [[ "$catalog" == *'/assets/js/catalogo.js'* ]]
+          [[ "$catalog" == *'href="/restaurante-modelo-cardapim"'* ]]
+          restaurant="$(curl --fail --silent --show-error http://127.0.0.1:18080/restaurante-modelo-cardapim)"
+          [[ "$restaurant" == *'Cardápio digital em preparação'* ]]
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/slug-que-nao-existe)" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:18080/catalogo?cursor=lixo')" = "302"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/restaurantes)" = "301"
+          curl --fail --silent --show-error http://127.0.0.1:18080/api/v1/restaurantes > /tmp/cardapim-catalogo.json
+          php -r '$d=json_decode(file_get_contents("/tmp/cardapim-catalogo.json"), true, 512, JSON_THROW_ON_ERROR); exit(is_array($d["itens"]) && in_array("restaurante-modelo-cardapim", array_column($d["itens"], "slug"), true) && !isset($d["itens"][0]["cnpj"]) ? 0 : 1);'
+          curl --fail --silent --show-error 'http://127.0.0.1:18080/api/v1/cadastro/disponibilidade?campo=usuario&valor=teste_gerente' | grep -q '"disponivel":false'
+          curl --fail --silent --show-error 'http://127.0.0.1:18080/api/v1/cadastro/disponibilidade?campo=email&valor=novo.cadastro%40example.test' | grep -q '"disponivel":true'
+          test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:18080/api/v1/cadastro/disponibilidade?campo=senha&valor=x')" = "422"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/catalogo)" = "405"
           invalid="$(curl --fail --silent --show-error 'http://127.0.0.1:18080/cadastro?plano_id=nao-existe')"
           [[ "$invalid" == *'Plano não encontrado'* ]]
           escaped="$(curl --fail --silent --show-error -G --data-urlencode 'plano_id=<script>alert(1)</script>' http://127.0.0.1:18080/cadastro)"
@@ -199,6 +225,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          APPLY_CNPJ_CHECK: ${{ contains(github.event.head_commit.message, '[cardapim-cnpj]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -226,3 +253,6 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          if [[ "$APPLY_CNPJ_CHECK" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-cnpj-restaurantes.sh'"
+          fi

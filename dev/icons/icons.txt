@@ -1,6 +1,7 @@
 # Icones Lucide usados no Cardapim (um por linha). Rode: php dev/icons/build-sprite.php <pasta lucide/icons>
 activity
 arrow-down
+arrow-left
 arrow-right
 arrow-up
 arrow-up-right
@@ -13,6 +14,7 @@ chart-no-axes-column
 check
 chef-hat
 circle-check
+circle-x
 clipboard-list
 coffee
 compass
@@ -27,6 +29,7 @@ id-card
 inbox
 info
 layout-dashboard
+loader-circle
 lock
 log-in
 mail
@@ -38,7 +41,9 @@ phone
 plug-zap
 qr-code
 receipt
+refresh-cw
 scale
+search
 settings
 shield-check
 shopping-bag

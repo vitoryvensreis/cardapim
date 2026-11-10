@@ -235,8 +235,15 @@ p { margin: 0; }
 @media (min-width: 40rem) {
   .nav-login { display: inline-flex; }
 }
+/* Atalhos compactos (somente icone) no celular */
+@media (max-width: 39.99rem) {
+  .nav-login.nav-compact { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; }
+  .nav-login.nav-compact .nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .nav-login.nav-compact .icon { width: 1.3rem; height: 1.3rem; }
+}
 @media (min-width: 64rem) {
-  .nav-links { display: flex; align-items: center; gap: 2.1rem; }
+  .nav-links { display: flex; align-items: center; gap: clamp(1rem, 2.2vw, 2.1rem); }
+  .nav-links a { white-space: nowrap; }
   .nav-links .nav-links-mobile-only { display: none; }
   .menu-toggle { display: none; }
   .brand img { width: 9.75rem; }

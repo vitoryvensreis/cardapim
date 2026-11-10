@@ -6,6 +6,16 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Catalogo de restaurantes, CNPJ obrigatorio e verificacao ao digitar
+
+- **Menu Restaurantes** (landing, cabecalho das paginas internas e rodape) leva a **`/catalogo`**: lista os restaurantes **ativos** com rolagem infinita (12 por vez), busca por nome sem recarregar a pagina e link "Ver mais" quando o JavaScript nao estiver disponivel. `/restaurantes` redireciona para `/catalogo`.
+- Clicar em um restaurante abre **`/{slug}`** (ex.: `/restaurante-modelo-cardapim`): pagina provisoria "Cardapio digital em preparacao". Slugs inexistentes, inativos ou reservados retornam 404. A rota `/{slug}` e a ultima registrada; novas rotas fixas devem entrar antes dela e em `Cardapim\Shared\Slug::RESERVADOS`.
+- **CNPJ obrigatorio no cadastro**: a coluna `restaurantes.cnpj` ja existia (`CHAR(14)`, unica). Agora o formulario exige CNPJ valido e o banco recebeu `CHECK` de 14 digitos (migration `20261110030000_check_cnpj_restaurantes.php`, com indice do catalogo). `NULL` continua aceito no banco para o Restaurante Modelo e dados de demonstracao.
+- **Usuario, e-mail e CNPJ unicos com aviso enquanto digita**: o formulario consulta `GET /api/v1/cadastro/disponibilidade` (450 ms apos parar de digitar), mostra "Verificando...", "disponivel" ou "ja cadastrado". Limite de 60 consultas por IP a cada 5 minutos. Os indices `UNIQUE` do banco continuam sendo a garantia final.
+- [Documentacao da API v1](docs/api/v1.md).
+
+---
+
 ## Interface publica lapidada (icones, mascaras e animacoes)
 
 - **Icones Lucide** (licenca ISC) servidos por sprite local `public/assets/icons/lucide.svg`, sem CDN. Uso no PHP: `Cardapim\Core\Icon::svg('chef-hat')`. Para adicionar icones: incluir o nome em `dev/icons/icons.txt` e rodar `php dev/icons/build-sprite.php <lucide/icons>`. Emojis foram removidos das telas e o CI bloqueia emojis e estilos inline em `app/Views`.

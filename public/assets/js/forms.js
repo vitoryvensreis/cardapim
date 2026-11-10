@@ -78,7 +78,7 @@
     required: (v) => v.trim() !== "" || "Preencha este campo.",
     name: (v) => v.trim().length >= 2 || "Digite pelo menos 2 letras.",
     cpf: (v) => isValidCpf(v) || "CPF inválido. Confira os números.",
-    cnpj: (v) => v.trim() === "" || isValidCnpj(v) || "CNPJ inválido. Confira os números.",
+    cnpj: (v) => isValidCnpj(v) || "CNPJ inválido. Confira os números.",
     phone: (v) => {
       const d = onlyDigits(v);
       if (d.length < 10) return "Digite o DDD e o número completo.";
@@ -90,10 +90,15 @@
     password: (v) => v.length >= 8 || "A senha precisa ter pelo menos 8 caracteres.",
   };
 
-  const setState = (field, input, result) => {
+  /* Resultados da verificacao de disponibilidade (campo|valor -> resposta da API). */
+  const uniqueCache = new Map();
+  const uniqueKey = (input) => `${input.dataset.unique}|${input.value.trim().toLowerCase()}`;
+
+  const setState = (field, input, result, okMessage = "") => {
     const message = field.querySelector(".field-msg");
     const hint = message?.dataset.hint || "";
-    field.classList.remove("is-valid", "is-invalid");
+    field.classList.remove("is-valid", "is-invalid", "is-checking");
+    message?.classList.remove("is-ok");
     if (result === null) {
       input.removeAttribute("aria-invalid");
       if (message) message.textContent = hint;
@@ -102,7 +107,8 @@
     if (result === true) {
       field.classList.add("is-valid");
       input.setAttribute("aria-invalid", "false");
-      if (message) message.textContent = hint;
+      if (message) message.textContent = okMessage || hint;
+      if (okMessage) message?.classList.add("is-ok");
     } else {
       field.classList.add("is-invalid");
       input.setAttribute("aria-invalid", "true");
@@ -119,10 +125,72 @@
       setState(field, input, null);
       return true;
     }
-    const result = input.required && input.value.trim() === "" ? "Preencha este campo." : rule(input.value);
-    setState(field, input, result);
+    let result = input.required && input.value.trim() === "" ? "Preencha este campo." : rule(input.value);
+    let okMessage = "";
+    if (result === true && input.dataset.unique) {
+      const cached = uniqueCache.get(uniqueKey(input));
+      if (cached?.disponivel === false) result = cached.mensagem;
+      else if (cached?.disponivel === true) okMessage = cached.mensagem;
+      else if (!force) { setState(field, input, null); return true; } // aguarda a consulta
+    }
+    setState(field, input, result, okMessage);
     return result === true;
   };
+
+  /* ---------- Disponibilidade (usuario, e-mail, CNPJ) enquanto digita ---------- */
+  const uniqueTimers = new WeakMap();
+  const uniqueRequests = new WeakMap();
+  const checkUnique = async (input) => {
+    const field = input.closest("[data-field]");
+    const rule = rules[input.dataset.validate];
+    if (!field || !rule || input.value.trim() === "" || rule(input.value) !== true) return;
+    const key = uniqueKey(input);
+    if (uniqueCache.has(key)) { validate(input, true); return; }
+
+    uniqueRequests.get(input)?.abort();
+    const controller = new AbortController();
+    uniqueRequests.set(input, controller);
+    field.classList.remove("is-valid", "is-invalid");
+    field.classList.add("is-checking");
+    const message = field.querySelector(".field-msg");
+    if (message) { message.classList.remove("is-ok"); message.textContent = "Verificando disponibilidade..."; }
+
+    try {
+      const params = new URLSearchParams({ campo: input.dataset.unique, valor: input.value.trim() });
+      const response = await fetch(`/api/v1/cadastro/disponibilidade?${params}`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+        credentials: "same-origin",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (key !== uniqueKey(input)) return; // valor mudou durante a consulta
+      if (response.ok && typeof data.disponivel === "boolean") {
+        uniqueCache.set(key, data);
+        validate(input, true);
+      } else {
+        field.classList.remove("is-checking");
+        if (message) message.textContent = data.erro || "Não foi possível verificar agora. Vamos conferir ao enviar.";
+      }
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      field.classList.remove("is-checking");
+      if (message) message.textContent = "Sem conexão para verificar agora. Vamos conferir ao enviar.";
+    }
+  };
+
+  document.querySelectorAll("[data-unique]").forEach((input) => {
+    input.addEventListener("input", () => {
+      clearTimeout(uniqueTimers.get(input));
+      uniqueRequests.get(input)?.abort();
+      const field = input.closest("[data-field]");
+      field?.classList.remove("is-checking");
+      uniqueTimers.set(input, setTimeout(() => checkUnique(input), 450));
+    });
+    input.addEventListener("blur", () => {
+      clearTimeout(uniqueTimers.get(input));
+      checkUnique(input);
+    });
+  });
 
   document.querySelectorAll("[data-field] input").forEach((input) => {
     input.addEventListener("blur", () => validate(input));
