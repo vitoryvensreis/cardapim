@@ -84,3 +84,6 @@ Idempotente: cria apenas o que nao existe e nunca altera estoque, preco ou ficha
 | Refrigerante lata 350 ml | Bebidas | R$ 6,00 | refrigerante lata 1 un | R$ 2,90 |
 
 Custos e consumo de oleo por porcao sao estimativas de demonstracao.
+
+Aplicado em producao pela execucao GitHub Actions **#57** (commit `2324846`), com backup
+`shared/backups/cardapim-before-cardapio-exemplo-20261110T101637Z.sql.gz`. Gatilho temporario removido no commit seguinte.
