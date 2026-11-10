@@ -51,6 +51,14 @@
                     </div>
                 </div>
                 <div class="account-field">
+                    <label for="cadastro-restaurante">Nome do restaurante</label>
+                    <input id="cadastro-restaurante" name="nome_restaurante" type="text" autocomplete="organization" placeholder="Como seu restaurante se chama?">
+                </div>
+                <div class="account-field">
+                    <label for="cadastro-usuario">Nome de usuário</label>
+                    <input id="cadastro-usuario" name="usuario" type="text" autocomplete="username" placeholder="Escolha um usuário">
+                </div>
+                <div class="account-field">
                     <label for="cadastro-email">E-mail</label>
                     <input id="cadastro-email" name="email" type="email" autocomplete="email" placeholder="seu@email.com">
                 </div>

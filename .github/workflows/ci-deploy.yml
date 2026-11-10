@@ -115,6 +115,45 @@ jobs:
           [[ "$page" == *'Demonstração Anual'* ]]
           printf '%s' "$page" | grep -Eq 'href="/cadastro\?plano_id=[1-9][0-9]*"'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/rota-inexistente)" = "404"
+          # Validar views reais, sem post nem autenticacao funcional nesta fase.
+          login="$(curl --fail --silent --show-error http://127.0.0.1:18080/login)"
+          [[ "$login" == *'Entre na sua conta.'* ]]
+          [[ "$login" == *'Login em preparação'* ]]
+          [[ "$login" == *'autocomplete="current-password"'* ]]
+          [[ "$login" == *'disabled'* ]]
+          [[ "$login" == *'/assets/css/pages.css'* ]]
+          plan_id="$(php -r 'require "bootstrap/app.php"; $p=\Cardapim\Core\Database::connect()->query("SELECT id FROM planos WHERE ativo=1 AND visibilidade=1 ORDER BY id LIMIT 1")->fetchColumn(); echo (int)$p;')"
+          test "$plan_id" -gt 0
+          register="$(curl --fail --silent --show-error "http://127.0.0.1:18080/cadastro?plano_id=$plan_id")"
+          [[ "$register" == *'Crie sua conta.'* ]]
+          [[ "$register" == *'Plano selecionado'* ]]
+          [[ "$register" == *"name=\"plano_id\" value=\"$plan_id\""* ]]
+          [[ "$register" == *'name="nome_restaurante"'* ]]
+          [[ "$register" == *'name="usuario"'* ]]
+          [[ "$register" == *'type="checkbox"'* ]]
+          [[ "$register" == *'Cadastro em preparação'* ]]
+          invalid="$(curl --fail --silent --show-error 'http://127.0.0.1:18080/cadastro?plano_id=nao-existe')"
+          [[ "$invalid" == *'Plano não encontrado'* ]]
+          escaped="$(curl --fail --silent --show-error -G --data-urlencode 'plano_id=<script>alert(1)</script>' http://127.0.0.1:18080/cadastro)"
+          [[ "$escaped" != *'<script>alert(1)</script>'* ]]
+          for path in /privacidade /termos-de-uso /cookies /exclusao-de-dados /tratamento-de-dados; do
+            html="$(curl --fail --silent --show-error "http://127.0.0.1:18080$path")"
+            [[ "$html" == *'CENTRAL DE INFORMAÇÕES LEGAIS'* ]]
+            [[ "$html" == *'Documento em revisão'* ]]
+            [[ "$html" == *'/assets/css/pages.css'* ]]
+          done
+          [[ "$page" == *'href="/privacidade"'* ]]
+          [[ "$page" == *'href="/termos-de-uso"'* ]]
+          [[ "$page" == *'href="/cookies"'* ]]
+          [[ "$page" == *'href="/exclusao-de-dados"'* ]]
+          [[ "$page" == *'href="/tratamento-de-dados"'* ]]
+          code404="$(curl --silent --show-error -o /tmp/cardapim-404.html -w '%{http_code}' http://127.0.0.1:18080/rota-inexistente)"
+          test "$code404" = "404"
+          grep -q 'Esse caminho não existe' /tmp/cardapim-404.html
+          grep -q 'PÁGINA NÃO ENCONTRADA' /tmp/cardapim-404.html
+          grep -q '/assets/css/pages.css' /tmp/cardapim-404.html
+          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/login)" = "405"
+          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/cadastro)" = "405"
 
   deploy:
     name: Publicar na VPS somente quando habilitado
