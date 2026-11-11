@@ -69,6 +69,7 @@
 - `/painel` do adm_master com menu lateral: Dashboard, Restaurantes, Planos, Faturas, Usuarios, Integracoes, Logs de auditoria, Configuracoes, Suporte e Minha conta.
 - **Pronta**: Integracoes da plataforma - Asaas para receber as assinaturas dos restaurantes e WhatsApp proprio da plataforma (sessao separada dos restaurantes), base do codigo de verificacao do cliente final.
 - **Asaas da plataforma para assinaturas**: chave, avisos (webhook com eventos de assinatura), lista "Pronto para cobrar?" (conta aprovada, chave Pix, avisos ativos) e regras da cobranca recorrente: Pix, Boleto e/ou Cartao, vencimento da 1a cobranca, dias gratis, multa, juros, desconto, dias de atraso para suspender e fatura enviada pelo Asaas. Ciclo mensal, semestral ou anual vem do plano.
+- **Cada um no seu lugar**: equipe logada (administrador, gerente, caixa, garcom, motoqueiro) nao volta ao site, catalogo, login, cadastro ou cardapios, sempre cai no proprio painel (gerente ainda abre o proprio cardapio). No cardapio o cliente nao tem caminho para outros restaurantes. [Detalhes](docs/architecture/autenticacao.md).
 - Demais secoes mostram "Em construcao" com o que vai ter. [Detalhes](docs/architecture/painel-plataforma.md).
 
 ## Tempo real (WebSocket proprio)

@@ -35,6 +35,8 @@ html.cd-sem-rolagem { overflow: hidden; }
   opacity: 0; transform: translateY(4px); transition: opacity var(--t-fast), transform var(--t-fast);
 }
 .cd-topo.is-compacto .cd-topo-nome { opacity: 1; transform: none; }
+.cd-topo > .cd-topo-nome:first-child { padding-left: .5rem; }
+.cd-rodape-marca { margin: 0; }
 .cd-conta {
   display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto; max-width: 11rem;
   min-height: 2.75rem; padding: .4rem .9rem .4rem .65rem;

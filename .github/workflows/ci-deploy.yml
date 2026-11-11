@@ -269,6 +269,7 @@ jobs:
           bash tests/http/pwa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/avisos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/garcom.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          bash tests/http/equipe-no-painel.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/garcom.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/css/garcom.css >/dev/null

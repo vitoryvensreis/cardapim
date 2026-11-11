@@ -38,6 +38,17 @@ Fonte unica: `app/Services/Auth/Autorizacao.php` (alterar ali muda login e rotas
 - Restaurante `suspenso` ou `inativo`: a equipe nao entra (login recusado e sessoes existentes deixam de valer). `ativo` e `pendente` tem acesso.
 - O usuario e recarregado do banco a cada requisicao: desativar a conta ou mudar o cargo vale na hora.
 
+## Equipe fica no painel
+
+Quem e da equipe (`adm_master`, `gerente`, `caixa`, `garcom`, `motoqueiro`) e esta logado nao ve as paginas publicas:
+site (`/`), catalogo, `/cadastro`, `/login`, paginas legais e cardapios (`/{slug}`, `/{slug}/finalizar`, `/{slug}/pedido/{id}`)
+respondem **303** para a area do cargo. Excecao: o gerente abre o cardapio do **proprio** restaurante ("Ver meu cardapio").
+
+- `Guard::paginaPublica()` envolve essas rotas em `routes/web.php` (nova rota publica deve usar o mesmo envoltorio).
+- As paginas publicas saem com `Cache-Control: no-store`: depois de entrar, o "voltar" do navegador pede a pagina ao
+  servidor (que manda para o painel) em vez de mostrar a copia guardada.
+- O cliente (`cliente`) e o visitante sem login seguem vendo tudo normalmente.
+
 ## Manter conectado
 
 - Caixa **"Manter conectado neste aparelho"** no login. Marcada, a pessoa continua conectada por **30 dias** naquele navegador, mesmo fechando-o.
@@ -88,6 +99,7 @@ Todos com `id_user`, `ip` e `data_hora`. `user.ultimo_acesso` e atualizado no lo
 
 - `tests/http/auth.sh`: 40 cenarios HTTP (inclui manter conectado, rotacao, cookie copiado e logout) (redirecionamentos, 403 por cargo e por restaurante, CSRF, conta desativada, restaurante suspenso, retorno a pagina pedida, logout, cabecalho sem cache).
 - `tests/http/gerencia.sh`: liga a verificacao por app e por e-mail, entra com codigo, com codigo de recuperacao e confere reuso e desligamento.
+- `tests/http/equipe-no-painel.sh`: cada cargo volta para o painel nas paginas publicas, gerente no proprio cardapio e cliente sem caminho para outros restaurantes.
 - `tests/http/criar-contas-ci.php` cria as contas `ci_*` e **recusa qualquer banco que nao seja `cardapim_ci`**.
 
 A tabela `user_sessoes_lembradas` foi criada em producao pela execucao GitHub Actions **#60** (commit `0618fdf`),

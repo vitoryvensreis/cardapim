@@ -13,30 +13,32 @@ use Cardapim\Controllers\RestauranteController;
 use Cardapim\Controllers\StatusController;
 use Cardapim\Controllers\WebhookController;
 use Cardapim\Core\Router;
+use Cardapim\Services\Auth\Guard;
 
 $router = new Router();
-$router->get('/', [HomeController::class, 'index']);
+$router->get('/', Guard::paginaPublica([HomeController::class, 'index']));
 $router->get('/login', [AuthController::class, 'login']);
 $router->post('/login', [AuthController::class, 'entrar']);
 $router->get('/login/verificacao', [AuthController::class, 'verificacao']);
 $router->post('/login/verificacao', [AuthController::class, 'verificar']);
 $router->post('/login/verificacao/reenviar', [AuthController::class, 'reenviar']);
 $router->post('/sair', [AuthController::class, 'sair']);
-$router->get('/cadastro', [AuthController::class, 'register']);
+$router->get('/cadastro', Guard::paginaPublica([AuthController::class, 'register']));
 $router->get('/status', [StatusController::class, 'index']);
 // App instalavel (PWA) da equipe
 // Sem extensao de arquivo de proposito: o Nginx manda direto ao PHP (com o tipo certo e sem cache), sem regra de estaticos.
 $router->get('/pwa/manifesto', [PwaController::class, 'manifesto']);
 $router->get('/pwa/sw', [PwaController::class, 'serviceWorker']);
-$router->get('/catalogo', [CatalogoController::class, 'index']);
+$router->get('/catalogo', Guard::paginaPublica([CatalogoController::class, 'index']));
 $router->get('/restaurantes', static fn (): \Cardapim\Core\Response => \Cardapim\Core\Response::redirect('/catalogo', 301));
-$router->get('/privacidade', [LegalController::class, 'privacidade']);
+$router->get('/privacidade', Guard::paginaPublica([LegalController::class, 'privacidade']));
 $router->get('/politica-de-privacidade', static fn (): \Cardapim\Core\Response => \Cardapim\Core\Response::redirect('/privacidade', 301));
-$router->get('/termos-de-uso', [LegalController::class, 'termos']);
-$router->get('/cookies', [LegalController::class, 'cookies']);
-$router->get('/exclusao-de-dados', [LegalController::class, 'exclusao']);
-$router->get('/tratamento-de-dados', [LegalController::class, 'tratamento']);
+$router->get('/termos-de-uso', Guard::paginaPublica([LegalController::class, 'termos']));
+$router->get('/cookies', Guard::paginaPublica([LegalController::class, 'cookies']));
+$router->get('/exclusao-de-dados', Guard::paginaPublica([LegalController::class, 'exclusao']));
+$router->get('/tratamento-de-dados', Guard::paginaPublica([LegalController::class, 'tratamento']));
 
+// Paginas publicas passam por Guard::paginaPublica: equipe logada volta para o proprio painel.
 // Areas autenticadas (cargo validado no servidor em AreaController/Autorizacao).
 (require __DIR__ . '/plataforma.php')($router);
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
@@ -48,8 +50,8 @@ $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 $router->get('/{slug}/gerencia', [AreaController::class, 'gerencia']);
 $router->get('/{slug}/gerencia/{secao}', [AreaController::class, 'gerencia']);
 // Cardapio online: finalizar o pedido e acompanhar (cliente final).
-$router->get('/{slug}/finalizar', [RestauranteController::class, 'finalizar']);
-$router->get('/{slug}/pedido/{id}', [RestauranteController::class, 'pedido']);
+$router->get('/{slug}/finalizar', Guard::paginaPublica([RestauranteController::class, 'finalizar'], true));
+$router->get('/{slug}/pedido/{id}', Guard::paginaPublica([RestauranteController::class, 'pedido'], true));
 // Painel do entregador (motoqueiro): entregas, confirmar entrega e localizacao em tempo real.
 $router->get('/{slug}/entregas', [\Cardapim\Controllers\EntregadorController::class, 'painel']);
 $router->post('/{slug}/entregas/localizacao', [\Cardapim\Controllers\EntregadorController::class, 'localizacao']);
@@ -61,6 +63,6 @@ $router->post('/{slug}/entregas/{id}/entregue', [\Cardapim\Controllers\Entregado
 
 // Deve ser a ultima rota: endereco publico do restaurante (/slug-do-restaurante).
 // Novas rotas fixas precisam ser registradas acima e o slug incluido em Shared\Slug::RESERVADOS.
-$router->get('/{slug}', [RestauranteController::class, 'show']);
+$router->get('/{slug}', Guard::paginaPublica([RestauranteController::class, 'show'], true));
 
 return $router;

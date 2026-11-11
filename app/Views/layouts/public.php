@@ -13,6 +13,8 @@ $title = $escape((string) ($pageTitle ?? 'Cardapim'));
 $description = $escape((string) ($pageDescription ?? 'Cardapim, gestão de restaurantes.'));
 $styles = ['css/pages.css', ...($pageStyles ?? [])];
 $scripts = $pageScripts ?? [];
+// Paginas legais abertas pelo cardapio de um restaurante: so "Voltar ao cardapio", sem links do site.
+[$cardapioUrl, $cardapioNome] = $voltarCardapio ?? [null, null];
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -21,6 +23,20 @@ $scripts = $pageScripts ?? [];
 </head>
 <body class="page-public">
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+<?php if ($cardapioUrl !== null): ?>
+    <header class="site-header site-header--light">
+        <div class="shell navbar">
+            <span class="brand"><img src="<?= $escape($logoPreta) ?>" width="156" height="50" alt="Cardapim"></span>
+            <nav class="nav-actions" aria-label="Voltar">
+                <a class="btn btn-wine btn-sm" href="<?= $escape($cardapioUrl) ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Voltar ao cardápio</a>
+            </nav>
+        </div>
+    </header>
+    <main id="conteudo" class="public-main"><?= $content ?></main>
+    <footer class="rodape-cardapio">
+        <p>Cardápio de <?= $escape((string) $cardapioNome) ?> · Pedidos com Cardapim</p>
+    </footer>
+<?php else: ?>
     <header class="site-header site-header--light">
         <div class="shell navbar">
             <a class="brand" href="/" aria-label="Cardapim, voltar ao início">
@@ -36,5 +52,6 @@ $scripts = $pageScripts ?? [];
     </header>
     <main id="conteudo" class="public-main"><?= $content ?></main>
 <?php require __DIR__ . '/../partials/footer.php'; ?>
+<?php endif; ?>
 </body>
 </html>

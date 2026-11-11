@@ -31,7 +31,6 @@ final class PainelController extends BasePlataforma
             'atalhos' => $secao === 'dashboard' ? [
                 ['/painel/integracoes', 'Integrações da plataforma', 'plug-zap', 'Asaas das assinaturas e WhatsApp da plataforma'],
                 ['/status', 'Status do sistema', 'activity', 'PHP, banco de dados e tempo real'],
-                ['/catalogo', 'Catálogo público', 'store', 'Como os clientes veem os restaurantes'],
             ] : [],
         ]);
     }

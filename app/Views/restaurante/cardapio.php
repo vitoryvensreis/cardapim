@@ -63,7 +63,6 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
         <span aria-hidden="true"><?= Icon::svg('utensils-crossed', 'icon-lg') ?></span>
         <h2>Cardápio em preparação</h2>
         <p>Este restaurante ainda está montando o cardápio por aqui. Volte em breve.</p>
-        <a class="btn btn-wine" href="/catalogo"><?= Icon::svg('store', 'icon-sm') ?>Ver outros restaurantes</a>
     </section>
 <?php else: ?>
 <div class="cd-layout">

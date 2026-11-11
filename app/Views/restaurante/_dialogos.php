@@ -69,7 +69,7 @@ use Cardapim\Core\Icon;
                     <?= Icon::svg('send', 'icon-sm') ?><span>Receber código no WhatsApp</span>
                 </button>
                 <p class="cd-login-nota" data-login-indisponivel hidden><?= Icon::svg('info', 'icon-sm') ?>O login pelo WhatsApp está indisponível no momento. Você pode montar a sacola normalmente.</p>
-                <p class="cd-login-legal">Ao continuar, você concorda com os <a href="/termos-de-uso" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</p>
+                <p class="cd-login-legal">Ao continuar, você concorda com os <a href="/termos-de-uso?r=<?= htmlspecialchars(rawurlencode((string) $restaurante['slug']), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade?r=<?= htmlspecialchars(rawurlencode((string) $restaurante['slug']), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Política de Privacidade</a>.</p>
             </form>
 
             <form class="cd-login-etapa" data-etapa="codigo" novalidate hidden>

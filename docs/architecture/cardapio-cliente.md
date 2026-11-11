@@ -8,7 +8,11 @@ A finalizacao (endereco, entrega, pagamento) esta em [pedidos.md](pedidos.md).
 Referencias usadas: padrao dos apps de delivery (iFood, Rappi), Baymard Institute (sacola persistente e
 visivel), web.dev (formulario de codigo por SMS/WhatsApp) e boas praticas de OTP da Twilio.
 
-- **Topo fino e fixo**: voltar para o catalogo, nome do restaurante aparece ao rolar, botao "Entrar"/conta.
+- **Topo fino e fixo**: nome do restaurante aparece ao rolar, botao "Entrar"/conta. Sem seta para o catalogo:
+  o cliente fica no restaurante (nenhum link para o site ou outros restaurantes). A seta so aparece em finalizar
+  e acompanhar, voltando para o cardapio deste restaurante.
+- **Paginas legais pelo cardapio** (`/privacidade?r={slug}`, `/termos-de-uso?r={slug}`): mostram so "Voltar ao cardapio",
+  sem menu nem rodape do site; os links entre as politicas mantem o `?r=`. Slug invalido ou inativo: pagina normal.
 - **Capa**: logo, nome, status com texto e icone (nao so cor), bairro/cidade e "Ver endereco e horarios".
   Restaurante fechado mostra aviso, mas o cliente pode montar a sacola.
 - **Busca + abas de categoria** fixas, com scroll-spy (a aba ativa acompanha a rolagem); busca ignora acentos.
