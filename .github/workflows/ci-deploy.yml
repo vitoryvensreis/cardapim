@@ -295,7 +295,8 @@ jobs:
           done
           login_page="$(curl --fail --silent --show-error http://127.0.0.1:18080/login)"
           [[ "$login_page" == *'name="lembrar"'* ]]
-          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/cadastro)" = "405"
+          # Cadastro real: POST sem token CSRF e recusado (419).
+          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/cadastro)" = "419"
 
   deploy:
     name: Publicar na VPS somente quando habilitado
