@@ -61,7 +61,7 @@
 .cd-ativos { display: grid; gap: .55rem; margin: .9rem 1rem 0; }
 .cd-ativo {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .8rem;
-  padding: .85rem .9rem; border: 1.5px solid #f3cdbf; border-radius: var(--r-lg, 1rem);
+  padding: .85rem .9rem; border: 1.5px solid #f3cdbf; border-radius: var(--r-lg, .2rem);
   background: linear-gradient(135deg, #fff3ee 0%, var(--c-white) 80%); color: inherit; text-decoration: none;
   box-shadow: 0 6px 18px rgb(255 88 37 / 10%);
 }
@@ -69,10 +69,10 @@
 .cd-ativo:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 2px; }
 .cd-ativo-icone {
   position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem;
-  border-radius: .9rem; background: var(--c-orange); color: var(--c-white);
+  border-radius: .18rem; background: var(--c-orange); color: var(--c-white);
 }
 .cd-ativo-icone::after {
-  content: ""; position: absolute; inset: -4px; border: 2px solid var(--c-orange); border-radius: 1.1rem; opacity: 0;
+  content: ""; position: absolute; inset: -4px; border: 2px solid var(--c-orange); border-radius: .22rem; opacity: 0;
   animation: cd-ativo-pulso 2s ease-out infinite;
 }
 @keyframes cd-ativo-pulso { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }

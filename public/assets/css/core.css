@@ -35,11 +35,11 @@
   /* Espacos e forma */
   --shell: 77rem;
   --gutter: clamp(1.25rem, 4vw, 2.25rem);
-  --r-sm: .625rem;
-  --r-md: 1rem;
-  --r-lg: 1.5rem;
-  --r-xl: 2rem;
-  --r-pill: 999px;
+  --r-sm: .125rem;
+  --r-md: .2rem;
+  --r-lg: .3rem;
+  --r-xl: .4rem;
+  --r-pill: .35rem; /* antes 999px; cantos 80% menores no site todo */
 
   /* Sombras */
   --sh-sm: 0 1px 2px rgb(42 16 23 / 6%), 0 2px 8px rgb(42 16 23 / 5%);
@@ -72,7 +72,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 h1, h2, h3, h4 { margin: 0; font-family: var(--f-head); letter-spacing: -.035em; line-height: 1.1; }
 p { margin: 0; }
-:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 3px; border-radius: 4px; }
+:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 3px; border-radius: 1px; }
 ::selection { background: var(--c-orange); color: var(--c-white); }
 
 /* ---------- Utilitarios ---------- */
@@ -146,7 +146,7 @@ p { margin: 0; }
   display: inline-flex; align-items: center; gap: .75rem;
   color: var(--c-wine); font: 800 .72rem/1 var(--f-head); letter-spacing: .16em; text-transform: uppercase;
 }
-.kicker::before { content: ""; width: 1.5rem; height: 2px; border-radius: 2px; background: var(--c-orange); }
+.kicker::before { content: ""; width: 1.5rem; height: 2px; border-radius: 1px; background: var(--c-orange); }
 .badge {
   display: inline-flex; align-items: center; gap: .35rem;
   padding: .3rem .65rem; border-radius: var(--r-pill);
@@ -187,7 +187,7 @@ p { margin: 0; }
   transition: color var(--t-fast);
 }
 .nav-links a::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -.15rem; height: 2px; border-radius: 2px;
+  content: ""; position: absolute; left: 0; right: 0; bottom: -.15rem; height: 2px; border-radius: 1px;
   background: var(--c-orange); transform: scaleX(0); transform-origin: right;
   transition: transform var(--t-med) var(--ease-out);
 }

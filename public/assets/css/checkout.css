@@ -1,7 +1,7 @@
 /* Cardapim - finalizar pedido (/{slug}/finalizar) e acompanhar pedido (/{slug}/pedido/{id}).
    Mobile-first: uma coluna com o total sempre visivel na barra de baixo; no computador, resumo fixo ao lado. */
 
-.ck { --ck-raio: 1.1rem; padding: .75rem max(1rem, env(safe-area-inset-left)) 1rem max(1rem, env(safe-area-inset-right)); }
+.ck { --ck-raio: .22rem; padding: .75rem max(1rem, env(safe-area-inset-left)) 1rem max(1rem, env(safe-area-inset-right)); }
 .ck-cabecalho { margin: .25rem 0 1rem; }
 .ck-cabecalho h1 { color: var(--c-ink); font: 800 1.45rem/1.15 var(--f-head); }
 .ck-cabecalho p { margin-top: .2rem; color: var(--c-muted); font-size: .95rem; }
@@ -38,7 +38,7 @@
 .ck-opcao:has(input:focus-visible) { outline: 3px solid var(--c-orange); outline-offset: 2px; }
 .ck-opcao:active { transform: scale(.99); }
 .ck-opcao-icone {
-  display: grid; place-items: center; flex: 0 0 auto; width: 2.5rem; height: 2.5rem; border-radius: .8rem;
+  display: grid; place-items: center; flex: 0 0 auto; width: 2.5rem; height: 2.5rem; border-radius: .16rem;
   background: var(--c-blush); color: var(--c-wine);
 }
 .ck-opcao-icone-pix { background: var(--c-orange-100); color: var(--c-orange-700); }
@@ -46,7 +46,7 @@
 .ck-opcao-texto strong { display: block; color: var(--c-ink); font: 700 .98rem/1.2 var(--f-head); }
 .ck-opcao-texto small { display: block; margin-top: .15rem; color: var(--c-muted); font-size: .82rem; line-height: 1.35; }
 .ck-opcao-compacta { min-height: 3.5rem; padding: .65rem .7rem; gap: .55rem; }
-.ck-opcao-compacta .ck-opcao-icone { width: 2.1rem; height: 2.1rem; border-radius: .65rem; }
+.ck-opcao-compacta .ck-opcao-icone { width: 2.1rem; height: 2.1rem; border-radius: .13rem; }
 .ck-opcao-compacta .ck-opcao-texto strong { font-size: .9rem; }
 
 .ck-retirada-local { display: flex; gap: .5rem; align-items: flex-start; margin-top: .85rem; padding: .75rem .85rem; border-radius: var(--r-md); background: var(--cd-fundo); color: var(--c-ink); font-size: .92rem; }
@@ -230,7 +230,7 @@
 .ap-mapa-topo { display: flex; align-items: center; gap: .85rem; }
 .ap-mapa-topo h2 { color: var(--c-ink); font: 800 1.1rem/1.25 var(--f-head); }
 .ap-mapa-topo p { margin-top: .15rem; color: var(--c-muted); font-size: .92rem; }
-.ap-mapa-icone { display: grid; place-items: center; flex: 0 0 auto; width: 3rem; height: 3rem; border-radius: 1rem; background: var(--c-orange-100); color: var(--c-orange-700); }
+.ap-mapa-icone { display: grid; place-items: center; flex: 0 0 auto; width: 3rem; height: 3rem; border-radius: .2rem; background: var(--c-orange-100); color: var(--c-orange-700); }
 .ap-mapa { height: clamp(15rem, 52vh, 24rem); border: 1px solid var(--c-line); border-radius: var(--r-lg); overflow: hidden; background: #efe9e6; z-index: 0; }
 .ap-mapa-atualizado { display: flex; align-items: center; gap: .4rem; color: var(--c-success); font-size: .82rem; font-weight: 700; }
 .ap-mapa-atualizado:empty { display: none; }

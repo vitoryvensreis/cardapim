@@ -58,7 +58,7 @@
   margin-bottom: 1.5rem; padding: clamp(1.25rem, 4vw, 2rem); border-radius: var(--r-xl);
   background: linear-gradient(150deg, var(--c-wine), var(--c-wine-900)); color: var(--c-white); box-shadow: var(--sh-md);
 }
-.app-hero-icon { display: grid; place-items: center; width: 3.75rem; height: 3.75rem; border-radius: 1.1rem; background: var(--c-orange); color: var(--c-white); }
+.app-hero-icon { display: grid; place-items: center; width: 3.75rem; height: 3.75rem; border-radius: .22rem; background: var(--c-orange); color: var(--c-white); }
 .app-hello { color: rgb(255 255 255 / 70%); font-weight: 600; }
 .app-hero h1 { margin-top: .2rem; font-size: clamp(1.7rem, 1.2rem + 2vw, 2.4rem); font-weight: 800; }
 .app-hero p:last-child { margin-top: .4rem; color: rgb(255 255 255 / 80%); }
@@ -71,7 +71,7 @@
 .app-module:has(.app-module-link) { padding: 0; border: 0; background: none; }
 .app-module-link { width: 100%; transition: transform var(--t-med) var(--ease-out), box-shadow var(--t-med), border-color var(--t-med); }
 .app-module-link:hover { transform: translateY(-3px); border-color: rgb(255 88 37 / 40%); box-shadow: var(--sh-md); }
-.app-module-icon { display: grid; place-items: center; flex: 0 0 auto; width: 2.75rem; height: 2.75rem; border-radius: .85rem; background: var(--c-blush); color: var(--c-wine); }
+.app-module-icon { display: grid; place-items: center; flex: 0 0 auto; width: 2.75rem; height: 2.75rem; border-radius: .17rem; background: var(--c-blush); color: var(--c-wine); }
 .app-module strong { flex: 1 1 auto; min-width: 0; color: var(--c-ink); font-family: var(--f-head); }
 .badge-ok { background: var(--c-success-bg); color: var(--c-success); }
 
