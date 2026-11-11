@@ -238,7 +238,7 @@ O deploy será realizado por usuário não-root, com releases versionadas, armaz
 
 Informações de infraestrutura fornecidas: domínio `cardapim.escotilhaprodutora.com`, banco `cardapim`, usuário MySQL `cardapim-user`, host MySQL `127.0.0.1`, porta `3306`, usuário do site `escotilhaprodutora-cardapim`. **Nenhuma senha deve ser colocada no Git ou compartilhada no chat.**
 
-Leia o [guia completo de deploy no CloudPanel](docs/deploy/cloudpanel.md). O fluxo SSH e publicação da landing page foi validado na VPS em 09/11/2026; migrations automáticas permanecem desativadas até a configuração de backup.
+Leia o [guia completo de deploy no CloudPanel](docs/deploy/cloudpanel.md). Troca de domínio (deliveryzim.com.br): [passo a passo](docs/deploy/troca-de-dominio.md). O fluxo SSH e publicação da landing page foi validado na VPS em 09/11/2026; migrations automáticas permanecem desativadas até a configuração de backup.
 
 ---
 ## 1. Visão do produto

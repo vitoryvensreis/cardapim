@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Cardapim\Core\DominioCanonico;
 use Cardapim\Core\Request;
 use Cardapim\Core\Response;
 use Cardapim\Core\View;
@@ -9,6 +10,12 @@ use Cardapim\Core\View;
 require dirname(__DIR__) . '/bootstrap/app.php';
 
 try {
+    // Endereco antigo (troca de dominio): 301 para o APP_URL antes de qualquer outra coisa.
+    $antigo = DominioCanonico::daRequisicao();
+    if ($antigo !== null) {
+        $antigo->send();
+        exit;
+    }
     $router = require dirname(__DIR__) . '/routes/web.php';
     $router->dispatch(Request::capture())->send();
 } catch (Throwable $exception) {
