@@ -148,6 +148,8 @@ final class DeliveryService
         $this->mudar($p, ['recebido', 'em_preparo', 'pronto'], 'saiu_entrega', 'Saiu para entrega com ' . $entregador['nome'] . '.',
             ['id_entregador' => $idEntregador, 'despachado_em' => date('Y-m-d H:i:s')]);
         TempoReal::publicar($this->idRestaurante, 'entregas', 'entrega.despachada', ['id' => $id, 'entregador' => $idEntregador]);
+        // Casa do cliente no mapa: se o pedido veio sem coordenada (area por bairro), busca agora, uma vez so.
+        \Cardapim\Services\Entregas\DestinoEntrega::garantir($this->db, $p);
         Auditoria::registrar($this->autor, 'Pedido despachado', sprintf('Pedido #%d para %s com %s.', (int) $p['numero'], $p['entrega_bairro'] ?? 'entrega', $entregador['nome']));
         return Resultado::sucesso('Pedido #' . $p['numero'] . ' saiu com ' . $entregador['nome'] . '.');
     }

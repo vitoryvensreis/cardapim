@@ -212,24 +212,8 @@
       marcadores[chave] = window.L.marker(ll, { icon: marcador(classe, nome), title: titulo, keyboard: false }).addTo(mapa);
     }
   };
-  const desenharRastreio = (r) => {
-    const bloco = $("[data-ap-mapa]");
-    const area = $("[data-ap-mapa-area]");
-    bloco.hidden = false;
-    if (!r.ativo) {
-      area.hidden = true;
-      $("[data-ap-mapa-titulo]").textContent = "Saiu para entrega";
-      $("[data-ap-mapa-texto]").textContent = "O entregador está a caminho. Quando ele ligar a localização, você vê ele chegando aqui no mapa.";
-      $("[data-ap-mapa-atualizado]").textContent = "";
-      return;
-    }
-    const ent = r.entregador;
-    $("[data-ap-mapa-titulo]").textContent = `${ent.nome} está a caminho`;
-    $("[data-ap-mapa-texto]").textContent = r.distancia_km !== null
-      ? `Está a ${String(r.distancia_km).replace(".", ",")} km. Chega em cerca de ${r.minutos} min.`
-      : "Acompanhe pelo mapa.";
-    $("[data-ap-mapa-atualizado]").textContent = ent.atualizado_ha < 15 ? "Localização ao vivo" : `Localização de ${Math.round(ent.atualizado_ha)} segundos atrás`;
-    if (!window.L) return; // sem a biblioteca do mapa: fica so o texto
+  const garantirMapa = (area) => {
+    if (!window.L) return false; // sem a biblioteca do mapa: fica so o texto
     area.hidden = false;
     if (!mapa) {
       mapa = window.L.map(area, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
@@ -238,14 +222,53 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(mapa);
     }
+    return true;
+  };
+  // Enquadra uma vez com o que tiver; enquadra de novo quando a moto aparece pela primeira vez.
+  const enquadrar = (pontos, comMoto) => {
+    if (pontos.length === 0 || (enquadrado && (!comMoto || enquadrado === "moto"))) return;
+    if (pontos.length > 1) mapa.fitBounds(pontos, { padding: [40, 40], maxZoom: 16 }); else mapa.setView(pontos[0], 15);
+    enquadrado = comMoto ? "moto" : "fixo";
+  };
+  const minutos = (seg) => Math.max(1, Math.round(seg / 60));
+  const desenharRastreio = (r) => {
+    const bloco = $("[data-ap-mapa]");
+    const area = $("[data-ap-mapa-area]");
+    const atualizado = $("[data-ap-mapa-atualizado]");
+    bloco.hidden = false;
+    if (!r.ativo) {
+      $("[data-ap-mapa-titulo]").textContent = "Saiu para entrega";
+      $("[data-ap-mapa-texto]").textContent = "O entregador está a caminho. A moto aparece no mapa assim que a localização dele chegar.";
+      atualizado.textContent = "";
+      atualizado.classList.remove("is-antiga");
+      const fixos = [r.destino, r.restaurante].filter(Boolean);
+      if (fixos.length === 0 || !garantirMapa(area)) {
+        area.hidden = true;
+        return;
+      }
+      colocar("restaurante", r.restaurante, "ap-marcador-loja", "store", "Restaurante");
+      colocar("destino", r.destino, "ap-marcador-casa", "house", "Seu endereço");
+      enquadrar(fixos.map((p) => [p.latitude, p.longitude]), false);
+      window.setTimeout(() => mapa.invalidateSize(), 50);
+      return;
+    }
+    const ent = r.entregador;
+    $("[data-ap-mapa-titulo]").textContent = `${ent.nome} está a caminho`;
+    $("[data-ap-mapa-texto]").textContent = r.distancia_km !== null
+      ? `Está a ${String(r.distancia_km).replace(".", ",")} km. Chega em cerca de ${r.minutos} min.`
+      : "Acompanhe pelo mapa.";
+    const aoVivo = ent.ao_vivo !== false;
+    atualizado.textContent = aoVivo
+      ? "Localização ao vivo"
+      : `Última localização há ${minutos(ent.atualizado_ha)} min. O sinal do entregador pode ter caído; a moto se move quando voltar.`;
+    atualizado.classList.toggle("is-antiga", !aoVivo);
+    if (!garantirMapa(area)) return;
     colocar("restaurante", r.restaurante, "ap-marcador-loja", "store", "Restaurante");
     colocar("destino", r.destino, "ap-marcador-casa", "house", "Seu endereço");
     colocar("moto", ent, "ap-marcador-moto", "bike", ent.nome);
-    if (!enquadrado) {
-      const pontos = [ent, r.destino].filter(Boolean).map((p) => [p.latitude, p.longitude]);
-      if (pontos.length > 1) mapa.fitBounds(pontos, { padding: [40, 40], maxZoom: 16 }); else mapa.setView(pontos[0], 15);
-      enquadrado = true;
-    }
+    marcadores.moto.setOpacity(aoVivo ? 1 : 0.6); // Leaflet poe a opacidade no estilo do marcador
+    marcadores.moto.getElement()?.classList.toggle("is-antiga", !aoVivo);
+    enquadrar([ent, r.destino].filter(Boolean).map((p) => [p.latitude, p.longitude]), true);
     window.setTimeout(() => mapa.invalidateSize(), 50);
   };
   const buscarRastreio = async () => {

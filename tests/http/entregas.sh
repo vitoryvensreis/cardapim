@@ -48,7 +48,9 @@ esperar "caixa entra" "$(login_equipe "$cx" ci_caixa)" "303"
 esperar "gerente entra" "$(login_equipe "$gj" ci_gerente)" "303"
 esperar "painel abre" "$(curl -s -o "$tmp/p.html" -b "$mj" -w '%{http_code}' "$e")" "200"
 contem "mostra as entregas com ele" "$tmp/p.html" 'Com você agora'
-contem "botao de compartilhar localizacao" "$tmp/p.html" 'data-local-botao'
+contem "localizacao liga sozinha (cartao de status)" "$tmp/p.html" 'data-local-status'
+contem "tela de localizacao obrigatoria" "$tmp/p.html" 'data-local-bloqueio'
+nao_contem "sem botao de parar de compartilhar" "$tmp/p.html" 'Parar de compartilhar'
 contem "carrega o script do entregador" "$tmp/p.html" '/assets/js/entregador.js'
 esperar "caixa nao abre o painel do entregador (403)" "$(curl -s -o /dev/null -b "$cx" -w '%{http_code}' "$e")" "403"
 esperar "gerente vai para o delivery do caixa" "$(curl -s -o /dev/null -b "$gj" -w '%{redirect_url}' "$e")" "$c/delivery"
@@ -127,6 +129,7 @@ contem "link de rota no Google Maps" "$tmp/p.html" 'google.com/maps/dir/'
 contem "link de rota no Waze" "$tmp/p.html" 'waze.com/ul'
 curl -s -b "$cj" -o "$tmp/rast.json" "$base/api/v1/pedidos/$pedido/rastreio"
 esperar "saiu, mas sem localizacao ainda" "$(json "$tmp/rast.json" motivo)" "sem_localizacao"
+esperar "casa do cliente achada no despacho (mapa)" "$(json "$tmp/rast.json" destino.latitude)" "-23.56"
 
 esperar "motoqueiro envia a localizacao" "$(local_post "$mj" "$mcsrf" '{"latitude":-23.5590,"longitude":-46.6640,"precisao":12,"direcao":90,"velocidade":8}')" "200"
 esperar "envia de novo (atualiza a mesma linha)" "$(local_post "$mj" "$mcsrf" '{"latitude":-23.5595,"longitude":-46.6645,"precisao":10}')" "200"
@@ -134,6 +137,8 @@ curl -s -b "$cj" -o "$tmp/rast.json" "$base/api/v1/pedidos/$pedido/rastreio"
 esperar "cliente ve o entregador no mapa" "$(json "$tmp/rast.json" ativo)" "true"
 esperar "primeiro nome do entregador" "$(json "$tmp/rast.json" entregador.nome)" "CI"
 esperar "posicao mais recente" "$(json "$tmp/rast.json" entregador.latitude)" "-23.5595"
+esperar "localizacao ao vivo" "$(json "$tmp/rast.json" entregador.ao_vivo)" "true"
+esperar "distancia ate a casa calculada" "$([[ "$(json "$tmp/rast.json" distancia_km)" != "null" ]] && echo sim)" "sim"
 nao_contem "rastreio nao expoe telefone nem sobrenome" "$tmp/rast.json" 'Motoqueiro'
 curl -s -b "$cx" -o "$tmp/d.html" "$c/delivery/$pedido"
 contem "caixa ve a localizacao ao vivo" "$tmp/d.html" 'Localização ao vivo'

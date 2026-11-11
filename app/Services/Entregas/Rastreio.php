@@ -9,12 +9,15 @@ use PDO;
 
 /**
  * Onde esta o entregador do pedido (para o cliente acompanhar no mapa, estilo apps de corrida).
- * So responde com a posicao se: o pedido e de entrega, esta "saiu para entrega", tem entregador e a posicao
- * foi atualizada nos ultimos 5 minutos. Quem chama ja conferiu que o pedido e do cliente logado.
+ * So responde com a posicao se: o pedido e de entrega, esta "saiu para entrega" e tem entregador. Posicao de ate
+ * 30 minutos aparece (com "ha X min"), para o mapa nao sumir quando o celular do entregador perde o sinal ou sai da tela.
+ * Quem chama ja conferiu que o pedido e do cliente logado.
  */
 final class Rastreio
 {
-    private const VALIDADE_SEGUNDOS = 300;
+    private const VALIDADE_SEGUNDOS = 1800;
+    /** Acima disso o cliente ve "ultima localizacao ha X min" em vez de "ao vivo". */
+    public const AO_VIVO_SEGUNDOS = 120;
     private const VELOCIDADE_MEDIA_KMH = 22; // moto na cidade, para a estimativa de chegada
 
     /**
@@ -23,15 +26,16 @@ final class Rastreio
      */
     public static function paraCliente(PDO $db, array $pedido): array
     {
-        $destino = Distancia::coordenadaValida($pedido['entrega_latitude'] ?? null, $pedido['entrega_longitude'] ?? null)
-            ? ['latitude' => (float) $pedido['entrega_latitude'], 'longitude' => (float) $pedido['entrega_longitude']] : null;
+        $emRota = $pedido['tipo'] === 'entrega' && $pedido['status'] === 'saiu_entrega';
+        $destino = $emRota ? DestinoEntrega::garantir($db, $pedido) : (Distancia::coordenadaValida($pedido['entrega_latitude'] ?? null, $pedido['entrega_longitude'] ?? null)
+            ? ['latitude' => (float) $pedido['entrega_latitude'], 'longitude' => (float) $pedido['entrega_longitude']] : null);
         $q = $db->prepare('SELECT latitude, longitude FROM restaurantes WHERE id = ?');
         $q->execute([(int) $pedido['id_restaurante']]);
         $r = $q->fetch(PDO::FETCH_ASSOC) ?: [];
         $restaurante = Distancia::coordenadaValida($r['latitude'] ?? null, $r['longitude'] ?? null)
             ? ['latitude' => (float) $r['latitude'], 'longitude' => (float) $r['longitude']] : null;
         $base = ['ativo' => false, 'destino' => $destino, 'restaurante' => $restaurante];
-        if ($pedido['tipo'] !== 'entrega' || $pedido['status'] !== 'saiu_entrega' || empty($pedido['id_entregador'])) {
+        if (!$emRota || empty($pedido['id_entregador'])) {
             return $base + ['motivo' => 'fora_de_rota'];
         }
         $q = $db->prepare("SELECT p.latitude, p.longitude, p.precisao_m, p.direcao, p.atualizado_em, u.nome
@@ -54,6 +58,7 @@ final class Rastreio
                 'precisao_m' => $pos['precisao_m'] !== null ? (int) $pos['precisao_m'] : null,
                 'direcao' => $pos['direcao'] !== null ? (int) $pos['direcao'] : null,
                 'atualizado_ha' => max(0, $idade),
+                'ao_vivo' => $idade <= self::AO_VIVO_SEGUNDOS,
             ],
             'distancia_km' => $km,
             'minutos' => $km !== null ? max(1, (int) ceil($km / self::VELOCIDADE_MEDIA_KMH * 60)) : null,

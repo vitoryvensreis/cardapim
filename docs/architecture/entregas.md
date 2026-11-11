@@ -28,21 +28,35 @@ Rastreio: 401 sem login, 404 pedido de outro cliente.
 - Entrega nova despachada para ele: bipe, vibracao e a lista atualiza sozinha (evento `entrega.despachada`, canal
   `entregas`); tambem atualiza a cada 30 s.
 
+## Localizacao obrigatoria
+
+- O painel liga a localizacao sozinho ao abrir. O celular pede a permissao so na primeira vez e guarda a resposta
+  (tambem no app instalado). Nao existe botao "Parar de compartilhar": para quando ele sai da conta.
+- Sem permissao (bloqueada, janela fechada ou navegador sem GPS), a lista de entregas fica escondida atras da tela
+  "Ative sua localizacao para comecar", com o passo a passo de como liberar no Android e no iPhone e "Tentar de novo".
+  Se a permissao mudar com o painel aberto, a tela aparece ou some na hora.
+- Sem sinal preciso por mais de 20 s, usa a localizacao aproximada (rede) para nao ficar sem ponto. Ao voltar para o
+  app (depois do WhatsApp/Waze ou com a tela desligada), manda a posicao na hora.
+- Limite do navegador: com o app fora da tela, o celular pausa a localizacao (so app nativo rastreia em segundo plano).
+
 ## Localizacao (LGPD)
 
 - Tabela `entregador_posicoes`: **uma linha por entregador** (PK `id_user`), so a ultima posicao. Nada de historico
   do trajeto. Apagada ao parar de compartilhar, ao sair do sistema ou quando nao ha mais entregas com ele.
 - O navegador usa `watchPosition` (alta precisao) e envia no maximo a cada 8 s, ou antes se andou mais de 30 m.
   Mantem a tela acesa (Wake Lock) enquanto compartilha e lembra a escolha no aparelho para retomar sozinho.
-- O cliente so ve o entregador enquanto o PEDIDO DELE esta "Saiu para entrega" com esse entregador e a posicao tem
-  menos de 5 minutos. Ve apenas o primeiro nome, a posicao, distancia e tempo estimado (22 km/h em linha reta).
+- O cliente so ve o entregador enquanto o PEDIDO DELE esta "Saiu para entrega" com esse entregador. Ate 2 min:
+  "Localizacao ao vivo"; de 2 a 30 min: "Ultima localizacao ha X min" (moto mais clara); mais que isso, some.
+  Ve apenas o primeiro nome, a posicao, distancia e tempo estimado (22 km/h em linha reta).
 - O caixa ve no detalhe do pedido se a localizacao esta ao vivo (com link para o mapa) ou desligada.
 
 ## Mapa do cliente (`acompanhar.js`)
 
 - Aparece na pagina do pedido quando o status e `saiu_entrega`; consulta o rastreio a cada 8 s.
-- Marcadores: moto (laranja), casa do cliente (vinho) e restaurante, quando ha coordenadas. Sem coordenada do
-  endereco, mostra so o entregador.
+- Marcadores: moto (laranja), casa do cliente (vinho) e restaurante. Antes da primeira posicao do entregador, o mapa
+  ja aparece com a casa e o restaurante.
+- Pedido sem coordenada (area por bairro): `DestinoEntrega::garantir` busca a casa uma vez no despacho (Nominatim pela
+  rua ou centro do CEP pela BrasilAPI, com cache) e grava no pedido; o rastreio tenta de novo se faltou.
 - Tiles de `tile.openstreetmap.org` com atribuicao "© OpenStreetMap" (politica de uso do OSM: uso moderado, sem
   pre-carregar areas). Com muito volume, trocar por um provedor de tiles proprio ou pago sem mudar o codigo.
 

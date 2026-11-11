@@ -235,6 +235,8 @@
 .ap-mapa-atualizado { display: flex; align-items: center; gap: .4rem; color: var(--c-success); font-size: .82rem; font-weight: 700; }
 .ap-mapa-atualizado:empty { display: none; }
 .ap-mapa-atualizado::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: currentcolor; }
+.ap-mapa-atualizado.is-antiga { align-items: flex-start; color: #8a5a00; font-weight: 600; }
+.ap-mapa-atualizado.is-antiga::before { flex: 0 0 auto; margin-top: .3rem; }
 .ap-marcador { display: grid !important; place-items: center; border-radius: 50%; border: 3px solid var(--c-white); box-shadow: 0 4px 14px rgb(40 8 16 / 30%); }
 .ap-marcador .icon { width: 1.25rem; height: 1.25rem; }
 .ap-marcador-moto { background: var(--c-orange); color: var(--c-white); }
@@ -242,6 +244,7 @@
 .ap-marcador-casa { background: var(--c-wine); color: var(--c-white); }
 .ap-marcador-loja { background: var(--c-white); color: var(--c-wine); border-color: var(--c-wine); }
 .leaflet-marker-icon.ap-marcador-moto { transition: transform 1.2s linear; }
+.ap-marcador-moto.is-antiga::after { animation: none; }
 @keyframes ap-pulso { 0% { opacity: .7; transform: scale(.8); } 100% { opacity: 0; transform: scale(1.5); } }
 @media (prefers-reduced-motion: reduce) {
   .ap-marcador-moto::after { animation: none; }

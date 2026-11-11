@@ -39,16 +39,16 @@ $minutos = static function (?string $desde): string {
         </dl>
     </header>
 
-    <section class="local-cartao" data-local data-local-ligado="<?= $posicao !== null ? '1' : '0' ?>" aria-labelledby="local-titulo">
+    <section class="local-cartao" data-local data-local-ligado="0" aria-labelledby="local-titulo" aria-live="polite">
         <span class="local-icone" aria-hidden="true"><?= Icon::svg('map-pin', 'icon-lg') ?></span>
         <div class="local-texto">
-            <h2 id="local-titulo" data-local-titulo>Localização desligada</h2>
-            <p data-local-status>Ligue para o cliente ver você chegando no mapa, como nos apps de corrida. Só aparece para o cliente do pedido que está com você.</p>
+            <h2 id="local-titulo" data-local-titulo>Ligando sua localização...</h2>
+            <p data-local-status>Procurando o sinal do GPS.</p>
         </div>
-        <button class="btn btn-primary btn-block local-botao" type="button" data-local-botao>
-            <?= Icon::svg('locate-fixed', 'icon-sm') ?><span data-local-botao-texto>Compartilhar minha localização</span>
+        <button class="btn btn-primary btn-block local-botao" type="button" data-local-botao hidden>
+            <?= Icon::svg('refresh-cw', 'icon-sm') ?><span>Tentar de novo</span>
         </button>
-        <p class="local-dica"><?= Icon::svg('info', 'icon-sm') ?>Deixe esta tela aberta durante as entregas. A tela fica acesa enquanto a localização estiver ligada.</p>
+        <p class="local-dica"><?= Icon::svg('info', 'icon-sm') ?>A localização fica ligada enquanto você trabalha. O cliente só vê você durante a entrega dele. Deixe esta tela aberta: ela fica acesa sozinha.</p>
     </section>
 
     <section class="entregas" aria-labelledby="titulo-rota">

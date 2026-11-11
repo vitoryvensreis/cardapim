@@ -78,3 +78,20 @@
 @media (prefers-reduced-motion: reduce) {
   .local-cartao[data-local-ligado="1"] .local-icone::after { animation: none; }
 }
+
+/* Localizacao obrigatoria: sem permissao, esta tela fica no lugar do painel */
+.entregador-main [hidden] { display: none !important; }
+.local-bloqueio {
+  display: grid; justify-items: center; gap: .9rem; width: min(100%, 30rem); margin: 1rem auto 0; padding: 1.75rem 1.25rem;
+  border: 1.5px solid #f3cdbf; border-radius: var(--r-xl); background: var(--c-white); text-align: center;
+  box-shadow: 0 12px 30px rgb(101 20 36 / 10%);
+}
+.local-bloqueio-icone {
+  position: relative; display: grid; place-items: center; width: 4.5rem; height: 4.5rem; border-radius: 1.4rem;
+  background: var(--c-orange-100); color: var(--c-orange-700);
+}
+.local-bloqueio-icone .icon { width: 2.2rem; height: 2.2rem; }
+.local-bloqueio h1 { color: var(--c-ink); font: 800 1.45rem/1.2 var(--f-head); }
+.local-bloqueio > p { color: var(--c-muted); line-height: 1.5; }
+.local-bloqueio-passos { display: grid; gap: .55rem; width: 100%; margin: 0; padding: .9rem 1rem .9rem 2.1rem; border-radius: var(--r-md); background: #faf5f6; color: var(--c-ink); font-size: .92rem; line-height: 1.45; text-align: left; }
+.local-bloqueio-passos .icon { display: inline-block; margin: 0 .15rem; vertical-align: -.2em; color: var(--c-wine); }

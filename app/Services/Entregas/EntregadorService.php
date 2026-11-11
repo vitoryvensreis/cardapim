@@ -98,11 +98,19 @@ final class EntregadorService
         ];
         $u = $this->db->prepare('UPDATE entregador_posicoes SET latitude = ?, longitude = ?, precisao_m = ?, direcao = ?, velocidade_kmh = ?, atualizado_em = ?, id_restaurante = ? WHERE id_user = ?');
         $u->execute([...$valores, $this->idRestaurante, $this->autor->id]);
-        if ($u->rowCount() === 0) {
+        // rowCount do MySQL conta so linhas ALTERADAS: dois envios iguais no mesmo segundo dariam 0. Confere se a linha existe.
+        if ($u->rowCount() === 0 && !$this->temPosicao()) {
             $this->db->prepare('INSERT INTO entregador_posicoes (latitude, longitude, precisao_m, direcao, velocidade_kmh, atualizado_em, id_restaurante, id_user) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
                 ->execute([...$valores, $this->idRestaurante, $this->autor->id]);
         }
         return Resultado::sucesso('Localização atualizada.');
+    }
+
+    private function temPosicao(): bool
+    {
+        $q = $this->db->prepare('SELECT 1 FROM entregador_posicoes WHERE id_user = ?');
+        $q->execute([$this->autor->id]);
+        return $q->fetchColumn() !== false;
     }
 
     public function pararPosicao(): void

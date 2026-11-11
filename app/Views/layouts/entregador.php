@@ -40,7 +40,25 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
             </div>
         </div>
     </header>
-    <main id="conteudo" class="app-main entregador-main"><?= $content ?></main>
+    <main id="conteudo" class="app-main entregador-main">
+        <section class="local-bloqueio" data-local-bloqueio aria-labelledby="bloqueio-titulo" hidden>
+            <span class="local-bloqueio-icone" aria-hidden="true"><?= Icon::svg('map-pin', 'icon-lg') ?></span>
+            <h1 id="bloqueio-titulo" data-bloqueio-titulo>Ative sua localização para começar</h1>
+            <p data-bloqueio-texto>Para receber e fazer entregas, o Cardapim precisa da sua localização. O cliente só vê você enquanto o pedido dele está a caminho.</p>
+            <ol class="local-bloqueio-passos" data-bloqueio-android hidden>
+                <li>Toque no <?= Icon::svg('lock', 'icon-sm') ?><strong>cadeado</strong> ao lado do endereço do site (no app instalado: menu <?= Icon::svg('ellipsis-vertical', 'icon-sm') ?> &gt; <strong>Configurações do site</strong>).</li>
+                <li>Abra <strong>Permissões</strong> &gt; <strong>Localização</strong> e escolha <strong>Permitir</strong>.</li>
+                <li>Volte aqui e toque em <strong>Tentar de novo</strong>.</li>
+            </ol>
+            <ol class="local-bloqueio-passos" data-bloqueio-ios hidden>
+                <li>Abra <strong>Ajustes</strong> &gt; <strong>Privacidade e Segurança</strong> &gt; <strong>Serviços de Localização</strong> e deixe ligado.</li>
+                <li>Em <strong>Ajustes</strong> &gt; <strong>Apps</strong> &gt; <strong>Safari</strong> &gt; <strong>Localização</strong>, escolha <strong>Permitir</strong>.</li>
+                <li>Volte aqui e toque em <strong>Tentar de novo</strong>.</li>
+            </ol>
+            <button class="btn btn-primary btn-lg btn-block" type="button" data-local-ativar><?= Icon::svg('locate-fixed', 'icon-sm') ?><span data-local-ativar-texto>Ativar localização</span></button>
+        </section>
+        <?= $content ?>
+    </main>
     <dialog class="confirmar" data-confirmar-dialogo aria-labelledby="confirmar-titulo">
         <form method="dialog" class="confirmar-caixa">
             <span class="confirmar-icone" aria-hidden="true"><?= Icon::svg('info', 'icon-lg') ?></span>
