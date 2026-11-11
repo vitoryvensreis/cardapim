@@ -227,6 +227,7 @@ $pedidosMock = [
                         'mensal' => ['Mensal', 'por mês', 'zap'],
                         'semestral' => ['Semestral', 'a cada 6 meses', 'trending-up'],
                         'anual' => ['Anual', 'por ano', 'badge-check'],
+                        'vitalicio' => ['Vitalício', 'para sempre', 'infinity'],
                         default => ['Plano', 'por período', 'wallet'],
                     };
                     ?>
@@ -246,7 +247,7 @@ $pedidosMock = [
                     </article>
                 <?php endforeach; ?>
             </div>
-            <p class="plans-note"><?= Icon::svg('info', 'icon-sm') ?>Os planos apresentados são demonstrativos. O cadastro e a contratação ainda estão em preparação.</p>
+            <p class="plans-note"><?= Icon::svg('info', 'icon-sm') ?>Pagamento seguro pelo Asaas. Sem fidelidade: cancele quando quiser no seu painel.</p>
         <?php else: ?>
             <div class="plans-empty" role="status">
                 <span class="plans-empty-icon"><?= Icon::svg('wallet', 'icon-lg') ?></span>

@@ -136,3 +136,11 @@ ellipsis-vertical
 hand-platter
 layout-grid
 sticky-note
+globe
+infinity
+gift
+repeat
+palette
+type
+external-link
+hourglass

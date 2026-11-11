@@ -294,3 +294,21 @@
 /* Paginas legais abertas pelo cardapio de um restaurante (?r=slug) */
 .rodape-cardapio { padding: 1.5rem 1rem 2rem; border-top: 1px solid var(--c-line, #eee); text-align: center; color: var(--c-muted, #666); font-size: .875rem; }
 .rodape-cardapio p { margin: 0; }
+
+/* ---------- Cadastro: escolha do plano e erros do servidor ---------- */
+.planos-cadastro { display: grid; gap: .6rem; margin-bottom: .75rem; }
+.plano-cadastro { position: relative; display: grid; gap: .15rem; padding: .85rem 1rem .85rem 2.6rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); cursor: pointer; transition: border-color var(--t-fast), background var(--t-fast); }
+.plano-cadastro:hover { border-color: var(--c-wine-400); }
+.plano-cadastro input { position: absolute; top: 1rem; left: .95rem; width: 1.05rem; height: 1.05rem; accent-color: var(--c-wine); }
+.plano-cadastro:has(input:checked) { border-color: var(--c-wine); background: var(--c-blush); }
+.plano-cadastro:has(input:focus-visible) { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.plano-cadastro.is-indisponivel { opacity: .55; cursor: not-allowed; }
+.plano-cadastro-nome { color: var(--c-wine); font: 800 1rem/1.25 var(--f-head); }
+.plano-cadastro-preco { color: var(--c-muted); font-size: .85rem; }
+.plano-cadastro-preco strong { color: var(--c-ink); font: 800 1.05rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
+.plano-cadastro-desc { color: var(--c-muted); font-size: .82rem; }
+.cadastro-erro { margin: .35rem 0 .75rem; color: var(--c-danger); font-size: .85rem; font-weight: 600; }
+.check.is-invalid .check-box { border-color: var(--c-danger); }
+@media (min-width: 40rem) {
+  .planos-cadastro { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+}

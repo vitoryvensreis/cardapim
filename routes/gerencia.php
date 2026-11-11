@@ -72,6 +72,7 @@ return static function (Router $router): void {
     $router->post($g . '/assinatura/assinar', [AssinaturaController::class, 'assinar']);
     $router->post($g . '/assinatura/cancelar', [AssinaturaController::class, 'cancelar']);
     $router->post($g . '/assinatura/reativar', [AssinaturaController::class, 'reativar']);
+    $router->post($g . '/assinatura/cobranca', [AssinaturaController::class, 'cobranca']);
 
     // Minha conta (do gerente)
     $router->get($g . '/minha-conta', [MinhaContaController::class, 'mostrar']);

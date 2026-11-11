@@ -15,12 +15,13 @@ final class Configuracoes
         'logo_branca',
         'logo_preta',
         'icone',
+        'icone_app',
         'nome_sistema',
         'descricao_padrao',
         'texto_rodape',
     ];
 
-    private const LOGO_KEYS = ['logo_colorida', 'logo_branca', 'logo_preta', 'icone'];
+    public const LOGO_KEYS = ['logo_colorida', 'logo_branca', 'logo_preta', 'icone', 'icone_app'];
 
     /** @var array<string,string>|null */
     private static ?array $cache = null;
@@ -53,12 +54,19 @@ final class Configuracoes
     }
 
     /** Arquivos oficiais do repositorio, usados quando o banco esta indisponivel. */
-    private const LOGO_FALLBACK = [
+    public const LOGO_FALLBACK = [
         'logo_colorida' => '/assets/img/logo-colorida.svg',
         'logo_branca' => '/assets/img/logo-branca.svg',
         'logo_preta' => '/assets/img/logo-preta.svg',
         'icone' => '/assets/img/icone.svg',
+        'icone_app' => '/assets/img/pwa/icon-512.png',
     ];
+
+    /** Depois de salvar no painel: a proxima leitura busca de novo no banco. */
+    public static function esquecer(): void
+    {
+        self::$cache = null;
+    }
 
     /**
      * Logo do banco com retorno ao arquivo oficial local: a pagina nunca cai por branding.
@@ -113,9 +121,11 @@ final class Configuracoes
             throw new RuntimeException('Logo oficial nao configurada no banco.');
         }
 
-        $local = str_starts_with($url, '/assets/img/')
+        $local = (str_starts_with($url, '/assets/img/')
             && !str_contains($url, '..')
-            && preg_match('~\A/assets/img/[a-zA-Z0-9._/-]+\z~D', $url) === 1;
+            && preg_match('~\A/assets/img/[a-zA-Z0-9._/-]+\z~D', $url) === 1)
+            // Enviada pelo painel (Configuracoes > Logos), guardada fora da pasta publica.
+            || \Cardapim\Modules\Marca\MarcaUpload::arquivoDe($url) !== null;
         $remote = str_starts_with($url, 'https://')
             && filter_var($url, FILTER_VALIDATE_URL) !== false
             && !preg_match('/[\x00-\x1f\x7f]/', $url);

@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use Cardapim\Controllers\Plataforma\ConfiguracoesController;
 use Cardapim\Controllers\Plataforma\IntegracoesController;
 use Cardapim\Controllers\Plataforma\PainelController;
+use Cardapim\Controllers\Plataforma\PlanosController;
 use Cardapim\Core\Router;
 
 // Painel da PLATAFORMA (adm_master). Registrado antes das rotas /{slug}. Acesso conferido em BasePlataforma.
@@ -23,6 +25,22 @@ return static function (Router $router): void {
     $router->get('/painel/integracoes/whatsapp/estado', [IntegracoesController::class, 'whatsappEstado']);
     $router->post('/painel/integracoes/whatsapp/teste', [IntegracoesController::class, 'whatsappTeste']);
     $router->post('/painel/integracoes/whatsapp/desconectar', [IntegracoesController::class, 'whatsappDesconectar']);
+
+    // Planos: publicos (site) e privados (link de convite), vitalicio gratis.
+    $router->get('/painel/planos', [PlanosController::class, 'lista']);
+    $router->get('/painel/planos/novo', [PlanosController::class, 'novo']);
+    $router->post('/painel/planos', [PlanosController::class, 'criar']);
+    $router->get('/painel/planos/{id}', [PlanosController::class, 'editar']);
+    $router->post('/painel/planos/{id}', [PlanosController::class, 'atualizar']);
+    $router->post('/painel/planos/{id}/convite', [PlanosController::class, 'convite']);
+    $router->post('/painel/planos/{id}/ativo', [PlanosController::class, 'alternar']);
+    $router->post('/painel/planos/{id}/excluir', [PlanosController::class, 'excluir']);
+
+    // Configuracoes: nome da marca, textos e logos.
+    $router->get('/painel/configuracoes', [ConfiguracoesController::class, 'inicio']);
+    $router->post('/painel/configuracoes/textos', [ConfiguracoesController::class, 'textos']);
+    $router->post('/painel/configuracoes/logo', [ConfiguracoesController::class, 'logo']);
+    $router->post('/painel/configuracoes/logo/padrao', [ConfiguracoesController::class, 'logoPadrao']);
 
     // Demais secoes (em construcao): dashboard, restaurantes, planos, faturas, usuarios, logs...
     $router->get('/painel/{secao}', [PainelController::class, 'secao']);

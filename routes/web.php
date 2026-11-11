@@ -24,6 +24,7 @@ $router->post('/login/verificacao', [AuthController::class, 'verificar']);
 $router->post('/login/verificacao/reenviar', [AuthController::class, 'reenviar']);
 $router->post('/sair', [AuthController::class, 'sair']);
 $router->get('/cadastro', Guard::paginaPublica([AuthController::class, 'register']));
+$router->post('/cadastro', Guard::paginaPublica([AuthController::class, 'cadastrar']));
 $router->get('/status', [StatusController::class, 'index']);
 // App instalavel (PWA) da equipe
 // Sem extensao de arquivo de proposito: o Nginx manda direto ao PHP (com o tipo certo e sem cache), sem regra de estaticos.
@@ -43,6 +44,7 @@ $router->get('/tratamento-de-dados', Guard::paginaPublica([LegalController::clas
 (require __DIR__ . '/plataforma.php')($router);
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
 $router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
+$router->get('/midia/marca/{arquivo}', [MidiaController::class, 'marca']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 (require __DIR__ . '/gerencia.php')($router);
 (require __DIR__ . '/caixa.php')($router);

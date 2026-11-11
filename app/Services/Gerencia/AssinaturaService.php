@@ -8,34 +8,41 @@ use Cardapim\Repositories\Gerencia\AssinaturaRepository;
 use Cardapim\Repositories\PlanoRepository;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
+use Cardapim\Services\Plataforma\AssinaturaCobranca;
+use Cardapim\Services\Plataforma\CobrancaAssinaturas;
 use Cardapim\Shared\Numero;
 use DateTimeImmutable;
 use PDO;
 use Throwable;
 
 /**
- * Assinatura do restaurante: ver o plano, assinar, trocar de plano, cancelar e desfazer o cancelamento.
- * A cobranca automatica (Asaas) ainda nao existe: aqui so registramos o plano escolhido e as datas.
+ * Assinatura do restaurante (aba do gerente): ver o plano e as faturas, pagar, assinar, trocar de plano, cancelar e
+ * desfazer o cancelamento. A cobranca recorrente e feita pelo Asaas da plataforma (AssinaturaCobranca).
+ * Plano gratis (valor 0, ex.: parceiro vitalicio) nunca gera cobranca.
  */
 final class AssinaturaService
 {
-    public const MESES = ['mensal' => 1, 'semestral' => 6, 'anual' => 12];
-    public const ROTULO_PERIODO = ['mensal' => 'por mês', 'semestral' => 'por semestre', 'anual' => 'por ano'];
+    public const MESES = ['mensal' => 1, 'semestral' => 6, 'anual' => 12, 'vitalicio' => 0];
+    public const ROTULO_PERIODO = ['mensal' => 'por mês', 'semestral' => 'por semestre', 'anual' => 'por ano', 'vitalicio' => 'para sempre'];
 
     private readonly AssinaturaRepository $assinaturas;
+    private readonly AssinaturaCobranca $cobranca;
 
     public function __construct(
         private readonly PDO $db,
         private readonly UsuarioLogado $autor,
         private readonly int $idRestaurante,
         private readonly ?DateTimeImmutable $hoje = null,
+        ?AssinaturaCobranca $cobranca = null,
     ) {
         $this->assinaturas = new AssinaturaRepository($db);
+        $this->cobranca = $cobranca ?? new AssinaturaCobranca($db, hoje: $hoje);
     }
 
     /**
      * Assinatura vigente com a situacao calculada. Cancelada com periodo vencido vira "encerrada".
-     * @return array<string,mixed>|null com 'situacao' = ativa | vencida | cancelada
+     * situacao: aguardando | ativa | gratis | atrasada | vencida | cancelada
+     * @return array<string,mixed>|null
      */
     public function vigente(): ?array
     {
@@ -44,12 +51,35 @@ final class AssinaturaService
             return null;
         }
         $hoje = $this->hoje()->format('Y-m-d');
-        if ($a['status'] === 'cancelada' && $a['vence_em'] < $hoje) {
+        if ($a['status'] === 'cancelada' && ($a['vence_em'] === null || $a['vence_em'] < $hoje)) {
             $this->assinaturas->mudarStatus($this->idRestaurante, (int) $a['id'], 'encerrada', $this->agora());
+            // Sem plano: o gerente continua entrando, mas so para escolher um plano novo.
+            $this->assinaturas->mudarRestaurante($this->idRestaurante, 'inadimplente', ['ativo', 'pendente']);
             return null;
         }
-        $a['situacao'] = $a['status'] === 'ativa' && $a['vence_em'] < $hoje ? 'vencida' : $a['status'];
+        $aberta = $this->assinaturas->faturaEmAberto($this->idRestaurante);
+        $a['fatura_aberta'] = $aberta;
+        $a['situacao'] = match (true) {
+            $a['status'] === 'cancelada' => 'cancelada',
+            $a['status'] === 'aguardando' => 'aguardando',
+            (float) $a['valor'] <= 0 => 'gratis',
+            $aberta !== null && $aberta['vencimento'] < $hoje => 'atrasada',
+            $a['vence_em'] !== null && $a['vence_em'] < $hoje && $a['asaas_assinatura_id'] === null => 'vencida',
+            default => 'ativa',
+        };
         return $a;
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function faturas(): array
+    {
+        return $this->assinaturas->faturas($this->idRestaurante);
+    }
+
+    /** Planos que o gerente pode escolher: os publicos (o privado atual continua aparecendo como "seu plano"). @return list<array<string,mixed>> */
+    public function planos(): array
+    {
+        return (new PlanoRepository($this->db))->listarPublicos();
     }
 
     public function assinar(int $planoId): Resultado
@@ -64,47 +94,99 @@ final class AssinaturaService
                 ? $this->reativar()
                 : Resultado::falha('Você já está no plano ' . $plano['nome'] . '.');
         }
+        $gratis = (float) $plano['valor'] <= 0;
+        $regras = (new CobrancaAssinaturas($this->db))->regras();
+        $primeiro = $this->hoje()->modify('+' . max(1, $regras['vencimento_dias']) . ' days');
+        $statusRest = $this->assinaturas->statusRestaurante($this->idRestaurante);
 
-        $inicio = $this->hoje();
-        $vence = self::somarMeses($inicio, self::MESES[$plano['periodo']] ?? 1);
+        // Situacao da nova linha: gratis = ativa para sempre; pago = mantem o periodo ja pago (troca) ou
+        // usa ate o 1o vencimento (restaurante ja liberado) ou aguarda o 1o pagamento (restaurante novo/bloqueado).
+        if ($gratis) {
+            [$status, $vence] = ['ativa', null];
+        } elseif ($atual !== null && $atual['status'] !== 'aguardando' && (float) $atual['valor'] > 0 && $atual['vence_em'] !== null) {
+            [$status, $vence] = ['ativa', $atual['vence_em']];
+        } elseif ($statusRest === 'ativo') {
+            [$status, $vence] = ['ativa', $primeiro->format('Y-m-d')];
+        } else {
+            [$status, $vence] = ['aguardando', null];
+        }
+
+        // Troca pago -> pago com assinatura no Asaas: so muda valor/ciclo la (as faturas seguem na mesma assinatura).
+        $reaproveitar = null;
+        if ($atual !== null && !$gratis && $atual['asaas_assinatura_id'] !== null && $atual['status'] !== 'cancelada') {
+            $erro = $this->cobranca->atualizar($atual, (string) $plano['valor'], (string) $plano['periodo'], (string) $plano['nome']);
+            if ($erro === null) {
+                $reaproveitar = $atual;
+            } elseif ($erro !== 'sem-asaas') {
+                return Resultado::falha('Não foi possível trocar o plano agora. ' . $erro);
+            }
+        }
+        if ($atual !== null && $reaproveitar === null && $atual['asaas_assinatura_id'] !== null) {
+            if (($erro = $this->cobranca->remover($atual)) !== null) {
+                return Resultado::falha('Não foi possível trocar o plano agora. ' . $erro);
+            }
+        }
+
         $this->db->beginTransaction();
         try {
             $this->assinaturas->travarRestaurante($this->idRestaurante, InsumoService::paraAtualizar($this->db));
             if ($atual !== null) {
                 $this->assinaturas->mudarStatus($this->idRestaurante, (int) $atual['id'], 'encerrada', $this->agora());
             }
-            $this->assinaturas->criar($this->idRestaurante, [
+            $id = $this->assinaturas->criar($this->idRestaurante, [
                 'plano_id' => (int) $plano['id'],
                 'valor' => (string) $plano['valor'],
                 'periodo' => (string) $plano['periodo'],
-                'inicio_em' => $inicio->format('Y-m-d'),
-                'vence_em' => $vence->format('Y-m-d'),
+                'status' => $status,
+                'inicio_em' => $this->hoje()->format('Y-m-d'),
+                'vence_em' => $vence,
+                'ambiente' => $reaproveitar['ambiente'] ?? null,
+                'asaas_cliente_id' => $reaproveitar['asaas_cliente_id'] ?? null,
+                'asaas_assinatura_id' => $reaproveitar['asaas_assinatura_id'] ?? null,
             ]);
+            if ($gratis) {
+                $this->assinaturas->mudarRestaurante($this->idRestaurante, 'ativo', ['pendente', 'inadimplente']);
+            }
             $this->db->commit();
         } catch (Throwable $exception) {
             $this->db->rollBack();
             throw $exception;
         }
 
-        $preco = Numero::reais((string) $plano['valor']) . ' ' . (self::ROTULO_PERIODO[$plano['periodo']] ?? '');
-        if ($atual === null) {
-            Auditoria::registrar($this->autor, 'Assinatura contratada', sprintf('Plano %s (%s), válido até %s.', $plano['nome'], $preco, $vence->format('d/m/Y')));
-            return Resultado::sucesso('Pronto! Você assinou o plano ' . $plano['nome'] . '.');
+        $cobranca = ['ok' => true, 'mensagem' => ''];
+        if (!$gratis && $reaproveitar === null) {
+            $proximo = $vence !== null && $vence > $primeiro->format('Y-m-d') ? $vence : $primeiro->format('Y-m-d');
+            $cobranca = $this->cobranca->gerar($id, $proximo);
         }
-        Auditoria::registrar($this->autor, 'Plano trocado', sprintf('De %s para %s (%s), novo período até %s.', $atual['plano_nome'], $plano['nome'], $preco, $vence->format('d/m/Y')));
-        return Resultado::sucesso('Plano trocado para ' . $plano['nome'] . '. O novo período começa hoje.');
+        $preco = self::preco((string) $plano['valor'], (string) $plano['periodo']);
+        Auditoria::registrar($this->autor, $atual === null ? 'Assinatura contratada' : 'Plano trocado', $atual === null
+            ? sprintf('Plano %s (%s).', $plano['nome'], $preco)
+            : sprintf('De %s para %s (%s).', $atual['plano_nome'], $plano['nome'], $preco));
+        if (!$cobranca['ok']) {
+            return Resultado::sucesso('Plano ' . $plano['nome'] . ' escolhido. ' . $cobranca['mensagem']);
+        }
+        if ($gratis) {
+            return Resultado::sucesso('Pronto! Você está no plano ' . $plano['nome'] . ', sem cobrança.');
+        }
+        return Resultado::sucesso($atual === null
+            ? 'Pronto! Você escolheu o plano ' . $plano['nome'] . '. A fatura já está disponível logo abaixo.'
+            : 'Plano trocado para ' . $plano['nome'] . '. O novo valor vale a partir da próxima fatura.');
     }
 
     public function cancelar(): Resultado
     {
         $atual = $this->vigente();
-        if ($atual === null || $atual['status'] !== 'ativa') {
-            return Resultado::falha('Não há assinatura ativa para cancelar.');
+        if ($atual === null || $atual['status'] !== 'ativa' || (float) $atual['valor'] <= 0) {
+            return Resultado::falha('Não há assinatura paga ativa para cancelar.');
+        }
+        if (($erro = $this->cobranca->remover($atual)) !== null) {
+            return Resultado::falha('Não foi possível cancelar agora. ' . $erro);
         }
         $this->assinaturas->mudarStatus($this->idRestaurante, (int) $atual['id'], 'cancelada', $this->agora());
-        $ate = self::data((string) $atual['vence_em']);
+        $this->assinaturas->salvarAsaas((int) $atual['id'], $atual['ambiente'], $atual['asaas_cliente_id'], null, null);
+        $ate = $atual['vence_em'] !== null ? self::data((string) $atual['vence_em']) : 'hoje';
         Auditoria::registrar($this->autor, 'Assinatura cancelada', sprintf('Plano %s. Acesso mantido até %s.', $atual['plano_nome'], $ate));
-        return Resultado::sucesso('Assinatura cancelada. Você continua usando tudo até ' . $ate . '. Mudou de ideia? É só desfazer.');
+        return Resultado::sucesso('Assinatura cancelada. Não haverá novas cobranças e você continua usando tudo até ' . $ate . '. Mudou de ideia? É só desfazer.');
     }
 
     public function reativar(): Resultado
@@ -114,8 +196,27 @@ final class AssinaturaService
             return Resultado::falha('Não há cancelamento para desfazer.');
         }
         $this->assinaturas->mudarStatus($this->idRestaurante, (int) $atual['id'], 'ativa', $this->agora());
-        Auditoria::registrar($this->autor, 'Cancelamento desfeito', sprintf('Plano %s continua ativo (período até %s).', $atual['plano_nome'], self::data((string) $atual['vence_em'])));
-        return Resultado::sucesso('Que bom que você ficou! O plano ' . $atual['plano_nome'] . ' continua ativo.');
+        // A cobranca volta a partir do fim do periodo ja pago.
+        $proximo = $atual['vence_em'] !== null && $atual['vence_em'] > $this->hoje()->format('Y-m-d') ? (string) $atual['vence_em'] : null;
+        $cobranca = $this->cobranca->gerar((int) $atual['id'], $proximo);
+        Auditoria::registrar($this->autor, 'Cancelamento desfeito', sprintf('Plano %s continua ativo.', $atual['plano_nome']));
+        return Resultado::sucesso('Que bom que você ficou! O plano ' . $atual['plano_nome'] . ' continua ativo.' . ($cobranca['ok'] ? '' : ' ' . $cobranca['mensagem']));
+    }
+
+    /** "Gerar cobranca de novo" (quando o Asaas falhou ao assinar) e "Atualizar faturas". */
+    public function gerarCobranca(): Resultado
+    {
+        $atual = $this->vigente();
+        if ($atual === null || (float) $atual['valor'] <= 0 || $atual['status'] === 'cancelada') {
+            return Resultado::falha('Não há cobrança para gerar.');
+        }
+        $r = $this->cobranca->gerar((int) $atual['id']);
+        return $r['ok'] ? Resultado::sucesso('Faturas atualizadas.') : Resultado::falha($r['mensagem']);
+    }
+
+    public static function preco(string $valor, string $periodo): string
+    {
+        return (float) $valor <= 0 ? 'Grátis' : Numero::reais($valor) . ' ' . (self::ROTULO_PERIODO[$periodo] ?? '');
     }
 
     /** 31/01 + 1 mes = 28/02 (ou 29/02), nunca 03/03. */

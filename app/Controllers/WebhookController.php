@@ -52,6 +52,9 @@ final class WebhookController
             }
             if ($integracao['id_restaurante'] !== null) {
                 $this->pagamentoDePedido((int) $integracao['id_restaurante'], $evento, $dados, $idExterno);
+            } else {
+                // Asaas da plataforma: faturas das assinaturas (paga = libera o restaurante; repetido nao muda nada).
+                (new \Cardapim\Services\Plataforma\AssinaturaCobranca(Database::connect()))->processarAviso($evento, $dados);
             }
             // Repetido tambem responde 200: o Asaas entrega "pelo menos uma vez".
             return self::texto('ok', 200);

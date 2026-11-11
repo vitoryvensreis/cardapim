@@ -46,12 +46,8 @@ final class MenuPlataforma
             'rotulo' => 'Planos',
             'icone' => 'tags',
             'descricao' => 'Planos e preços que os restaurantes podem assinar.',
-            'planejado' => [
-                'Criar e editar planos e preços',
-                'Períodos mensal, semestral e anual',
-                'Mostrar ou esconder um plano na página inicial',
-                'Quantos restaurantes estão em cada plano',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
         'faturas' => [
             'titulo' => 'Faturas',
@@ -101,13 +97,9 @@ final class MenuPlataforma
             'titulo' => 'Configurações',
             'rotulo' => 'Configurações',
             'icone' => 'settings',
-            'descricao' => 'Dados e aparência da plataforma.',
-            'planejado' => [
-                'Nome, logos e ícone da plataforma',
-                'Dados da empresa (razão social, CNPJ, contato)',
-                'Textos do rodapé e das páginas legais',
-                'Mensagens automáticas (códigos de verificação, cobranças)',
-            ],
+            'descricao' => 'Nome, textos e logos da plataforma.',
+            'planejado' => [],
+            'pronto' => true,
         ],
         'suporte' => [
             'titulo' => 'Suporte',

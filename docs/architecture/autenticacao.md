@@ -36,6 +36,7 @@ Fonte unica: `app/Services/Auth/Autorizacao.php` (alterar ali muda login e rotas
 - Um gerente do restaurante A recebe **403** em `/b/gerencia`. A resposta e a mesma para "nao existe" e "nao e seu", para nao revelar outros restaurantes.
 - Sem login: redireciona para `/login`. Cargo sem permissao: **403** com botao para a propria area.
 - Restaurante `suspenso` ou `inativo`: a equipe nao entra (login recusado e sessoes existentes deixam de valer). `ativo` e `pendente` tem acesso.
+- Restaurante `inadimplente` (fatura atrasada alem da tolerancia): entra, mas o gerente so ve a Assinatura e os outros cargos veem "acesso pausado" ([assinaturas.md](assinaturas.md)).
 - O usuario e recarregado do banco a cada requisicao: desativar a conta ou mudar o cargo vale na hora.
 
 ## Equipe fica no painel
