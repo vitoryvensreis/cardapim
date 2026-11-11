@@ -144,3 +144,12 @@ palette
 type
 external-link
 hourglass
+banknote-arrow-up
+banknote-arrow-down
+calendar-range
+file-spreadsheet
+arrow-down-left
+trending-down
+piggy-bank
+undo-2
+arrow-right-left

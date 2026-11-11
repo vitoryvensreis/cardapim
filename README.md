@@ -84,16 +84,17 @@
 - Ja publica: estoque alterado, aviso do Asaas recebido e WhatsApp conectado/desconectado. Pedidos, cozinha, caixa e chats usam a mesma base quando forem criados.
 - [Arquitetura e como publicar eventos](docs/architecture/tempo-real.md) · [Instalacao na VPS](docs/deploy/tempo-real.md).
 
-## Painel do gerente: Estoque, Equipe, Perfil, Assinatura e Minha conta
+## Painel do gerente: Estoque, Equipe, Financeiro, Perfil, Assinatura e Minha conta
 
 - **Estoque**: resumo do que acabou, do que esta abaixo do minimo e do que esta fora de venda (com o motivo), valor parado em estoque e reposicao rapida ("chegou mercadoria"); produtos com ficha tecnica dinamica, custo e sobra estimados; insumos com barra de nivel; categorias.
 - **Equipe**: contas de caixa, garcom e entregador com senha facil de passar, bloqueio imediato, troca de senha e exclusao (anonimiza quem ja tem historico).
+- **Financeiro**: quanto entrou, quanto saiu e o resultado do periodo (hoje, ontem, 7 dias, mes, mes passado ou datas escolhidas), de onde veio e para onde foi o dinheiro, vendas por canal, dia a dia, extrato de entradas e saidas, fechamentos de caixa com sobras e faltas, contas a pagar e a receber (repeticao mensal, "Paguei" em um toque, aviso de vencidas) e planilha para o contador. [Detalhes](docs/architecture/financeiro.md).
 - **Perfil**: nome, logo (upload seguro, regravada em WebP), telefone, endereco completo e horario de funcionamento (sempre aberto ou por dia, ate 2 turnos, passando da meia-noite) com selo "Aberto agora".
 - **Assinatura**: plano atual, faturas com botao "Pagar agora" (pagina do Asaas: Pix, boleto ou cartao), assinar, trocar, cancelar e desfazer, historico. Cobranca recorrente pelo Asaas da plataforma. [Detalhes](docs/architecture/assinaturas.md).
 - **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
 - Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
 - **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (WPPConnect proprio em Docker, QR Code e mensagem de teste) e iFood (codigo de vinculo, autorizacao e escolha da loja). [Detalhes](docs/architecture/integracoes.md) · [WPPConnect em Docker](docs/deploy/wppconnect-docker.md).
-- Demais itens do menu (Visao geral, Mesas, Financeiro, Suporte) continuam com a tela "em construcao".
+- Demais itens do menu (Visao geral, Suporte) continuam com a tela "em construcao".
 
 ---
 

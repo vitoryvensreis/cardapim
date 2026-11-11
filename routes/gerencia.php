@@ -6,6 +6,7 @@ use Cardapim\Controllers\Gerencia\AssinaturaController;
 use Cardapim\Controllers\Gerencia\EntregaPagamentoController;
 use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
+use Cardapim\Controllers\Gerencia\FinanceiroController;
 use Cardapim\Controllers\Gerencia\IntegracoesController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
 use Cardapim\Controllers\Gerencia\PerfilController;
@@ -48,6 +49,20 @@ return static function (Router $router): void {
     $router->post($g . '/equipe/{id}/senha', [EquipeController::class, 'senha']);
     $router->post($g . '/equipe/{id}/acesso', [EquipeController::class, 'acesso']);
     $router->post($g . '/equipe/{id}/excluir', [EquipeController::class, 'excluir']);
+
+    // Financeiro
+    $router->get($g . '/financeiro', [FinanceiroController::class, 'resumo']);
+    $router->get($g . '/financeiro/extrato', [FinanceiroController::class, 'extrato']);
+    $router->get($g . '/financeiro/fechamentos', [FinanceiroController::class, 'fechamentos']);
+    $router->get($g . '/financeiro/relatorio', [FinanceiroController::class, 'planilha']);
+    $router->get($g . '/financeiro/contas', [FinanceiroController::class, 'contas']);
+    $router->get($g . '/financeiro/contas/nova', [FinanceiroController::class, 'novaConta']);
+    $router->post($g . '/financeiro/contas', [FinanceiroController::class, 'criarConta']);
+    $router->get($g . '/financeiro/contas/{id}', [FinanceiroController::class, 'editarConta']);
+    $router->post($g . '/financeiro/contas/{id}', [FinanceiroController::class, 'atualizarConta']);
+    $router->post($g . '/financeiro/contas/{id}/baixar', [FinanceiroController::class, 'baixarConta']);
+    $router->post($g . '/financeiro/contas/{id}/reabrir', [FinanceiroController::class, 'reabrirConta']);
+    $router->post($g . '/financeiro/contas/{id}/excluir', [FinanceiroController::class, 'excluirConta']);
 
     // Perfil do restaurante
     $router->get($g . '/perfil', [PerfilController::class, 'mostrar']);

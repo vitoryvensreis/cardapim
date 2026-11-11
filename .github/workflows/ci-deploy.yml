@@ -87,6 +87,7 @@ jobs:
           php tests/unit/dominio.php
           php tests/unit/marca.php
           php tests/unit/assinaturas.php
+          php tests/unit/financeiro.php
           php tests/unit/gerencia.php
           php tests/unit/integracoes.php
           php tests/unit/tempo-real.php
@@ -277,6 +278,7 @@ jobs:
           bash tests/http/garcom.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/equipe-no-painel.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/planos-cadastro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          bash tests/http/financeiro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/planos.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/marca.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null
@@ -320,7 +322,6 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
-          APPLY_FINANCEIRO: ${{ contains(github.event.head_commit.message, '[cardapim-financeiro]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -348,6 +349,3 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
-          if [[ "$APPLY_FINANCEIRO" == "true" ]]; then
-            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-financeiro.sh'"
-          fi

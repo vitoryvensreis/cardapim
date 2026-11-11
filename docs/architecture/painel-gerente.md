@@ -9,7 +9,7 @@ Configuracao unica das secoes: `app/Services/Painel/MenuGerencia.php` (rotulo, i
 | Operacao | Caixa | `/{slug}/caixa` | abre o **modo caixa** em tela cheia (mesas, comandas e delivery ficam la); o gerente tem "Voltar a gerencia" |
 | Gestao | **Estoque** | `/{slug}/gerencia/estoque` | **pronto**: resumo, produtos, insumos, categorias |
 | Gestao | **Equipe** | `/{slug}/gerencia/equipe` | **pronto**: caixas, garcons e entregadores |
-| Gestao | Financeiro | `/{slug}/gerencia/financeiro` | em construcao |
+| Gestao | **Financeiro** | `/{slug}/gerencia/financeiro` | **pronto**: resumo do periodo, entradas e saidas, contas a pagar e receber, fechamentos de caixa e planilha ([detalhes](financeiro.md)) |
 | Restaurante | **Perfil** | `/{slug}/gerencia/perfil` | **pronto**: nome, logo, telefone, endereco e horario |
 | Restaurante | **Integracoes** | `/{slug}/gerencia/integracoes` | **pronto**: Asaas, WhatsApp (WPPConnect), iFood ([detalhes](integracoes.md)) |
 | Restaurante | **Assinatura** | `/{slug}/gerencia/assinatura` | **pronto**: ver, assinar, trocar, cancelar (sem cobranca automatica) |
@@ -34,7 +34,7 @@ Configuracao unica das secoes: `app/Services/Painel/MenuGerencia.php` (rotulo, i
 
 Todo cadastro, edicao e exclusao grava em `log_user` (`Services/Auditoria`): titulo, descricao com **o que mudou** ("Preco: 24,90 -> 26,90; Ficha tecnica: ... -> ...") e o nome do restaurante entre colchetes. Nunca entram senhas, codigos, segredos ou CPF completo (CPF vai mascarado).
 
-Titulos usados: `Insumo cadastrado/editado/excluido`, `Estoque reposto`, `Categoria cadastrada/editada/excluida`, `Produto cadastrado/editado/excluido/pausado/liberado para venda`, `Equipe: conta criada/editada/excluida`, `Equipe: acesso bloqueado/liberado`, `Equipe: senha redefinida`, `Perfil do restaurante editado`, `Logo do restaurante alterada/removida`, `Horario de funcionamento alterado`, `Assinatura contratada`, `Plano trocado`, `Assinatura cancelada`, `Cancelamento desfeito`, `Minha conta: dados alterados`, `Minha conta: senha alterada`, `Verificacao em duas etapas ligada/desligada`, `Codigos de recuperacao trocados`, `Aparelho(s) desconectado(s)`, `Verificacao recusada`.
+Titulos usados: `Insumo cadastrado/editado/excluido`, `Estoque reposto`, `Categoria cadastrada/editada/excluida`, `Produto cadastrado/editado/excluido/pausado/liberado para venda`, `Equipe: conta criada/editada/excluida`, `Equipe: acesso bloqueado/liberado`, `Equipe: senha redefinida`, `Perfil do restaurante editado`, `Logo do restaurante alterada/removida`, `Horario de funcionamento alterado`, `Conta cadastrada/editada/paga/recebida/excluida`, `Baixa de conta desfeita`, `Assinatura contratada`, `Plano trocado`, `Assinatura cancelada`, `Cancelamento desfeito`, `Minha conta: dados alterados`, `Minha conta: senha alterada`, `Verificacao em duas etapas ligada/desligada`, `Codigos de recuperacao trocados`, `Aparelho(s) desconectado(s)`, `Verificacao recusada`.
 
 ## Estoque
 

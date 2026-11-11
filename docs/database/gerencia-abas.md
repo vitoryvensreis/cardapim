@@ -40,6 +40,25 @@ Indice `idx_user_restaurante_excluido (id_restaurante, excluido_em)` para a list
 - `restaurantes.plano_id` acompanha a assinatura atual.
 - Carga inicial: cada restaurante com `plano_id` ganhou uma assinatura `ativa` a partir de `ultimo_pagamento` (ou da data da migration).
 
+## `contas_financeiras`
+
+Contas a pagar e a receber da aba Financeiro (migration `20261112120000_create_contas_financeiras.php`).
+
+| Coluna | Tipo | Observacao |
+| --- | --- | --- |
+| `id_restaurante` | BIGINT FK | isolamento por restaurante |
+| `tipo` | ENUM('pagar','receber') | sentido do dinheiro |
+| `descricao` / `categoria` | VARCHAR(120) / VARCHAR(30) | categoria validada no servico por tipo |
+| `valor` | DECIMAL(10,2) | CHECK `> 0` |
+| `vencimento` | DATE | |
+| `status` / `pago_em` | ENUM('aberta','paga') / DATE | CHECK: aberta sem data, paga com data |
+| `forma` | VARCHAR(20) NULL | como foi pago (opcional) |
+| `observacao` | VARCHAR(300) NULL | |
+| `id_user` | FK ON DELETE SET NULL | quem cadastrou |
+
+Indices: `(id_restaurante, status, vencimento)` e `(id_restaurante, pago_em)`. Aplicada na VPS por `deploy/scripts/apply-financeiro.sh`
+(gatilho `[cardapim-financeiro]`, backup MySQL verificado antes) e conferida por `database/verify-financeiro.php`.
+
 ## Arquivos fora do banco
 
 - `storage/uploads/logos/{32hex}.webp`: logos enviadas (servidas por `/midia/logos/...`). Ficam em `shared/storage` na VPS (sobrevivem aos deploys).
