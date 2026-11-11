@@ -26,6 +26,13 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
         <a class="btn btn-outline btn-sm" href="<?= $e($url) ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Voltar à conta</a>
     </header>
 
+    <?php if (is_array($trocoAviso ?? null)): ?>
+        <div class="troco-destaque" role="status">
+            <?= Icon::svg('hand-coins', 'icon-lg') ?>
+            <div><span>Devolva de troco</span><strong><?= $e($r((int) $trocoAviso['troco'])) ?></strong>
+                <small>O cliente entregou <?= $e($r((int) $trocoAviso['recebido'])) ?></small></div>
+        </div>
+    <?php endif; ?>
     <div class="pagar-falta" role="status">
         <span>Falta pagar</span>
         <strong data-pagar-restante="<?= (int) $c['restante'] ?>"><?= $e($r($c['restante'])) ?></strong>
@@ -59,6 +66,10 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
                 </label>
             </div>
             <?php foreach (['valor', 'recebido', 'forma'] as $campo): if (isset($erros[$campo])): ?><p class="campo-erro"><?= $e($erros[$campo]) ?></p><?php endif; endforeach; ?>
+            <div class="troco-ao-vivo" data-pagar-troco aria-live="polite" hidden>
+                <span data-pagar-troco-rotulo>Troco</span>
+                <strong data-pagar-troco-valor>R$ 0,00</strong>
+            </div>
 
             <div class="pagar-atalhos" data-pagar-atalhos>
                 <button type="button" class="chip" data-pagar-preencher="<?= (int) $c['restante'] ?>">Tudo (<?= $e($r($c['restante'])) ?>)</button>
@@ -71,7 +82,6 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
                     <button type="button" class="chip" data-pagar-nota="<?= $nota ?>"><?= $e($r($nota)) ?></button>
                 <?php endif; endforeach; ?>
             </div>
-            <p class="pagar-troco" data-pagar-troco hidden>Troco: <strong></strong></p>
 
             <button class="btn btn-primary btn-lg btn-block" type="submit" data-pagar-enviar><?= Icon::svg('check', 'icon-sm') ?><span data-pagar-enviar-texto>Receber</span></button>
         </form>

@@ -44,5 +44,12 @@ return static function (PDO $db): void {
              VALUES (?, ?, ?, ?, NULL)'
         );
         $new->execute(['Restaurante Modelo Cardapim', $slug, $planId, 'ativo']);
+        // Todo restaurante novo ja comeca com 5 mesas de 4 lugares (o caixa cria mais pelo "+").
+        $idRestaurante = (int) $db->lastInsertId();
+        $agora = date('Y-m-d H:i:s');
+        $mesa = $db->prepare('INSERT INTO mesas (id_restaurante, numero, lugares, ativo, criado_em, atualizado_em) VALUES (?, ?, 4, 1, ?, ?)');
+        for ($numero = 1; $numero <= 5; $numero++) {
+            $mesa->execute([$idRestaurante, $numero, $agora, $agora]);
+        }
     }
 };

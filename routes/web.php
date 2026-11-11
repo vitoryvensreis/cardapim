@@ -44,9 +44,11 @@ $router->get('/{slug}/gerencia/{secao}', [AreaController::class, 'gerencia']);
 // Cardapio online: finalizar o pedido e acompanhar (cliente final).
 $router->get('/{slug}/finalizar', [RestauranteController::class, 'finalizar']);
 $router->get('/{slug}/pedido/{id}', [RestauranteController::class, 'pedido']);
-foreach (['entregas'] as $area) {
-    $router->get('/{slug}/' . $area, static fn (string $slug): \Cardapim\Core\Response => (new AreaController())->restaurante($slug, $area));
-}
+// Painel do entregador (motoqueiro): entregas, confirmar entrega e localizacao em tempo real.
+$router->get('/{slug}/entregas', [\Cardapim\Controllers\EntregadorController::class, 'painel']);
+$router->post('/{slug}/entregas/localizacao', [\Cardapim\Controllers\EntregadorController::class, 'localizacao']);
+$router->post('/{slug}/entregas/localizacao/parar', [\Cardapim\Controllers\EntregadorController::class, 'pararLocalizacao']);
+$router->post('/{slug}/entregas/{id}/entregue', [\Cardapim\Controllers\EntregadorController::class, 'entregue']);
 
 // API JSON versionada.
 (require __DIR__ . '/api.php')($router);

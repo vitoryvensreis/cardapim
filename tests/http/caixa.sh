@@ -78,8 +78,14 @@ enviar "$gj" "$c/abrir" valor_abertura=10,00 >/dev/null
 esperar "nao abre dois caixas" "$(aviso "$gj" "$c")" "O caixa já está aberto."
 
 echo "Cadastro de mesas"
+pagina "$cx" "$c/mesas" >/dev/null
+contem "restaurante ja vem com 5 mesas" "$tmp/pagina.html" 'Abrir comanda da mesa 5"'
+contem "mesa desenhada (tampo e cadeiras)" "$tmp/pagina.html" 'class="mesa-tampo"'
+contem "card + para nova mesa" "$tmp/pagina.html" '/caixa/mesas/nova'
 enviar "$cx" "$c/mesas/varias" de=1 ate=5 >/dev/null
-esperar "criar mesas 1 a 5" "$(aviso "$cx" "$c/mesas/gerenciar")" "5 mesa(s) criada(s): mesas 1 a 5."
+esperar "mesas 1 a 5 ja existem" "$(aviso "$cx" "$c/mesas/gerenciar")" "Essas mesas já existem."
+enviar "$cx" "$c/mesas/varias" de=6 ate=7 >/dev/null
+esperar "criar mesas 6 a 7" "$(aviso "$cx" "$c/mesas/gerenciar")" "2 mesa(s) criada(s): mesas 6 a 7."
 enviar "$cx" "$c/mesas" numero=3 >/dev/null
 esperar "mesa repetida recusada" "$(aviso "$cx" "$c/mesas/gerenciar")" "Confira os campos destacados."
 enviar "$cx" "$c/mesas" numero=10 apelido=Varanda lugares=4 >/dev/null
@@ -89,10 +95,12 @@ esperar "lugares fora do limite recusado" "$(aviso "$cx" "$c/mesas/gerenciar")" 
 pagina "$cx" "$c/mesas/gerenciar" >/dev/null
 php -r 'preg_match_all("~/caixa/mesas/(\d+)/excluir~", file_get_contents($argv[1]), $m); echo implode(" ", array_unique($m[1]));' "$tmp/pagina.html" > "$tmp/mesas.txt"
 read -r -a mesas < "$tmp/mesas.txt" || true
-esperar "6 mesas no cadastro" "${#mesas[@]}" "6"
-m1="${mesas[0]}"; m2="${mesas[1]}"; m10="${mesas[5]}"
+esperar "8 mesas no cadastro" "${#mesas[@]}" "8"
+m1="${mesas[0]}"; m2="${mesas[1]}"; m10="${mesas[7]}"
 enviar "$cx" "$c/mesas/$m10" numero=12 apelido=Varanda lugares=6 ativo=1 >/dev/null
 esperar "editar mesa (numero e lugares)" "$(aviso "$cx" "$c/mesas/gerenciar")" "Mesa 12 salva."
+enviar "$cx" "$c/mesas/nova" >/dev/null
+esperar "+ cria a proxima mesa" "$(aviso "$cx" "$c/mesas")" "Mesa 13 criada."
 pagina "$cx" "$c/mesas" >/dev/null
 contem "mapa mostra mesa livre" "$tmp/pagina.html" 'Abrir comanda da mesa 1'
 contem "mapa mostra o nome da mesa" "$tmp/pagina.html" 'Varanda'
@@ -165,8 +173,11 @@ esperar "cartao acima do que falta recusado" "$(aviso "$cx" "$c/comandas/$comand
 troco=$((10000 - restante))
 r="$(enviar "$cx" "$c/comandas/$comanda/pagamentos" forma=dinheiro valor= recebido=100,00)"
 esperar "dinheiro com troco fecha a conta" "$(aviso "$cx" "$c/comandas/$comanda")" "Dinheiro $(php -r "echo 'R\$ ' . number_format($restante / 100, 2, ',', '.');") recebido. Troco: $(php -r "echo 'R\$ ' . number_format($troco / 100, 2, ',', '.');"). Conta fechada e mesa liberada."
+contem "troco em destaque depois de fechar" "$tmp/aviso.html" 'Devolva de troco'
+contem "valor do troco em destaque" "$tmp/aviso.html" "$(php -r "echo 'R\$ ' . number_format($troco / 100, 2, ',', '.');")</strong>"
 pagina "$cx" "$c/comandas/$comanda" >/dev/null
 contem "comanda paga" "$tmp/pagina.html" 'Conta paga'
+nao_contem "troco aparece uma vez so" "$tmp/pagina.html" 'Devolva de troco'
 pagina "$cx" "$c/mesas" >/dev/null
 contem "mesa 2 liberada" "$tmp/pagina.html" 'Abrir comanda da mesa 2'
 enviar "$cx" "$c/comandas/$comanda/itens" produto="$produto" quantidade=1 >/dev/null
@@ -290,7 +301,8 @@ comanda2="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
 enviar "$cx" "$c/comandas/$comanda2/itens" produto="$produto" quantidade=1 >/dev/null
 enviar "$cx" "$c/comandas/$comanda2/pagamentos" forma=pix >/dev/null
 esperar "sem caixa aberto nao recebe" "$(aviso "$cx" "$c/comandas/$comanda2/pagar")" "Abra o caixa para receber pagamentos."
-enviar "$cx" "$c/comandas/$comanda2/cancelar" "motivo=Teste do caixa" >/dev/null
+enviar "$cx" "$c/comandas/$comanda2/cancelar" >/dev/null
+esperar "cancelar comanda sem motivo" "$(aviso "$cx" "$c/mesas")" "Comanda cancelada. O estoque dos itens foi devolvido."
 
 echo "Excluir mesas"
 enviar "$cx" "$c/mesas/${mesas[4]}/excluir" >/dev/null

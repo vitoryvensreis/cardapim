@@ -67,28 +67,41 @@ $ocupadas = count(array_filter($mesas, static fn (array $m): bool => $m['comanda
             </nav>
         </div>
         <ul class="mesas-grade" data-mesas>
-            <?php foreach ($mesas as $m): $ocupada = $m['comanda_id'] !== null; ?>
+            <?php foreach ($mesas as $m): $ocupada = $m['comanda_id'] !== null; $lugares = $m['lugares'] !== null ? (int) $m['lugares'] : null; ?>
                 <li data-mesa-estado="<?= $ocupada ? 'ocupada' : 'livre' ?>">
                     <?php if ($ocupada): ?>
-                        <a class="mesa is-ocupada" href="<?= $e($base . '/comandas/' . (int) $m['comanda_id']) ?>">
-                            <span class="mesa-topo"><span class="mesa-numero"><?= (int) $m['numero'] ?></span><span class="mesa-estado"><?= Icon::svg('utensils', 'icon-sm') ?>Ocupada</span></span>
+                        <a class="mesa is-ocupada" href="<?= $e($base . '/comandas/' . (int) $m['comanda_id']) ?>" aria-label="Mesa <?= (int) $m['numero'] ?>, ocupada, <?= $e(Numero::reais((string) $m['comanda_total'])) ?>">
+                            <?php $centro = '<strong>' . (int) $m['numero'] . '</strong><small>' . $e(Numero::reais((string) $m['comanda_total'])) . '</small>'; require __DIR__ . '/_mesa-desenho.php'; ?>
+                            <span class="mesa-rodape">
+                                <span class="mesa-estado"><?= Icon::svg('utensils', 'icon-sm') ?>Ocupada</span>
+                                <span class="mesa-info"><?= (int) $m['comanda_itens'] ?> <?= (int) $m['comanda_itens'] === 1 ? 'item' : 'itens' ?> · <?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $m['comanda_desde'])) ?></span>
+                            </span>
                             <?php if ($m['apelido']): ?><span class="mesa-apelido"><?= $e((string) $m['apelido']) ?></span><?php endif; ?>
-                            <strong class="mesa-total"><?= $e(Numero::reais((string) $m['comanda_total'])) ?></strong>
-                            <span class="mesa-info"><span><?= (int) $m['comanda_itens'] ?> <?= (int) $m['comanda_itens'] === 1 ? 'item' : 'itens' ?></span><span><?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $m['comanda_desde'])) ?></span></span>
                         </a>
                     <?php else: ?>
                         <form method="post" action="<?= $e($base . '/mesas/' . (int) $m['id'] . '/abrir') ?>">
                             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                             <button class="mesa is-livre" type="submit" aria-label="Abrir comanda da mesa <?= (int) $m['numero'] ?>">
-                                <span class="mesa-topo"><span class="mesa-numero"><?= (int) $m['numero'] ?></span><span class="mesa-estado"><?= Icon::svg('circle-check', 'icon-sm') ?>Livre</span></span>
+                                <?php $centro = '<strong>' . (int) $m['numero'] . '</strong>'; require __DIR__ . '/_mesa-desenho.php'; ?>
+                                <span class="mesa-rodape">
+                                    <span class="mesa-estado"><?= Icon::svg('circle-check', 'icon-sm') ?>Livre</span>
+                                    <span class="mesa-info"><?= $lugares ? $lugares . ' lugares' : '' ?></span>
+                                </span>
                                 <?php if ($m['apelido']): ?><span class="mesa-apelido"><?= $e((string) $m['apelido']) ?></span><?php endif; ?>
-                                <span class="mesa-abrir"><?= Icon::svg('plus', 'icon-sm') ?>Abrir comanda</span>
-                                <span class="mesa-info"><?= $m['lugares'] ? '<span>' . (int) $m['lugares'] . ' lugares</span>' : '<span></span>' ?></span>
                             </button>
                         </form>
                     <?php endif; ?>
                 </li>
             <?php endforeach; ?>
+            <li class="mesa-nova-item">
+                <form method="post" action="<?= $e($base . '/mesas/nova') ?>">
+                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                    <button class="mesa mesa-nova" type="submit">
+                        <span class="mesa-nova-mais" aria-hidden="true"><?= Icon::svg('plus', 'icon-lg') ?></span>
+                        <span>Nova mesa</span>
+                    </button>
+                </form>
+            </li>
         </ul>
         <p class="lista-vazia-filtro" data-mesas-nenhuma hidden>Nenhuma mesa nesta situação.</p>
     <?php endif; ?>

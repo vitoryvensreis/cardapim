@@ -21,12 +21,6 @@ use Cardapim\Shared\Slug;
  */
 final class AreaController
 {
-    private const AREAS = [
-        'entregas' => ['Entregas', 'bike', 'Suas entregas, rotas e status de cada pedido.', [
-            ['inbox', 'Entregas disponíveis'], ['bike', 'Minha rota'], ['check', 'Confirmar entrega'], ['phone', 'Falar com o restaurante'],
-        ]],
-    ];
-
     /** /{slug}/gerencia (visao geral) e /{slug}/gerencia/{secao}. */
     public function gerencia(string $slug, string $secao = 'visao-geral'): Response
     {
@@ -46,37 +40,6 @@ final class AreaController
         return $this->telaGerencia($usuario, $restaurante, $secao, $dados['titulo'], [
             'secao' => $dados,
             'saudacao' => $secao === 'visao-geral',
-        ]);
-    }
-
-    public function restaurante(string $slug, string $area): Response
-    {
-        if (!isset(self::AREAS[$area])) {
-            return $this->naoEncontrado();
-        }
-        $acesso = $this->acessoRestaurante($slug, $area);
-        if ($acesso instanceof Response) {
-            return $acesso;
-        }
-        [$usuario, $restaurante] = $acesso;
-        $gestor = in_array($usuario->cargo, ['gerente', Autorizacao::CARGO_MASTER], true);
-
-        // Gerente em Entregas: a fila de pedidos e o despacho ficam no Delivery do modo caixa.
-        if ($area === 'entregas' && $gestor) {
-            return Response::redirect('/' . rawurlencode($restaurante['slug']) . '/caixa/delivery', 303);
-        }
-
-        [$titulo, $icone, $descricao, $modulos] = self::AREAS[$area];
-        return $this->tela($usuario, 'area/restaurante', $titulo . ' · ' . $restaurante['nome'], [
-            'area' => $area,
-            'titulo' => $titulo,
-            'icone' => $icone,
-            'descricao' => $descricao,
-            'modulos' => $modulos,
-            'restaurante' => $restaurante,
-            // Modo caixa ocupa a tela toda; o gerente tem o atalho de volta.
-            'voltar' => $gestor ? MenuGerencia::url($restaurante['slug'], 'visao-geral') : null,
-            'modo' => $area === 'caixa' ? 'Modo caixa' : null,
         ]);
     }
 

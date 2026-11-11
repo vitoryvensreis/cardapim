@@ -106,6 +106,29 @@ final class PedidoClienteController
         });
     }
 
+    /** Onde esta o entregador do pedido (so o dono do pedido; so enquanto saiu para entrega). */
+    public function rastreio(string $id): Response
+    {
+        $cliente = ClienteSessao::atual();
+        if ($cliente === null) {
+            return Response::json(['erro' => 'Entre na sua conta para ver o pedido.', 'login' => true], 401);
+        }
+        if (!ctype_digit($id) || strlen($id) > 18) {
+            return Response::json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+        try {
+            $db = Database::connect();
+            $pedido = (new PedidoRepository($db))->doCliente((int) $cliente['id'], (int) $id);
+            if ($pedido === null) {
+                return Response::json(['erro' => 'Pedido não encontrado.'], 404);
+            }
+            return Response::json(\Cardapim\Services\Entregas\Rastreio::paraCliente($db, $pedido))->comCabecalhos(['Cache-Control' => 'no-store']);
+        } catch (Throwable $erro) {
+            error_log('[Cardapim] Rastreio indisponivel: ' . get_class($erro));
+            return Response::json(['erro' => 'Não foi possível localizar o entregador agora.'], 503);
+        }
+    }
+
     public function mostrar(string $id): Response
     {
         $cliente = ClienteSessao::atual();

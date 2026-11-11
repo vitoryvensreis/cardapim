@@ -86,7 +86,12 @@ $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em']
                 <?php endif; ?>
 
                 <?php if (($entrega && $status === 'saiu_entrega') || (!$entrega && in_array($status, ['pronto', 'em_preparo', 'recebido'], true))): ?>
-                    <?php if ($status === 'saiu_entrega' && $d['entregador']): ?><p class="acao-rota"><?= Icon::svg('bike', 'icon-sm') ?>Saiu com <strong><?= $e($d['entregador']) ?></strong> às <?= $e(date('H:i', (int) strtotime((string) $p['despachado_em']))) ?>.</p><?php endif; ?>
+                    <?php if ($status === 'saiu_entrega' && $d['entregador']): ?><p class="acao-rota"><?= Icon::svg('bike', 'icon-sm') ?>Saiu com <strong><?= $e($d['entregador']) ?></strong> às <?= $e(date('H:i', (int) strtotime((string) $p['despachado_em']))) ?>.</p>
+                        <?php $pos = $d['posicao'] ?? null; $idade = $pos ? time() - (int) strtotime((string) $pos['atualizado_em']) : null; ?>
+                        <p class="acao-local <?= $pos && $idade <= 300 ? 'is-ao-vivo' : '' ?>"><?= Icon::svg('map-pin', 'icon-sm') ?>
+                            <?php if ($pos && $idade <= 300): ?>Localização ao vivo (há <?= $idade < 60 ? $idade . ' s' : intdiv($idade, 60) . ' min' ?>). <a href="https://www.openstreetmap.org/?mlat=<?= $e((string) $pos['latitude']) ?>&amp;mlon=<?= $e((string) $pos['longitude']) ?>#map=17/<?= $e((string) $pos['latitude']) ?>/<?= $e((string) $pos['longitude']) ?>" target="_blank" rel="noopener">Ver no mapa</a>
+                            <?php else: ?>O entregador não está compartilhando a localização.<?php endif; ?></p>
+                    <?php endif; ?>
                     <form method="post" action="<?= $e($url . '/concluir') ?>"><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                         <button class="btn <?= !$entrega && $status !== 'pronto' ? 'btn-outline' : 'btn-primary btn-lg' ?> btn-block" type="submit"<?= !$caixaAberto && $p['pagamento_status'] !== 'pago' ? ' disabled' : '' ?>>
                             <?= Icon::svg('circle-check', 'icon-sm') ?><?= $entrega ? 'Entregue e recebido' : 'Cliente retirou' ?>

@@ -224,3 +224,26 @@
   .icon-girar, .ck-status-icone { animation: none !important; }
   .ck-opcao, .ck-opcao::after { transition: none; }
 }
+
+/* ---------- Entregador no mapa (acompanhar pedido) ---------- */
+.ap-mapa-bloco { display: grid; gap: .85rem; }
+.ap-mapa-topo { display: flex; align-items: center; gap: .85rem; }
+.ap-mapa-topo h2 { color: var(--c-ink); font: 800 1.1rem/1.25 var(--f-head); }
+.ap-mapa-topo p { margin-top: .15rem; color: var(--c-muted); font-size: .92rem; }
+.ap-mapa-icone { display: grid; place-items: center; flex: 0 0 auto; width: 3rem; height: 3rem; border-radius: 1rem; background: var(--c-orange-100); color: var(--c-orange-700); }
+.ap-mapa { height: clamp(15rem, 52vh, 24rem); border: 1px solid var(--c-line); border-radius: var(--r-lg); overflow: hidden; background: #efe9e6; z-index: 0; }
+.ap-mapa-atualizado { display: flex; align-items: center; gap: .4rem; color: var(--c-success); font-size: .82rem; font-weight: 700; }
+.ap-mapa-atualizado:empty { display: none; }
+.ap-mapa-atualizado::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: currentcolor; }
+.ap-marcador { display: grid !important; place-items: center; border-radius: 50%; border: 3px solid var(--c-white); box-shadow: 0 4px 14px rgb(40 8 16 / 30%); }
+.ap-marcador .icon { width: 1.25rem; height: 1.25rem; }
+.ap-marcador-moto { background: var(--c-orange); color: var(--c-white); }
+.ap-marcador-moto::after { content: ""; position: absolute; inset: -8px; border: 3px solid var(--c-orange); border-radius: 50%; opacity: 0; animation: ap-pulso 1.8s ease-out infinite; }
+.ap-marcador-casa { background: var(--c-wine); color: var(--c-white); }
+.ap-marcador-loja { background: var(--c-white); color: var(--c-wine); border-color: var(--c-wine); }
+.leaflet-marker-icon.ap-marcador-moto { transition: transform 1.2s linear; }
+@keyframes ap-pulso { 0% { opacity: .7; transform: scale(.8); } 100% { opacity: 0; transform: scale(1.5); } }
+@media (prefers-reduced-motion: reduce) {
+  .ap-marcador-moto::after { animation: none; }
+  .leaflet-marker-icon.ap-marcador-moto { transition: none; }
+}

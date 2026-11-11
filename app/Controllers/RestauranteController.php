@@ -112,8 +112,8 @@ final class RestauranteController
             'telefone' => $telefone,
             'voltar' => ['/' . $restaurante['slug'], 'Voltar ao cardápio'],
             'topoFixo' => true,
-            'pageScripts' => ['vendor/qrcode-generator/qrcode.js', 'js/acompanhar.js'],
-            'pageStyles' => ['css/checkout.css'],
+            'pageScripts' => ['vendor/qrcode-generator/qrcode.js', 'vendor/leaflet/leaflet.js', 'js/acompanhar.js'],
+            'pageStyles' => ['vendor/leaflet/leaflet.css', 'css/checkout.css'],
         ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-store']);
     }
 

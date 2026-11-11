@@ -68,6 +68,19 @@ final class MesaRepository
         return (int) $q->fetchColumn();
     }
 
+    /** Mesas 1 a 5 de um restaurante novo (chamar no cadastro do restaurante). A migration fez isso para os que ja existiam. */
+    public function criarPadrao(int $idRestaurante): void
+    {
+        $q = $this->db->prepare('SELECT 1 FROM mesas WHERE id_restaurante = ? LIMIT 1');
+        $q->execute([$idRestaurante]);
+        if ($q->fetchColumn() !== false) {
+            return;
+        }
+        for ($n = 1; $n <= 5; $n++) {
+            $this->criar($idRestaurante, $n, null, 4);
+        }
+    }
+
     public function atualizar(int $idRestaurante, int $id, int $numero, ?string $apelido, ?int $lugares, bool $ativo): void
     {
         $this->db->prepare('UPDATE mesas SET numero = ?, apelido = ?, lugares = ?, ativo = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ? AND excluida_em IS NULL')

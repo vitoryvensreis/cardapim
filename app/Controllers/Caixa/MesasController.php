@@ -56,6 +56,15 @@ final class MesasController extends BaseCaixa
         return $this->responder($res, $this->url('mesas/gerenciar'));
     }
 
+    public function criarProxima(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = (new MesaService($this->db, $this->restaurante['id'], $this->usuario))->criarProxima();
+        return $this->responder($res, $this->url('mesas'));
+    }
+
     public function criarVarias(string $slug): Response
     {
         if ($r = $this->entrar($slug, true)) {

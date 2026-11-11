@@ -327,6 +327,8 @@
     const campoRecebido = $("[data-pagar-recebido-campo]", pagar);
     const notas = $("[data-pagar-notas]", pagar);
     const troco = $("[data-pagar-troco]", pagar);
+    const trocoRotulo = $("[data-pagar-troco-rotulo]", pagar);
+    const trocoValor = $("[data-pagar-troco-valor]", pagar);
     const textoEnviar = $("[data-pagar-enviar-texto]", pagar);
     const forma = () => ($("[data-pagar-forma]:checked", pagar) || {}).value || "dinheiro";
     const desenhar = () => {
@@ -335,9 +337,11 @@
       if (notas) notas.hidden = !dinheiro;
       const v = Math.min(paraCentavos(valor.value), restante);
       const r = dinheiro ? paraCentavos(recebido.value) : 0;
-      const t = r > v ? r - v : 0;
-      troco.hidden = t <= 0;
-      if (t > 0) troco.querySelector("strong").textContent = reais(t);
+      // Mostra enquanto digita: troco (verde, grande) ou quanto ainda falta (vermelho).
+      troco.hidden = !dinheiro || r <= 0;
+      troco.classList.toggle("is-falta", r > 0 && r < v);
+      trocoRotulo.textContent = r >= v ? "Troco" : "Ainda falta";
+      trocoValor.textContent = reais(r >= v ? r - v : v - r);
       textoEnviar.textContent = v > 0 ? `Receber ${reais(v)}${v >= restante ? " e fechar a conta" : ""}` : "Receber";
     };
     pagar.addEventListener("input", desenhar);

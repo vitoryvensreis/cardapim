@@ -8,6 +8,7 @@ require dirname(__DIR__, 2) . '/bootstrap/app.php';
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Modules\Entrega\Distancia;
 use Cardapim\Modules\Entrega\TextoLocal;
+use Cardapim\Services\Pedidos\StatusPedido;
 
 $falhas = 0;
 $ok = static function (bool $condicao, string $descricao) use (&$falhas): void {
@@ -65,6 +66,10 @@ $ok(!AreaEntrega::precisaDeLocalizacao($soBairros) && AreaEntrega::precisaDeLoca
 $ok(AreaEntrega::descricao($areas[1]) === 'Até 3 km do restaurante', 'descricao da faixa');
 $ok(AreaEntrega::descricao($areas[2]) === 'Bairro Pinheiros (São Paulo)', 'descricao do bairro');
 $ok(AreaEntrega::km('2.50') === '2,5 km', 'km formatado');
+
+// O cliente acompanha todas as etapas, inclusive "Pronto" antes de sair para entrega.
+$ok(StatusPedido::etapas('entrega') === ['recebido', 'em_preparo', 'pronto', 'saiu_entrega', 'concluido'], 'etapas da entrega com Pronto');
+$ok(StatusPedido::etapas('retirada') === ['recebido', 'em_preparo', 'pronto', 'concluido'], 'etapas da retirada');
 
 if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s).\n");

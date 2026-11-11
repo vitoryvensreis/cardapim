@@ -84,7 +84,13 @@ final class DeliveryService
             $q->execute([(int) $p['id_entregador']]);
             $entregador = (string) $q->fetchColumn();
         }
-        return ['pedido' => $p, 'itens' => $this->pedidos->itens($this->idRestaurante, $id), 'eventos' => $this->pedidos->eventos($this->idRestaurante, $id), 'entregador' => $entregador];
+        $posicao = null;
+        if ($p['id_entregador'] !== null && $p['status'] === 'saiu_entrega') {
+            $q = $this->db->prepare('SELECT latitude, longitude, atualizado_em FROM entregador_posicoes WHERE id_user = ? AND id_restaurante = ?');
+            $q->execute([(int) $p['id_entregador'], $this->idRestaurante]);
+            $posicao = $q->fetch(PDO::FETCH_ASSOC) ?: null;
+        }
+        return ['pedido' => $p, 'itens' => $this->pedidos->itens($this->idRestaurante, $id), 'eventos' => $this->pedidos->eventos($this->idRestaurante, $id), 'entregador' => $entregador, 'posicao' => $posicao];
     }
 
     /** Entregadores (motoqueiros) ativos do restaurante. @return list<array{id:int,nome:string,em_rota:int}> */

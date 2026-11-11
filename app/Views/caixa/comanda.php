@@ -46,6 +46,13 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
         </nav>
     <?php endif; ?>
 
+    <?php if (is_array($trocoAviso ?? null)): ?>
+        <div class="troco-destaque" role="status">
+            <?= Icon::svg('hand-coins', 'icon-lg') ?>
+            <div><span>Devolva de troco</span><strong><?= $e($r((int) $trocoAviso['troco'])) ?></strong>
+                <small>O cliente entregou <?= $e($r((int) $trocoAviso['recebido'])) ?> · conta de <?= $e($r($c['total'])) ?></small></div>
+        </div>
+    <?php endif; ?>
     <div class="comanda-layout<?= $c['aberta'] ? '' : ' is-fechada' ?>">
         <?php if ($c['aberta']): ?>
             <section class="comanda-cardapio" aria-labelledby="titulo-cardapio" data-comanda-parte="cardapio">
@@ -174,7 +181,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                             <form method="post" action="<?= $e($url . '/cancelar') ?>" class="conta-ajustes"
                                   data-confirm="Os itens voltam para o estoque e a mesa fica livre." data-confirm-titulo="Cancelar esta comanda?" data-confirm-acao="Cancelar comanda" data-confirm-perigo="1">
                                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                                <label class="campo-caixa"><span>Motivo</span><input name="motivo" required minlength="3" maxlength="140" placeholder="Ex.: cliente foi embora sem consumir"></label>
+                                <label class="campo-caixa"><span>Motivo (opcional)</span><input name="motivo" maxlength="140" placeholder="Ex.: cliente foi embora sem consumir"></label>
                                 <button class="btn btn-ghost btn-sm area-remover" type="submit"><?= Icon::svg('circle-x', 'icon-sm') ?>Cancelar comanda</button>
                             </form>
                         </details>

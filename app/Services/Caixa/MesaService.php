@@ -55,6 +55,20 @@ final class MesaService
         return Resultado::sucesso('Mesa ' . $v['numero'] . ' criada.', $id);
     }
 
+    /** "+" do mapa: cria a proxima mesa (maior numero + 1), sem formulario. */
+    public function criarProxima(): Resultado
+    {
+        $maior = 0;
+        foreach ($this->listar() as $m) {
+            $maior = max($maior, (int) $m['numero']);
+        }
+        $numero = $maior + 1;
+        while ($numero <= 9999 && $this->repo->numeroEmUso($this->idRestaurante, $numero)) {
+            $numero++;
+        }
+        return $this->criar(['numero' => (string) $numero, 'apelido' => '', 'lugares' => '4']);
+    }
+
     /** Cria as mesas de "de" ate "ate" que ainda nao existem (ex.: 1 a 15). */
     public function criarVarias(string $deTexto, string $ateTexto): Resultado
     {

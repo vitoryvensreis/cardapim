@@ -394,9 +394,10 @@ final class ComandaService
         if ($comanda instanceof Resultado) {
             return $comanda;
         }
-        $motivo = trim((string) preg_replace('/\s+/u', ' ', $motivo));
-        if (mb_strlen($motivo) < 3 || mb_strlen($motivo) > 140) {
-            return Resultado::falha('Conte o motivo do cancelamento.');
+        // Motivo opcional (se escrever, fica no historico e no log).
+        $motivo = mb_substr(trim((string) preg_replace('/\s+/u', ' ', $motivo)), 0, 140);
+        if ($motivo === '') {
+            $motivo = 'Cancelada no caixa';
         }
         if ($this->somaPagamentos($id) > 0) {
             return Resultado::falha('Esta conta já tem pagamento. Remova os pagamentos antes de cancelar.');

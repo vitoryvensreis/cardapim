@@ -31,7 +31,7 @@ final class StatusPedido
     public static function etapas(string $tipo): array
     {
         return $tipo === 'entrega'
-            ? ['recebido', 'em_preparo', 'saiu_entrega', 'concluido']
+            ? ['recebido', 'em_preparo', 'pronto', 'saiu_entrega', 'concluido']
             : ['recebido', 'em_preparo', 'pronto', 'concluido'];
     }
 

@@ -77,7 +77,7 @@ esperar "menu lateral com Estoque" "$(curl -s -b "$tmp/g" "$base/$slug/gerencia"
 esperar "modo caixa do gerente tem voltar" "$(curl -s -b "$tmp/g" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "1"
 esperar "caixa nao ve voltar a gerencia" "$(curl -s -b "$tmp/c" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "0"
 esperar "gerente em entregas vai para o delivery do caixa" "$(codigo "$tmp/g" "/$slug/entregas")" "303"
-esperar "entregador ve as proprias entregas" "$(curl -s -b "$tmp/m" "$base/$slug/entregas" | grep -c 'Minha rota')" "1"
+esperar "entregador ve as proprias entregas" "$(curl -s -b "$tmp/m" "$base/$slug/entregas" | grep -c 'Com você agora')" "1"
 curl -s -o /dev/null -c "$tmp/s" -b "$tmp/s" "$base/$slug/gerencia/estoque"
 esperar "volta para a secao pedida apos login" "$(login "$tmp/s" ci_gerente "$senha")" "303 $base/$slug/gerencia/estoque"
 

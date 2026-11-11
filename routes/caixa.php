@@ -27,6 +27,7 @@ return static function (Router $router): void {
     $router->get($c . '/mesas/gerenciar', [MesasController::class, 'gerenciar']);
     $router->post($c . '/mesas', [MesasController::class, 'criar']);
     $router->post($c . '/mesas/varias', [MesasController::class, 'criarVarias']);
+    $router->post($c . '/mesas/nova', [MesasController::class, 'criarProxima']);
     $router->post($c . '/mesas/{id}/abrir', [MesasController::class, 'abrir']);
     $router->post($c . '/mesas/{id}/excluir', [MesasController::class, 'excluir']);
     $router->post($c . '/mesas/{id}', [MesasController::class, 'atualizar']);

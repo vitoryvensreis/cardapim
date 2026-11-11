@@ -44,6 +44,7 @@ final class ComandaController extends BaseCaixa
             'c' => $c,
             'cardapio' => $c['aberta'] ? (new CardapioPublico($this->db))->categorias($this->restaurante['id']) : ['categorias' => [], 'total' => 0],
             'livres' => $livres,
+            'trocoAviso' => \Cardapim\Core\Session::flash('caixa_troco'),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
         ]);
     }
@@ -111,6 +112,7 @@ final class ComandaController extends BaseCaixa
         return $this->tela('caixa/pagar', 'mesas', 'Receber · ' . $c['rotulo'], [
             'c' => $c,
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
+            'trocoAviso' => \Cardapim\Core\Session::flash('caixa_troco'),
         ]);
     }
 
@@ -125,6 +127,12 @@ final class ComandaController extends BaseCaixa
         $res = $this->servico()->pagar((int) $id, $this->post('forma'), $this->post('valor'), $this->post('recebido'));
         $c = $this->servico()->detalhes((int) $id);
         $fechada = $c !== null && !$c['aberta'];
+        // Teve troco? Mostra em destaque na proxima tela (valor grande para o caixa nao errar).
+        $ultimo = $res->ok && $c !== null ? end($c['pagamentos']) : false;
+        if (is_array($ultimo) && \Cardapim\Shared\Numero::centavos((string) $ultimo['troco']) > 0) {
+            $troco = \Cardapim\Shared\Numero::centavos((string) $ultimo['troco']);
+            \Cardapim\Core\Session::set('caixa_troco', ['troco' => $troco, 'recebido' => $troco + \Cardapim\Shared\Numero::centavos((string) $ultimo['valor'])]);
+        }
         return $this->responder($res, $fechada ? $this->url('comandas/' . (int) $id) : $this->url('comandas/' . (int) $id . '/pagar'), $this->url('comandas/' . (int) $id . '/pagar'));
     }
 

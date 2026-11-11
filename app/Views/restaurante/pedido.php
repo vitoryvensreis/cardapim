@@ -38,6 +38,18 @@ $whats = strlen((string) $tel) >= 10 ? 'https://wa.me/55' . $tel : '';
             <p class="ck-status-texto" data-ap-texto></p>
         </section>
 
+        <section class="ck-bloco ap-mapa-bloco" data-ap-mapa hidden aria-labelledby="ap-mapa-titulo">
+            <div class="ap-mapa-topo">
+                <span class="ap-mapa-icone" aria-hidden="true"><?= Icon::svg('bike') ?></span>
+                <div>
+                    <h2 id="ap-mapa-titulo" data-ap-mapa-titulo>Entregador a caminho</h2>
+                    <p data-ap-mapa-texto>Procurando o entregador no mapa...</p>
+                </div>
+            </div>
+            <div class="ap-mapa" data-ap-mapa-area role="img" aria-label="Mapa com o entregador e o endereço de entrega" hidden></div>
+            <p class="ap-mapa-atualizado" data-ap-mapa-atualizado></p>
+        </section>
+
         <section class="ck-bloco ck-pix" data-ap-pix hidden aria-labelledby="ap-pix-titulo">
             <h2 id="ap-pix-titulo">Pague com Pix para confirmar</h2>
             <p class="ck-pix-tempo" data-ap-pix-tempo></p>

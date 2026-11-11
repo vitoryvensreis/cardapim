@@ -10,10 +10,18 @@
 
 - `/{slug}/caixa` com **menu lateral**: Caixa, Mesas e comandas, Delivery, Entradas e saídas, Fechamentos e Cadastro de mesas.
 - **Pedidos de delivery colados no menu**, do mais antigo para o mais novo, com aviso sonoro de pedido novo. O caixa abre o pedido, aceita, marca pronto e **despacha para o motoqueiro escolhido**; ao entregar, o pagamento entra no caixa.
-- **Mesas** (tabela `mesas`): mapa livre/ocupada, cadastro (criar uma ou várias, editar, pausar, excluir). A mesa funciona como cliente da **comanda**: lançar itens, cancelar item com motivo, taxa de serviço, desconto, dividir a conta, trocar de mesa, imprimir e receber em uma ou várias formas. Venda no balcão usa a mesma comanda.
+- **Mesas** (tabela `mesas`): mapa desenhado (mesa com cadeiras) livre/ocupada, todo restaurante começa com 5 mesas e o último quadro "+ Nova mesa" cria a próxima; cadastro (criar uma ou várias, editar, pausar, excluir). A mesa funciona como cliente da **comanda**: lançar itens, cancelar item com motivo, taxa de serviço, desconto, dividir a conta, trocar de mesa, imprimir e receber em uma ou várias formas, com o **troco calculado enquanto digita** e destacado ao fechar a conta. Cancelar a comanda não exige motivo. Venda no balcão usa a mesma comanda.
 - **Abrir e fechar caixa** (troco inicial e contagem cega do dinheiro), **entradas e saídas** (reforço, sangria, despesas) e histórico de fechamentos com sobra/falta.
 - **Estoque**: item da comanda baixa os insumos na hora; pedido do cardápio baixa quando o cliente pede (o despacho não baixa de novo); cancelar devolve. Conferido nos testes.
 - [Arquitetura, regras e tabelas](docs/architecture/caixa.md).
+
+## Painel do entregador e rastreio ao vivo
+
+- `/{slug}/entregas` (motoqueiro, no celular): entregas **com você agora** (cliente, endereço, quanto receber e troco, itens, rota no Google Maps ou Waze, ligar, WhatsApp e botão **Entreguei**), **feitas hoje** e resumo de hoje e 7 dias com as taxas.
+- **Compartilhar localização** com um toque: o cliente vê o entregador chegando no mapa (OpenStreetMap + Leaflet, sem API paga), com distância e tempo estimado; o caixa também vê no pedido.
+- Privacidade: só a última posição é guardada, só o cliente daquele pedido vê, só enquanto está "Saiu para entrega", e a posição é apagada quando para de compartilhar ou termina as entregas.
+- O cliente também vê a etapa **Pronto** na linha do tempo do pedido.
+- [Arquitetura, regras e rotas](docs/architecture/entregas.md).
 
 ## Pedidos, entrega e pagamento
 

@@ -163,6 +163,7 @@
       if (navigator.vibrate) navigator.vibrate(120);
     }
     ultimoStatus = p.status;
+    controlarRastreio(p);
     window.clearTimeout(proxima);
     if (!p.final) proxima = window.setTimeout(carregar, p.status === "aguardando_pagamento" ? 5000 : 15000);
   };
@@ -189,6 +190,80 @@
     }
     window.clearTimeout(proxima);
     proxima = window.setTimeout(carregar, 8000);
+  };
+
+  /* ---------- Entregador no mapa (Leaflet + OpenStreetMap), so enquanto o pedido saiu para entrega ---------- */
+  let rastreioTempo = 0;
+  let mapa = null;
+  const marcadores = {};
+  let enquadrado = false;
+  const marcador = (classe, nome) => window.L.divIcon({
+    className: `ap-marcador ${classe}`,
+    html: icone(nome).outerHTML,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+  const colocar = (chave, ponto, classe, nome, titulo) => {
+    if (!ponto) return;
+    const ll = [ponto.latitude, ponto.longitude];
+    if (marcadores[chave]) {
+      marcadores[chave].setLatLng(ll);
+    } else {
+      marcadores[chave] = window.L.marker(ll, { icon: marcador(classe, nome), title: titulo, keyboard: false }).addTo(mapa);
+    }
+  };
+  const desenharRastreio = (r) => {
+    const bloco = $("[data-ap-mapa]");
+    const area = $("[data-ap-mapa-area]");
+    bloco.hidden = false;
+    if (!r.ativo) {
+      area.hidden = true;
+      $("[data-ap-mapa-titulo]").textContent = "Saiu para entrega";
+      $("[data-ap-mapa-texto]").textContent = "O entregador está a caminho. Quando ele ligar a localização, você vê ele chegando aqui no mapa.";
+      $("[data-ap-mapa-atualizado]").textContent = "";
+      return;
+    }
+    const ent = r.entregador;
+    $("[data-ap-mapa-titulo]").textContent = `${ent.nome} está a caminho`;
+    $("[data-ap-mapa-texto]").textContent = r.distancia_km !== null
+      ? `Está a ${String(r.distancia_km).replace(".", ",")} km. Chega em cerca de ${r.minutos} min.`
+      : "Acompanhe pelo mapa.";
+    $("[data-ap-mapa-atualizado]").textContent = ent.atualizado_ha < 15 ? "Localização ao vivo" : `Localização de ${Math.round(ent.atualizado_ha)} segundos atrás`;
+    if (!window.L) return; // sem a biblioteca do mapa: fica so o texto
+    area.hidden = false;
+    if (!mapa) {
+      mapa = window.L.map(area, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
+      window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(mapa);
+    }
+    colocar("restaurante", r.restaurante, "ap-marcador-loja", "store", "Restaurante");
+    colocar("destino", r.destino, "ap-marcador-casa", "house", "Seu endereço");
+    colocar("moto", ent, "ap-marcador-moto", "bike", ent.nome);
+    if (!enquadrado) {
+      const pontos = [ent, r.destino].filter(Boolean).map((p) => [p.latitude, p.longitude]);
+      if (pontos.length > 1) mapa.fitBounds(pontos, { padding: [40, 40], maxZoom: 16 }); else mapa.setView(pontos[0], 15);
+      enquadrado = true;
+    }
+    window.setTimeout(() => mapa.invalidateSize(), 50);
+  };
+  const buscarRastreio = async () => {
+    window.clearTimeout(rastreioTempo);
+    try {
+      const resp = await fetch(`/api/v1/pedidos/${encodeURIComponent(id)}/rastreio`, { credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
+      if (resp.ok) desenharRastreio(await resp.json());
+    } catch (e) { /* tenta de novo */ }
+    if (ultimoStatus === "saiu_entrega") rastreioTempo = window.setTimeout(buscarRastreio, 8000);
+  };
+  const controlarRastreio = (p) => {
+    const ativo = p.tipo === "entrega" && p.status === "saiu_entrega";
+    if (ativo && !rastreioTempo) buscarRastreio();
+    if (!ativo) {
+      window.clearTimeout(rastreioTempo);
+      rastreioTempo = 0;
+      $("[data-ap-mapa]").hidden = true;
+    }
   };
 
   $("[data-ap-entrar]").addEventListener("click", () => {

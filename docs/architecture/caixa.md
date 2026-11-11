@@ -8,7 +8,7 @@ abrir e fechar o caixa, entradas e saidas de dinheiro e historico de fechamentos
 | Item | Rota | O que faz |
 | --- | --- | --- |
 | Caixa | `/caixa` | Abrir (troco inicial) ou resumo do turno: vendas, dinheiro na gaveta, ticket medio, por forma, atalhos |
-| Mesas e comandas | `/caixa/mesas` | Mapa: livre (toque abre a comanda) ou ocupada (total, itens, tempo); vendas de balcao em aberto |
+| Mesas e comandas | `/caixa/mesas` | Mapa desenhado (tampo + cadeiras pelo numero de lugares): livre (toque abre a comanda) ou ocupada (total, itens, tempo); ultimo quadro "+ Nova mesa" cria a proxima; vendas de balcao em aberto |
 | Delivery | `/caixa/delivery` | Pedidos do cardapio online por etapa; detalhe com aceitar, pronto, despachar, entregue, cancelar |
 | Entradas e saidas | `/caixa/movimentos` | Reforco de troco, sangria, despesa, fornecedor, entregador, vale |
 | Fechamentos | `/caixa/historico` | Cada caixa: vendas por forma, esperado x contado, entradas/saidas e recebimentos |
@@ -33,13 +33,17 @@ Gerente: `/gerencia/mesas` leva ao cadastro de mesas e `/entregas` ao Delivery d
   na mesa (desligavel), desconto exige motivo, "dividir por N pessoas", trocar de mesa, imprimir a conta (80 mm).
 - **Estoque**: cada item lancado na comanda baixa os insumos NA HORA pela ficha tecnica e guarda o consumo no item
   (`pedido_itens.consumo_estoque`). Item cancelado (com motivo) devolve exatamente esse consumo; comanda cancelada
-  devolve tudo. Faltou insumo: o item nao e lancado e a mensagem diz o que falta.
+  devolve tudo (o motivo do cancelamento da comanda e opcional; sem motivo grava "Cancelada no caixa"). Faltou insumo: o item nao e lancado e a mensagem diz o que falta.
 - **Delivery**: o estoque e baixado quando o CLIENTE faz o pedido (`CriarPedido`). Aceitar, pronto, despachar e
   entregar NAO baixam de novo; cancelar devolve. Testado em `tests/http/caixa.sh` (linhas "ESTOQUE").
 - **Despacho**: so motoqueiros ativos do proprio restaurante; grava `id_entregador` e `despachado_em`; o cliente ve
   "Saiu para entrega". Retirada: pronto -> "Cliente retirou".
+- **Mesas iniciais**: todo restaurante comeca com 5 mesas (1 a 5, 4 lugares) - migration
+  `20261111100000_entregador_posicoes_mesas_padrao.php` para os existentes e `MesaRepository::criarPadrao()` para
+  restaurantes novos. O "+" (`POST /caixa/mesas/nova`) cria o maior numero + 1 (pula numeros em uso).
 - **Pagamento**: `pedido_pagamentos` (uma conta pode ter varias formas). Dinheiro aceita "cliente entregou" e calcula
-  o troco. Conta paga = comanda concluida (`forma_pagamento` unica ou `misto`), mesa livre. Delivery entregue registra
+  o troco AO VIVO enquanto a pessoa digita (verde "Troco" ou vermelho "Ainda falta", `caixa.js`); depois de receber,
+  a comanda mostra um cartao grande "Devolva de troco" (flash `caixa_troco`, some ao recarregar). Conta paga = comanda concluida (`forma_pagamento` unica ou `misto`), mesa livre. Delivery entregue registra
   a forma do pedido no caixa (Pix pelo app entra como `pix_online`, sem passar pela gaveta).
 - Tudo com transacao, CSRF, conferencia de cargo + restaurante a cada acao e log em `log_user`
   (caixa aberto/fechado, entrada/saida, mesa criada/editada/excluida, item cancelado, desconto, conta fechada,
