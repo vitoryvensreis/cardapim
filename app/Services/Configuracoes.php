@@ -88,6 +88,21 @@ final class Configuracoes
         }
     }
 
+    /** Nome padrao da marca, usado se o banco estiver fora do ar ou sem a chave nome_sistema. */
+    public const NOME_PADRAO = 'Deliveryzim';
+
+    /**
+     * Nome publico da plataforma (configuracoes.nome_sistema). Telas, mensagens de WhatsApp, e-mails e o app
+     * instalavel usam este nome: trocar no banco troca em todo lugar. Sem quebras de linha nem caracteres de
+     * controle (vai em cabecalho de e-mail) e no maximo 40 caracteres.
+     */
+    public static function nome(): string
+    {
+        $nome = trim((string) preg_replace('/[\x00-\x1f\x7f]+/u', ' ', self::textoOuPadrao('nome_sistema', self::NOME_PADRAO)));
+        $nome = mb_substr($nome, 0, 40);
+        return $nome === '' ? self::NOME_PADRAO : $nome;
+    }
+
     public static function logo(string $key): string
     {
         if (!in_array($key, self::LOGO_KEYS, true)) {

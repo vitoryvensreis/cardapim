@@ -8,7 +8,7 @@ $logoColorida = Configuracoes::logoOuPadrao('logo_colorida');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
 $favicon = Configuracoes::logoOuPadrao('icone');
 $textoRodape = Configuracoes::textoOuPadrao('texto_rodape', 'Menos complicação. Mais restaurante.');
-$title = $escape($pageTitle ?? Configuracoes::textoOuPadrao('nome_sistema', 'Cardapim'));
+$title = $escape($pageTitle ?? Configuracoes::textoOuPadrao('nome_sistema', marca()));
 $description = $escape($pageDescription ?? Configuracoes::textoOuPadrao('descricao_padrao', ''));
 $styles = ['css/site.css'];
 $scripts = ['js/site.js'];
@@ -22,8 +22,8 @@ $scripts = ['js/site.js'];
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <header class="site-header" data-site-header>
         <div class="shell navbar">
-            <a class="brand" href="/" aria-label="Cardapim, página inicial">
-                <img src="<?= $escape($logoColorida) ?>" width="156" height="50" alt="Cardapim">
+            <a class="brand" href="/" aria-label="<?= marca_html() ?>, página inicial">
+                <img src="<?= $escape($logoColorida) ?>" width="156" height="50" alt="<?= marca_html() ?>">
             </a>
             <nav class="nav-links" id="main-navigation" aria-label="Navegação principal">
                 <a href="/#recursos" data-nav-link>Recursos</a>

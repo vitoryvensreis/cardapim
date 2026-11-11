@@ -61,7 +61,7 @@ final class Router
             ]);
         }
         return Response::html(View::render('errors/404', [
-            'pageTitle' => 'Página não encontrada | Cardapim',
+            'pageTitle' => 'Página não encontrada | ' . marca(),
             'pageDescription' => 'O endereço solicitado não foi encontrado.',
             'noIndex' => true,
         ], 'layouts/public'), 404);

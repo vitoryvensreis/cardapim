@@ -63,7 +63,7 @@ class AsaasApi
     public function criarWebhook(string $chave, string $ambiente, string $url, string $tokenAuth, string $email, ?array $eventos = null): string
     {
         $dados = $this->exigirOk($this->chamar('POST', '/webhooks', $chave, $ambiente, [
-            'name' => 'Cardapim',
+            'name' => marca(),
             'url' => $url,
             'email' => $email,
             'enabled' => true,

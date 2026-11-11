@@ -16,7 +16,7 @@ $cartoes = [
     <header class="painel-cabecalho">
         <div>
             <h1>Integrações da plataforma</h1>
-            <p>Contas da própria administração do Cardapim. Não são as contas dos restaurantes: cada restaurante conecta as suas no painel dele.</p>
+            <p>Contas da própria administração do <?= marca_html() ?>. Não são as contas dos restaurantes: cada restaurante conecta as suas no painel dele.</p>
         </div>
     </header>
 

@@ -14,16 +14,16 @@ foreach (MenuPlataforma::GRUPOS as $grupo => $chaves) {
     }
 }
 $painel = [
-    'descricao' => 'Administração da plataforma Cardapim.',
+    'descricao' => 'Administração da plataforma ' . marca() . '.',
     'menu_rotulo' => 'Menu da plataforma',
     'inicio' => MenuPlataforma::url('dashboard'),
-    'inicio_rotulo' => 'Cardapim, dashboard da plataforma',
-    'contexto' => ['rotulo' => 'Administração', 'nome' => 'Plataforma Cardapim', 'icone' => 'shield-check'],
+    'inicio_rotulo' => marca() . ', dashboard da plataforma',
+    'contexto' => ['rotulo' => 'Administração', 'nome' => 'Plataforma ' . marca(), 'icone' => 'shield-check'],
     'grupos' => $grupos,
     'trilha' => 'Plataforma',
     'titulo_atual' => MenuPlataforma::SECOES[$ativo]['rotulo'] ?? 'Plataforma',
     'acao_topo' => null,
     'tempo_real' => null,
 ];
-$pageTitle ??= 'Plataforma | Cardapim';
+$pageTitle ??= 'Plataforma | ' . marca();
 require __DIR__ . '/painel.php';

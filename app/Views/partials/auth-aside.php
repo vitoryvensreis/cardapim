@@ -2,7 +2,7 @@
 /** Painel lateral das telas de acesso. Espera $asideTitle e $asideItems. */
 use Cardapim\Core\Icon;
 ?>
-<aside class="auth-aside" aria-label="Por que usar o Cardapim">
+<aside class="auth-aside" aria-label="Por que usar o <?= marca_html() ?>">
     <h2><?= htmlspecialchars($asideTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h2>
     <ul class="auth-benefits">
         <?php foreach ($asideItems as [$icon, $title, $text]): ?>

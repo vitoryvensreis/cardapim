@@ -43,7 +43,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
             'dica' => 'Fica guardada criptografada. Depois de salvar, aparecem só os 4 últimos caracteres.',
             'attrs' => ['autocomplete' => 'off', 'spellcheck' => 'false', 'maxlength' => 400, 'data-validate' => 'required', 'placeholder' => '$aact_...']]) ?>
         <?= Campo::texto(['nome' => 'email_avisos', 'rotulo' => 'E-mail para alertas do Asaas', 'tipo' => 'email', 'valor' => $valores['email_avisos'] ?? '', 'icone' => 'mail', 'opcional' => true,
-            'dica' => 'O Asaas avisa neste e-mail se não conseguir falar com o Cardapim.', 'attrs' => ['maxlength' => 190, 'autocomplete' => 'email']]) ?>
+            'dica' => 'O Asaas avisa neste e-mail se não conseguir falar com o ' . marca() . '.', 'attrs' => ['maxlength' => 190, 'autocomplete' => 'email']]) ?>
         <div class="bloco-rodape">
             <button class="btn btn-primary" type="submit" data-submit-label="Conferindo a chave..."><?= Icon::svg('link', 'icon-sm') ?><?= $conectado ? 'Salvar nova chave' : 'Conectar conta Asaas' ?></button>
         </div>
@@ -71,7 +71,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
             <ol class="passos-2fa">
                 <li><strong>Entre na sua conta do Asaas</strong> e abra <strong>Integrações &gt; Chaves de API</strong>.</li>
                 <li><strong>Gere uma chave nova</strong> e copie. Guarde em lugar seguro: o Asaas pode não mostrá-la de novo.</li>
-                <li><strong>Cole aqui embaixo</strong>. O Cardapim confere a chave e já configura os avisos de pagamento.</li>
+                <li><strong>Cole aqui embaixo</strong>. O <?= marca_html() ?> confere a chave e já configura os avisos de pagamento.</li>
             </ol>
         </section>
         <section class="bloco" aria-labelledby="titulo-conectar">
@@ -101,7 +101,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
                     <?php $formulario(); ?>
                 </details>
                 <form method="post" action="<?= $e($base . '/integracoes/asaas/desconectar') ?>"
-                      data-confirm="A chave será apagada do Cardapim e os avisos de pagamento param de chegar." data-confirm-titulo="Desconectar o Asaas?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
+                      data-confirm="A chave será apagada do <?= marca_html() ?> e os avisos de pagamento param de chegar." data-confirm-titulo="Desconectar o Asaas?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <button class="btn btn-outline btn-sm link-perigo" type="submit"><?= Icon::svg('unplug', 'icon-sm') ?>Desconectar</button>
                 </form>
@@ -115,7 +115,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
                     <?php if ($saude !== null): ?><p>Conferido em <?= $e($data((string) $saude['verificado_em'])) ?>.</p><?php endif; ?>
                 </div>
                 <?php if ($saude === null): ?>
-                    <p class="texto-suave">Toque em "Testar conexão" para o Cardapim conferir a conta no Asaas.</p>
+                    <p class="texto-suave">Toque em "Testar conexão" para o <?= marca_html() ?> conferir a conta no Asaas.</p>
                 <?php else: ?>
                     <ul class="saude-lista">
                         <li class="saude-item is-ok"><?= Icon::svg('circle-check') ?><span><strong>Chave de API conectada</strong><small><?= $integracao['ambiente'] === 'sandbox' ? 'Conta de testes (Sandbox).' : 'Conta real (Produção).' ?></small></span></li>
@@ -137,7 +137,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
         <section class="bloco" aria-labelledby="titulo-avisos">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-avisos"><?= Icon::svg('webhook') ?>Avisos de pagamento</h2>
-                <p><?= $plataforma ? 'O Asaas avisa o Cardapim quando uma fatura é criada, paga ou vence e quando uma assinatura muda (webhook).' : 'O Asaas avisa o Cardapim quando um Pix é criado, pago, vence ou é estornado (webhook).' ?></p>
+                <p><?= $plataforma ? 'O Asaas avisa o ' . marca() . ' quando uma fatura é criada, paga ou vence e quando uma assinatura muda (webhook).' : 'O Asaas avisa o ' . marca() . ' quando um Pix é criado, pago, vence ou é estornado (webhook).' ?></p>
             </div>
             <?php if ($webhookOk): ?>
                 <p><span class="etiqueta etiqueta-ok"><?= Icon::svg('check') ?>Configurados</span>
@@ -147,7 +147,7 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
                     <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('refresh-cw', 'icon-sm') ?>Configurar de novo</button>
                 </form>
             <?php else: ?>
-                <div class="notice notice-info"><?= Icon::svg('info') ?><div><strong>Os avisos ainda não estão configurados.</strong><p>Toque no botão para o Cardapim configurar sozinho. Se não der certo, configure no Asaas com os dados abaixo.</p></div></div>
+                <div class="notice notice-info"><?= Icon::svg('info') ?><div><strong>Os avisos ainda não estão configurados.</strong><p>Toque no botão para o <?= marca_html() ?> configurar sozinho. Se não der certo, configure no Asaas com os dados abaixo.</p></div></div>
                 <form method="post" action="<?= $e($base . '/integracoes/asaas/webhook') ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <button class="btn btn-primary btn-sm" type="submit" data-submit-label="Configurando..."><?= Icon::svg('webhook', 'icon-sm') ?>Configurar automaticamente</button>

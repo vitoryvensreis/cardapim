@@ -102,7 +102,7 @@ final class CodigoVerificacao
 
     public static function mensagem(string $codigo): string
     {
-        return "*{$codigo}* é o seu código para entrar no Cardapim.\n\nEle vale por 10 minutos. Não passe este código para ninguém, nem para quem disser que é do restaurante.";
+        return "*{$codigo}* é o seu código para entrar no " . marca() . ".\n\nEle vale por 10 minutos. Não passe este código para ninguém, nem para quem disser que é do restaurante.";
     }
 
     private static function hash(string $codigo): string

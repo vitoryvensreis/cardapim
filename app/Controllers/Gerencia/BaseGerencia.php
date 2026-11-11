@@ -58,7 +58,7 @@ abstract class BaseGerencia
     {
         $flash = Session::flash('flash');
         return Guard::semCache(Response::html(View::render($view, [
-            'pageTitle' => $titulo . ' · ' . $this->restaurante['nome'] . ' | Cardapim',
+            'pageTitle' => $titulo . ' · ' . $this->restaurante['nome'] . ' | ' . marca(),
             'usuario' => $this->usuario,
             'csrf' => Session::tokenCsrf(),
             'restaurante' => $this->restaurante,

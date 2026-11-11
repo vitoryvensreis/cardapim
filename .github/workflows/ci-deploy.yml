@@ -85,6 +85,7 @@ jobs:
           php tests/unit/estoque.php
           php tests/unit/navegador.php
           php tests/unit/dominio.php
+          php tests/unit/marca.php
           php tests/unit/gerencia.php
           php tests/unit/integracoes.php
           php tests/unit/tempo-real.php

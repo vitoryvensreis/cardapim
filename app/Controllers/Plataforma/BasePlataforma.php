@@ -32,7 +32,7 @@ abstract class BasePlataforma
             return $usuario;
         }
         if (!Autorizacao::podeAcessarPainel($usuario)) {
-            return Guard::proibido($usuario, 'O painel geral é exclusivo da administração do Cardapim.');
+            return Guard::proibido($usuario, 'O painel geral é exclusivo da administração do ' . marca() . '.');
         }
         $this->usuario = $usuario;
         $this->db = Database::connect();
@@ -59,7 +59,7 @@ abstract class BasePlataforma
     {
         $flash = Session::flash('flash');
         return Guard::semCache(Response::html(View::render($view, [
-            'pageTitle' => $titulo . ' · Plataforma | Cardapim',
+            'pageTitle' => $titulo . ' · Plataforma | ' . marca(),
             'usuario' => $this->usuario,
             'csrf' => Session::tokenCsrf(),
             'ativo' => $ativo,

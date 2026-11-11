@@ -33,10 +33,10 @@ require __DIR__ . '/../caixa/_fila.php';
 $lateral = (string) ob_get_clean();
 
 $painel = [
-    'descricao' => 'Modo caixa do Cardapim.',
+    'descricao' => 'Modo caixa do ' . marca() . '.',
     'menu_rotulo' => 'Menu do caixa',
     'inicio' => MenuCaixa::url($slug, 'caixa'),
-    'inicio_rotulo' => 'Cardapim, caixa',
+    'inicio_rotulo' => marca() . ', caixa',
     'contexto' => ['rotulo' => 'Modo caixa', 'nome' => (string) $restaurante['nome'], 'icone' => 'monitor'],
     'grupos' => $grupos,
     'lateral_extra' => $lateral,
@@ -49,5 +49,5 @@ $painel = [
 ];
 $pageStyles = ['css/caixa.css', ...($pageStyles ?? [])];
 $pageScripts = ['js/forms.js', 'js/caixa.js', ...($pageScripts ?? [])];
-$pageTitle ??= 'Caixa | Cardapim';
+$pageTitle ??= 'Caixa | ' . marca();
 require __DIR__ . '/painel.php';

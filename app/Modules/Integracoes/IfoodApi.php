@@ -117,7 +117,7 @@ class IfoodApi
     private function post(string $caminho, array $campos): RespostaHttp
     {
         if (!self::disponivel()) {
-            throw new IntegracaoErro('A integração com o iFood ainda não está liberada neste servidor. Avise o suporte do Cardapim.');
+            throw new IntegracaoErro('A integração com o iFood ainda não está liberada neste servidor. Avise o suporte do ' . marca() . '.');
         }
         try {
             return $this->http->formulario(self::urlBase() . $caminho, $campos);

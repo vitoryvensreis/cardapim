@@ -77,7 +77,7 @@ final class AreaController
     private function telaGerencia(UsuarioLogado $usuario, array $restaurante, string $ativo, string $titulo, array $dados): Response
     {
         return Guard::semCache(Response::html(View::render('area/em-construcao', [
-            'pageTitle' => $titulo . ' · ' . $restaurante['nome'] . ' | Cardapim',
+            'pageTitle' => $titulo . ' · ' . $restaurante['nome'] . ' | ' . marca(),
             'usuario' => $usuario,
             'csrf' => Session::tokenCsrf(),
             'restaurante' => $restaurante,
@@ -89,8 +89,8 @@ final class AreaController
     private function tela(UsuarioLogado $usuario, string $view, string $titulo, array $dados): Response
     {
         return Guard::semCache(Response::html(View::render($view, [
-            'pageTitle' => $titulo . ' | Cardapim',
-            'pageDescription' => 'Área restrita do Cardapim.',
+            'pageTitle' => $titulo . ' | ' . marca(),
+            'pageDescription' => 'Área restrita do ' . marca() . '.',
             'noIndex' => true,
             'usuario' => $usuario,
             'csrf' => Session::tokenCsrf(),
@@ -101,7 +101,7 @@ final class AreaController
     private function naoEncontrado(): Response
     {
         return Response::html(View::render('errors/404', [
-            'pageTitle' => 'Página não encontrada | Cardapim',
+            'pageTitle' => 'Página não encontrada | ' . marca(),
             'pageDescription' => 'O endereço solicitado não foi encontrado.',
             'noIndex' => true,
         ], 'layouts/public'), 404);

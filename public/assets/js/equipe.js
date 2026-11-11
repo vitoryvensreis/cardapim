@@ -1,6 +1,8 @@
 /* Cardapim - aba Equipe: gerar senha facil de ditar e copiar usuario + senha. */
 (() => {
   "use strict";
+  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
+  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
 
   const PALAVRAS = ["mesa", "prato", "sol", "lua", "cafe", "pao", "suco", "milho", "uva", "caju", "mel", "sal", "chuva", "festa", "praia", "verde", "doce", "forno", "porto", "vento"];
   const aleatorio = (max) => {
@@ -36,7 +38,7 @@
 
     copiar?.addEventListener("click", async () => {
       const usuario = form.querySelector("[data-usuario]")?.value || "";
-      const texto = `Acesso ao Cardapim\nUsuário: ${usuario}\nSenha: ${campo.value}`;
+      const texto = `Acesso ao ${marca()}\nUsuário: ${usuario}\nSenha: ${campo.value}`;
       try {
         await navigator.clipboard.writeText(texto);
         if (aviso) aviso.textContent = "Copiado! Cole no WhatsApp da pessoa.";

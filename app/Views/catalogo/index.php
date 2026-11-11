@@ -5,7 +5,7 @@ $esc = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SU
 ?>
 <section class="catalog-hero" aria-labelledby="catalog-title">
     <div class="shell">
-        <h1 id="catalog-title">Restaurantes no <em>Cardapim.</em></h1>
+        <h1 id="catalog-title">Restaurantes no <em><?= marca_html() ?>.</em></h1>
         <p>Encontre restaurantes, bares e lanchonetes que já fazem parte da plataforma.</p>
         <form class="catalog-search" action="/catalogo" method="get" role="search" data-catalog-search>
             <label class="sr-only" for="catalog-busca">Buscar restaurante pelo nome</label>

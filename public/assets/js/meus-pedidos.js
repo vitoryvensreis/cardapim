@@ -6,6 +6,8 @@
  */
 (() => {
   "use strict";
+  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
+  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
 
   const Cliente = window.CardapimCliente;
   const slug = document.body.dataset.cardapio || "";
@@ -139,7 +141,7 @@
     if (dados && dados.pedidos.length === 0) {
       $("[data-mp-vazio-texto]").textContent = filtro === "aqui"
         ? "Você ainda não fez pedidos neste restaurante."
-        : "Você ainda não fez nenhum pedido pelo Cardapim.";
+        : `Você ainda não fez nenhum pedido pelo ${marca()}.`;
       estado("vazio");
     } else {
       estado("");

@@ -11,12 +11,12 @@ $legalLead = 'Veja como pedidos de exclusão serão tratados e quando alguns dad
         </section>
         <section>
             <h2>2. Como solicitar?</h2>
-            <p>O canal formal de solicitações ainda será definido e publicado <strong>antes da liberação dos cadastros</strong>. Atualmente, o Cardapim não disponibiliza formulário de exclusão de conta, pois o cadastro público ainda não foi implementado.</p>
+            <p>O canal formal de solicitações ainda será definido e publicado <strong>antes da liberação dos cadastros</strong>. Atualmente, o <?= marca_html() ?> não disponibiliza formulário de exclusão de conta, pois o cadastro público ainda não foi implementado.</p>
             <p>Quando o canal estiver disponível, o pedido deverá identificar o titular de forma segura, indicar os dados envolvidos e receber acompanhamento até uma resposta. Não será necessário enviar senhas ou códigos de acesso para solicitar exclusão.</p>
         </section>
         <section>
             <h2>3. Dados de clientes de restaurantes</h2>
-            <p>Quando o pedido estiver relacionado a um consumidor de determinado restaurante, o estabelecimento poderá ser o controlador desses dados. O Cardapim prestará o apoio que lhe couber como operador, de acordo com o vínculo contratual e a legislação aplicável.</p>
+            <p>Quando o pedido estiver relacionado a um consumidor de determinado restaurante, o estabelecimento poderá ser o controlador desses dados. O <?= marca_html() ?> prestará o apoio que lhe couber como operador, de acordo com o vínculo contratual e a legislação aplicável.</p>
         </section>
         <section>
             <h2>4. O que pode continuar armazenado?</h2>

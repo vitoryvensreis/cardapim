@@ -28,12 +28,12 @@ final class Mailer
         }
         $remetente = self::remetente();
         $cabecalhos = implode("\r\n", [
-            'From: Cardapim <' . $remetente . '>',
+            'From: ' . marca() . ' <' . $remetente . '>',
             'Reply-To: ' . $remetente,
             'MIME-Version: 1.0',
             'Content-Type: text/plain; charset=UTF-8',
             'Content-Transfer-Encoding: 8bit',
-            'X-Mailer: Cardapim',
+            'X-Mailer: ' . marca(),
         ]);
         try {
             return mail($para, mb_encode_mimeheader($assunto, 'UTF-8', 'B'), $texto, $cabecalhos, '-f' . $remetente);

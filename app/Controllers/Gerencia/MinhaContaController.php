@@ -102,7 +102,7 @@ final class MinhaContaController extends BaseGerencia
         }
         $codigos = (new DoisFatores($this->db))->ativarApp($conta, (string) $config['segredo'], (string) ($_POST['codigo'] ?? ''));
         if ($codigos === null) {
-            Session::set('erro_totp', 'Código incorreto. Confira se digitou o código do Cardapim que aparece agora no aplicativo.');
+            Session::set('erro_totp', 'Código incorreto. Confira se digitou o código do ' . marca() . ' que aparece agora no aplicativo.');
             return Response::redirect($this->url('minha-conta/dois-fatores/app'), 303);
         }
         Session::remover(self::SESSAO_TOTP);

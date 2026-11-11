@@ -10,6 +10,8 @@
  */
 (() => {
   "use strict";
+  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
+  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
 
   const corpo = document.body;
   const urlTicket = corpo.dataset.tempoReal;
@@ -30,7 +32,7 @@
   };
   const DICAS = {
     conectando: "Conectando às atualizações ao vivo.",
-    "ao-vivo": "Quando algo muda, o Cardapim avisa nesta tela sem precisar recarregar.",
+    "ao-vivo": `Quando algo muda, o ${marca()} avisa nesta tela sem precisar recarregar.`,
     reconectando: "A conexão caiu. Tentando de novo sozinho.",
     offline: "Sem atualização ao vivo agora. A tela funciona normalmente; recarregue para ver novidades.",
   };

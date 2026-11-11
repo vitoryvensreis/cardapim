@@ -11,8 +11,8 @@ $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBS
 $escape = $e;
 $favicon = Configuracoes::logoOuPadrao('icone');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
-$title = $e((string) ($pageTitle ?? 'Cardapim'));
-$description = $e((string) ($pageDescription ?? 'Área restrita do Cardapim.'));
+$title = $e((string) ($pageTitle ?? marca()));
+$description = $e((string) ($pageDescription ?? 'Área restrita do ' . marca() . '.'));
 $styles = ['css/pages.css', 'css/app.css'];
 $scripts = [];
 
@@ -27,8 +27,8 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <header class="app-top">
         <div class="app-top-inner">
-            <a class="app-brand" href="<?= $e(Autorizacao::destino($usuario)) ?>" aria-label="Cardapim, minha área">
-                <img src="<?= $e($logoBranca) ?>" width="120" height="39" alt="Cardapim">
+            <a class="app-brand" href="<?= $e(Autorizacao::destino($usuario)) ?>" aria-label="<?= marca_html() ?>, minha área">
+                <img src="<?= $e($logoBranca) ?>" width="120" height="39" alt="<?= marca_html() ?>">
             </a>
             <?php if (!empty($voltar)): ?>
                 <a class="app-back" href="<?= $e($voltar) ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?><span>Voltar à gerência</span></a>
@@ -38,7 +38,7 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
             <?php endif; ?>
             <span class="app-context">
                 <?= Icon::svg($usuario->cargo === Autorizacao::CARGO_MASTER ? 'shield-check' : 'store', 'icon-sm') ?>
-                <?= $e($usuario->restauranteNome ?? 'Plataforma Cardapim') ?>
+                <?= $e($usuario->restauranteNome ?? 'Plataforma ' . marca()) ?>
             </span>
             <div class="app-user">
                 <span class="app-avatar" aria-hidden="true"><?= $e($iniciais) ?></span>

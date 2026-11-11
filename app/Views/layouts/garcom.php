@@ -14,7 +14,7 @@ use Cardapim\Services\Configuracoes;
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $favicon = Configuracoes::logoOuPadrao('icone');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
-$title = $e((string) ($pageTitle ?? 'Garçom | Cardapim'));
+$title = $e((string) ($pageTitle ?? 'Garçom | ' . marca()));
 $description = $e((string) ($pageDescription ?? 'Painel do garçom.'));
 $styles = ['css/pages.css', 'css/app.css', 'css/painel.css', 'css/caixa.css', 'css/garcom.css'];
 $scripts = [...($tempoReal !== null ? ['js/tempo-real.js'] : []), 'js/forms.js', 'js/confirmar.js', ...($pageScripts ?? []), 'js/garcom.js'];
@@ -44,8 +44,8 @@ $abas = [
     <?php else: ?>
         <header class="app-top">
             <div class="app-top-inner">
-                <a class="app-brand" href="<?= $e(Autorizacao::destino($usuario)) ?>" aria-label="Cardapim, mesas">
-                    <img src="<?= $e($logoBranca) ?>" width="120" height="39" alt="Cardapim">
+                <a class="app-brand" href="<?= $e(Autorizacao::destino($usuario)) ?>" aria-label="<?= marca_html() ?>, mesas">
+                    <img src="<?= $e($logoBranca) ?>" width="120" height="39" alt="<?= marca_html() ?>">
                 </a>
                 <span class="app-context"><?= Icon::svg('store', 'icon-sm') ?><?= $e((string) $restaurante['nome']) ?></span>
                 <nav class="garcom-abas" aria-label="Menu do garçom">

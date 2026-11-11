@@ -11,7 +11,7 @@ use Cardapim\Services\Configuracoes;
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $favicon = Configuracoes::logoOuPadrao('icone');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
-$title = $e((string) ($pageTitle ?? 'Entregas | Cardapim'));
+$title = $e((string) ($pageTitle ?? 'Entregas | ' . marca()));
 $description = $e((string) ($pageDescription ?? 'Painel do entregador.'));
 $styles = ['css/pages.css', 'css/app.css', 'css/painel.css', 'css/entregador.css'];
 $scripts = [...($tempoReal !== null ? ['js/tempo-real.js'] : []), 'js/confirmar.js', 'js/entregador.js'];
@@ -26,8 +26,8 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <header class="app-top">
         <div class="app-top-inner">
-            <a class="app-brand" href="<?= $e(Autorizacao::destino($usuario)) ?>" aria-label="Cardapim, minhas entregas">
-                <img src="<?= $e($logoBranca) ?>" width="120" height="39" alt="Cardapim">
+            <a class="app-brand" href="<?= $e(Autorizacao::destino($usuario)) ?>" aria-label="<?= marca_html() ?>, minhas entregas">
+                <img src="<?= $e($logoBranca) ?>" width="120" height="39" alt="<?= marca_html() ?>">
             </a>
             <span class="app-context"><?= Icon::svg('store', 'icon-sm') ?><?= $e((string) $restaurante['nome']) ?></span>
             <div class="app-user">
@@ -44,7 +44,7 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
         <section class="local-bloqueio" data-local-bloqueio aria-labelledby="bloqueio-titulo" hidden>
             <span class="local-bloqueio-icone" aria-hidden="true"><?= Icon::svg('map-pin', 'icon-lg') ?></span>
             <h1 id="bloqueio-titulo" data-bloqueio-titulo>Ative sua localização para começar</h1>
-            <p data-bloqueio-texto>Para receber e fazer entregas, o Cardapim precisa da sua localização. O cliente só vê você enquanto o pedido dele está a caminho.</p>
+            <p data-bloqueio-texto>Para receber e fazer entregas, o <?= marca_html() ?> precisa da sua localização. O cliente só vê você enquanto o pedido dele está a caminho.</p>
             <ol class="local-bloqueio-passos" data-bloqueio-android hidden>
                 <li>Toque no <?= Icon::svg('lock', 'icon-sm') ?><strong>cadeado</strong> ao lado do endereço do site (no app instalado: menu <?= Icon::svg('ellipsis-vertical', 'icon-sm') ?> &gt; <strong>Configurações do site</strong>).</li>
                 <li>Abra <strong>Permissões</strong> &gt; <strong>Localização</strong> e escolha <strong>Permitir</strong>.</li>

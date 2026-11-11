@@ -69,7 +69,7 @@ abstract class BaseCaixa
         $erros = Session::flash('caixa_erros');
         $enviado = Session::flash('caixa_enviado');
         return Guard::semCache(Response::html(View::render($view, [
-            'pageTitle' => $titulo . ' · Caixa · ' . $this->restaurante['nome'] . ' | Cardapim',
+            'pageTitle' => $titulo . ' · Caixa · ' . $this->restaurante['nome'] . ' | ' . marca(),
             'usuario' => $this->usuario,
             'csrf' => Session::tokenCsrf(),
             'restaurante' => $this->restaurante,

@@ -9,7 +9,7 @@ return static function (PDO $db): void {
         ['logo_branca', '/assets/img/logo-branca.svg', 'imagem', 'Logo oficial branca'],
         ['logo_preta', '/assets/img/logo-preta.svg', 'imagem', 'Logo oficial para fundo claro'],
         ['icone', '/assets/img/icone.svg', 'imagem', 'Icone e favicon oficial'],
-        ['nome_sistema', 'Cardapim', 'texto', 'Nome publico da plataforma'],
+        ['nome_sistema', 'Deliveryzim', 'texto', 'Nome publico da plataforma'],
         ['descricao_padrao', 'Gestão de restaurantes do jeito simples.', 'texto', 'Descricao padrao de paginas'],
         ['texto_rodape', 'Menos complicação. Mais restaurante.', 'texto', 'Mensagem padrao no rodape'],
     ];

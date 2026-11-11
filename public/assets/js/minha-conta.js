@@ -1,6 +1,8 @@
 /* Cardapim - Minha conta: QR Code do autenticador, copiar chave/codigos, baixar e imprimir codigos. */
 (() => {
   "use strict";
+  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
+  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
 
   /* QR Code gerado no proprio navegador (biblioteca qrcode-generator, MIT): o segredo nao sai da pagina. */
   const alvo = document.querySelector("[data-qr]");
@@ -35,7 +37,7 @@
 
   document.querySelector("[data-baixar-codigos]")?.addEventListener("click", (evento) => {
     const codigos = [...document.querySelectorAll("[data-codigos] li")].map((li) => li.textContent.trim());
-    const texto = `Códigos de recuperação do Cardapim\nCada código funciona uma vez.\n\n${codigos.join("\n")}\n`;
+    const texto = `Códigos de recuperação do ${marca()}\nCada código funciona uma vez.\n\n${codigos.join("\n")}\n`;
     const url = URL.createObjectURL(new Blob([texto], { type: "text/plain;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;

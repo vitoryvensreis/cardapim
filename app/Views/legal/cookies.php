@@ -1,6 +1,6 @@
 <?php
 $legalTitle = 'Política de Cookies';
-$legalLead = 'Saiba o que são cookies, para que servem e quais controles se aplicam ao Cardapim.';
+$legalLead = 'Saiba o que são cookies, para que servem e quais controles se aplicam ao ' . marca() . '.';
 ?>
 <div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>

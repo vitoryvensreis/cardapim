@@ -76,7 +76,7 @@ final class AsaasService extends BaseIntegracao
         }
         $url = self::urlPublica('/webhooks/asaas/' . $atual['webhook_id']);
         if (!str_starts_with($url, 'https://')) {
-            return Resultado::falha('O endereço do Cardapim precisa ser HTTPS para receber avisos do Asaas.');
+            return Resultado::falha('O endereço do ' . marca() . ' precisa ser HTTPS para receber avisos do Asaas.');
         }
         $email = filter_var($atual['dados']['email_avisos'] ?? '', FILTER_VALIDATE_EMAIL) ? (string) $atual['dados']['email_avisos'] : (string) ($atual['dados']['conta_email'] ?? '');
         try {
@@ -94,7 +94,7 @@ final class AsaasService extends BaseIntegracao
         if ($this->idRestaurante === null) {
             $this->verificarSaude();
         }
-        return Resultado::sucesso('Pronto! O Asaas vai avisar o Cardapim sempre que um pagamento' . ($this->idRestaurante === null ? ' ou uma assinatura' : '') . ' mudar.');
+        return Resultado::sucesso('Pronto! O Asaas vai avisar o ' . marca() . ' sempre que um pagamento' . ($this->idRestaurante === null ? ' ou uma assinatura' : '') . ' mudar.');
     }
 
     public function testar(): Resultado
@@ -213,8 +213,8 @@ final class AsaasService extends BaseIntegracao
         }
         $this->removerWebhookAntigo($this->integracoes->credenciais($this->idRestaurante, 'asaas'), $atual);
         $this->integracoes->limpar($this->idRestaurante, 'asaas');
-        $this->log('Integração Asaas desconectada', 'Chave de API e token dos avisos apagados do Cardapim.');
-        return Resultado::sucesso('Asaas desconectado. A chave foi apagada do Cardapim.');
+        $this->log('Integração Asaas desconectada', 'Chave de API e token dos avisos apagados do ' . marca() . '.');
+        return Resultado::sucesso('Asaas desconectado. A chave foi apagada do ' . marca() . '.');
     }
 
     /** @param array<string,mixed> $cred @param array<string,mixed> $atual */

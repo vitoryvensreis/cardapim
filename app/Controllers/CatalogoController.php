@@ -28,8 +28,8 @@ final class CatalogoController
         }
 
         return Response::html(View::render('catalogo/index', [
-            'pageTitle' => 'Restaurantes | Cardapim',
-            'pageDescription' => 'Conheça os restaurantes, bares e lanchonetes que usam o Cardapim.',
+            'pageTitle' => 'Restaurantes | ' . marca(),
+            'pageDescription' => 'Conheça os restaurantes, bares e lanchonetes que usam o ' . marca() . '.',
             'pageStyles' => ['css/catalogo.css'],
             'pageScripts' => ['js/catalogo.js'],
             'restaurantes' => $pagina['itens'],

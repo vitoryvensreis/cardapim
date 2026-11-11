@@ -40,7 +40,7 @@ $hv = static function (int $dia, string $campo) use ($horario, $turnosPorDia): s
     <header class="painel-cabecalho">
         <div>
             <h1>Perfil do restaurante</h1>
-            <p>É assim que os clientes veem o seu restaurante no Cardapim.</p>
+            <p>É assim que os clientes veem o seu restaurante no <?= marca_html() ?>.</p>
         </div>
         <div class="painel-acoes">
             <?php if ($semHorario): ?>

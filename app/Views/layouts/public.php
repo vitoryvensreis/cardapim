@@ -9,8 +9,8 @@ $logoPreta = Configuracoes::logoOuPadrao('logo_preta');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
 $favicon = Configuracoes::logoOuPadrao('icone');
 $textoRodape = Configuracoes::textoOuPadrao('texto_rodape', 'Menos complicação. Mais restaurante.');
-$title = $escape((string) ($pageTitle ?? 'Cardapim'));
-$description = $escape((string) ($pageDescription ?? 'Cardapim, gestão de restaurantes.'));
+$title = $escape((string) ($pageTitle ?? marca()));
+$description = $escape((string) ($pageDescription ?? marca() . ', gestão de restaurantes.'));
 $styles = ['css/pages.css', ...($pageStyles ?? [])];
 $scripts = $pageScripts ?? [];
 // Paginas legais abertas pelo cardapio de um restaurante: so "Voltar ao cardapio", sem links do site.
@@ -26,7 +26,7 @@ $scripts = $pageScripts ?? [];
 <?php if ($cardapioUrl !== null): ?>
     <header class="site-header site-header--light">
         <div class="shell navbar">
-            <span class="brand"><img src="<?= $escape($logoPreta) ?>" width="156" height="50" alt="Cardapim"></span>
+            <span class="brand"><img src="<?= $escape($logoPreta) ?>" width="156" height="50" alt="<?= marca_html() ?>"></span>
             <nav class="nav-actions" aria-label="Voltar">
                 <a class="btn btn-wine btn-sm" href="<?= $escape($cardapioUrl) ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Voltar ao cardápio</a>
             </nav>
@@ -34,13 +34,13 @@ $scripts = $pageScripts ?? [];
     </header>
     <main id="conteudo" class="public-main"><?= $content ?></main>
     <footer class="rodape-cardapio">
-        <p>Cardápio de <?= $escape((string) $cardapioNome) ?> · Pedidos com Cardapim</p>
+        <p>Cardápio de <?= $escape((string) $cardapioNome) ?> · Pedidos com <?= marca_html() ?></p>
     </footer>
 <?php else: ?>
     <header class="site-header site-header--light">
         <div class="shell navbar">
-            <a class="brand" href="/" aria-label="Cardapim, voltar ao início">
-                <img src="<?= $escape($logoPreta) ?>" width="156" height="50" alt="Cardapim">
+            <a class="brand" href="/" aria-label="<?= marca_html() ?>, voltar ao início">
+                <img src="<?= $escape($logoPreta) ?>" width="156" height="50" alt="<?= marca_html() ?>">
             </a>
             <nav class="nav-actions" aria-label="Acesso rápido">
                 <a class="nav-login nav-compact" href="/catalogo"><?= Icon::svg('store', 'icon-sm') ?><span class="nav-label">Restaurantes</span></a>

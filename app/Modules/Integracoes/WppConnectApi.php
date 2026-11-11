@@ -35,7 +35,7 @@ class WppConnectApi
         $r = $this->chamar('POST', '/api/' . self::sessao($sessao) . '/' . rawurlencode(Config::get('WPPCONNECT_SECRET_KEY')) . '/generate-token');
         $token = $r->json()['token'] ?? null;
         if (!$r->ok() || !is_string($token) || $token === '') {
-            throw new IntegracaoErro('O servidor do WhatsApp recusou a conexão. Avise o suporte do Cardapim (chave do servidor incorreta).');
+            throw new IntegracaoErro('O servidor do WhatsApp recusou a conexão. Avise o suporte do ' . marca() . ' (chave do servidor incorreta).');
         }
         return $token;
     }
@@ -122,7 +122,7 @@ class WppConnectApi
     private function chamar(string $metodo, string $caminho, ?string $token = null, ?array $corpo = null): RespostaHttp
     {
         if (!self::disponivel()) {
-            throw new IntegracaoErro('O WhatsApp ainda não está disponível neste servidor. Avise o suporte do Cardapim.');
+            throw new IntegracaoErro('O WhatsApp ainda não está disponível neste servidor. Avise o suporte do ' . marca() . '.');
         }
         try {
             return $this->http->enviar($metodo, self::urlBase() . $caminho, $token !== null ? ['Authorization' => 'Bearer ' . $token] : [], $corpo ?? ($metodo === 'POST' ? [] : null));

@@ -21,4 +21,5 @@ if (is_file($composerAutoload)) {
         }
     });
 }
+require_once $root . '/app/Core/helpers.php';
 date_default_timezone_set('America/Fortaleza');

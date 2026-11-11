@@ -349,7 +349,7 @@ final class GarcomController
     {
         $flash = Session::flash('flash');
         return Guard::semCache(Response::html(View::render($view, [
-            'pageTitle' => $titulo . ' · Garçom · ' . $this->restaurante['nome'] . ' | Cardapim',
+            'pageTitle' => $titulo . ' · Garçom · ' . $this->restaurante['nome'] . ' | ' . marca(),
             'pageDescription' => 'Painel do garçom.',
             'noIndex' => true,
             'usuario' => $this->usuario,

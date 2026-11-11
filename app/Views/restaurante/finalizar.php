@@ -32,7 +32,7 @@ $json = json_encode([
     <?php if (!$config['recebe_pedidos']): ?>
         <div class="ck-vazio">
             <?= Icon::svg('store', 'icon icon-lg') ?>
-            <strong>Este restaurante ainda não recebe pedidos pelo Cardapim</strong>
+            <strong>Este restaurante ainda não recebe pedidos pelo <?= marca_html() ?></strong>
             <p>Você pode ver o cardápio e falar direto com o restaurante.</p>
             <a class="btn btn-primary" href="/<?= $e((string) $restaurante['slug']) ?>">Voltar ao cardápio</a>
         </div>

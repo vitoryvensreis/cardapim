@@ -58,7 +58,7 @@ $estaAtivo = !$nova && (int) $pessoa['ativo'] === 1;
         <section class="bloco" aria-labelledby="titulo-acesso">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-acesso"><?= Icon::svg('key-round') ?>Acesso ao sistema</h2>
-                <p>A pessoa entra pela tela de login do Cardapim com o usuário<?= $nova ? ' e a senha' : '' ?> abaixo.</p>
+                <p>A pessoa entra pela tela de login do <?= marca_html() ?> com o usuário<?= $nova ? ' e a senha' : '' ?> abaixo.</p>
             </div>
             <div class="form-grade">
                 <?= Campo::texto(['nome' => 'usuario', 'rotulo' => 'Usuário (para entrar)', 'valor' => $v('usuario'), 'icone' => 'at-sign', 'erro' => $erros['usuario'] ?? null,

@@ -28,8 +28,8 @@ final class RestauranteController
         } catch (\Throwable $exception) {
             error_log('[Cardapim] Pagina do restaurante indisponivel: ' . get_class($exception));
             return Response::html(View::render('errors/500', [
-                'pageTitle' => 'Erro temporário | Cardapim',
-                'pageDescription' => 'Erro temporário no Cardapim.',
+                'pageTitle' => 'Erro temporário | ' . marca(),
+                'pageDescription' => 'Erro temporário no ' . marca() . '.',
                 'noIndex' => true,
             ], 'layouts/public'), 503);
         }
@@ -44,15 +44,15 @@ final class RestauranteController
         } catch (\Throwable $exception) {
             error_log('[Cardapim] Cardapio indisponivel: ' . get_class($exception));
             return Response::html(View::render('errors/500', [
-                'pageTitle' => 'Erro temporário | Cardapim',
-                'pageDescription' => 'Erro temporário no Cardapim.',
+                'pageTitle' => 'Erro temporário | ' . marca(),
+                'pageDescription' => 'Erro temporário no ' . marca() . '.',
                 'noIndex' => true,
             ], 'layouts/public'), 503);
         }
 
         return Response::html(View::render('restaurante/cardapio', [
-            'pageTitle' => $restaurante['nome'] . ' · Cardápio | Cardapim',
-            'pageDescription' => 'Veja o cardápio de ' . $restaurante['nome'] . ' e faça seu pedido pelo Cardapim.',
+            'pageTitle' => $restaurante['nome'] . ' · Cardápio | ' . marca(),
+            'pageDescription' => 'Veja o cardápio de ' . $restaurante['nome'] . ' e faça seu pedido pelo ' . marca() . '.',
             'restaurante' => $restaurante,
             'logo' => RestauranteLogo::urlSegura($restaurante['logo_path']),
             'iniciais' => RestauranteLogo::iniciais($restaurante['nome']),
@@ -76,7 +76,7 @@ final class RestauranteController
             return $this->erroTemporario();
         }
         return Response::html(View::render('restaurante/finalizar', [
-            'pageTitle' => 'Finalizar pedido · ' . $restaurante['nome'] . ' | Cardapim',
+            'pageTitle' => 'Finalizar pedido · ' . $restaurante['nome'] . ' | ' . marca(),
             'pageDescription' => 'Finalize seu pedido em ' . $restaurante['nome'] . '.',
             'noIndex' => true,
             'restaurante' => $restaurante,
@@ -104,7 +104,7 @@ final class RestauranteController
         } catch (\Throwable) {
         }
         return Response::html(View::render('restaurante/pedido', [
-            'pageTitle' => 'Seu pedido · ' . $restaurante['nome'] . ' | Cardapim',
+            'pageTitle' => 'Seu pedido · ' . $restaurante['nome'] . ' | ' . marca(),
             'pageDescription' => 'Acompanhe seu pedido em ' . $restaurante['nome'] . '.',
             'noIndex' => true,
             'restaurante' => $restaurante,
@@ -135,8 +135,8 @@ final class RestauranteController
     private function erroTemporario(): Response
     {
         return Response::html(View::render('errors/500', [
-            'pageTitle' => 'Erro temporário | Cardapim',
-            'pageDescription' => 'Erro temporário no Cardapim.',
+            'pageTitle' => 'Erro temporário | ' . marca(),
+            'pageDescription' => 'Erro temporário no ' . marca() . '.',
             'noIndex' => true,
         ], 'layouts/public'), 503);
     }
@@ -172,7 +172,7 @@ final class RestauranteController
     private function naoEncontrado(): Response
     {
         return Response::html(View::render('errors/404', [
-            'pageTitle' => 'Página não encontrada | Cardapim',
+            'pageTitle' => 'Página não encontrada | ' . marca(),
             'pageDescription' => 'O endereço solicitado não foi encontrado.',
             'noIndex' => true,
         ], 'layouts/public'), 404);
