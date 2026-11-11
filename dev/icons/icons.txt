@@ -133,3 +133,6 @@ download
 share
 square-plus
 ellipsis-vertical
+hand-platter
+layout-grid
+sticky-note

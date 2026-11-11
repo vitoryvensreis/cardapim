@@ -466,18 +466,35 @@ final class ComandaService
     /** Fecha a comanda paga: forma (unica ou 'misto'), caixa, datas e linha do tempo. */
     private function concluir(int $id, int $idCaixa, string $agora): bool
     {
-        $q = $this->db->prepare('SELECT DISTINCT forma FROM pedido_pagamentos WHERE id_pedido = ? AND id_restaurante = ?');
-        $q->execute([$id, $this->idRestaurante]);
+        return self::fecharPaga($this->db, $this->idRestaurante, $id, $idCaixa, $agora, $this->autor->id, 'Conta paga e fechada por ' . $this->autor->nome . '.');
+    }
+
+    /**
+     * Fecha a comanda que ficou paga (usado aqui e pelo Pix da mesa, que pode ser confirmado sem ninguem logado).
+     * Deve rodar dentro da transacao do pagamento. @return bool false se ela ja estava fechada
+     */
+    public static function fecharPaga(PDO $db, int $idRestaurante, int $id, int $idCaixa, string $agora, ?int $idUser, string $descricao): bool
+    {
+        $q = $db->prepare('SELECT DISTINCT forma FROM pedido_pagamentos WHERE id_pedido = ? AND id_restaurante = ?');
+        $q->execute([$id, $idRestaurante]);
         $formas = $q->fetchAll(PDO::FETCH_COLUMN);
         $forma = count($formas) === 1 ? ($formas[0] === 'pix' ? 'pix_entrega' : $formas[0]) : 'misto';
-        $u = $this->db->prepare("UPDATE pedidos SET status = 'concluido', pagamento_status = 'pago', forma_pagamento = ?, id_caixa = ?, pago_em = ?, concluido_em = ?, atualizado_em = ?
+        $u = $db->prepare("UPDATE pedidos SET status = 'concluido', pagamento_status = 'pago', forma_pagamento = ?, id_caixa = ?, pago_em = ?, concluido_em = ?, atualizado_em = ?
             WHERE id = ? AND id_restaurante = ? AND status = 'aberto'");
-        $u->execute([$forma, $idCaixa, $agora, $agora, $agora, $id, $this->idRestaurante]);
+        $u->execute([$forma, $idCaixa, $agora, $agora, $agora, $id, $idRestaurante]);
         if ($u->rowCount() !== 1) {
             return false;
         }
-        $this->pedidos->registrarEvento($this->idRestaurante, $id, 'concluido', 'Conta paga e fechada por ' . $this->autor->nome . '.', $this->autor->id);
+        (new PedidoRepository($db))->registrarEvento($idRestaurante, $id, 'concluido', $descricao, $idUser);
         return true;
+    }
+
+    /** Soma do que ja foi pago na comanda, em centavos. */
+    public static function totalPago(PDO $db, int $idRestaurante, int $id): int
+    {
+        $q = $db->prepare('SELECT valor FROM pedido_pagamentos WHERE id_pedido = ? AND id_restaurante = ?');
+        $q->execute([$id, $idRestaurante]);
+        return array_sum(array_map(static fn ($v): int => Numero::centavos((string) $v), $q->fetchAll(PDO::FETCH_COLUMN)));
     }
 
     private function recalcular(int $id): void
@@ -498,9 +515,7 @@ final class ComandaService
 
     private function somaPagamentos(int $id): int
     {
-        $q = $this->db->prepare('SELECT valor FROM pedido_pagamentos WHERE id_pedido = ? AND id_restaurante = ?');
-        $q->execute([$id, $this->idRestaurante]);
-        return array_sum(array_map(static fn ($v): int => Numero::centavos((string) $v), $q->fetchAll(PDO::FETCH_COLUMN)));
+        return self::totalPago($this->db, $this->idRestaurante, $id);
     }
 
     private function abertaDaMesa(int $idMesa): ?int

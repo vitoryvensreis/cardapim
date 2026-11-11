@@ -62,7 +62,7 @@ final class WebhookController
     }
 
     /**
-     * Pix de pedido pago: confirma o pedido (idempotente; o aviso repetido nao muda nada).
+     * Pix pago (pedido do cardapio ou comanda da mesa): confirma (idempotente; o aviso repetido nao muda nada).
      * Falha aqui nao derruba o aviso: a tela do cliente tambem confere a cobranca enquanto espera.
      * @param array<string,mixed> $dados
      */
@@ -74,12 +74,15 @@ final class WebhookController
         $pagamento = is_array($dados['payment'] ?? null) ? $dados['payment'] : [];
         $referencia = (string) ($pagamento['externalReference'] ?? '');
         $idCobranca = (string) ($pagamento['id'] ?? '');
-        if (preg_match('/\Apedido:\d{1,18}\z/', $referencia) !== 1 || preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $idCobranca) !== 1) {
+        if (preg_match('/\A(pedido|comanda):\d{1,18}\z/', $referencia) !== 1 || preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $idCobranca) !== 1) {
             return;
         }
+        $valor = number_format((float) ($pagamento['value'] ?? 0), 2, '.', '');
         try {
-            $resultado = (new \Cardapim\Services\Pedidos\PixPedido(Database::connect()))
-                ->confirmar($idRestaurante, $idCobranca, number_format((float) ($pagamento['value'] ?? 0), 2, '.', ''), 'webhook');
+            // "comanda:{id}" = Pix com QR Code na mesa (painel do garcom); "pedido:{id}" = Pix do cardapio online.
+            $resultado = str_starts_with($referencia, 'comanda:')
+                ? (new \Cardapim\Services\Garcom\ComandaPix(Database::connect(), $idRestaurante))->confirmar($idCobranca, $valor, 'webhook')
+                : (new \Cardapim\Services\Pedidos\PixPedido(Database::connect()))->confirmar($idRestaurante, $idCobranca, $valor, 'webhook');
             if ($resultado !== 'nao_encontrado' && $idExterno !== null) {
                 (new IntegracaoRepository(Database::connect()))->marcarProcessado('asaas', $idExterno);
             }

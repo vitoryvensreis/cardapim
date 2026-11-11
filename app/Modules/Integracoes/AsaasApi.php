@@ -78,16 +78,14 @@ class AsaasApi
         $this->chamar('DELETE', '/webhooks/' . $idWebhook, $chave, $ambiente);
     }
 
-    /** Cadastra o pagador na conta Asaas do restaurante (exigido para cobrar). @return string id (cus_...) */
+    /** Cadastra o pagador na conta Asaas do restaurante (exigido para cobrar). CPF ou CNPJ; celular opcional. @return string id (cus_...) */
     public function criarCliente(string $chave, string $ambiente, string $nome, string $cpf, string $celular, string $referencia): string
     {
-        $dados = $this->exigirOk($this->chamar('POST', '/customers', $chave, $ambiente, [
-            'name' => $nome,
-            'cpfCnpj' => $cpf,
-            'mobilePhone' => $celular,
-            'externalReference' => $referencia,
-            'notificationDisabled' => true,
-        ]));
+        $corpo = ['name' => $nome, 'cpfCnpj' => $cpf, 'externalReference' => $referencia, 'notificationDisabled' => true];
+        if ($celular !== '') {
+            $corpo['mobilePhone'] = $celular;
+        }
+        $dados = $this->exigirOk($this->chamar('POST', '/customers', $chave, $ambiente, $corpo));
         $id = (string) ($dados['id'] ?? '');
         if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $id) !== 1) {
             throw new IntegracaoErro('O Asaas não devolveu o cadastro do cliente.');

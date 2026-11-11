@@ -56,8 +56,11 @@ esperar "login -> entregas" "$(login "$tmp/m" ci_motoqueiro "$senha")" "303 $bas
 esperar "caixa bloqueado" "$(codigo "$tmp/m" "/$slug/caixa")" "403"
 
 echo "Garcom"
-esperar "login -> minha-conta" "$(login "$tmp/w" ci_garcom "$senha")" "303 $base/minha-conta"
+esperar "login -> painel do garcom" "$(login "$tmp/w" ci_garcom "$senha")" "303 $base/$slug/garcom"
+esperar "painel do garcom" "$(codigo "$tmp/w" "/$slug/garcom")" "200"
 esperar "gerencia bloqueada" "$(codigo "$tmp/w" "/$slug/gerencia")" "403"
+esperar "caixa bloqueado" "$(codigo "$tmp/w" "/$slug/caixa")" "403"
+esperar "garcom de outro restaurante bloqueado" "$(codigo "$tmp/w" "/ci-outro-restaurante/garcom")" "403"
 
 echo "Administrador master"
 esperar "login -> painel" "$(login "$tmp/a" ci_master "$senha")" "303 $base/painel"

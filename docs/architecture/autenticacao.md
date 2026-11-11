@@ -17,7 +17,8 @@
 | `gerente` | `/{slug}/gerencia` |
 | `caixa` | `/{slug}/caixa` |
 | `motoqueiro` | `/{slug}/entregas` |
-| `garcom`, `cliente` | `/minha-conta` (areas ainda nao criadas) |
+| `garcom` | `/{slug}/garcom` (painel do garcom) |
+| `cliente` | `/minha-conta` (area ainda nao criada) |
 
 ## Quem acessa o que
 
@@ -28,6 +29,7 @@ Fonte unica: `app/Services/Auth/Autorizacao.php` (alterar ali muda login e rotas
 | `/painel` | `adm_master` | - |
 | `/{slug}/gerencia` | `gerente` | mesmo restaurante |
 | `/{slug}/caixa` | `caixa`, `gerente` | mesmo restaurante |
+| `/{slug}/garcom` | `garcom`, `gerente` | mesmo restaurante |
 | `/{slug}/entregas` | `motoqueiro`, `gerente` | mesmo restaurante |
 
 - O `adm_master` acessa qualquer restaurante (suporte).

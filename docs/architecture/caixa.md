@@ -71,3 +71,8 @@ estoque, venda no balcao, fila de delivery com despacho e impressao da conta/ped
 Para depois: NFC-e (nota fiscal), TEF/maquininha integrada, juntar mesas, couvert, tela da cozinha (KDS),
 app do garcom, comprovante de sangria para assinar, permissao do gerente para cancelar/descontar acima de um limite,
 relatorios por periodo e por operador, area do entregador com as entregas dele.
+
+
+## Painel do garçom
+
+O garçom usa as mesmas comandas e regras de pagamento pelo celular em `/{slug}/garcom` (ver [garcom.md](garcom.md)). O que ele lança e recebe aparece aqui na hora (tempo real, canal `mesas`).

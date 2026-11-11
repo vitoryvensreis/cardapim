@@ -51,8 +51,8 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
     }
     // Clientes e cobrancas Pix (pedidos do cardapio online).
     if ($metodo === 'POST' && $m[1] === '/customers') {
-        if (trim((string) ($json['name'] ?? '')) === '' || preg_match('/\A\d{11}\z/', (string) ($json['cpfCnpj'] ?? '')) !== 1) {
-            $responder(400, ['errors' => [['description' => 'Nome e CPF obrigatorios']]]);
+        if (trim((string) ($json['name'] ?? '')) === '' || preg_match('/\A(\d{11}|\d{14})\z/', (string) ($json['cpfCnpj'] ?? '')) !== 1) {
+            $responder(400, ['errors' => [['description' => 'Nome e CPF/CNPJ obrigatorios']]]);
         }
         if (str_contains((string) $json['name'], 'Falha Pix')) {
             $responder(400, ['errors' => [['description' => 'Cliente recusado (teste)']]]);

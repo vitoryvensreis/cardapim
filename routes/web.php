@@ -44,6 +44,7 @@ $router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 (require __DIR__ . '/gerencia.php')($router);
 (require __DIR__ . '/caixa.php')($router);
+(require __DIR__ . '/garcom.php')($router);
 $router->get('/{slug}/gerencia', [AreaController::class, 'gerencia']);
 $router->get('/{slug}/gerencia/{secao}', [AreaController::class, 'gerencia']);
 // Cardapio online: finalizar o pedido e acompanhar (cliente final).

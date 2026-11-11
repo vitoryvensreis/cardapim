@@ -15,6 +15,7 @@ final class Autorizacao
         'gerencia' => ['gerente'],
         'caixa' => ['caixa', 'gerente'],
         'entregas' => ['motoqueiro', 'gerente'],
+        'garcom' => ['garcom', 'gerente'],
     ];
 
     /** Cargo com acesso global (administracao da plataforma). */
@@ -31,7 +32,8 @@ final class Autorizacao
             'gerente' => $usuario->urlRestaurante('gerencia'),
             'caixa' => $usuario->urlRestaurante('caixa'),
             'motoqueiro' => $usuario->urlRestaurante('entregas'),
-            default => '/minha-conta', // cliente e garcom: areas ainda nao criadas
+            'garcom' => $usuario->urlRestaurante('garcom'),
+            default => '/minha-conta', // cliente: area ainda nao criada
         };
     }
 

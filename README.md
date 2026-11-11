@@ -15,6 +15,14 @@
 - **Estoque**: item da comanda baixa os insumos na hora; pedido do cardápio baixa quando o cliente pede (o despacho não baixa de novo); cancelar devolve. Conferido nos testes.
 - [Arquitetura, regras e tabelas](docs/architecture/caixa.md).
 
+## Painel do garçom
+
+- O garçom entra e já vê as **mesas** (livre/ocupada, total e tempo). Toca na mesa, toca em **Adicionar**, escolhe os produtos com − / + (e observação) e lança tudo de uma vez.
+- **Fechar conta**: liga/tira os **10%**, divide por pessoas, escolhe a forma (dinheiro com troco na hora, débito, crédito, Pix) e registra que foi pago.
+- Com o **Asaas do restaurante** conectado, aparece **QR Code Pix**: o cliente paga pelo app do banco e a conta fecha sozinha.
+- Menu **Cardápio**: busca de produtos com preço e se tem (ou quantos restam).
+- Celular primeiro (menu embaixo), tablet e computador. [Detalhes](docs/architecture/garcom.md).
+
 ## Avisos do pedido pelo WhatsApp do restaurante
 
 - O cliente recebe mensagens **do WhatsApp conectado pelo gerente** a cada etapa: pedido recebido (com link para acompanhar), em preparo, pronto, **saiu para entrega** (nome do motoqueiro, valor a pagar e link do mapa com a moto), entregue e cancelado (com o motivo).
