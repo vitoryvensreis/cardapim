@@ -36,14 +36,16 @@ foreach ([
 if (Configuracoes::get('texto_rodape') !== 'Menos complicação. Mais restaurante.') {
     throw new RuntimeException('Texto do rodape nao carregado.');
 }
-if (AssetUrl::asset('css/site.css') !== '/assets/css/site.css'
-    || AssetUrl::asset('js/site.js') !== '/assets/js/site.js'
-    || AssetUrl::asset('img/icone.svg') !== '/assets/img/icone.svg') {
+// Arquivos existentes levam ?v=<data do arquivo> (cache renovado a cada deploy); inexistentes ficam sem versao.
+if (preg_match('~\A/assets/css/site\.css\?v=[0-9a-z]+\z~', AssetUrl::asset('css/site.css')) !== 1
+    || preg_match('~\A/assets/js/site\.js\?v=[0-9a-z]+\z~', AssetUrl::asset('js/site.js')) !== 1
+    || preg_match('~\A/assets/img/icone\.svg\?v=[0-9a-z]+\z~', AssetUrl::asset('img/icone.svg')) !== 1
+    || AssetUrl::asset('css/nao-existe.css') !== '/assets/css/nao-existe.css') {
     throw new RuntimeException('URL relativa de asset inesperada.');
 }
 
 putenv('APP_URL=https://cardapim.example.test');
-if (AssetUrl::absolute('css/site.css') !== 'https://cardapim.example.test/assets/css/site.css') {
+if (!str_starts_with(AssetUrl::absolute('css/site.css'), 'https://cardapim.example.test/assets/css/site.css?v=')) {
     throw new RuntimeException('APP_URL nao foi respeitada.');
 }
 

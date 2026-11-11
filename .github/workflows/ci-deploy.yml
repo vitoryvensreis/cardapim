@@ -208,7 +208,7 @@ jobs:
           [[ "$register" == *'data-mask="cpf"'* ]]
           [[ "$register" == *'data-mask="phone"'* ]]
           [[ "$register" == *'/assets/js/forms.js'* ]]
-          [[ "$page" == *'/assets/icons/lucide.svg#chef-hat'* ]]
+          [[ "$page" == *'/assets/icons/lucide.svg?v='*'#chef-hat"'* ]]
           [[ "$page" == *'class="site-footer"'* ]]
           [[ "$page" == *'href="/catalogo"'* ]]
           [[ "$register" == *'data-unique="usuario"'* ]]

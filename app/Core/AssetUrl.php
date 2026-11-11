@@ -9,8 +9,13 @@ use RuntimeException;
 
 final class AssetUrl
 {
+    /** @var array<string,string> versao (data do arquivo) ja calculada nesta requisicao */
+    private static array $versoes = [];
+
     /**
      * CSS/JS/imagens internas sao relativos ao dominio atual, sem consulta ao banco.
+     * Leva ?v=<data do arquivo>: cada deploy muda a URL, entao celular, navegador e cache do servidor
+     * (Varnish) pegam o arquivo novo na hora, mesmo guardando os estaticos por muito tempo.
      */
     public static function asset(string $relativePath): string
     {
@@ -20,7 +25,15 @@ final class AssetUrl
             throw new InvalidArgumentException('Caminho de asset invalido.');
         }
 
-        return '/assets/' . $relativePath;
+        $versao = self::$versoes[$relativePath] ??= self::versao($relativePath);
+        return '/assets/' . $relativePath . ($versao !== '' ? '?v=' . $versao : '');
+    }
+
+    private static function versao(string $relativePath): string
+    {
+        $arquivo = dirname(__DIR__, 2) . '/public/assets/' . $relativePath;
+        $data = is_file($arquivo) ? @filemtime($arquivo) : false;
+        return $data === false ? '' : base_convert((string) $data, 10, 36);
     }
 
     /**
