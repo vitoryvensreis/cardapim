@@ -7,9 +7,9 @@ $canais = [
     ['utensils-crossed', 'Salão e mesas', false],
     ['store', 'Balcão e retirada', false],
     ['bike', 'Delivery próprio', false],
-    ['message-circle', 'WhatsApp', true],
+    ['message-circle', 'WhatsApp', false],
     ['shopping-bag', 'iFood', true],
-    ['qr-code', 'Pix Asaas', true],
+    ['qr-code', 'Pix Asaas', false],
 ];
 
 $recursos = [
@@ -48,17 +48,6 @@ $pedidosMock = [
 
     <div class="shell hero-layout">
         <div class="hero-copy">
-            <p class="hero-eyebrow">
-                <span class="live-dot" aria-hidden="true"></span>
-                Feito para
-                <span class="word-rotator" data-rotator aria-live="off">
-                    <span class="is-active">restaurantes</span>
-                    <span>hamburguerias</span>
-                    <span>bares</span>
-                    <span>cafeterias</span>
-                    <span>lanchonetes</span>
-                </span>
-            </p>
             <h1 id="hero-title" class="hero-title">
                 <span class="hero-line">Seu restaurante cresce.</span>
                 <em class="hero-line">A bagunça não precisa acompanhar.</em>
@@ -136,12 +125,10 @@ $pedidosMock = [
                     <span class="live-dot"></span><strong>Tudo conectado</strong><small>ao vivo</small>
                 </div>
             </div>
-            <p class="hero-disclaimer">Prévia conceitual · valores ilustrativos</p>
         </div>
     </div>
 
     <a class="hero-scroll" href="#canais" aria-label="Rolar para o próximo conteúdo">
-        <span>Do salão ao delivery, tudo flui</span>
         <?= Icon::svg('arrow-down', 'icon-sm') ?>
     </a>
 </section>
@@ -166,7 +153,6 @@ $pedidosMock = [
 <section class="section features" id="recursos" aria-labelledby="features-title">
     <div class="shell">
         <header class="section-head" data-reveal>
-            <span class="kicker">Um sistema. Muito mais controle.</span>
             <h2 id="features-title">Tudo o que você precisa.<br><em>Sem vinte abas abertas.</em></h2>
             <p>Os módulos do Cardapim conversam entre si e acompanham o ritmo real de uma cozinha movimentada.</p>
         </header>
@@ -176,7 +162,6 @@ $pedidosMock = [
                     <span class="feature-icon"><?= Icon::svg($icone) ?></span>
                     <h3><?= $e($titulo) ?></h3>
                     <p><?= $e($texto) ?></p>
-                    <span class="feature-meta"><?= sprintf('%02d', $i + 1) ?> / <?= $e($modulo) ?></span>
                 </article>
             <?php endforeach; ?>
         </div>
@@ -186,7 +171,6 @@ $pedidosMock = [
 <section class="section how" id="como-funciona" aria-labelledby="how-title">
     <div class="shell how-layout">
         <header class="how-intro" data-reveal>
-            <span class="kicker">Menos processo. Mais fluxo.</span>
             <h2 id="how-title">Seu pedido faz o caminho.<br><em>Você faz a diferença.</em></h2>
             <p>A equipe inteira olhando para a mesma operação, com cada etapa organizada e visível.</p>
             <a class="text-link" href="/cadastro">Conhecer a plataforma <?= Icon::svg('arrow-up-right', 'icon-sm') ?></a>
@@ -198,7 +182,6 @@ $pedidosMock = [
                 <li class="step" data-reveal>
                     <span class="step-icon"><?= Icon::svg($icone) ?></span>
                     <div>
-                        <span class="step-number">Etapa <?= sprintf('%02d', $i + 1) ?></span>
                         <h3><?= $e($titulo) ?></h3>
                         <p><?= $e($texto) ?></p>
                     </div>
@@ -212,7 +195,6 @@ $pedidosMock = [
 <section class="section audience" id="para-quem" aria-labelledby="audience-title">
     <div class="shell audience-layout">
         <header class="section-head" data-reveal>
-            <span class="kicker">Feito para a vida real</span>
             <h2 id="audience-title">Se tem pedido saindo, <em>tem lugar para o Cardapim.</em></h2>
         </header>
         <div class="audience-grid">
@@ -230,7 +212,6 @@ $pedidosMock = [
 <section class="section plans" id="planos" aria-labelledby="plans-title">
     <div class="shell">
         <header class="section-head section-head-center" data-reveal>
-            <span class="kicker">Planos do Cardapim</span>
             <h2 id="plans-title">Escolha um plano que <em>acompanhe seu negócio.</em></h2>
             <p>Os preços correspondem ao período completo de cada plano.</p>
         </header>

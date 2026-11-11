@@ -3,7 +3,6 @@
 use Cardapim\Core\Icon;
 ?>
 <aside class="auth-aside" aria-label="Por que usar o Cardapim">
-    <span class="kicker kicker-light">Cardapim</span>
     <h2><?= htmlspecialchars($asideTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h2>
     <ul class="auth-benefits">
         <?php foreach ($asideItems as [$icon, $title, $text]): ?>

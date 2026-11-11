@@ -5,7 +5,6 @@ $esc = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SU
 ?>
 <section class="catalog-hero" aria-labelledby="catalog-title">
     <div class="shell">
-        <span class="kicker kicker-light">Catálogo</span>
         <h1 id="catalog-title">Restaurantes no <em>Cardapim.</em></h1>
         <p>Encontre restaurantes, bares e lanchonetes que já fazem parte da plataforma.</p>
         <form class="catalog-search" action="/catalogo" method="get" role="search" data-catalog-search>

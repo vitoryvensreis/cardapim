@@ -13,7 +13,6 @@ $asideItems = [
     <div class="shell auth-layout">
         <?php require __DIR__ . '/../partials/auth-aside.php'; ?>
         <div class="auth-card" data-reveal>
-            <span class="kicker">Área do restaurante</span>
             <h1 id="login-title">Entre na sua conta.</h1>
             <p class="auth-lead">Use seu e-mail ou nome de usuário. Você será levado direto para a sua área.</p>
 
@@ -63,7 +62,6 @@ $asideItems = [
                 </button>
             </form>
             <p class="auth-help"><?= Icon::svg('info', 'icon-sm') ?>Esqueceu a senha? Por enquanto, peça ao gerente do restaurante para redefinir.</p>
-            <?php require __DIR__ . '/../partials/pwa-instalar.php'; ?>
             <p class="auth-switch">Ainda não tem conta? <a href="/cadastro">Conheça o cadastro <?= Icon::svg('arrow-right', 'icon-sm') ?></a></p>
         </div>
     </div>

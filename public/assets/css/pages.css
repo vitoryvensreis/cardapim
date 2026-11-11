@@ -263,7 +263,7 @@
 .linha-recuperacao input { flex: 1 1 9rem; min-height: 3rem; padding: .7rem .9rem; border: 1.5px solid var(--c-line); border-radius: .8rem; background: var(--c-white); font: 700 1rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
 .linha-recuperacao input:focus { outline: none; border-color: var(--c-wine); box-shadow: 0 0 0 4px rgb(101 20 36 / 12%); }
 
-/* App instalavel (PWA): convite no login e no cadastro, e pagina sem conexao */
+/* App instalavel (PWA): convite no rodape (login, cadastro e verificacao) e pagina sem conexao */
 .pwa-instalar {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .5rem .9rem; align-items: start;
   margin-top: 1.25rem; padding: 1rem; border: 1px solid #f0d6cc; border-radius: var(--r-lg);
@@ -283,3 +283,4 @@
 .offline-logo { display: block; margin: 0 auto 1.25rem; }
 .page-offline .error-stage { min-height: 100dvh; }
 .pwa-instalar[hidden], .pwa-instalar [hidden] { display: none !important; }
+.site-footer .pwa-instalar { position: relative; z-index: 1; max-width: 42rem; margin: 0 0 clamp(2rem, 5vw, 3rem); border-color: rgb(255 255 255 / 14%); }

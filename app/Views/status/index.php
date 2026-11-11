@@ -12,7 +12,6 @@
         </header>
 
         <section class="status-intro" aria-labelledby="status-title">
-            <p class="status-kicker">MONITORAMENTO DA PLATAFORMA</p>
             <h1 id="status-title">Status do sistema</h1>
             <p>Verificação da execução do PHP e da conexão com o banco de dados.</p>
             <div class="status-overall <?= $databaseReady ? 'is-online' : 'is-offline' ?>" role="status">

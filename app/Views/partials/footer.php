@@ -29,6 +29,7 @@ $footerColumns = [
 <footer class="site-footer" aria-labelledby="footer-title">
     <h2 id="footer-title" class="sr-only">Rodapé do Cardapim</h2>
     <div class="shell">
+        <?php require __DIR__ . '/pwa-instalar.php'; ?>
         <div class="footer-grid">
             <div class="footer-brand">
                 <a class="brand" href="/" aria-label="Cardapim, página inicial">

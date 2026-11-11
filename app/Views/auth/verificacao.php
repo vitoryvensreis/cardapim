@@ -15,7 +15,6 @@ $asideItems = [
     <div class="shell auth-layout">
         <?php require __DIR__ . '/../partials/auth-aside.php'; ?>
         <div class="auth-card" data-reveal>
-            <span class="kicker">Verificação em duas etapas</span>
             <h1 id="verificacao-title">Confirme que é você.</h1>
             <p class="auth-lead">
                 <?= $porEmail

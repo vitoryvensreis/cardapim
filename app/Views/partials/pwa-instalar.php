@@ -1,6 +1,7 @@
 <?php
 /**
- * Convite para instalar o app (PWA) no login e no cadastro. Comeca escondido: o pwa.js mostra
+ * Convite para instalar o app (PWA), no rodape publico. Comeca escondido (e so aparece onde o pwa.js carrega:
+ * login, cadastro e verificacao): o pwa.js mostra
  * so quando o aparelho permite instalar (botao) ou explica o caminho no iPhone/iPad. Ja instalado = some.
  */
 use Cardapim\Core\AssetUrl;
