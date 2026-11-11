@@ -567,3 +567,31 @@
 .avisos-recentes li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .2rem .75rem; align-items: center; padding: .7rem .85rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
 .avisos-pedido { min-width: 0; color: var(--c-ink); font-size: .9rem; overflow-wrap: anywhere; }
 .avisos-recentes small { grid-column: 1 / -1; color: var(--c-muted); font-size: .8rem; }
+
+/* Asaas da plataforma: checklist da conta e regras de cobranca das assinaturas */
+.saude-lista { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.saude-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .25rem .7rem; align-items: start; padding: .75rem .9rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.saude-item > .icon { margin-top: .1rem; }
+.saude-item strong { display: block; color: var(--c-ink); font-size: .92rem; }
+.saude-item small { display: block; color: var(--c-muted); font-size: .82rem; line-height: 1.45; }
+.saude-item form { grid-column: 2; margin-top: .4rem; }
+.saude-item.is-ok > .icon { color: var(--c-success); }
+.saude-item.is-aviso { border-color: #f4d9a8; background: #fffaf0; }
+.saude-item.is-aviso > .icon { color: #a16207; }
+.saude-item.is-erro { border-color: #f1c3be; background: var(--c-danger-bg); }
+.saude-item.is-erro > .icon { color: var(--c-danger); }
+.cobranca-formas { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); margin-bottom: .4rem; }
+.cobranca-formas legend { grid-column: 1 / -1; }
+.cobranca-formas .field-msg { grid-column: 1 / -1; }
+.cobranca-dica { display: flex; align-items: center; gap: .35rem; margin: 0 0 1rem; }
+.cobranca-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .9rem; margin-bottom: 1rem; }
+.campo-numero { display: grid; gap: .35rem; }
+.campo-numero-rotulo { color: var(--c-ink); font: 700 .86rem var(--f-head); }
+.campo-numero-caixa { display: flex; align-items: center; min-height: 2.9rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); overflow: hidden; }
+.campo-numero-caixa:focus-within { border-color: var(--c-wine-400); outline: 3px solid rgb(255 88 37 / 22%); }
+.campo-numero-caixa input { width: 4.5rem; min-width: 0; padding: .55rem .75rem; border: 0; background: transparent; color: var(--c-ink); font: 700 1rem var(--f-body); font-variant-numeric: tabular-nums; outline: none; }
+.campo-numero-caixa > span { padding-right: .75rem; color: var(--c-muted); font-size: .86rem; white-space: nowrap; }
+.campo-numero.tem-erro .campo-numero-caixa { border-color: var(--c-danger); }
+.cobranca-resumo { margin-top: 1rem; padding: .85rem 1rem; border-radius: var(--r-md); background: var(--c-blush); }
+.cobranca-resumo strong { display: flex; align-items: center; gap: .35rem; color: var(--c-wine); font-size: .88rem; }
+.cobranca-resumo p { margin-top: .25rem; color: var(--c-ink); font-size: .9rem; line-height: 1.5; }

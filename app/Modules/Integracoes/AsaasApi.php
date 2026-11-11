@@ -20,6 +20,12 @@ class AsaasApi
         'PAYMENT_REFUNDED', 'PAYMENT_DELETED', 'PAYMENT_UPDATED',
     ];
 
+    /** Plataforma (assinaturas dos restaurantes): pagamentos + ciclo de vida das assinaturas. */
+    public const EVENTOS_WEBHOOK_PLATAFORMA = [
+        ...self::EVENTOS_WEBHOOK,
+        'SUBSCRIPTION_CREATED', 'SUBSCRIPTION_UPDATED', 'SUBSCRIPTION_INACTIVATED', 'SUBSCRIPTION_DELETED',
+    ];
+
     public function __construct(private readonly ClienteHttp $http = new ClienteHttp())
     {
     }
@@ -53,8 +59,8 @@ class AsaasApi
         ];
     }
 
-    /** Cria o webhook que avisa o Cardapim sobre pagamentos. @return string id do webhook no Asaas */
-    public function criarWebhook(string $chave, string $ambiente, string $url, string $tokenAuth, string $email): string
+    /** Cria o webhook que avisa o Cardapim sobre pagamentos. @param list<string>|null $eventos @return string id do webhook no Asaas */
+    public function criarWebhook(string $chave, string $ambiente, string $url, string $tokenAuth, string $email, ?array $eventos = null): string
     {
         $dados = $this->exigirOk($this->chamar('POST', '/webhooks', $chave, $ambiente, [
             'name' => 'Cardapim',
@@ -65,9 +71,54 @@ class AsaasApi
             'apiVersion' => 3,
             'authToken' => $tokenAuth,
             'sendType' => 'SEQUENTIALLY',
-            'events' => self::EVENTOS_WEBHOOK,
+            'events' => $eventos ?? self::EVENTOS_WEBHOOK,
         ]));
         return (string) ($dados['id'] ?? '');
+    }
+
+    /**
+     * Situacao cadastral da conta (aprovacao do Asaas): APPROVED, PENDING, AWAITING_APPROVAL ou REJECTED por parte.
+     * @return array{geral:string, dados_comerciais:string, conta_bancaria:string, documentos:string}
+     */
+    public function statusConta(string $chave, string $ambiente): array
+    {
+        $d = $this->exigirOk($this->chamar('GET', '/myAccount/status', $chave, $ambiente));
+        $v = static fn (string $k): string => preg_match('/\A[A-Z_]{3,30}\z/', (string) ($d[$k] ?? '')) === 1 ? (string) $d[$k] : 'DESCONHECIDO';
+        return ['geral' => $v('general'), 'dados_comerciais' => $v('commercialInfo'), 'conta_bancaria' => $v('bankAccountInfo'), 'documentos' => $v('documentation')];
+    }
+
+    /** Quantas chaves Pix ativas a conta tem (sem chave, o Pix ainda funciona pelo QR do Asaas). */
+    public function chavesPixAtivas(string $chave, string $ambiente): int
+    {
+        $d = $this->exigirOk($this->chamar('GET', '/pix/addressKeys?status=ACTIVE&limit=10', $chave, $ambiente));
+        return max(0, (int) ($d['totalCount'] ?? count(is_array($d['data'] ?? null) ? $d['data'] : [])));
+    }
+
+    /** Situacao do webhook no Asaas. @return array{ativo:bool, interrompido:bool, eventos:list<string>}|null null = nao existe mais */
+    public function webhook(string $chave, string $ambiente, string $idWebhook): ?array
+    {
+        if (preg_match('/\A[A-Za-z0-9_-]{1,80}\z/', $idWebhook) !== 1) {
+            return null;
+        }
+        $r = $this->chamar('GET', '/webhooks/' . $idWebhook, $chave, $ambiente);
+        if ($r->status === 404) {
+            return null;
+        }
+        $d = $this->exigirOk($r);
+        return [
+            'ativo' => (bool) ($d['enabled'] ?? false),
+            'interrompido' => (bool) ($d['interrupted'] ?? false),
+            'eventos' => array_values(array_filter(is_array($d['events'] ?? null) ? $d['events'] : [], 'is_string')),
+        ];
+    }
+
+    /** Reativa a fila de avisos pausada pelo Asaas (depois de falhas seguidas). */
+    public function reativarWebhook(string $chave, string $ambiente, string $idWebhook): void
+    {
+        if (preg_match('/\A[A-Za-z0-9_-]{1,80}\z/', $idWebhook) !== 1) {
+            throw new IntegracaoErro('Avisos não encontrados no Asaas.');
+        }
+        $this->exigirOk($this->chamar('PUT', '/webhooks/' . $idWebhook, $chave, $ambiente, ['enabled' => true, 'interrupted' => false]));
     }
 
     public function removerWebhook(string $chave, string $ambiente, string $idWebhook): void

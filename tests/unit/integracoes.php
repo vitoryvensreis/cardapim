@@ -5,6 +5,7 @@ declare(strict_types=1);
 // Teste sem banco e sem rede das integracoes: php tests/unit/integracoes.php
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
+use Cardapim\Services\Plataforma\CobrancaAssinaturas as Cobranca;
 use Cardapim\Modules\Integracoes\AsaasApi;
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
@@ -103,6 +104,20 @@ $ok($erro(fn () => (new IfoodApi(new ClienteFalso([new RespostaHttp(400, '{}')])
 /* ---------- Telefone ---------- */
 $ok(Documento::formatarTelefone('5585999990000') === '(85) 99999-0000', 'telefone com 55 formatado');
 $ok(Documento::formatarTelefone('85999990000') === '(85) 99999-0000', 'telefone sem 55');
+
+/* ---------- Cobranca das assinaturas (Asaas da plataforma) ---------- */
+$regras = Cobranca::PADRAO;
+$ok(Cobranca::tipoAsaas(['pix', 'boleto']) === 'UNDEFINED', 'varias formas: restaurante escolhe na fatura');
+$ok(Cobranca::tipoAsaas(['boleto']) === 'BOLETO' && Cobranca::tipoAsaas(['pix']) === 'PIX' && Cobranca::tipoAsaas(['cartao']) === 'CREDIT_CARD', 'uma forma so');
+$ok(Cobranca::CICLOS['mensal'] === 'MONTHLY' && Cobranca::CICLOS['semestral'] === 'SEMIANNUALLY' && Cobranca::CICLOS['anual'] === 'YEARLY', 'ciclos do plano');
+$hojeTeste = new DateTimeImmutable('2026-11-11');
+$ok(Cobranca::primeiroVencimento($regras, $hojeTeste) === '2026-11-14', 'primeira cobranca em 3 dias');
+$ok(Cobranca::primeiroVencimento(['teste_dias' => 7] + $regras, $hojeTeste) === '2026-11-18', 'dias gratis adiam a primeira cobranca');
+$enc = Cobranca::encargosAsaas($regras);
+$ok($enc['fine'] === ['value' => 2.0, 'type' => 'PERCENTAGE'] && $enc['interest'] === ['value' => 1.0] && !isset($enc['discount']), 'multa e juros padrao, sem desconto');
+$enc = Cobranca::encargosAsaas(['desconto_percentual' => '5.00', 'desconto_dias' => 3, 'multa_percentual' => '0.00'] + $regras);
+$ok(!isset($enc['fine']) && $enc['discount'] === ['value' => 5.0, 'dueDateLimitDays' => 3, 'type' => 'PERCENTAGE'], 'desconto ate N dias antes');
+$ok(str_starts_with(Cobranca::resumo($regras), 'Pix ou Boleto; 1ª cobrança em 3 dias; multa 2%; juros 1% ao mês; suspende após 7 dias'), 'resumo das regras');
 
 if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s).\n");

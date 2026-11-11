@@ -12,6 +12,7 @@ use Cardapim\Services\Gerencia\Integracoes\AsaasService;
 use Cardapim\Services\Gerencia\Integracoes\BaseIntegracao;
 use Cardapim\Services\Gerencia\Integracoes\WhatsAppService;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Plataforma\CobrancaAssinaturas;
 use Cardapim\Shared\Seguranca\Cripto;
 
 /**
@@ -75,6 +76,24 @@ final class IntegracoesController extends BasePlataforma
         return $this->acao(fn (): Resultado => $this->asaasServico()->desconectar(), '/painel/integracoes/asaas');
     }
 
+    public function asaasReativar(): Response
+    {
+        return $this->acao(fn (): Resultado => $this->asaasServico()->reativarAvisos(), '/painel/integracoes/asaas');
+    }
+
+    /** Regras de cobranca das assinaturas (formas, vencimento, multa, juros, desconto, tolerancia, avisos do Asaas). */
+    public function asaasCobranca(): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        $res = (new CobrancaAssinaturas($this->db))->salvar($_POST, $this->usuario);
+        if ($res->ok) {
+            return $this->voltar('/painel/integracoes/asaas#cobranca', 'sucesso', $res->mensagem);
+        }
+        return $this->telaAsaas([], [], 422, ['erros' => $res->erros, 'enviado' => $_POST, 'mensagem' => $res->mensagem]);
+    }
+
     /* ---------- WhatsApp da plataforma ---------- */
 
     public function whatsapp(): Response
@@ -130,8 +149,11 @@ final class IntegracoesController extends BasePlataforma
         return $this->responder($executar(), $voltarPara);
     }
 
-    /** @param array<string,string> $erros @param array<string,string> $valores */
-    private function telaAsaas(array $erros, array $valores, int $status = 200): Response
+    /**
+     * @param array<string,string> $erros @param array<string,string> $valores
+     * @param array{erros?:array<string,string>, enviado?:array<string,mixed>, mensagem?:string} $cobrancaForm erro ao salvar as regras
+     */
+    private function telaAsaas(array $erros, array $valores, int $status = 200, array $cobrancaForm = []): Response
     {
         $repo = new IntegracaoRepository($this->db);
         $integracao = $repo->buscar(null, 'asaas');
@@ -144,6 +166,9 @@ final class IntegracoesController extends BasePlataforma
             'valores' => $valores + ['ambiente' => $integracao['ambiente'] ?? 'producao', 'email_avisos' => (string) ($integracao['dados']['email_avisos'] ?? '')],
             'tokenWebhook' => $integracao['status'] !== 'desconectado' && empty($integracao['dados']['webhook_asaas_id'])
                 ? (string) ($repo->credenciais(null, 'asaas')['token_webhook'] ?? '') : null,
+            'saude' => is_array($integracao['dados']['saude'] ?? null) ? $integracao['dados']['saude'] : null,
+            'cobranca' => (new CobrancaAssinaturas($this->db))->regras(),
+            'cobrancaForm' => $cobrancaForm,
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
         ], $status);
     }

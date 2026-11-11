@@ -25,6 +25,25 @@ usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-p
   (id do restaurante ou 0) garante uma integração por provedor em cada escopo (`UNIQUE(escopo, provedor)`).
 - No código: `IntegracaoRepository` e os serviços recebem `?int $idRestaurante` (`null` = plataforma).
 
+### Asaas da plataforma para as assinaturas
+
+- **Avisos (webhook)**: além dos eventos de pagamento, a plataforma assina `SUBSCRIPTION_CREATED`, `SUBSCRIPTION_UPDATED`,
+  `SUBSCRIPTION_INACTIVATED` e `SUBSCRIPTION_DELETED` (`AsaasApi::EVENTOS_WEBHOOK_PLATAFORMA`). Contas conectadas antes
+  disso precisam de "Configurar de novo" para receber os eventos de assinatura.
+- **"Pronto para cobrar?"** (`AsaasService::verificarSaude`, rodado ao conectar, configurar avisos e testar): consulta
+  `GET /v3/myAccount/status` (conta aprovada: dados comerciais, conta bancária, documentos), `GET /v3/pix/addressKeys?status=ACTIVE`
+  (chave Pix) e `GET /v3/webhooks/{id}` (avisos ativos, pausados após falhas, eventos de assinatura). O resultado fica em
+  `integracoes.dados.saude` e aparece como lista ok / aviso / erro. Se o Asaas pausou a fila de avisos, o botão
+  "Reativar avisos" envia `PUT /v3/webhooks/{id}` com `enabled: true, interrupted: false`.
+- **Regras da cobrança** (`Cardapim\Services\Plataforma\CobrancaAssinaturas`, tabela `plataforma_cobranca`, linha única `id = 1`):
+  formas (Pix, Boleto, Cartão; mais de uma vira `billingType: UNDEFINED` e o restaurante escolhe na fatura), dias para a
+  1ª cobrança vencer, dias grátis, multa (até 2%), juros ao mês (até 10%), desconto para pagar antes e até quantos dias,
+  dias de atraso para suspender o restaurante e se o Asaas envia fatura e lembretes. Valores em `DECIMAL`; cada alteração
+  gera auditoria "Cobrança das assinaturas". Helpers para criar a assinatura (`POST /v3/subscriptions`): `CICLOS`
+  (mensal `MONTHLY`, semestral `SEMIANNUALLY`, anual `YEARLY`), `tipoAsaas()`, `primeiroVencimento()` e `encargosAsaas()`
+  (objetos `fine`, `interest`, `discount`).
+- Migration `20261111180000_create_plataforma_cobranca.php`, conferência `database/verify-cobranca.php`.
+
 ## Asaas (Pix dos pedidos online)
 
 1. O gerente escolhe Produção ou Sandbox e cola a **chave de API** da conta dele.

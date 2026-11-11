@@ -83,6 +83,44 @@ nao_contem "aviso NAO aparece para o restaurante" "$tmp/pagina.html" 'Pagamento 
 esperar "testar conexao" "$(enviar "$aj" "$p/integracoes/asaas/testar" | cut -d' ' -f1)" "303"
 esperar "teste com sucesso" "$(flash "$aj" "$p/integracoes/asaas")" "painel-flash-sucesso"
 
+echo "Asaas da plataforma: assinaturas"
+php -r '$d=json_decode(file_get_contents($argv[1]),true); exit(in_array("SUBSCRIPTION_CREATED", $d["events"] ?? [], true) && in_array("SUBSCRIPTION_INACTIVATED", $d["events"] ?? [], true) && in_array("PAYMENT_OVERDUE", $d["events"] ?? [], true) ? 0 : 1);' "$tmp/wh.json" \
+  && ok "avisos da plataforma incluem os eventos de assinatura" || falha "webhook sem eventos de assinatura"
+pagina "$aj" "$p/integracoes/asaas" >/dev/null
+contem "checklist da conta" "$tmp/pagina.html" 'Pronto para cobrar?'
+contem "conta aprovada" "$tmp/pagina.html" 'Conta aprovada pelo Asaas'
+contem "chave Pix encontrada" "$tmp/pagina.html" 'Chave Pix cadastrada'
+contem "avisos ativos" "$tmp/pagina.html" 'Avisos ativos'
+contem "regras de cobranca" "$tmp/pagina.html" 'Cobrança das assinaturas'
+contem "padrao Pix e boleto" "$tmp/pagina.html" 'value="boleto" checked'
+nao_contem "cartao desligado por padrao" "$tmp/pagina.html" 'value="cartao" checked'
+curl -s "$fake/_teste/asaas-webhook-pausar" >/dev/null
+enviar "$aj" "$p/integracoes/asaas/testar" >/dev/null
+pagina "$aj" "$p/integracoes/asaas" >/dev/null
+contem "fila pausada aparece" "$tmp/pagina.html" 'Avisos pausados pelo Asaas'
+contem "botao para reativar" "$tmp/pagina.html" 'Reativar avisos'
+esperar "reativar avisos" "$(enviar "$aj" "$p/integracoes/asaas/reativar")" "303 $p/integracoes/asaas"
+pagina "$aj" "$p/integracoes/asaas" >/dev/null
+contem "avisos ativos de novo" "$tmp/pagina.html" 'Avisos ativos'
+esperar "regras invalidas (422)" "$(enviar "$aj" "$p/integracoes/asaas/cobranca" multa_percentual=5 juros_mensal=1 vencimento_dias=40 tolerancia_dias=7 | cut -d' ' -f1)" "422"
+contem "sem forma de pagamento recusado" "$tmp/resp.html" 'Escolha pelo menos uma forma de pagamento.'
+contem "multa acima de 2% recusada" "$tmp/resp.html" 'Use de 0 a 2%.'
+contem "dias fora do limite" "$tmp/resp.html" 'Use um número de 0 a 30.'
+esperar "desconto sem dias recusado" "$(enviar "$aj" "$p/integracoes/asaas/cobranca" 'formas[]=pix' desconto_percentual=5 desconto_dias=0 | cut -d' ' -f1)" "422"
+esperar "salvar regras" "$(enviar "$aj" "$p/integracoes/asaas/cobranca" 'formas[]=pix' 'formas[]=boleto' 'formas[]=cartao' vencimento_dias=5 teste_dias=7 multa_percentual=2 juros_mensal=1,5 desconto_percentual=5 desconto_dias=3 tolerancia_dias=10 avisos_asaas=1)" "303 $p/integracoes/asaas#cobranca"
+pagina "$aj" "$p/integracoes/asaas" >/dev/null
+contem "regras salvas no resumo" "$tmp/pagina.html" 'Pix ou Boleto ou Cartão de crédito; 7 dias grátis; multa 2%; juros 1,5% ao mês; desconto 5% até 3 dias antes; suspende após 10 dias'
+contem "cartao marcado" "$tmp/pagina.html" 'value="cartao" checked'
+pagina "$gj" "$g/integracoes/asaas" >/dev/null
+nao_contem "restaurante nao ve as regras da plataforma" "$tmp/pagina.html" 'Cobrança das assinaturas'
+esperar "gerente nao salva regras da plataforma (403)" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' -X POST "$p/integracoes/asaas/cobranca")" "403"
+enviar "$aj" "$p/integracoes/asaas/cobranca" 'formas[]=pix' 'formas[]=boleto' vencimento_dias=3 teste_dias=0 multa_percentual=2 juros_mensal=1 desconto_percentual=0 desconto_dias=0 tolerancia_dias=7 avisos_asaas=1 >/dev/null
+esperar "conta em analise (outra chave)" "$(enviar "$aj" "$p/integracoes/asaas" ambiente=sandbox chave='$aact_ci_valida_pendente_123456789' | cut -d' ' -f1)" "303"
+pagina "$aj" "$p/integracoes/asaas" >/dev/null
+contem "conta ainda nao aprovada" "$tmp/pagina.html" 'Conta ainda não aprovada'
+contem "diz o que falta no Asaas" "$tmp/pagina.html" 'conta bancária (pendente)'
+contem "sem chave Pix e um aviso" "$tmp/pagina.html" 'Sem chave Pix no Asaas'
+
 echo "WhatsApp da plataforma"
 esperar "conectar" "$(enviar "$aj" "$p/integracoes/whatsapp/conectar")" "303 $p/integracoes/whatsapp"
 estado="$(curl -s -b "$aj" "$p/integracoes/whatsapp/estado")"

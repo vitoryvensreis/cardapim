@@ -29,11 +29,16 @@ Rotas (todas só adm_master):
 GET  /painel/integracoes
 GET  /painel/integracoes/asaas          POST /painel/integracoes/asaas (conectar)
 POST /painel/integracoes/asaas/webhook  POST /painel/integracoes/asaas/testar  POST /painel/integracoes/asaas/desconectar
+POST /painel/integracoes/asaas/reativar POST /painel/integracoes/asaas/cobranca (regras das assinaturas)
 GET  /painel/integracoes/whatsapp       POST /painel/integracoes/whatsapp/conectar
 GET  /painel/integracoes/whatsapp/estado (JSON)  POST /painel/integracoes/whatsapp/teste  POST /painel/integracoes/whatsapp/desconectar
 ```
 
-- **Asaas**: conta da plataforma para receber as assinaturas (base das futuras Faturas). Chave cifrada, webhook automático.
+- **Asaas**: conta da plataforma para receber as assinaturas (base das futuras Faturas). Chave cifrada, webhook automático
+  com os eventos de assinatura, lista "Pronto para cobrar?" (conta aprovada, chave Pix, avisos ativos, com "Reativar avisos")
+  e "Cobrança das assinaturas": formas (Pix, Boleto, Cartão), vencimento da 1ª cobrança, dias grátis, multa, juros,
+  desconto para pagar antes, dias de atraso para suspender e fatura enviada pelo Asaas. O ciclo (mensal, semestral, anual)
+  vem do plano.
 - **WhatsApp**: número da plataforma, separado dos restaurantes, no mesmo WPPConnect (`127.0.0.1:21467`).
   Próximo uso: código de verificação do cliente final, que entra só com o número de telefone.
 - Detalhes técnicos: [integracoes.md](integracoes.md). Teste: `tests/http/plataforma.sh` (CI).

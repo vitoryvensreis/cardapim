@@ -16,6 +16,8 @@ return static function (Router $router): void {
     $router->post('/painel/integracoes/asaas/webhook', [IntegracoesController::class, 'asaasWebhook']);
     $router->post('/painel/integracoes/asaas/testar', [IntegracoesController::class, 'asaasTestar']);
     $router->post('/painel/integracoes/asaas/desconectar', [IntegracoesController::class, 'asaasDesconectar']);
+    $router->post('/painel/integracoes/asaas/reativar', [IntegracoesController::class, 'asaasReativar']);
+    $router->post('/painel/integracoes/asaas/cobranca', [IntegracoesController::class, 'asaasCobranca']);
     $router->get('/painel/integracoes/whatsapp', [IntegracoesController::class, 'whatsapp']);
     $router->post('/painel/integracoes/whatsapp/conectar', [IntegracoesController::class, 'whatsappConectar']);
     $router->get('/painel/integracoes/whatsapp/estado', [IntegracoesController::class, 'whatsappEstado']);

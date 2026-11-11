@@ -2,6 +2,7 @@
 /**
  * Asaas. Espera: $integracao, $urlWebhook, $tokenWebhook (so quando os avisos nao foram configurados),
  * $eventos, $erros, $valores, $base, $csrf. Opcional: $plataforma (true = Asaas da administracao do Cardapim).
+ * Plataforma: $saude (checklist da conta ou null), $cobranca (regras das assinaturas), $cobrancaForm (erros ao salvar).
  */
 use Cardapim\Core\Icon;
 use Cardapim\Shared\Html\Campo;
@@ -15,7 +16,8 @@ $statusIntegracao = $integracao['status'];
 $nomesEventos = [
     'PAYMENT_CREATED' => 'Cobrança criada', 'PAYMENT_RECEIVED' => 'Pagamento recebido', 'PAYMENT_CONFIRMED' => 'Pagamento confirmado',
     'PAYMENT_OVERDUE' => 'Cobrança vencida', 'PAYMENT_REFUNDED' => 'Pagamento estornado', 'PAYMENT_DELETED' => 'Cobrança removida',
-    'PAYMENT_UPDATED' => 'Cobrança alterada',
+    'PAYMENT_UPDATED' => 'Cobrança alterada', 'SUBSCRIPTION_CREATED' => 'Assinatura criada', 'SUBSCRIPTION_UPDATED' => 'Assinatura alterada',
+    'SUBSCRIPTION_INACTIVATED' => 'Assinatura inativada', 'SUBSCRIPTION_DELETED' => 'Assinatura removida',
 ];
 $plataforma = !empty($plataforma);
 $erroGeral = $erros['_geral'] ?? null;
@@ -106,10 +108,36 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
             </div>
         </section>
 
+        <?php if ($plataforma): ?>
+            <section class="bloco" aria-labelledby="titulo-saude">
+                <div class="bloco-cabecalho">
+                    <h2 id="titulo-saude"><?= Icon::svg('clipboard-list') ?>Pronto para cobrar?</h2>
+                    <?php if ($saude !== null): ?><p>Conferido em <?= $e($data((string) $saude['verificado_em'])) ?>.</p><?php endif; ?>
+                </div>
+                <?php if ($saude === null): ?>
+                    <p class="texto-suave">Toque em "Testar conexão" para o Cardapim conferir a conta no Asaas.</p>
+                <?php else: ?>
+                    <ul class="saude-lista">
+                        <li class="saude-item is-ok"><?= Icon::svg('circle-check') ?><span><strong>Chave de API conectada</strong><small><?= $integracao['ambiente'] === 'sandbox' ? 'Conta de testes (Sandbox).' : 'Conta real (Produção).' ?></small></span></li>
+                        <?php foreach ($saude['itens'] as $item): $ic = ['ok' => 'circle-check', 'aviso' => 'triangle-exclamation-point', 'erro' => 'circle-x'][$item['situacao']] ?? 'info'; ?>
+                            <li class="saude-item is-<?= $e((string) $item['situacao']) ?>"><?= Icon::svg($ic) ?><span><strong><?= $e((string) $item['titulo']) ?></strong><small><?= $e((string) $item['texto']) ?></small></span>
+                                <?php if ($item['chave'] === 'avisos' && $item['situacao'] === 'erro' && str_contains((string) $item['titulo'], 'pausados')): ?>
+                                    <form method="post" action="<?= $e($base . '/integracoes/asaas/reativar') ?>">
+                                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                                        <button class="btn btn-primary btn-sm" type="submit"><?= Icon::svg('refresh-cw', 'icon-sm') ?>Reativar avisos</button>
+                                    </form>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
+
         <section class="bloco" aria-labelledby="titulo-avisos">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-avisos"><?= Icon::svg('webhook') ?>Avisos de pagamento</h2>
-                <p>O Asaas avisa o Cardapim quando um Pix é criado, pago, vence ou é estornado (webhook).</p>
+                <p><?= $plataforma ? 'O Asaas avisa o Cardapim quando uma fatura é criada, paga ou vence e quando uma assinatura muda (webhook).' : 'O Asaas avisa o Cardapim quando um Pix é criado, pago, vence ou é estornado (webhook).' ?></p>
             </div>
             <?php if ($webhookOk): ?>
                 <p><span class="etiqueta etiqueta-ok"><?= Icon::svg('check') ?>Configurados</span>
@@ -159,6 +187,63 @@ $formulario = static function () use ($e, $base, $csrf, $valores, $erros, $conec
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
+        </section>
+    <?php endif; ?>
+    <?php if ($plataforma): $cErros = $cobrancaForm['erros'] ?? []; $cEnv = $cobrancaForm['enviado'] ?? null;
+        $cv = static fn (string $k) => $cEnv !== null ? (is_string($cEnv[$k] ?? null) ? $cEnv[$k] : '') : $cobranca[$k];
+        $pctCampo = static fn ($v): string => is_string($v) && str_contains($v, '.') ? rtrim(rtrim(str_replace('.', ',', $v), '0'), ',') : (string) $v;
+        $formasMarcadas = $cEnv !== null ? (is_array($cEnv['formas'] ?? null) ? $cEnv['formas'] : []) : $cobranca['formas'];
+        $avisosLigados = $cEnv !== null ? (($cEnv['avisos_asaas'] ?? '') === '1') : $cobranca['avisos_asaas'];
+        $iconesForma = ['pix' => 'qr-code', 'boleto' => 'receipt-text', 'cartao' => 'credit-card'];
+        $numero = static function (string $nome, string $rotulo, string $sufixo, int $max, $valor, ?string $erro) use ($e): string {
+            return '<label class="campo-numero' . ($erro ? ' tem-erro' : '') . '"><span class="campo-numero-rotulo">' . $e($rotulo) . '</span>'
+                . '<span class="campo-numero-caixa"><input name="' . $e($nome) . '" inputmode="decimal" maxlength="5" value="' . $e((string) $valor) . '"' . ($erro ? ' aria-invalid="true"' : '') . '>'
+                . '<span>' . $e($sufixo) . '</span></span>' . ($erro ? '<small class="field-msg ficha-erro">' . $e($erro) . '</small>' : '') . '</label>';
+        };
+    ?>
+        <section class="bloco" id="cobranca" aria-labelledby="titulo-cobranca">
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-cobranca"><?= Icon::svg('calendar-clock') ?>Cobrança das assinaturas</h2>
+                <p>Como o Asaas cobra os restaurantes. O ciclo vem do plano: mensal, semestral ou anual.</p>
+            </div>
+            <?php if (!empty($cobrancaForm['mensagem'])): ?>
+                <div class="notice notice-warning" role="alert"><?= Icon::svg('circle-x') ?><div><p><?= $e((string) $cobrancaForm['mensagem']) ?></p></div></div>
+            <?php endif; ?>
+            <form method="post" action="<?= $e($base . '/integracoes/asaas/cobranca') ?>" novalidate class="cobranca-form">
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <fieldset class="opcoes-modo cobranca-formas">
+                    <legend class="rotulo-grupo">Formas de pagamento</legend>
+                    <?php foreach (\Cardapim\Services\Plataforma\CobrancaAssinaturas::FORMAS as $chave => $rotulo): ?>
+                        <label class="opcao-modo">
+                            <input type="checkbox" name="formas[]" value="<?= $e($chave) ?>"<?= in_array($chave, $formasMarcadas, true) ? ' checked' : '' ?>>
+                            <span><strong><?= Icon::svg($iconesForma[$chave], 'icon-sm') ?><?= $e($rotulo) ?></strong></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <?php if (isset($cErros['formas'])): ?><p class="field-msg ficha-erro"><?= $e($cErros['formas']) ?></p><?php endif; ?>
+                </fieldset>
+                <p class="texto-suave cobranca-dica"><?= Icon::svg('info', 'icon-sm') ?>Mais de uma forma: o restaurante escolhe na fatura.</p>
+                <div class="cobranca-grade">
+                    <?= $numero('vencimento_dias', '1ª cobrança vence em', 'dias', 30, $cv('vencimento_dias'), $cErros['vencimento_dias'] ?? null) ?>
+                    <?= $numero('teste_dias', 'Dias grátis', 'dias', 60, $cv('teste_dias'), $cErros['teste_dias'] ?? null) ?>
+                    <?= $numero('multa_percentual', 'Multa por atraso', '%', 2, $pctCampo($cv('multa_percentual')), $cErros['multa_percentual'] ?? null) ?>
+                    <?= $numero('juros_mensal', 'Juros ao mês', '%', 10, $pctCampo($cv('juros_mensal')), $cErros['juros_mensal'] ?? null) ?>
+                    <?= $numero('desconto_percentual', 'Desconto para pagar antes', '%', 50, $pctCampo($cv('desconto_percentual')), $cErros['desconto_percentual'] ?? null) ?>
+                    <?= $numero('desconto_dias', 'Desconto vale até', 'dias antes', 30, $cv('desconto_dias'), $cErros['desconto_dias'] ?? null) ?>
+                    <?= $numero('tolerancia_dias', 'Suspender o restaurante após', 'dias de atraso', 60, $cv('tolerancia_dias'), $cErros['tolerancia_dias'] ?? null) ?>
+                </div>
+                <label class="alternador">
+                    <span><strong>O Asaas envia a fatura ao restaurante</strong><small>E-mail e SMS com o boleto ou Pix e lembretes de vencimento.</small></span>
+                    <input type="checkbox" name="avisos_asaas" value="1"<?= $avisosLigados ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                </label>
+                <div class="cobranca-resumo">
+                    <strong><?= Icon::svg('receipt', 'icon-sm') ?>Como fica hoje</strong>
+                    <p><?= $e(\Cardapim\Services\Plataforma\CobrancaAssinaturas::resumo($cobranca)) ?>.</p>
+                    <?php if ($cobranca['atualizado_em']): ?><small class="texto-suave">Salvo em <?= $e($data((string) $cobranca['atualizado_em'])) ?>.</small><?php endif; ?>
+                </div>
+                <div class="bloco-rodape">
+                    <button class="btn btn-primary" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar regras</button>
+                </div>
+            </form>
         </section>
     <?php endif; ?>
 </div>

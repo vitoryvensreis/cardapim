@@ -49,6 +49,29 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
     if ($metodo === 'DELETE' && str_starts_with($m[1], '/webhooks/')) {
         $responder(200, ['deleted' => true]);
     }
+    // Situacao do webhook (ativo / fila pausada) e reativacao.
+    if (preg_match('~\A/webhooks/(wh_ci_[a-f0-9]+)\z~', $m[1], $wm)) {
+        $wh = $ler('asaas-webhook.json');
+        if (!is_array($wh)) {
+            $responder(404, ['errors' => [['description' => 'Webhook nao encontrado']]]);
+        }
+        if ($metodo === 'PUT') {
+            $wh['interrupted'] = (bool) ($json['interrupted'] ?? false);
+            $wh['enabled'] = (bool) ($json['enabled'] ?? true);
+            $guardar('asaas-webhook.json', $wh);
+        }
+        $responder(200, ['id' => $wm[1], 'enabled' => $wh['enabled'] ?? true, 'interrupted' => $wh['interrupted'] ?? false, 'events' => $wh['events'] ?? []]);
+    }
+    // Aprovacao da conta e chaves Pix (checklist da plataforma). Chave com "pendente" = conta em analise e sem chave Pix.
+    if ($metodo === 'GET' && $m[1] === '/myAccount/status') {
+        $pendente = str_contains($cab('access_token'), 'pendente');
+        $responder(200, ['id' => 'acc_ci', 'commercialInfo' => 'APPROVED', 'bankAccountInfo' => $pendente ? 'PENDING' : 'APPROVED',
+            'documentation' => $pendente ? 'AWAITING_APPROVAL' : 'APPROVED', 'general' => $pendente ? 'AWAITING_APPROVAL' : 'APPROVED']);
+    }
+    if ($metodo === 'GET' && str_starts_with($m[1], '/pix/addressKeys')) {
+        $pendente = str_contains($cab('access_token'), 'pendente');
+        $responder(200, ['object' => 'list', 'hasMore' => false, 'totalCount' => $pendente ? 0 : 1, 'data' => $pendente ? [] : [['id' => 'key_ci', 'status' => 'ACTIVE', 'type' => 'EVP']]]);
+    }
     // Clientes e cobrancas Pix (pedidos do cardapio online).
     if ($metodo === 'POST' && $m[1] === '/customers') {
         if (trim((string) ($json['name'] ?? '')) === '' || preg_match('/\A(\d{11}|\d{14})\z/', (string) ($json['cpfCnpj'] ?? '')) !== 1) {
@@ -133,6 +156,12 @@ if ($caminho === '/nominatim/search') {
         }
     }
     $responder(200, []);
+}
+if ($caminho === '/_teste/asaas-webhook-pausar') {
+    $wh = $ler('asaas-webhook.json') ?? [];
+    $wh['interrupted'] = true;
+    $guardar('asaas-webhook.json', $wh);
+    $responder(200, $wh);
 }
 if ($caminho === '/_teste/asaas-webhook') {
     $responder(200, $ler('asaas-webhook.json') ?? []);
