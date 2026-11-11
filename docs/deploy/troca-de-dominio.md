@@ -1,5 +1,12 @@
 # Troca de domínio (cardapim.escotilhaprodutora.com -> deliveryzim.com.br)
 
+> **Feita em 11/11/2026 (18:33).** DNS na Hostinger (A de `@` + CNAME `www` nos dois domínios), Vhost com os 5 nomes,
+> um único certificado Let's Encrypt com os 5 nomes, `APP_URL` e `DOMINIOS_REDIRECIONAR` no `shared/.env`
+> (backup `.env.bak-20261111213226`), tempo real reiniciado. Conferido: endereços antigos levam com 301 ao novo.
+> Atenção: o CloudPanel guarda **um certificado por site** e cada emissão nova substitui a anterior. Sempre emitir
+> com todos os nomes juntos (`cardapim.escotilhaprodutora.com`, `deliveryzim.com.br`, `www.deliveryzim.com.br`,
+> `deliveryzim.com`, `www.deliveryzim.com`).
+
 Objetivo: o sistema passa a responder em `https://deliveryzim.com.br`. Os endereços antigos
 (`cardapim.escotilhaprodutora.com`, `deliveryzim.com`, `www.deliveryzim.com`, `www.deliveryzim.com.br`) levam
 com 301 para o mesmo caminho no domínio novo. Nada de banco, pastas ou usuário do site muda.

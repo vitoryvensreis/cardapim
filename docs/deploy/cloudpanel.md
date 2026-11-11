@@ -4,7 +4,7 @@
 
 ## Ambiente identificado pelos prints
 
-- Domínio: cardapim.escotilhaprodutora.com
+- Domínio: deliveryzim.com.br (site do CloudPanel ainda chamado cardapim.escotilhaprodutora.com; ver troca-de-dominio.md)
 - Usuário do site: escotilhaprodutora-cardapim
 - Banco de dados: cardapim
 - Usuário MySQL: cardapim-user
@@ -47,7 +47,7 @@ Criar o arquivo "$SITE_HOME/apps/cardapim/shared/.env" com permissão 600, perte
     APP_NAME=Cardapim
     APP_ENV=production
     APP_DEBUG=false
-    APP_URL=https://cardapim.escotilhaprodutora.com
+    APP_URL=https://deliveryzim.com.br
     DB_HOST=127.0.0.1
     DB_PORT=3306
     DB_DATABASE=cardapim
@@ -95,7 +95,7 @@ Repositório → Settings → Secrets and variables → Actions.
 **Variables**:
 
 - CARDAPIM_DEPLOY_ROOT = /home/escotilhaprodutora-cardapim/apps/cardapim
-- CARDAPIM_DEPLOY_URL = https://cardapim.escotilhaprodutora.com
+- CARDAPIM_DEPLOY_URL = https://deliveryzim.com.br
 - CARDAPIM_VPS_SSH_PORT = 22 (ou porta SSH real)
 - CARDAPIM_DEPLOY_ENABLED = false inicialmente; mudar para true SOMENTE após confirmar SSH e Vhost.
 - CARDAPIM_RUN_MIGRATIONS = false inicialmente; ativar após configurar backup e testar a migração.

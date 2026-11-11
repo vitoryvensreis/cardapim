@@ -236,7 +236,7 @@ A estrutura para CI/CD está em [`.github/workflows/ci-deploy.yml`](.github/work
 
 O deploy será realizado por usuário não-root, com releases versionadas, armazenamento e `.env` fora do código, symlink `current`, healthcheck HTTP e rollback de arquivos por symlink quando necessário. **Migrations MySQL só serão executadas se `CARDAPIM_RUN_MIGRATIONS=true`, com backup prévio e credenciais privadas.** Isso não substitui a análise dos riscos de migrations DDL.
 
-Informações de infraestrutura fornecidas: domínio `cardapim.escotilhaprodutora.com`, banco `cardapim`, usuário MySQL `cardapim-user`, host MySQL `127.0.0.1`, porta `3306`, usuário do site `escotilhaprodutora-cardapim`. **Nenhuma senha deve ser colocada no Git ou compartilhada no chat.**
+Informações de infraestrutura fornecidas: domínio `deliveryzim.com.br` (desde 11/11/2026; o site no CloudPanel continua com o nome antigo `cardapim.escotilhaprodutora.com`, que redireciona), banco `cardapim`, usuário MySQL `cardapim-user`, host MySQL `127.0.0.1`, porta `3306`, usuário do site `escotilhaprodutora-cardapim`. **Nenhuma senha deve ser colocada no Git ou compartilhada no chat.**
 
 Leia o [guia completo de deploy no CloudPanel](docs/deploy/cloudpanel.md). Troca de domínio (deliveryzim.com.br): [passo a passo](docs/deploy/troca-de-dominio.md). O fluxo SSH e publicação da landing page foi validado na VPS em 09/11/2026; migrations automáticas permanecem desativadas até a configuração de backup.
 

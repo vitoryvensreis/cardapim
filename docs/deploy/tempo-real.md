@@ -9,7 +9,7 @@ Resumo do que fica rodando:
 | --- | --- | --- |
 | Redis do Cardapim | container Docker `redis-cardapim` em `/opt/redis-cardapim` | 6381 |
 | Servidor de tempo real | serviço systemd `cardapim-tempo-real` (PHP 8.4, usuário do site) | 8091 |
-| Nginx (CloudPanel) | `location = /ws` no vhost do site | 443 (`wss://cardapim.escotilhaprodutora.com/ws`) |
+| Nginx (CloudPanel) | `location = /ws` no vhost do site | 443 (`wss://deliveryzim.com.br/ws`) |
 
 Nada disso mexe nos Redis do mailcow nem nos WPPConnect existentes.
 
@@ -67,8 +67,8 @@ CloudPanel > Sites > `cardapim.escotilhaprodutora.com` > **Vhost**. Dentro do bl
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
-  -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H 'Origin: https://cardapim.escotilhaprodutora.com' \
-  https://cardapim.escotilhaprodutora.com/ws
+  -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H 'Origin: https://deliveryzim.com.br' \
+  https://deliveryzim.com.br/ws
 ```
 
 Esperado: **401** (chegou no servidor de tempo real e ele pediu o ticket). `404`/`502` = Nginx ainda não encaminha.
@@ -78,7 +78,7 @@ Esperado: **401** (chegou no servidor de tempo real e ele pediu o ticket). `404`
 ```bash
 ENV=/home/escotilhaprodutora-cardapim/apps/cardapim/shared/.env
 grep -q '^WS_ATIVO=' "$ENV" && sed -i 's/^WS_ATIVO=.*/WS_ATIVO=1/' "$ENV" || printf 'WS_ATIVO=1\n' >> "$ENV"
-curl -s -H 'Accept: application/json' https://cardapim.escotilhaprodutora.com/status
+curl -s -H 'Accept: application/json' https://deliveryzim.com.br/status
 ```
 
 O status deve mostrar `"tempo_real":{"situacao":"operacional","redis":"conectado"}`. No painel do gerente

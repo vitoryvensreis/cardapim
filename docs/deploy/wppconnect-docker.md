@@ -128,7 +128,7 @@ ls -l "$ENV"
 
 - O `.env` continua com o mesmo dono e permissão (o `>>` só acrescenta linhas).
 - Não precisa reiniciar nada: o Cardapim lê o `.env` a cada acesso.
-- Confira também se existe `APP_URL=https://cardapim.escotilhaprodutora.com` nesse arquivo (é usado nos avisos do Asaas).
+- Confira também se existe `APP_URL=https://deliveryzim.com.br` nesse arquivo (é usado nos avisos do Asaas).
 
 ## 9. Conectar pelo painel
 
