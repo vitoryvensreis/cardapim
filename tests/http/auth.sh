@@ -41,7 +41,7 @@ echo "Gerente"
 esperar "login -> gerencia" "$(login "$tmp/g" ci_gerente "$senha")" "303 $base/$slug/gerencia"
 esperar "gerencia" "$(codigo "$tmp/g" "/$slug/gerencia")" "200"
 esperar "caixa do proprio restaurante" "$(codigo "$tmp/g" "/$slug/caixa")" "200"
-esperar "entregas do proprio restaurante" "$(codigo "$tmp/g" "/$slug/entregas")" "200"
+esperar "entregas do proprio restaurante (vai para o delivery)" "$(codigo "$tmp/g" "/$slug/entregas")" "303"
 esperar "painel bloqueado" "$(codigo "$tmp/g" /painel)" "403"
 esperar "outro restaurante bloqueado" "$(codigo "$tmp/g" /ci-outro-restaurante/gerencia)" "403"
 esperar "/login com sessao vai para a area" "$(destino "$tmp/g" /login)" "$base/$slug/gerencia"
@@ -65,7 +65,8 @@ esperar "painel" "$(codigo "$tmp/a" /painel)" "200"
 esperar "acessa qualquer restaurante" "$(codigo "$tmp/a" /ci-outro-restaurante/gerencia)" "200"
 
 echo "Painel do gerente"
-for secao in mesas estoque equipe financeiro perfil integracoes assinatura minha-conta suporte; do
+esperar "gerencia/mesas leva ao cadastro de mesas do caixa" "$(codigo "$tmp/g" "/$slug/gerencia/mesas")" "303"
+for secao in estoque equipe financeiro perfil integracoes assinatura minha-conta suporte; do
   esperar "gerente abre /gerencia/$secao" "$(codigo "$tmp/g" "/$slug/gerencia/$secao")" "200"
 done
 esperar "secao inexistente" "$(codigo "$tmp/g" "/$slug/gerencia/nao-existe")" "404"
@@ -75,7 +76,7 @@ esperar "master abre a gerencia/perfil" "$(codigo "$tmp/a" "/$slug/gerencia/perf
 esperar "menu lateral com Estoque" "$(curl -s -b "$tmp/g" "$base/$slug/gerencia" | grep -c "href=\"/$slug/gerencia/estoque\"")" "1"
 esperar "modo caixa do gerente tem voltar" "$(curl -s -b "$tmp/g" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "1"
 esperar "caixa nao ve voltar a gerencia" "$(curl -s -b "$tmp/c" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "0"
-esperar "gerente em entregas escolhe entregador" "$(curl -s -b "$tmp/g" "$base/$slug/entregas" | grep -c 'Escolher o entregador')" "1"
+esperar "gerente em entregas vai para o delivery do caixa" "$(codigo "$tmp/g" "/$slug/entregas")" "303"
 esperar "entregador ve as proprias entregas" "$(curl -s -b "$tmp/m" "$base/$slug/entregas" | grep -c 'Minha rota')" "1"
 curl -s -o /dev/null -c "$tmp/s" -b "$tmp/s" "$base/$slug/gerencia/estoque"
 esperar "volta para a secao pedida apos login" "$(login "$tmp/s" ci_gerente "$senha")" "303 $base/$slug/gerencia/estoque"

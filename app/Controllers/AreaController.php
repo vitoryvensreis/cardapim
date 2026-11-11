@@ -22,20 +22,9 @@ use Cardapim\Shared\Slug;
 final class AreaController
 {
     private const AREAS = [
-        'caixa' => ['Modo caixa', 'monitor', 'Vendas no balcão, abertura e fechamento do caixa e pagamentos.', [
-            ['wallet', 'Abrir e fechar caixa'], ['store', 'Venda no balcão'], ['qr-code', 'Pagamentos'], ['receipt', 'Comprovantes'],
-        ]],
         'entregas' => ['Entregas', 'bike', 'Suas entregas, rotas e status de cada pedido.', [
             ['inbox', 'Entregas disponíveis'], ['bike', 'Minha rota'], ['check', 'Confirmar entrega'], ['phone', 'Falar com o restaurante'],
         ]],
-    ];
-
-    /** Entregas na visao do gerente: fila de pedidos e escolha do entregador. */
-    private const DESPACHO = [
-        'titulo' => 'Entregas',
-        'icone' => 'bike',
-        'descricao' => 'Pedidos para entrega em ordem de chegada e quem vai levar cada um.',
-        'planejado' => ['Lista de pedidos de entrega em ordem de chegada', 'Escolher o entregador de cada pedido', 'Acompanhar o status de cada entrega', 'Histórico de entregas por entregador'],
     ];
 
     /** /{slug}/gerencia (visao geral) e /{slug}/gerencia/{secao}. */
@@ -49,6 +38,10 @@ final class AreaController
             return $acesso;
         }
         [$usuario, $restaurante] = $acesso;
+        // Mesas agora tem tela propria no modo caixa (cadastro de mesas).
+        if ($secao === 'mesas') {
+            return Response::redirect('/' . rawurlencode($restaurante['slug']) . '/caixa/mesas/gerenciar', 303);
+        }
         $dados = MenuGerencia::SECOES[$secao];
         return $this->telaGerencia($usuario, $restaurante, $secao, $dados['titulo'], [
             'secao' => $dados,
@@ -68,9 +61,9 @@ final class AreaController
         [$usuario, $restaurante] = $acesso;
         $gestor = in_array($usuario->cargo, ['gerente', Autorizacao::CARGO_MASTER], true);
 
-        // Gerente em Entregas: fila de pedidos e despacho, dentro do painel com menu.
+        // Gerente em Entregas: a fila de pedidos e o despacho ficam no Delivery do modo caixa.
         if ($area === 'entregas' && $gestor) {
-            return $this->telaGerencia($usuario, $restaurante, 'entregas', 'Entregas', ['secao' => self::DESPACHO, 'saudacao' => false]);
+            return Response::redirect('/' . rawurlencode($restaurante['slug']) . '/caixa/delivery', 303);
         }
 
         [$titulo, $icone, $descricao, $modulos] = self::AREAS[$area];

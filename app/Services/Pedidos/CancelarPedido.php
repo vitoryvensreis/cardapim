@@ -36,6 +36,16 @@ final class CancelarPedido
                 (new BaixaEstoque($this->db))->devolver($idRestaurante, array_map('strval', $consumo));
                 $this->db->prepare('UPDATE pedidos SET consumo_estoque = NULL WHERE id = ? AND id_restaurante = ?')->execute([$idPedido, $idRestaurante]);
             }
+            // Comanda (mesa/balcao): cada item guarda o proprio consumo. Devolve o dos itens ainda nao cancelados.
+            $itens = $this->db->prepare('SELECT id, consumo_estoque FROM pedido_itens WHERE id_pedido = ? AND id_restaurante = ? AND consumo_estoque IS NOT NULL AND cancelado_em IS NULL');
+            $itens->execute([$idPedido, $idRestaurante]);
+            foreach ($itens->fetchAll(\PDO::FETCH_ASSOC) as $item) {
+                $doItem = json_decode((string) $item['consumo_estoque'], true);
+                if (is_array($doItem) && $doItem !== []) {
+                    (new BaixaEstoque($this->db))->devolver($idRestaurante, array_map('strval', $doItem));
+                }
+                $this->db->prepare('UPDATE pedido_itens SET consumo_estoque = NULL WHERE id = ? AND id_restaurante = ?')->execute([(int) $item['id'], $idRestaurante]);
+            }
             (new PedidoRepository($this->db))->registrarEvento($idRestaurante, $idPedido, 'cancelado', $motivo, $idUser, $idCliente);
             TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.cancelado', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
             $this->db->commit();

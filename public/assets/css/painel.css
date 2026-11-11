@@ -242,6 +242,9 @@
 .lista-dado::before { content: attr(data-rotulo); color: var(--c-muted); font-size: .8rem; }
 .lista-acoes { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: flex-end; }
 .lista-acoes form { margin: 0; }
+/* Botao de remover/excluir com texto (nao so icone), em vermelho. */
+.area-remover { color: var(--c-danger); }
+.area-remover:hover { color: #8f1c13; }
 .lista-vazia { padding: 2.5rem 1.5rem; text-align: center; color: var(--c-muted); }
 .lista-vazia .icon { width: 2.5rem; height: 2.5rem; margin: 0 auto .75rem; color: var(--c-wine-400); }
 .lista-vazia strong { display: block; margin-bottom: .3rem; color: var(--c-ink); font-family: var(--f-head); font-size: 1.05rem; }

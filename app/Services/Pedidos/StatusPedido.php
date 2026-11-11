@@ -9,6 +9,7 @@ final class StatusPedido
 {
     public const ROTULOS = [
         'aguardando_pagamento' => 'Aguardando pagamento',
+        'aberto' => 'Conta aberta',
         'recebido' => 'Pedido recebido',
         'em_preparo' => 'Em preparo',
         'pronto' => 'Pronto',
@@ -23,6 +24,7 @@ final class StatusPedido
         'debito' => 'Cartão de débito',
         'credito' => 'Cartão de crédito',
         'dinheiro' => 'Dinheiro',
+        'misto' => 'Mais de uma forma',
     ];
 
     /** Etapas mostradas ao cliente (linha do tempo). @return list<string> */

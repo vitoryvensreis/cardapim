@@ -37,7 +37,7 @@ final class TempoRealController
         if ($usuario === null) {
             return Response::json(['erro' => 'Entre na sua conta para receber atualizações.'], 401);
         }
-        if (!RateLimiter::padrao(30, 60)->permitir('tempo-real|' . $usuario->id)) {
+        if (!RateLimiter::padrao(90, 60)->permitir('tempo-real|' . $usuario->id)) {
             return Response::json(['erro' => 'Muitas tentativas de conexão. Aguarde um minuto.'], 429, ['Retry-After' => '60']);
         }
         $slug = is_string($_GET['restaurante'] ?? null) ? $_GET['restaurante'] : '';

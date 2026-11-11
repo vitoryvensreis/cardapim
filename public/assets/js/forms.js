@@ -59,13 +59,19 @@
     if (cleaned !== input.value) input.value = cleaned;
   };
 
-  document.querySelectorAll("[data-mask]").forEach((input) => {
-    const type = input.dataset.mask;
-    const special = { username: sanitizeUsername, money: maskMoney, quantity: maskQuantity };
-    const handler = special[type] ? () => special[type](input) : () => applyMask(input, type);
-    input.addEventListener("input", handler);
-    if (input.value) handler();
-  });
+  // Liga as mascaras (tambem em partes da tela trocadas sem recarregar: window.CardapimMascaras(raiz)).
+  const ligarMascaras = (raiz) => {
+    raiz.querySelectorAll("[data-mask]:not([data-mask-ligada])").forEach((input) => {
+      const type = input.dataset.mask;
+      const special = { username: sanitizeUsername, money: maskMoney, quantity: maskQuantity };
+      const handler = special[type] ? () => special[type](input) : () => applyMask(input, type);
+      input.dataset.maskLigada = "1";
+      input.addEventListener("input", handler);
+      if (input.value) handler();
+    });
+  };
+  ligarMascaras(document);
+  window.CardapimMascaras = ligarMascaras;
 
   /* ---------- Validadores ---------- */
   const isValidCpf = (value) => {

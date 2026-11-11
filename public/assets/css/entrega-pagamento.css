@@ -47,6 +47,3 @@
   .lista-areas .area-editar { padding-top: .25rem; }
 }
 
-/* Acoes da area com texto (nao so icone): "Pausar" e "Remover" claros para quem nao e da tecnologia. */
-.area-remover { color: var(--c-danger); }
-.area-remover:hover { color: #8f1c13; }

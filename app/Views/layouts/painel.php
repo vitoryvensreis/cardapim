@@ -64,6 +64,7 @@ $acaoTopo = $painel['acao_topo'] ?? null;
                     </ul>
                 <?php endforeach; ?>
             </nav>
+            <?= $painel['lateral_extra'] ?? '' /* HTML ja escapado pela view (ex.: fila de delivery do caixa) */ ?>
             <div class="painel-user">
                 <span class="app-avatar" aria-hidden="true"><?= $e($iniciais) ?></span>
                 <span class="painel-user-info">

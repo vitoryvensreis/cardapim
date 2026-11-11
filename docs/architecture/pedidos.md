@@ -4,8 +4,8 @@ Cliente final finaliza o pedido no cardapio: escolhe entrega ou retirada, inform
 escolhe a forma de pagamento e acompanha o pedido. O restaurante configura tudo na aba
 **Entrega e pagamento** do painel do gerente.
 
-> Ainda nao existe a tela da equipe para receber/aceitar pedidos (cozinha e caixa): proxima etapa.
-> Os pedidos ja sao gravados, baixam o estoque e geram o evento `pedido.novo` no outbox do tempo real.
+> A equipe recebe, prepara e despacha os pedidos no modo caixa (`docs/architecture/caixa.md`).
+> Os pedidos baixam o estoque quando o cliente pede e geram o evento `pedido.novo` no outbox do tempo real.
 
 ## Tabelas
 
@@ -88,6 +88,6 @@ Cliente final:
 
 ## Pendente
 
-- Tela da equipe para receber, aceitar e andar com os pedidos (cozinha/KDS, caixa, entregador).
+- Tela da cozinha (KDS) e area do entregador.
 - Expirar Pix nao pago tambem sem a tela do cliente aberta (hoje expira quando o cliente ou o webhook consulta).
 - Avisar o cliente pelo WhatsApp a cada mudanca de status.

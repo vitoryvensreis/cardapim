@@ -38,12 +38,13 @@ $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
 $router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 (require __DIR__ . '/gerencia.php')($router);
+(require __DIR__ . '/caixa.php')($router);
 $router->get('/{slug}/gerencia', [AreaController::class, 'gerencia']);
 $router->get('/{slug}/gerencia/{secao}', [AreaController::class, 'gerencia']);
 // Cardapio online: finalizar o pedido e acompanhar (cliente final).
 $router->get('/{slug}/finalizar', [RestauranteController::class, 'finalizar']);
 $router->get('/{slug}/pedido/{id}', [RestauranteController::class, 'pedido']);
-foreach (['caixa', 'entregas'] as $area) {
+foreach (['entregas'] as $area) {
     $router->get('/{slug}/' . $area, static fn (string $slug): \Cardapim\Core\Response => (new AreaController())->restaurante($slug, $area));
 }
 

@@ -111,8 +111,8 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
     <div class="notice notice-info bloco-aviso" role="note">
         <?= Icon::svg('info') ?>
         <div>
-            <strong>A tela para receber e aceitar os pedidos (cozinha e caixa) chega na próxima atualização.</strong>
-            <p>Até lá, os pedidos feitos pelo cardápio ficam guardados, mas ainda não aparecem aqui no painel. Ligue os pedidos online só para testar.</p>
+            <strong>Os pedidos do cardápio chegam no Delivery do modo caixa.</strong>
+            <p>Lá a equipe aceita, marca como pronto e escolhe o entregador. <a href="/<?= $e((string) $restaurante['slug']) ?>/caixa/delivery">Abrir o Delivery</a></p>
         </div>
     </div>
 

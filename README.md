@@ -6,13 +6,22 @@
 >
 > **Infraestrutura informada:** VPS, domínio e SSL já provisionados. A configuração exata, credenciais e serviços devem ser verificados no ambiente antes do deploy.
 
+## Modo caixa
+
+- `/{slug}/caixa` com **menu lateral**: Caixa, Mesas e comandas, Delivery, Entradas e saídas, Fechamentos e Cadastro de mesas.
+- **Pedidos de delivery colados no menu**, do mais antigo para o mais novo, com aviso sonoro de pedido novo. O caixa abre o pedido, aceita, marca pronto e **despacha para o motoqueiro escolhido**; ao entregar, o pagamento entra no caixa.
+- **Mesas** (tabela `mesas`): mapa livre/ocupada, cadastro (criar uma ou várias, editar, pausar, excluir). A mesa funciona como cliente da **comanda**: lançar itens, cancelar item com motivo, taxa de serviço, desconto, dividir a conta, trocar de mesa, imprimir e receber em uma ou várias formas. Venda no balcão usa a mesma comanda.
+- **Abrir e fechar caixa** (troco inicial e contagem cega do dinheiro), **entradas e saídas** (reforço, sangria, despesas) e histórico de fechamentos com sobra/falta.
+- **Estoque**: item da comanda baixa os insumos na hora; pedido do cardápio baixa quando o cliente pede (o despacho não baixa de novo); cancelar devolve. Conferido nos testes.
+- [Arquitetura, regras e tabelas](docs/architecture/caixa.md).
+
 ## Pedidos, entrega e pagamento
 
 - **Tabelas `pedidos` e `pedido_itens`**: todo pedido tem o restaurante (`id_restaurante`) e de quem e: o cliente (`id_cliente`) e/ou a pessoa da equipe que registrou (`id_user`). Linha do tempo em `pedido_eventos`.
 - **Aba "Entrega e pagamento"** do gerente: entrega e/ou retirada, tempo estimado, formas aceitas (Pix pelo app via Asaas do restaurante, Pix na entrega, cartao de debito, cartao de credito e dinheiro) e **areas de entrega por bairro ou por raio em km**, cada uma com taxa e pedido minimo, com "Testar um endereco".
 - **Finalizar o pedido** no cardapio: entrega ou retirada, endereco pelo CEP (confere na hora se o restaurante entrega e quanto custa), pagamento (troco, CPF para o Pix) e tela para acompanhar o pedido.
 - Geolocalizacao **sem custo**: BrasilAPI/ViaCEP para CEP e Nominatim (OpenStreetMap) para distancia, respeitando a politica de uso (1 consulta/s e cache).
-- **Proxima etapa**: tela da equipe para receber e aceitar os pedidos (cozinha e caixa).
+- A equipe recebe, prepara e despacha os pedidos no **modo caixa** (seção acima).
 - [Arquitetura, regras e rotas](docs/architecture/pedidos.md).
 
 ## Cardapio online do restaurante (cliente final)
