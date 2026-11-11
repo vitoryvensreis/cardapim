@@ -194,6 +194,110 @@ class AsaasApi
         $this->chamar('DELETE', '/payments/' . self::idSeguro($idCobranca), $chave, $ambiente);
     }
 
+    /**
+     * Cliente da PLATAFORMA (restaurante que assina): nome, CNPJ, e-mail e celular.
+     * $avisos = o Asaas envia fatura e lembretes por e-mail/SMS (regra "avisos_asaas"). @return string id (cus_...)
+     */
+    public function criarClienteAssinante(string $chave, string $ambiente, string $nome, string $cnpj, string $email, string $celular, string $referencia, bool $avisos): string
+    {
+        $corpo = ['name' => mb_substr($nome, 0, 100), 'cpfCnpj' => $cnpj, 'externalReference' => $referencia, 'notificationDisabled' => !$avisos];
+        if ($email !== '') {
+            $corpo['email'] = $email;
+        }
+        if ($celular !== '') {
+            $corpo['mobilePhone'] = $celular;
+        }
+        $dados = $this->exigirOk($this->chamar('POST', '/customers', $chave, $ambiente, $corpo));
+        return self::idDevolvido($dados, 'O Asaas não devolveu o cadastro do restaurante.');
+    }
+
+    /**
+     * Assinatura recorrente (POST /v3/subscriptions). $corpo ja no formato do Asaas: customer, billingType, value,
+     * nextDueDate, cycle, description, externalReference, fine/interest/discount. @return string id (sub_...)
+     */
+    public function criarAssinatura(string $chave, string $ambiente, array $corpo): string
+    {
+        $dados = $this->exigirOk($this->chamar('POST', '/subscriptions', $chave, $ambiente, $corpo));
+        return self::idDevolvido($dados, 'O Asaas não devolveu a assinatura.');
+    }
+
+    /** Muda valor/ciclo (vale para as proximas faturas e para as pendentes). */
+    public function atualizarAssinatura(string $chave, string $ambiente, string $id, array $corpo): void
+    {
+        $this->exigirOk($this->chamar('PUT', '/subscriptions/' . self::idSeguro($id), $chave, $ambiente, $corpo));
+    }
+
+    /** Remove a assinatura (o Asaas apaga as faturas ainda nao pagas). */
+    public function removerAssinatura(string $chave, string $ambiente, string $id): void
+    {
+        $r = $this->chamar('DELETE', '/subscriptions/' . self::idSeguro($id), $chave, $ambiente);
+        if ($r->status !== 404) {
+            $this->exigirOk($r);
+        }
+    }
+
+    /**
+     * Faturas geradas pela assinatura, ja no formato do Cardapim.
+     * @return list<array{id:string,status:string,valor:string,vencimento:string,forma:string,link_fatura:?string,link_boleto:?string,pago_em:?string,assinatura:?string}>
+     */
+    public function faturasDaAssinatura(string $chave, string $ambiente, string $id): array
+    {
+        $dados = $this->exigirOk($this->chamar('GET', '/subscriptions/' . self::idSeguro($id) . '/payments?limit=50', $chave, $ambiente));
+        $lista = [];
+        foreach (is_array($dados['data'] ?? null) ? $dados['data'] : [] as $p) {
+            if (is_array($p) && ($f = self::fatura($p)) !== null) {
+                $lista[] = $f;
+            }
+        }
+        return $lista;
+    }
+
+    /**
+     * Normaliza uma cobranca do Asaas (lista ou "payment" do webhook). null se faltar o essencial.
+     * @param array<string,mixed> $p
+     * @return array{id:string,status:string,valor:string,vencimento:string,forma:string,link_fatura:?string,link_boleto:?string,pago_em:?string,assinatura:?string}|null
+     */
+    public static function fatura(array $p): ?array
+    {
+        $id = (string) ($p['id'] ?? '');
+        $venc = (string) ($p['dueDate'] ?? '');
+        if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $id) !== 1 || preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $venc) !== 1) {
+            return null;
+        }
+        $url = static function (mixed $v): ?string {
+            return is_string($v) && str_starts_with($v, 'https://') && strlen($v) <= 500 && filter_var($v, FILTER_VALIDATE_URL) !== false ? $v : null;
+        };
+        $pago = null;
+        foreach (['clientPaymentDate', 'paymentDate', 'confirmedDate'] as $campo) {
+            if (is_string($p[$campo] ?? null) && preg_match('/\A\d{4}-\d{2}-\d{2}/', $p[$campo]) === 1) {
+                $pago = substr($p[$campo], 0, 10);
+                break;
+            }
+        }
+        $assinatura = is_string($p['subscription'] ?? null) && preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $p['subscription']) === 1 ? $p['subscription'] : null;
+        return [
+            'id' => $id,
+            'status' => strtoupper((string) ($p['status'] ?? '')),
+            'valor' => number_format(max(0, (float) ($p['value'] ?? 0)), 2, '.', ''),
+            'vencimento' => $venc,
+            'forma' => strtoupper(substr((string) ($p['billingType'] ?? ''), 0, 20)),
+            'link_fatura' => $url($p['invoiceUrl'] ?? null),
+            'link_boleto' => $url($p['bankSlipUrl'] ?? null),
+            'pago_em' => $pago,
+            'assinatura' => $assinatura,
+        ];
+    }
+
+    /** @param array<string,mixed> $dados */
+    private static function idDevolvido(array $dados, string $erro): string
+    {
+        $id = (string) ($dados['id'] ?? '');
+        if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $id) !== 1) {
+            throw new IntegracaoErro($erro);
+        }
+        return $id;
+    }
+
     private static function idSeguro(string $id): string
     {
         if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $id) !== 1) {

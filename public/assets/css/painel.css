@@ -595,3 +595,55 @@
 .cobranca-resumo { margin-top: 1rem; padding: .85rem 1rem; border-radius: var(--r-md); background: var(--c-blush); }
 .cobranca-resumo strong { display: flex; align-items: center; gap: .35rem; color: var(--c-wine); font-size: .88rem; }
 .cobranca-resumo p { margin-top: .25rem; color: var(--c-ink); font-size: .9rem; line-height: 1.5; }
+
+/* ---------- Plataforma: Planos ---------- */
+.planos-admin { display: grid; gap: 1rem; }
+.plano-admin { display: grid; gap: .75rem; padding: 1.25rem; border: 1.5px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); scroll-margin-top: 5rem; }
+.plano-admin.is-pausado { background: #faf6f7; }
+.plano-admin.is-pausado h2, .plano-admin.is-pausado .preco { opacity: .7; }
+.plano-admin-topo { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.plano-admin h2 { color: var(--c-wine); font-size: 1.15rem; font-weight: 800; overflow-wrap: anywhere; }
+.plano-admin .preco { color: var(--c-ink); font: 800 1.5rem/1.1 var(--f-head); font-variant-numeric: tabular-nums; }
+.plano-admin .preco small { color: var(--c-muted); font: 600 .85rem/1 var(--f-body); }
+.plano-admin-selos { display: flex; flex-wrap: wrap; gap: .4rem; }
+.plano-admin-descricao { color: var(--c-muted); font-size: .9rem; }
+.plano-admin-info { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; color: var(--c-muted); font-size: .85rem; }
+.plano-admin-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; border-top: 1px solid var(--c-line); padding-top: .9rem; }
+.plano-admin-acoes form { margin: 0; }
+.planos-nota { display: flex; align-items: center; gap: .4rem; margin-top: 1rem; }
+.convite-caixa { display: grid; gap: .5rem; padding: .9rem 1rem; border: 1px dashed var(--c-wine-400); border-radius: var(--r-md); background: var(--c-blush); }
+.convite-rotulo { display: inline-flex; align-items: center; gap: .35rem; color: var(--c-wine); font: 700 .85rem/1.2 var(--f-head); }
+.convite-link { display: block; padding: .55rem .7rem; border-radius: var(--r-sm); background: var(--c-white); color: var(--c-ink); font-size: .82rem; overflow-wrap: anywhere; user-select: all; }
+.convite-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.convite-acoes form { margin: 0; }
+.opcoes-periodo { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+
+/* ---------- Plataforma: Configuracoes (marca) ---------- */
+.marcas-grade { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); margin-bottom: 1rem; }
+.marca-cartao { display: grid; align-content: start; gap: .75rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); scroll-margin-top: 5rem; }
+.marca-previa { display: grid; place-items: center; min-height: 7rem; padding: 1rem; border-radius: var(--r-md); }
+.marca-previa.is-claro { background: #faf6f7; border: 1px solid var(--c-line); }
+.marca-previa.is-escuro { background: var(--c-wine); }
+.marca-previa img { width: auto; height: auto; max-width: 100%; max-height: 4.5rem; object-fit: contain; }
+.marca-previa.is-icone img { width: 4.5rem; height: 4.5rem; }
+.marca-info h3 { color: var(--c-ink); font-size: 1rem; font-weight: 800; }
+.marca-info p { font-size: .85rem; }
+.marca-origem { display: inline-flex; align-items: center; gap: .3rem; margin-top: .35rem; color: var(--c-wine); font-weight: 600; }
+.marca-envio { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0; }
+.marca-escolher { position: relative; cursor: pointer; }
+.marca-escolher:focus-within { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.marca-nome { flex: 1 1 100%; font-size: .8rem; overflow-wrap: anywhere; }
+.marca-nome:empty { display: none; }
+
+/* ---------- Gerencia: faturas da assinatura ---------- */
+.fatura-destaque { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.1rem; border: 1.5px solid var(--c-orange); border-radius: var(--r-lg); background: var(--c-orange-100); }
+.fatura-destaque.is-atrasada { border-color: var(--c-danger); background: var(--c-danger-bg); }
+.fatura-destaque span { display: block; color: var(--c-muted); font-size: .85rem; }
+.fatura-destaque strong { color: var(--c-ink); font: 800 1.45rem/1.15 var(--f-head); font-variant-numeric: tabular-nums; }
+.fatura-ajuda { display: flex; align-items: center; gap: .35rem; font-size: .82rem; }
+.fatura-item { grid-template-columns: 1fr auto; align-items: center; }
+.fatura-item .btn { grid-column: 1 / -1; justify-self: start; }
+@media (min-width: 40rem) {
+  .fatura-item { grid-template-columns: 1fr auto auto; }
+  .fatura-item .btn { grid-column: auto; }
+}

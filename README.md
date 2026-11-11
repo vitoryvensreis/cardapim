@@ -69,6 +69,9 @@
 - `/painel` do adm_master com menu lateral: Dashboard, Restaurantes, Planos, Faturas, Usuarios, Integracoes, Logs de auditoria, Configuracoes, Suporte e Minha conta.
 - **Pronta**: Integracoes da plataforma - Asaas para receber as assinaturas dos restaurantes e WhatsApp proprio da plataforma (sessao separada dos restaurantes), base do codigo de verificacao do cliente final.
 - **Asaas da plataforma para assinaturas**: chave, avisos (webhook com eventos de assinatura), lista "Pronto para cobrar?" (conta aprovada, chave Pix, avisos ativos) e regras da cobranca recorrente: Pix, Boleto e/ou Cartao, vencimento da 1a cobranca, dias gratis, multa, juros, desconto, dias de atraso para suspender e fatura enviada pelo Asaas. Ciclo mensal, semestral ou anual vem do plano.
+- **Planos** (`/painel/planos`): criar, editar, pausar e excluir planos; publicos aparecem no site, privados so com **link de convite**; periodo **vitalicio** e sempre gratis (parceiros). [Detalhes](docs/architecture/assinaturas.md).
+- **Configuracoes** (`/painel/configuracoes`): nome da plataforma, descricao, frase do rodape, logos (SVG/PNG), favicon e icone do app (gera os tamanhos do celular).
+- **Cadastro e assinatura de verdade**: cadastro cria o restaurante e a assinatura no Asaas da plataforma; o aviso de pagamento libera o cardapio; fatura atrasada alem da tolerancia pausa o acesso (so o gerente entra, para pagar).
 - **Cada um no seu lugar**: equipe logada (administrador, gerente, caixa, garcom, motoqueiro) nao volta ao site, catalogo, login, cadastro ou cardapios, sempre cai no proprio painel (gerente ainda abre o proprio cardapio). No cardapio o cliente nao tem caminho para outros restaurantes. [Detalhes](docs/architecture/autenticacao.md).
 - Demais secoes mostram "Em construcao" com o que vai ter. [Detalhes](docs/architecture/painel-plataforma.md).
 
@@ -86,7 +89,7 @@
 - **Estoque**: resumo do que acabou, do que esta abaixo do minimo e do que esta fora de venda (com o motivo), valor parado em estoque e reposicao rapida ("chegou mercadoria"); produtos com ficha tecnica dinamica, custo e sobra estimados; insumos com barra de nivel; categorias.
 - **Equipe**: contas de caixa, garcom e entregador com senha facil de passar, bloqueio imediato, troca de senha e exclusao (anonimiza quem ja tem historico).
 - **Perfil**: nome, logo (upload seguro, regravada em WebP), telefone, endereco completo e horario de funcionamento (sempre aberto ou por dia, ate 2 turnos, passando da meia-noite) com selo "Aberto agora".
-- **Assinatura**: plano atual, assinar, trocar, cancelar e desfazer, historico (cobranca automatica ainda nao ligada; a tela avisa).
+- **Assinatura**: plano atual, faturas com botao "Pagar agora" (pagina do Asaas: Pix, boleto ou cartao), assinar, trocar, cancelar e desfazer, historico. Cobranca recorrente pelo Asaas da plataforma. [Detalhes](docs/architecture/assinaturas.md).
 - **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
 - Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
 - **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (WPPConnect proprio em Docker, QR Code e mensagem de teste) e iFood (codigo de vinculo, autorizacao e escolha da loja). [Detalhes](docs/architecture/integracoes.md) · [WPPConnect em Docker](docs/deploy/wppconnect-docker.md).
@@ -139,7 +142,7 @@
 - **Mascaras e validacao no navegador**: CPF, CNPJ, telefone/WhatsApp, CEP e nome de usuario, com mensagens claras, mostrar/ocultar senha e medidor de forca. O backend deve revalidar com `Cardapim\Shared\Validation\Documento` (CPF, CNPJ e telefone) quando o cadastro for ativado.
 - **Rodape** compartilhado (`app/Views/partials/footer.php`) em colunas: Produto, Acesso e Legal, com icones, CNPJ e botao voltar ao topo.
 - **Robustez**: a landing nao cai mais se o MySQL estiver indisponivel (logos oficiais locais como reserva e aviso na secao de planos); uma conexao PDO por requisicao; pagina 500 propria.
-- O formulario de cadastro aceita preenchimento para testar as mascaras, mas continua **sem envio** (`method="post"` sem rota e botao desativado).
+- **Cadastro real** (`POST /cadastro`): cria restaurante, gerente, mesas e assinatura; plano gratis/convite entra direto, plano pago gera a fatura no Asaas. [Detalhes](docs/architecture/assinaturas.md).
 
 ---
 
@@ -157,7 +160,7 @@
 ## Telas públicas e documentos legais
 
 - `/login`: tela simples, centralizada e responsiva, com formulário visual **desativado** até implementarmos autenticação segura.
-- `/cadastro?plano_id=<id>`: prévia do formulário; valida o ID do plano no MySQL com `ativo=1` e `visibilidade=1`; mostra o plano escolhido sem aceitar cadastros nesta entrega.
+- `/cadastro?plano_id=<id>` (plano publico) e `/cadastro?convite=<codigo>` (plano privado do link de convite).
 - Rotas legais: `/privacidade`, `/termos-de-uso`, `/cookies`, `/exclusao-de-dados` e `/tratamento-de-dados`. A landing possui links para todas no rodapé.
 - Rotas não encontradas retornam HTTP **404** com view própria, responsiva e sem CSS inline.
 - CSS exclusivo destas páginas em `public/assets/css/pages.css`; branding utiliza os arquivos oficiais e caminhos de logo salvos em `configuracoes` (com fallback textual em erros).
@@ -182,7 +185,7 @@
 
 A pagina inicial possui a secao `/#planos` e o link **Planos** na navegacao. Os cards sao gerados a partir da tabela `planos` via `PlanoRepository::listarPublicos()`, com filtro **`ativo = 1 AND visibilidade = 1`** e ordenacao mensal, semestral e anual. Cada card apresenta nome, descricao, valor total por periodo e botao **Assinar**, que leva a `/cadastro?plano_id=<id>`. O `id` corresponde diretamente a chave primaria do banco, sem valores fixos no frontend.
 
-O fluxo de cadastro/assinatura ainda nao foi implementado nesta etapa: os links apenas carregam o parametro do plano para uso futuro. Caso nao haja planos elegiveis, a secao mostra uma mensagem orientativa em vez de cards vazios. Esta entrega nao altera tabelas nem inclui CSS/JavaScript inline.
+Os links levam ao cadastro com o plano ja marcado. Caso nao haja planos elegiveis, a secao mostra uma mensagem orientativa em vez de cards vazios. Esta entrega nao altera tabelas nem inclui CSS/JavaScript inline.
 
 ---
 

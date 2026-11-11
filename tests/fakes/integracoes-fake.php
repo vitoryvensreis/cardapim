@@ -93,6 +93,61 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
         $guardar('asaas-cobrancas.json', $cobrancas);
         $responder(200, $cobrancas[$id]);
     }
+    // Assinaturas recorrentes (plataforma): a primeira fatura nasce junto, como no Asaas.
+    $assinaturas = $ler('asaas-assinaturas.json') ?? [];
+    if ($metodo === 'POST' && $m[1] === '/subscriptions') {
+        if (!str_starts_with((string) ($json['customer'] ?? ''), 'cus_') || !in_array($json['billingType'] ?? '', ['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED'], true)
+            || (float) ($json['value'] ?? 0) <= 0 || !in_array($json['cycle'] ?? '', ['MONTHLY', 'SEMIANNUALLY', 'YEARLY'], true)
+            || preg_match('/\A\d{4}-\d{2}-\d{2}\z/', (string) ($json['nextDueDate'] ?? '')) !== 1) {
+            $responder(400, ['errors' => [['description' => 'Assinatura invalida']]]);
+        }
+        $id = 'sub_ci_' . (count($assinaturas) + 1) . substr(md5((string) microtime(true)), 0, 6);
+        $assinaturas[$id] = ['id' => $id, 'status' => 'ACTIVE'] + $json;
+        $guardar('asaas-assinaturas.json', $assinaturas);
+        $pid = 'pay_ci_s' . (count($cobrancas) + 1) . substr(md5((string) microtime(true)), 0, 6);
+        $cobrancas[$pid] = ['id' => $pid, 'status' => 'PENDING', 'value' => (float) $json['value'], 'dueDate' => $json['nextDueDate'], 'billingType' => $json['billingType'],
+            'subscription' => $id, 'customer' => $json['customer'], 'externalReference' => (string) ($json['externalReference'] ?? ''),
+            'invoiceUrl' => 'https://sandbox.asaas.com/i/' . $pid, 'bankSlipUrl' => 'https://sandbox.asaas.com/b/pdf/' . $pid];
+        $guardar('asaas-cobrancas.json', $cobrancas);
+        $responder(200, $assinaturas[$id]);
+    }
+    if (preg_match('~\A/subscriptions/([A-Za-z0-9_-]+)(/payments)?\z~', $m[1], $sm)) {
+        if (!isset($assinaturas[$sm[1]])) {
+            $responder(404, ['errors' => [['description' => 'Assinatura nao encontrada']]]);
+        }
+        if ($metodo === 'GET' && ($sm[2] ?? '') === '/payments') {
+            $lista = array_values(array_filter($cobrancas, static fn (array $c): bool => ($c['subscription'] ?? '') === $sm[1] && $c['status'] !== 'DELETED'));
+            $responder(200, ['object' => 'list', 'hasMore' => false, 'totalCount' => count($lista), 'data' => $lista]);
+        }
+        if ($metodo === 'PUT') {
+            foreach (['value', 'cycle', 'description'] as $campo) {
+                if (isset($json[$campo])) {
+                    $assinaturas[$sm[1]][$campo] = $json[$campo];
+                }
+            }
+            if (!empty($json['updatePendingPayments'])) {
+                foreach ($cobrancas as $cid => $c) {
+                    if (($c['subscription'] ?? '') === $sm[1] && $c['status'] === 'PENDING' && isset($json['value'])) {
+                        $cobrancas[$cid]['value'] = (float) $json['value'];
+                    }
+                }
+                $guardar('asaas-cobrancas.json', $cobrancas);
+            }
+            $guardar('asaas-assinaturas.json', $assinaturas);
+            $responder(200, $assinaturas[$sm[1]]);
+        }
+        if ($metodo === 'DELETE') {
+            $assinaturas[$sm[1]]['status'] = 'DELETED';
+            foreach ($cobrancas as $cid => $c) {
+                if (($c['subscription'] ?? '') === $sm[1] && in_array($c['status'], ['PENDING', 'OVERDUE'], true)) {
+                    $cobrancas[$cid]['status'] = 'DELETED';
+                }
+            }
+            $guardar('asaas-cobrancas.json', $cobrancas);
+            $guardar('asaas-assinaturas.json', $assinaturas);
+            $responder(200, ['deleted' => true, 'id' => $sm[1]]);
+        }
+    }
     if (preg_match('~\A/payments/([A-Za-z0-9_-]+)(/pixQrCode)?\z~', $m[1], $pm)) {
         $c = $cobrancas[$pm[1]] ?? null;
         if ($c === null) {
@@ -120,6 +175,24 @@ if (preg_match('~\A/_teste/asaas-pagar/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
     $cobrancas[$m[1]]['status'] = 'RECEIVED';
     $guardar('asaas-cobrancas.json', $cobrancas);
     $responder(200, $cobrancas[$m[1]]);
+}
+// Paga (ou vence) a fatura em aberto da assinatura e devolve o "payment" para o teste montar o aviso.
+if (preg_match('~\A/_teste/asaas-assinatura-(pagar|vencer)/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
+    $cobrancas = $ler('asaas-cobrancas.json') ?? [];
+    foreach ($cobrancas as $cid => $c) {
+        if (($c['subscription'] ?? '') === $m[2] && in_array($c['status'], ['PENDING', 'OVERDUE'], true)) {
+            $cobrancas[$cid]['status'] = $m[1] === 'pagar' ? 'RECEIVED' : 'OVERDUE';
+            if ($m[1] === 'pagar') {
+                $cobrancas[$cid]['paymentDate'] = date('Y-m-d');
+            }
+            $guardar('asaas-cobrancas.json', $cobrancas);
+            $responder(200, $cobrancas[$cid]);
+        }
+    }
+    $responder(404, []);
+}
+if ($caminho === '/_teste/asaas-assinaturas') {
+    $responder(200, $ler('asaas-assinaturas.json') ?? []);
 }
 if ($caminho === '/_teste/asaas-cobrancas') {
     $responder(200, $ler('asaas-cobrancas.json') ?? []);

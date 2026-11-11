@@ -22,7 +22,8 @@ final class Autorizacao
     public const CARGO_MASTER = 'adm_master';
 
     /** Restaurantes com estes status podem ser acessados pela equipe. */
-    public const STATUS_COM_ACESSO = ['ativo', 'pendente'];
+    /** inadimplente: fatura atrasada alem da tolerancia; entra, mas so o gerente e so na Assinatura (AcessoRestaurante). */
+    public const STATUS_COM_ACESSO = ['ativo', 'pendente', 'inadimplente'];
 
     /** Para onde cada cargo vai depois do login. */
     public static function destino(UsuarioLogado $usuario): string

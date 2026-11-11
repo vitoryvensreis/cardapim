@@ -7,14 +7,14 @@ login; qualquer outro cargo recebe 403. Todo POST exige CSRF e toda ação gera 
 
 | Seção | Rota | Situação |
 | --- | --- | --- |
-| Dashboard | `/painel` | Em construção (com atalhos: integrações, status do sistema, catálogo) |
+| Dashboard | `/painel` | Em construção (com atalhos: integrações e status do sistema) |
 | Restaurantes | `/painel/restaurantes` | Em construção |
-| Planos | `/painel/planos` | Em construção |
+| Planos | `/painel/planos` | **Pronta**: planos publicos e privados (link de convite), vitalicio gratis ([assinaturas.md](assinaturas.md)) |
+| Configurações | `/painel/configuracoes` | **Pronta**: nome, textos, logos e icone do app |
 | Faturas | `/painel/faturas` | Em construção (cobranças das assinaturas pelo Asaas da plataforma) |
 | Usuários | `/painel/usuarios` | Em construção |
 | Integrações | `/painel/integracoes` | **Pronta**: Asaas da plataforma e WhatsApp da plataforma |
 | Logs de auditoria | `/painel/logs` | Em construção |
-| Configurações | `/painel/configuracoes` | Em construção (dados, logos, textos, mensagens automáticas) |
 | Suporte | `/painel/suporte` | Em construção (chamados dos restaurantes) |
 | Minha conta | `/painel/minha-conta` | Em construção (senha e verificação em duas etapas) |
 

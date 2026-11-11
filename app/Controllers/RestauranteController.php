@@ -33,7 +33,7 @@ final class RestauranteController
                 'noIndex' => true,
             ], 'layouts/public'), 503);
         }
-        if ($restaurante === null) {
+        if ($restaurante === null || $this->bloqueado((int) $restaurante['id'])) {
             return $this->naoEncontrado();
         }
 
@@ -129,7 +129,18 @@ final class RestauranteController
             error_log('[Cardapim] Restaurante indisponivel: ' . get_class($exception));
             return $this->erroTemporario();
         }
-        return $restaurante ?? $this->naoEncontrado();
+        return $restaurante !== null && !$this->bloqueado((int) $restaurante['id']) ? $restaurante : $this->naoEncontrado();
+    }
+
+    /** Assinatura com fatura atrasada alem da tolerancia: o cardapio sai do ar ate o pagamento. */
+    private function bloqueado(int $idRestaurante): bool
+    {
+        try {
+            return (new \Cardapim\Services\Plataforma\AssinaturaCobranca(Database::connect()))->conferirAtraso($idRestaurante);
+        } catch (\Throwable $exception) {
+            error_log('[Cardapim] Conferencia de atraso indisponivel: ' . get_class($exception));
+            return false;
+        }
     }
 
     private function erroTemporario(): Response

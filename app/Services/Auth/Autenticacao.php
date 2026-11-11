@@ -180,6 +180,16 @@ final class Autenticacao
     }
 
     /** Cria a sessao, o "manter conectado" (se pedido) e registra o login. */
+    /** Primeiro acesso logo depois do cadastro do restaurante (a senha acabou de ser criada no mesmo formulario). */
+    public static function entrarAposCadastro(int $idUsuario, string $ip): ?UsuarioLogado
+    {
+        $row = (new UsuarioRepository(Database::connect()))->buscarParaSessao($idUsuario);
+        if ($row === null) {
+            return null;
+        }
+        return self::concluir(UsuarioLogado::deLinha($row), $ip, false, true, 'Primeiro acesso, logo após o cadastro do restaurante.');
+    }
+
     private static function concluir(UsuarioLogado $usuario, string $ip, bool $lembrar, bool $porEmail, string $extra = ''): UsuarioLogado
     {
         $db = Database::connect();

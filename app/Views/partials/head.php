@@ -21,7 +21,7 @@ use Cardapim\Core\AssetUrl;
 <link rel="icon" type="image/svg+xml" href="<?= htmlspecialchars($favicon, ENT_QUOTES, 'UTF-8') ?>">
 <?php if (!empty($pwa)): ?>
 <link rel="manifest" href="/pwa/manifesto">
-<link rel="apple-touch-icon" href="<?= AssetUrl::asset('img/pwa/apple-touch-icon.png') ?>">
+<link rel="apple-touch-icon" href="<?= htmlspecialchars(\Cardapim\Controllers\PwaController::iconeApple(), ENT_QUOTES, 'UTF-8') ?>">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="<?= marca_html() ?>">
