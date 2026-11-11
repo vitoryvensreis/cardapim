@@ -121,6 +121,7 @@ jobs:
           php database/verify-entregas.php --verify
           php database/verify-avisos.php --verify
           php database/verify-garcom.php --verify
+          php database/verify-cobranca.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -308,6 +309,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          APPLY_COBRANCA: ${{ contains(github.event.head_commit.message, '[cardapim-cobranca]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -335,3 +337,6 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          if [[ "$APPLY_COBRANCA" == "true" ]]; then
+            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-cobranca.sh'"
+          fi
