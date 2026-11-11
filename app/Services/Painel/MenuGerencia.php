@@ -7,7 +7,8 @@ namespace Cardapim\Services\Painel;
 /**
  * Fonte unica do menu do painel do gerente: rotulos, icones, rotas e o que cada secao vai ter.
  * Rota de cada secao: /{slug}/gerencia/{chave}. "visao-geral" e /{slug}/gerencia.
- * Caixa e Entregas sao areas proprias (/{slug}/caixa e /{slug}/entregas).
+ * Caixa e uma area propria (/{slug}/caixa). Mesas e Entregas ficam so dentro do modo caixa (Mesas e comandas,
+ * Delivery); /{slug}/gerencia/mesas continua levando ao cadastro de mesas do caixa.
  */
 final class MenuGerencia
 {
@@ -97,7 +98,7 @@ final class MenuGerencia
     /** Agrupamento do menu lateral (ordem de exibicao). */
     public const GRUPOS = [
         '' => ['visao-geral'],
-        'Operação' => ['@caixa', '@entregas', 'mesas'],
+        'Operação' => ['@caixa'],
         'Gestão' => ['estoque', 'equipe', 'financeiro'],
         'Restaurante' => ['perfil', 'entrega-pagamento', 'integracoes', 'assinatura'],
         'Conta' => ['minha-conta', 'suporte'],
@@ -106,7 +107,6 @@ final class MenuGerencia
     /** Itens que abrem areas proprias. */
     public const AREAS = [
         '@caixa' => ['rotulo' => 'Caixa', 'icone' => 'monitor', 'area' => 'caixa', 'dica' => 'Abre o modo caixa'],
-        '@entregas' => ['rotulo' => 'Entregas', 'icone' => 'bike', 'area' => 'entregas', 'dica' => 'Pedidos e entregadores'],
     ];
 
     public static function existe(string $chave): bool

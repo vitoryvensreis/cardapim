@@ -8,6 +8,7 @@ require dirname(__DIR__, 2) . '/bootstrap/app.php';
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Modules\Entrega\Distancia;
 use Cardapim\Modules\Entrega\TextoLocal;
+use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\HistoricoCliente;
 use Cardapim\Services\Pedidos\StatusPedido;
 
@@ -80,6 +81,25 @@ $ok(HistoricoCliente::quando('2026-10-08 21:10:00', '2026-11-11') === '08/10, 21
 $ok(HistoricoCliente::quando('2025-12-31 23:59:00', '2026-01-02') === '31/12/2025, 23:59', 'quando: outro ano');
 $ok(HistoricoCliente::resumo([['nome' => 'Cerveja', 'quantidade' => 2]]) === '2x Cerveja', 'resumo de 1 item');
 $ok(HistoricoCliente::resumo([['nome' => 'A', 'quantidade' => 1], ['nome' => 'B', 'quantidade' => 2], ['nome' => 'C', 'quantidade' => 1], ['nome' => 'D', 'quantidade' => 1]]) === '1x A, 2x B e mais 2', 'resumo com mais itens');
+
+// Avisos do pedido pelo WhatsApp do restaurante: texto de cada etapa.
+$ped = ['restaurante_nome' => 'Bar do Zé', 'numero' => 42, 'cliente_nome' => 'Maria Souza', 'tipo' => 'entrega', 'entregador_nome' => 'Carlos Lima',
+    'pagamento_status' => 'pendente', 'forma_pagamento' => 'dinheiro', 'troco_para' => '100.00', 'total' => '58.90', 'motivo_cancelamento' => null];
+$link = 'https://cardapim.test/bar-do-ze/pedido/9';
+$m = AvisosWhatsApp::mensagem($ped, 'recebido', $link);
+$ok(str_starts_with($m, "*Bar do Zé*\nOlá, Maria! Recebemos seu pedido *#42*.") && str_ends_with($m, 'Acompanhe: ' . $link), 'aviso recebido com saudacao e link');
+$m = AvisosWhatsApp::mensagem($ped, 'saiu_entrega', $link);
+$ok(str_contains($m, 'saiu para entrega com Carlos.'), 'aviso saiu com primeiro nome do motoqueiro');
+$ok(str_contains($m, 'Pagamento na entrega: R$ 58,90 (dinheiro, troco para R$ 100,00).'), 'aviso saiu com valor e troco');
+$ok(str_ends_with($m, 'Veja a moto chegando no mapa: ' . $link), 'aviso saiu com link do mapa');
+$pago = ['pagamento_status' => 'pago', 'forma_pagamento' => 'pix_online'] + $ped;
+$ok(!str_contains(AvisosWhatsApp::mensagem($pago, 'saiu_entrega', $link), 'Pagamento na entrega'), 'pedido pago nao cobra na entrega');
+$ok(str_contains(AvisosWhatsApp::mensagem(['tipo' => 'retirada'] + $ped, 'pronto', $link), 'Pode vir retirar!'), 'pronto na retirada');
+$ok(str_contains(AvisosWhatsApp::mensagem($ped, 'pronto', $link), 'já vai sair para entrega'), 'pronto na entrega');
+$m = AvisosWhatsApp::mensagem(['motivo_cancelamento' => 'Cancelado pelo restaurante: Acabou o gás'] + $ped, 'cancelado', $link);
+$ok(str_contains($m, "foi cancelado.\nMotivo: Acabou o gás") && !str_contains($m, 'Cancelado pelo'), 'cancelado com motivo limpo');
+$ok(!str_contains(AvisosWhatsApp::mensagem(['cliente_nome' => ''] + $ped, 'recebido', $link), 'Olá'), 'sem nome, sem saudacao');
+$ok(str_contains(AvisosWhatsApp::mensagem($ped, 'concluido', $link), 'Pedido *#42* entregue.'), 'concluido entregue');
 
 if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s).\n");

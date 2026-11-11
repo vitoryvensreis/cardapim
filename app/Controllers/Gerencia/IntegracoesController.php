@@ -7,6 +7,7 @@ namespace Cardapim\Controllers\Gerencia;
 use Cardapim\Core\Response;
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Services\Auth\Guard;
 use Cardapim\Services\Gerencia\Integracoes\AsaasService;
@@ -79,13 +80,14 @@ final class IntegracoesController extends BaseGerencia
             return $r;
         }
         $integracao = (new IntegracaoRepository($this->db))->buscar($this->restaurante['id'], 'whatsapp');
+        AvisosWhatsApp::agendarEnvio((int) $this->restaurante['id']); // tenta de novo o que ficou na fila
         return $this->tela('gerencia/integracoes/whatsapp', 'integracoes', 'WhatsApp', [
             'integracao' => $integracao,
             'disponivel' => WppConnectApi::disponivel(),
             'erros' => [],
             'valores' => ['mensagem' => 'Olá! Esta é uma mensagem de teste do ' . $this->restaurante['nome'] . ' pelo Cardapim.'],
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
-        ]);
+        ] + $this->dadosAvisos());
     }
 
     public function whatsappConectar(string $slug): Response
@@ -117,7 +119,33 @@ final class IntegracoesController extends BaseGerencia
             'erros' => $resultado->erros,
             'valores' => ['telefone' => $this->post('telefone'), 'mensagem' => (string) ($_POST['mensagem'] ?? '')],
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
-        ], 422);
+        ] + $this->dadosAvisos(), 422);
+    }
+
+    /** Quais avisos de pedido o WhatsApp do restaurante manda para os clientes. */
+    public function whatsappAvisos(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $escolhidos = array_values(array_filter((array) ($_POST['avisos'] ?? []), 'is_string'));
+        $antes = AvisosWhatsApp::ligados($this->db, (int) $this->restaurante['id']);
+        AvisosWhatsApp::salvarLigados($this->db, (int) $this->restaurante['id'], $escolhidos);
+        $depois = AvisosWhatsApp::ligados($this->db, (int) $this->restaurante['id']);
+        $nomes = static fn (array $l): string => $l === [] ? 'nenhum' : implode(', ', array_map(static fn (string $e): string => AvisosWhatsApp::EVENTOS[$e][0], $l));
+        \Cardapim\Services\Auditoria::registrar($this->usuario, 'WhatsApp: avisos aos clientes', 'Antes: ' . $nomes($antes) . '. Agora: ' . $nomes($depois) . '.');
+        return $this->voltar($this->url('integracoes/whatsapp') . '#avisos', 'sucesso', $depois === []
+            ? 'Avisos desligados. Os clientes não vão receber mensagens automáticas.'
+            : 'Avisos salvos. Os clientes vão receber: ' . mb_strtolower($nomes($depois)) . '.');
+    }
+
+    /** @return array{avisosLigados:list<string>,avisosRecentes:list<array<string,mixed>>} */
+    private function dadosAvisos(): array
+    {
+        return [
+            'avisosLigados' => AvisosWhatsApp::ligados($this->db, (int) $this->restaurante['id']),
+            'avisosRecentes' => AvisosWhatsApp::recentes($this->db, (int) $this->restaurante['id']),
+        ];
     }
 
     public function whatsappDesconectar(string $slug): Response

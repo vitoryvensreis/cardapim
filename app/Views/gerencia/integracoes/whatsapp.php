@@ -101,6 +101,54 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             </form>
         </section>
 
+        <?php if (!$plataforma && isset($avisosLigados)): ?>
+        <section class="bloco" id="avisos" aria-labelledby="titulo-avisos">
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-avisos"><?= Icon::svg('bell') ?>Avisos automáticos para os clientes</h2>
+                <p>Quando o pedido do cardápio online muda de etapa, o cliente recebe uma mensagem deste WhatsApp, com o link para acompanhar. Escolha quais avisos mandar.</p>
+            </div>
+            <?php if ($statusIntegracao !== 'conectado'): ?>
+                <p class="avisos-nota"><?= Icon::svg('info', 'icon-sm') ?>Os avisos só saem com o WhatsApp conectado. Se ele cair, os avisos esperam e são enviados quando voltar (por até 1 hora).</p>
+            <?php endif; ?>
+            <form method="post" action="<?= $e($base . '/integracoes/whatsapp/avisos') ?>">
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <fieldset class="opcoes-modo avisos-grade">
+                    <legend class="sr-only">Avisos que o cliente recebe</legend>
+                    <?php foreach (\Cardapim\Services\Pedidos\AvisosWhatsApp::EVENTOS as $chave => [$rotulo, $explica]): ?>
+                        <label class="opcao-modo">
+                            <input type="checkbox" name="avisos[]" value="<?= $e($chave) ?>"<?= in_array($chave, $avisosLigados, true) ? ' checked' : '' ?>>
+                            <span><strong><?= $e($rotulo) ?></strong><small><?= $e($explica) ?></small></span>
+                        </label>
+                    <?php endforeach; ?>
+                </fieldset>
+                <div class="bloco-rodape">
+                    <button class="btn btn-primary" type="submit" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar avisos</button>
+                </div>
+            </form>
+
+            <h3 class="avisos-titulo">Últimos avisos</h3>
+            <?php if (($avisosRecentes ?? []) === []): ?>
+                <p class="texto-suave">Nenhum aviso ainda. Eles aparecem aqui assim que chegar o próximo pedido pelo cardápio online.</p>
+            <?php else: ?>
+                <ul class="avisos-recentes">
+                    <?php foreach ($avisosRecentes as $a):
+                        [$classe, $icone, $texto] = match ($a['status']) {
+                            'enviado' => ['etiqueta-ok', 'circle-check', 'Enviado'],
+                            'pendente' => ['etiqueta-atencao', 'clock', 'Na fila'],
+                            'ignorado' => ['etiqueta-neutra', 'minus', 'Não precisou'],
+                            default => ['etiqueta-alerta', 'circle-x', 'Não enviado'],
+                        }; ?>
+                        <li>
+                            <span class="avisos-pedido"><strong>Pedido #<?= (int) $a['numero'] ?></strong> · <?= $e(\Cardapim\Services\Pedidos\AvisosWhatsApp::EVENTOS[$a['evento']][0] ?? $a['evento']) ?></span>
+                            <span class="etiqueta <?= $classe ?>"><?= Icon::svg($icone) ?><?= $texto ?></span>
+                            <small><?= $e($data($a['enviado_em'] ?? $a['criado_em'])) ?><?= $a['status'] !== 'enviado' && !empty($a['ultimo_erro']) ? ' · ' . $e((string) $a['ultimo_erro']) : '' ?></small>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
+
         <section class="bloco" id="teste" aria-labelledby="titulo-teste" data-so-conectado<?= $statusIntegracao === 'conectado' ? '' : ' hidden' ?>>
             <div class="bloco-cabecalho">
                 <h2 id="titulo-teste"><?= Icon::svg('send') ?>Enviar mensagem de teste</h2>

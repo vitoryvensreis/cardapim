@@ -266,6 +266,7 @@ jobs:
           bash tests/http/caixa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/entregas.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/pwa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          bash tests/http/avisos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null
           bash tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
           grep -q 'Redis conectado' /tmp/cardapim-ws.log
@@ -304,7 +305,6 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
-          APPLY_AVISOS: ${{ contains(github.event.head_commit.message, '[cardapim-avisos]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -332,6 +332,3 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
-          if [[ "$APPLY_AVISOS" == "true" ]]; then
-            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-avisos.sh'"
-          fi

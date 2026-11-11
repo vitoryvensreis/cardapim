@@ -99,6 +99,7 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/whatsapp/conectar', [IntegracoesController::class, 'whatsappConectar']);
     $router->get($g . '/integracoes/whatsapp/estado', [IntegracoesController::class, 'whatsappEstado']);
     $router->post($g . '/integracoes/whatsapp/teste', [IntegracoesController::class, 'whatsappTeste']);
+    $router->post($g . '/integracoes/whatsapp/avisos', [IntegracoesController::class, 'whatsappAvisos']);
     $router->post($g . '/integracoes/whatsapp/desconectar', [IntegracoesController::class, 'whatsappDesconectar']);
     $router->get($g . '/integracoes/ifood', [IntegracoesController::class, 'ifood']);
     $router->post($g . '/integracoes/ifood/iniciar', [IntegracoesController::class, 'ifoodIniciar']);

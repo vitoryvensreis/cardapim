@@ -6,9 +6,7 @@ Configuracao unica das secoes: `app/Services/Painel/MenuGerencia.php` (rotulo, i
 | Grupo | Item | Rota | Situacao |
 | --- | --- | --- | --- |
 | - | Visao geral | `/{slug}/gerencia` | em construcao (graficos depois) |
-| Operacao | Caixa | `/{slug}/caixa` | abre o **modo caixa** em tela cheia; o gerente tem "Voltar a gerencia" |
-| Operacao | Entregas | `/{slug}/entregas` | gerente: fila de pedidos e escolha do entregador; entregador: as proprias entregas |
-| Operacao | Mesas | `/{slug}/gerencia/mesas` | em construcao |
+| Operacao | Caixa | `/{slug}/caixa` | abre o **modo caixa** em tela cheia (mesas, comandas e delivery ficam la); o gerente tem "Voltar a gerencia" |
 | Gestao | **Estoque** | `/{slug}/gerencia/estoque` | **pronto**: resumo, produtos, insumos, categorias |
 | Gestao | **Equipe** | `/{slug}/gerencia/equipe` | **pronto**: caixas, garcons e entregadores |
 | Gestao | Financeiro | `/{slug}/gerencia/financeiro` | em construcao |
@@ -18,6 +16,7 @@ Configuracao unica das secoes: `app/Services/Painel/MenuGerencia.php` (rotulo, i
 | Conta | **Minha conta** | `/{slug}/gerencia/minha-conta` | **pronto**: dados, senha, 2FA, aparelhos, ultimos acessos |
 | Conta | Suporte | `/{slug}/gerencia/suporte` | em construcao (chat e chamados) |
 
+- Entregas e Mesas saíram do menu do gerente: ficam só dentro do modo caixa. `/{slug}/gerencia/mesas` continua redirecionando para as mesas do caixa (links antigos).
 - Todas as rotas de `/{slug}/gerencia/*` exigem o cargo `gerente` do mesmo restaurante (ou `adm_master`), conferido no backend em cada requisicao (`Services/Auth/AcessoRestaurante`). Secao desconhecida: 404.
 - As rotas das abas prontas ficam em `routes/gerencia.php`, carregado **antes** de `/{slug}/gerencia/{secao}` (tela "em construcao" das demais).
 

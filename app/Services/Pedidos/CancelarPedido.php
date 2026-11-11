@@ -47,6 +47,7 @@ final class CancelarPedido
                 $this->db->prepare('UPDATE pedido_itens SET consumo_estoque = NULL WHERE id = ? AND id_restaurante = ?')->execute([(int) $item['id'], $idRestaurante]);
             }
             (new PedidoRepository($this->db))->registrarEvento($idRestaurante, $idPedido, 'cancelado', $motivo, $idUser, $idCliente);
+            AvisosWhatsApp::enfileirar($this->db, $idRestaurante, $idPedido, 'cancelado');
             TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.cancelado', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
             $this->db->commit();
             return true;

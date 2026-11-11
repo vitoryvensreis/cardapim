@@ -15,6 +15,13 @@
 - **Estoque**: item da comanda baixa os insumos na hora; pedido do cardápio baixa quando o cliente pede (o despacho não baixa de novo); cancelar devolve. Conferido nos testes.
 - [Arquitetura, regras e tabelas](docs/architecture/caixa.md).
 
+## Avisos do pedido pelo WhatsApp do restaurante
+
+- O cliente recebe mensagens **do WhatsApp conectado pelo gerente** a cada etapa: pedido recebido (com link para acompanhar), em preparo, pronto, **saiu para entrega** (nome do motoqueiro, valor a pagar e link do mapa com a moto), entregue e cancelado (com o motivo).
+- O gerente escolhe quais etapas avisar e vê os últimos avisos na tela do WhatsApp. Se o WhatsApp cair, os avisos ficam na fila e saem sozinhos quando reconectar.
+- Fila com tabela `pedido_avisos` (outbox, sem repetir aviso). [Detalhes](docs/architecture/avisos-whatsapp.md).
+- Menu do gerente: Entregas e Mesas ficam só dentro do **modo caixa**.
+
 ## Painel do entregador e rastreio ao vivo
 
 - `/{slug}/entregas` (motoqueiro, no celular): entregas **com você agora** (cliente, endereço, quanto receber e troco, itens, rota no Google Maps ou Waze, ligar, WhatsApp e botão **Entreguei**), **feitas hoje** e resumo de hoje e 7 dias com as taxas.

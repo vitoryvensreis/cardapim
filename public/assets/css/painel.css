@@ -332,7 +332,7 @@
 .opcoes-modo { display: grid; gap: .6rem; margin-bottom: 1rem; }
 .opcao-modo { position: relative; display: flex; gap: .75rem; align-items: flex-start; padding: 1rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); cursor: pointer; }
 .opcao-modo:has(input:checked) { border-color: var(--c-wine); background: var(--c-blush); }
-.opcao-modo input { margin-top: .2rem; accent-color: var(--c-wine); width: 1.1rem; height: 1.1rem; }
+.opcao-modo input { flex: 0 0 auto; margin-top: .2rem; accent-color: var(--c-wine); width: 1.1rem; height: 1.1rem; }
 .opcao-modo strong { display: block; color: var(--c-ink); }
 .opcao-modo small { display: block; margin-top: .15rem; color: var(--c-muted); }
 
@@ -556,3 +556,14 @@
   .lista-categorias { --colunas: minmax(0, 2fr) 9rem 12rem; }
   .blocos-duplos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* WhatsApp: avisos automaticos de pedido para o cliente */
+.avisos-nota { display: flex; align-items: flex-start; gap: .45rem; margin: 0 0 1rem; padding: .7rem .85rem; border-radius: var(--r-md); background: #fff4ec; color: #6e3a24; font-size: .88rem; }
+.avisos-nota .icon { flex: 0 0 auto; margin-top: .15rem; color: var(--c-orange-700); }
+.avisos-grade { margin: 0 0 .25rem; padding: 0; border: 0; }
+@media (min-width: 48rem) { .avisos-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.avisos-titulo { margin: 1.5rem 0 .6rem; color: var(--c-ink); font: 800 1rem/1.3 var(--f-head); }
+.avisos-recentes { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.avisos-recentes li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .2rem .75rem; align-items: center; padding: .7rem .85rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.avisos-pedido { min-width: 0; color: var(--c-ink); font-size: .9rem; overflow-wrap: anywhere; }
+.avisos-recentes small { grid-column: 1 / -1; color: var(--c-muted); font-size: .8rem; }

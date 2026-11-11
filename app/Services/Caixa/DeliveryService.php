@@ -10,6 +10,7 @@ use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\CancelarPedido;
 use Cardapim\Shared\Numero;
 use PDO;
@@ -190,6 +191,7 @@ final class DeliveryService
             }
             $texto = $p['tipo'] === 'entrega' ? 'Pedido entregue.' : 'Pedido retirado pelo cliente.';
             $this->pedidos->registrarEvento($this->idRestaurante, $id, 'concluido', $texto, $this->autor->id);
+            AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, $id, 'concluido');
             TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => (int) $p['numero'], 'status' => 'concluido']);
             if ($caixa !== null) {
                 TempoReal::registrar($this->db, $this->idRestaurante, 'caixa', 'caixa.pagamento', ['caixa' => (int) $caixa['id']]);
@@ -258,6 +260,7 @@ final class DeliveryService
                 throw new \RuntimeException('Pedido mudou de situacao.');
             }
             $this->pedidos->registrarEvento($this->idRestaurante, (int) $p['id'], $para, $texto, $this->autor->id);
+            AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], $para);
             TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => (int) $p['numero'], 'status' => $para]);
             $this->db->commit();
         } catch (Throwable $erro) {

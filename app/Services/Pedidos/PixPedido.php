@@ -100,6 +100,7 @@ final class PixPedido
                 return 'repetido';
             }
             $repo->registrarEvento($idRestaurante, $idPedido, 'recebido', 'Pix confirmado' . ($origem === 'webhook' ? ' pelo Asaas.' : '.'));
+            AvisosWhatsApp::enfileirar($this->db, $idRestaurante, $idPedido, 'recebido');
             TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.novo', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
             $this->db->commit();
             return 'confirmado';

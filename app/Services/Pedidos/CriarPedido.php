@@ -199,6 +199,7 @@ final class CriarPedido
             $repo->registrarEvento($idRest, $idPedido, $status, $status === 'recebido' ? 'Pedido feito pelo cardápio online.' : 'Pedido feito. Aguardando o Pix.', null, $idCliente);
             if ($status === 'recebido') {
                 TempoReal::registrar($this->db, $idRest, 'pedidos', 'pedido.novo', ['id' => $idPedido, 'numero' => $numero]);
+                AvisosWhatsApp::enfileirar($this->db, $idRest, $idPedido, 'recebido');
             }
             $this->db->commit();
         } catch (EstoqueInsuficiente) {

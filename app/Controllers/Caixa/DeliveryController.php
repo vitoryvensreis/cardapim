@@ -29,6 +29,8 @@ final class DeliveryController extends BaseCaixa
         if ($r = $this->entrar($slug)) {
             return $r;
         }
+        // A fila e consultada a cada 60 s: aproveita para tentar de novo os avisos de WhatsApp que nao foram.
+        \Cardapim\Services\Pedidos\AvisosWhatsApp::agendarEnvio((int) $this->restaurante['id']);
         $html = View::render('caixa/_fila', ['filaDelivery' => $this->servico()->fila(), 'slug' => $this->restaurante['slug']], 'layouts/fragmento');
         return Guard::semCache(Response::html($html));
     }

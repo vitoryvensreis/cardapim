@@ -47,6 +47,7 @@ O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de 
   Quando o estado vira `CONNECTED`, grava o número (`host-device`) e registra o log.
 - Mensagem de teste: número com DDD (vira `55` + DDD + número), até 1000 caracteres, no máximo 10 por hora por restaurante (`send-message`).
 - Desconectar: `logout-session` + `close-session` e apaga o token.
+- **Avisos automáticos do pedido** para o cliente (recebido, preparo, pronto, saiu com link do mapa, entregue, cancelado): [avisos-whatsapp.md](avisos-whatsapp.md).
 
 ## iFood (aplicativo distribuído)
 
