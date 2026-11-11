@@ -42,7 +42,8 @@ try {
 
     $assinaturas = $colunas('assinaturas');
     $exigir(($assinaturas['valor'] ?? '') === 'decimal(10,2)', 'assinaturas.valor deve ser DECIMAL(10,2).');
-    $exigir(($assinaturas['status'] ?? '') === "enum('ativa','cancelada','encerrada')", 'assinaturas.status incorreto.');
+    // "aguardando" (1o pagamento) entrou com a cobranca pelo Asaas (migration 20261112100000).
+    $exigir(in_array($assinaturas['status'] ?? '', ["enum('ativa','cancelada','encerrada')", "enum('aguardando','ativa','cancelada','encerrada')"], true), 'assinaturas.status incorreto.');
     $semAssinatura = (int) $db->query(<<<'SQL'
 SELECT COUNT(*) FROM restaurantes r
 WHERE r.plano_id IS NOT NULL
