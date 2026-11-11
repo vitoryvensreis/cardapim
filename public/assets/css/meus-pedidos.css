@@ -1,0 +1,98 @@
+/* =========================================================================
+   Cliente final: "Seus pedidos" na folha da conta e aviso "Acompanhar" no cardapio.
+   ========================================================================= */
+.cd-conta-cabeca { display: flex; align-items: center; gap: .85rem; }
+.cd-conta-cabeca .cd-conta-avatar { flex: 0 0 auto; margin-bottom: 0; }
+.cd-conta-cabeca h2 { font-size: 1.25rem; line-height: 1.2; }
+.cd-conta-cabeca .cd-login-texto { margin-top: .15rem; font-size: .92rem; }
+.cd-conta-sair { margin-top: 1.25rem; }
+
+/* Lista */
+.mp { margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--cd-borda, var(--c-line)); }
+.mp-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .75rem; }
+.mp-topo h3 { display: flex; align-items: center; gap: .45rem; color: var(--c-ink); font: 800 1.05rem/1.2 var(--f-head); }
+.mp-topo h3 .icon { color: var(--c-orange); }
+.mp-filtro { display: inline-flex; padding: .2rem; border-radius: var(--r-pill); background: #f3ecee; }
+.mp-filtro-btn {
+  min-height: 2.25rem; padding: .35rem .85rem; border: 0; border-radius: var(--r-pill);
+  background: transparent; color: var(--c-muted); font: 700 .82rem/1 var(--f-body); cursor: pointer;
+}
+.mp-filtro-btn[aria-pressed="true"] { background: var(--c-white); color: var(--c-wine); box-shadow: 0 1px 3px rgb(101 20 36 / 14%); }
+.mp-filtro-btn:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 2px; }
+
+.mp-estado { display: flex; align-items: center; gap: .5rem; padding: 1rem 0; color: var(--c-muted); font-size: .92rem; }
+.mp-erro { flex-direction: column; align-items: flex-start; }
+.mp-gira { animation: mp-gira 900ms linear infinite; }
+@keyframes mp-gira { to { transform: rotate(360deg); } }
+.mp-vazio { display: grid; justify-items: center; gap: .6rem; padding: 1.25rem .5rem; color: var(--c-muted); text-align: center; }
+.mp-vazio > .icon { width: 2rem; height: 2rem; color: #c9b3b9; }
+
+.mp-lista { display: grid; gap: .6rem; margin: 0 0 .75rem; padding: 0; list-style: none; }
+.mp-item a {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem .75rem; padding: .85rem .95rem;
+  border: 1px solid var(--cd-borda, var(--c-line)); border-radius: var(--r-md); background: var(--c-white);
+  color: inherit; text-decoration: none; transition: border-color var(--t-fast, 150ms);
+}
+.mp-item a:hover, .mp-item a:focus-visible { border-color: var(--c-wine); }
+.mp-item a:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 2px; }
+.mp-item.is-ativo a { border-color: #f3cdbf; background: linear-gradient(160deg, #fff6f2 0%, var(--c-white) 75%); }
+.mp-linha1 { display: flex; align-items: baseline; gap: .5rem; min-width: 0; }
+.mp-numero { color: var(--c-ink); font: 800 1rem/1.2 var(--f-head); white-space: nowrap; }
+.mp-quando { overflow: hidden; color: var(--c-muted); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.mp-total { color: var(--c-ink); font-weight: 800; white-space: nowrap; }
+.mp-resumo { grid-column: 1 / -1; overflow: hidden; color: var(--c-muted); font-size: .86rem; text-overflow: ellipsis; white-space: nowrap; }
+.mp-loja { grid-column: 1 / -1; display: flex; align-items: center; gap: .35rem; color: var(--c-ink); font-size: .84rem; font-weight: 600; }
+.mp-rodape { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .2rem; }
+.mp-ver { display: inline-flex; align-items: center; gap: .2rem; color: var(--c-wine); font-size: .84rem; font-weight: 700; }
+.mp-item.is-ativo .mp-ver { color: var(--c-orange-700); }
+
+/* Selo de status (sempre com icone + texto) */
+.mp-status {
+  display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .6rem; border-radius: var(--r-pill);
+  background: #f3ecee; color: var(--c-ink); font-size: .78rem; font-weight: 700; white-space: nowrap;
+}
+.mp-status .icon { width: .95rem; height: .95rem; }
+.mp-status.is-andamento { background: var(--c-orange-100); color: var(--c-orange-700); }
+.mp-status.is-pix { background: #fff4d6; color: #7a5300; }
+.mp-status.is-ok { background: var(--c-success-bg, #e3f5ea); color: var(--c-success, #1c7a43); }
+.mp-status.is-cancelado { background: var(--c-danger-bg, #fde8e6); color: var(--c-danger, #b42318); }
+
+/* Aviso "pedido em andamento" no cardapio */
+.cd-ativos { display: grid; gap: .55rem; margin: .9rem 1rem 0; }
+.cd-ativo {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .8rem;
+  padding: .85rem .9rem; border: 1.5px solid #f3cdbf; border-radius: var(--r-lg, 1rem);
+  background: linear-gradient(135deg, #fff3ee 0%, var(--c-white) 80%); color: inherit; text-decoration: none;
+  box-shadow: 0 6px 18px rgb(255 88 37 / 10%);
+}
+.cd-ativo:hover, .cd-ativo:focus-visible { border-color: var(--c-orange); }
+.cd-ativo:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 2px; }
+.cd-ativo-icone {
+  position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem;
+  border-radius: .9rem; background: var(--c-orange); color: var(--c-white);
+}
+.cd-ativo-icone::after {
+  content: ""; position: absolute; inset: -4px; border: 2px solid var(--c-orange); border-radius: 1.1rem; opacity: 0;
+  animation: cd-ativo-pulso 2s ease-out infinite;
+}
+@keyframes cd-ativo-pulso { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }
+.cd-ativo-texto { min-width: 0; }
+.cd-ativo-texto small { display: block; color: var(--c-muted); font-size: .8rem; font-weight: 600; }
+.cd-ativo-texto strong { display: block; color: var(--c-ink); font: 800 1rem/1.25 var(--f-head); overflow-wrap: anywhere; }
+.cd-ativo-dica { display: none; color: var(--c-orange-700); font-size: .8rem; font-weight: 700; }
+.cd-ativo-acao {
+  display: inline-flex; align-items: center; gap: .2rem; min-height: 2.5rem; padding: .45rem .75rem;
+  border-radius: var(--r-pill); background: var(--c-wine); color: var(--c-white); font-size: .86rem; font-weight: 700; white-space: nowrap;
+}
+/* Celular: so a seta (o cartao inteiro ja e o link "Acompanhar"), sobrando espaco para o status. */
+@media (max-width: 29.99rem) {
+  .cd-ativo-acao { width: 2.5rem; padding: 0; justify-content: center; }
+  .cd-ativo-dica { display: block; }
+  .cd-ativo-acao-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (min-width: 40rem) { .cd-ativos { margin-inline: 1.5rem; } }
+@media (min-width: 64rem) { .cd-ativos { width: calc(100% - 3rem); max-width: 73rem; margin: 1rem auto 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .cd-ativo-icone::after, .mp-gira { animation: none; }
+}
+.mp [hidden], .cd-ativos[hidden] { display: none !important; }

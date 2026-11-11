@@ -8,6 +8,7 @@ require dirname(__DIR__, 2) . '/bootstrap/app.php';
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Modules\Entrega\Distancia;
 use Cardapim\Modules\Entrega\TextoLocal;
+use Cardapim\Services\Pedidos\HistoricoCliente;
 use Cardapim\Services\Pedidos\StatusPedido;
 
 $falhas = 0;
@@ -70,6 +71,15 @@ $ok(AreaEntrega::km('2.50') === '2,5 km', 'km formatado');
 // O cliente acompanha todas as etapas, inclusive "Pronto" antes de sair para entrega.
 $ok(StatusPedido::etapas('entrega') === ['recebido', 'em_preparo', 'pronto', 'saiu_entrega', 'concluido'], 'etapas da entrega com Pronto');
 $ok(StatusPedido::etapas('retirada') === ['recebido', 'em_preparo', 'pronto', 'concluido'], 'etapas da retirada');
+
+// Meus pedidos: data amigavel e resumo dos itens.
+$ok(HistoricoCliente::quando('2026-11-11 19:40:00', '2026-11-11') === 'Hoje, 19:40', 'quando: hoje');
+$ok(HistoricoCliente::quando('2026-11-10 12:05:00', '2026-11-11') === 'Ontem, 12:05', 'quando: ontem');
+$ok(HistoricoCliente::quando('2026-11-01 01:00:00', '2026-11-02') === 'Ontem, 01:00', 'quando: ontem na virada do mes');
+$ok(HistoricoCliente::quando('2026-10-08 21:10:00', '2026-11-11') === '08/10, 21:10', 'quando: mesmo ano');
+$ok(HistoricoCliente::quando('2025-12-31 23:59:00', '2026-01-02') === '31/12/2025, 23:59', 'quando: outro ano');
+$ok(HistoricoCliente::resumo([['nome' => 'Cerveja', 'quantidade' => 2]]) === '2x Cerveja', 'resumo de 1 item');
+$ok(HistoricoCliente::resumo([['nome' => 'A', 'quantidade' => 1], ['nome' => 'B', 'quantidade' => 2], ['nome' => 'C', 'quantidade' => 1], ['nome' => 'D', 'quantidade' => 1]]) === '1x A, 2x B e mais 2', 'resumo com mais itens');
 
 if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s).\n");

@@ -21,7 +21,7 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<?php require __DIR__ . '/../partials/head.php'; ?>
+<?php $pwa = true; require __DIR__ . '/../partials/head.php'; ?>
 </head>
 <body class="page-app">
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>

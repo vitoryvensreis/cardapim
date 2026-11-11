@@ -32,7 +32,7 @@ $acaoTopo = $painel['acao_topo'] ?? null;
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<?php require __DIR__ . '/../partials/head.php'; ?>
+<?php $pwa = true; require __DIR__ . '/../partials/head.php'; ?>
 </head>
 <body class="page-painel"<?php if ($tempoReal !== null): ?> data-tempo-real="<?= $e($tempoReal['ticket']) ?>" data-tempo-real-canais="<?= $e($tempoReal['canais']) ?>"<?php endif; ?>>
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>

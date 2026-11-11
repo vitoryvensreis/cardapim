@@ -82,3 +82,15 @@ O cliente e da plataforma (o mesmo numero pede em qualquer restaurante); os pedi
 ## Finalizacao do pedido
 
 Feita: entrega ou retirada, endereco, pagamento e acompanhamento. Ver [pedidos.md](pedidos.md).
+
+## Seus pedidos (historico e voltar ao acompanhamento)
+
+- Folha da conta (botao com o nome no topo): "Seus pedidos" com o filtro **Neste restaurante | Todos**, 10 por vez
+  ("Ver pedidos mais antigos"). Cada cartao mostra numero, quando ("Hoje, 19:40"), total, resumo dos itens e o status
+  com icone + texto; toque abre `/{slug}/pedido/{id}`. A lista e recarregada sempre que a conta abre.
+- Cardapio: aviso **"Acompanhar"** para cada pedido em andamento neste restaurante (ultimas 24 h, ate 3), atualizado a
+  cada 30 s enquanto houver pedido andando e quando a aba volta a ficar visivel. Substitui o atalho antigo que dependia
+  do aparelho (localStorage): agora vale em qualquer aparelho em que o cliente entrar.
+- API `GET /api/v1/cliente/pedidos` (so o cliente conectado; 60 consultas/min). Nunca lista comandas de mesa/balcao.
+- Codigo: `Services/Pedidos/HistoricoCliente`, `PedidoRepository::{historicoDoCliente, emAndamentoDoCliente, itensResumo}`,
+  `public/assets/js/meus-pedidos.js`, `public/assets/css/meus-pedidos.css`. Testes em `tests/http/entregas.sh` e `tests/unit/entrega.php`.

@@ -227,19 +227,6 @@
     window.location.assign(`/${encodeURIComponent(slug)}/finalizar`);
   };
 
-  /* ---------- Pedido em andamento (feito neste aparelho nas ultimas horas) ---------- */
-  const andamento = document.querySelector("[data-ultimo-pedido]");
-  try {
-    const ultimo = JSON.parse(window.localStorage.getItem(`cardapim:ultimo-pedido:${slug}`) || "null");
-    if (andamento && ultimo && Number.isInteger(ultimo.id) && Date.now() - (ultimo.salvo || 0) < 6 * 3600 * 1000) {
-      andamento.href = `/${encodeURIComponent(slug)}/pedido/${ultimo.id}`;
-      andamento.querySelector("[data-ultimo-numero]").textContent = `Pedido #${ultimo.numero}`;
-      andamento.hidden = false;
-    }
-  } catch (e) {
-    /* sem armazenamento */
-  }
-
   document.querySelector("[data-abrir-sacola]")?.addEventListener("click", () => UI.abrir(dSacola));
 
   /* ---------- Janela do produto ---------- */

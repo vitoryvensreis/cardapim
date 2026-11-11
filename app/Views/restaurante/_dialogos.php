@@ -109,11 +109,37 @@ use Cardapim\Core\Icon;
             <button class="cd-fechar" type="button" aria-label="Fechar" data-fechar><?= Icon::svg('x') ?></button>
         </header>
         <div class="cd-folha-corpo cd-conta-corpo">
-            <span class="cd-conta-avatar" aria-hidden="true" data-conta-iniciais></span>
-            <h2 id="conta-titulo" data-conta-nome></h2>
-            <p class="cd-login-texto cd-conta-linha"><?= Icon::svg('message-circle', 'icon-sm') ?><span data-conta-whatsapp></span></p>
-            <p class="cd-login-nota"><?= Icon::svg('info', 'icon-sm') ?>Em breve: seus pedidos, endereços e dados aparecem aqui.</p>
-            <button type="button" class="btn btn-outline btn-block" data-sair><?= Icon::svg('log-out', 'icon-sm') ?>Sair da conta</button>
+            <div class="cd-conta-cabeca">
+                <span class="cd-conta-avatar" aria-hidden="true" data-conta-iniciais></span>
+                <div>
+                    <h2 id="conta-titulo" data-conta-nome></h2>
+                    <p class="cd-login-texto cd-conta-linha"><?= Icon::svg('message-circle', 'icon-sm') ?><span data-conta-whatsapp></span></p>
+                </div>
+            </div>
+
+            <section class="mp" aria-labelledby="mp-titulo" data-meus-pedidos>
+                <div class="mp-topo">
+                    <h3 id="mp-titulo"><?= Icon::svg('receipt-text', 'icon-sm') ?>Seus pedidos</h3>
+                    <div class="mp-filtro" role="group" aria-label="Quais pedidos mostrar">
+                        <button type="button" class="mp-filtro-btn" aria-pressed="true" data-mp-filtro="aqui">Neste restaurante</button>
+                        <button type="button" class="mp-filtro-btn" aria-pressed="false" data-mp-filtro="todos">Todos</button>
+                    </div>
+                </div>
+                <p class="mp-estado" data-mp-carregando hidden><?= Icon::svg('loader-circle', 'icon-sm mp-gira') ?>Carregando seus pedidos...</p>
+                <div class="mp-estado mp-erro" data-mp-erro hidden>
+                    <p data-mp-erro-texto>Não foi possível carregar seus pedidos.</p>
+                    <button type="button" class="btn btn-outline btn-sm" data-mp-tentar><?= Icon::svg('refresh-cw', 'icon-sm') ?>Tentar de novo</button>
+                </div>
+                <div class="mp-vazio" data-mp-vazio hidden>
+                    <?= Icon::svg('shopping-bag') ?>
+                    <p data-mp-vazio-texto>Você ainda não fez pedidos aqui.</p>
+                    <button type="button" class="btn btn-primary btn-sm" data-mp-cardapio><?= Icon::svg('utensils', 'icon-sm') ?>Ver o cardápio</button>
+                </div>
+                <ol class="mp-lista" data-mp-lista></ol>
+                <button type="button" class="btn btn-outline btn-block btn-sm" data-mp-mais hidden><?= Icon::svg('chevron-down', 'icon-sm') ?>Ver pedidos mais antigos</button>
+            </section>
+
+            <button type="button" class="btn btn-outline btn-block cd-conta-sair" data-sair><?= Icon::svg('log-out', 'icon-sm') ?>Sair da conta</button>
         </div>
     </div>
 </dialog>

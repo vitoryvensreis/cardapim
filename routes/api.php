@@ -24,6 +24,7 @@ return static function (Router $router): void {
     $router->post('/api/v1/cliente/sair', [ClienteController::class, 'sair']);
     // Finalizacao do pedido e acompanhamento (cliente final)
     $router->get('/api/v1/cliente/endereco', [PedidoClienteController::class, 'endereco']);
+    $router->get('/api/v1/cliente/pedidos', [PedidoClienteController::class, 'meus']);
     $router->get('/api/v1/cep/{cep}', [PedidoClienteController::class, 'cep']);
     $router->post('/api/v1/restaurantes/{slug}/entrega', [PedidoClienteController::class, 'entrega']);
     $router->post('/api/v1/restaurantes/{slug}/pedidos', [PedidoClienteController::class, 'criar']);

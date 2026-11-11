@@ -63,6 +63,7 @@ $asideItems = [
                 </button>
             </form>
             <p class="auth-help"><?= Icon::svg('info', 'icon-sm') ?>Esqueceu a senha? Por enquanto, peça ao gerente do restaurante para redefinir.</p>
+            <?php require __DIR__ . '/../partials/pwa-instalar.php'; ?>
             <p class="auth-switch">Ainda não tem conta? <a href="/cadastro">Conheça o cadastro <?= Icon::svg('arrow-right', 'icon-sm') ?></a></p>
         </div>
     </div>

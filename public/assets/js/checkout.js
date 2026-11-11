@@ -444,7 +444,6 @@
         localStorage.removeItem(CHAVE_SACOLA);
         sessionStorage.removeItem(CHAVE_PEDIDO);
       } catch (e) { /* sem armazenamento */ }
-      guardar(`cardapim:ultimo-pedido:${slug}`, { id: r.pedido.id, numero: r.pedido.numero, salvo: Date.now() });
       window.location.assign(`/${encodeURIComponent(slug)}/pedido/${r.pedido.id}`);
       return;
     }

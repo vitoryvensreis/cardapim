@@ -71,11 +71,53 @@ final class PedidoRepository
             ->execute([$idPedido, $idRestaurante, $status, mb_substr($descricao, 0, 200), $idUser, $idCliente, date('Y-m-d H:i:s')]);
     }
 
-    /** Ultimos pedidos do cliente em um restaurante (para "Meus pedidos"). @return list<array<string,mixed>> */
-    public function recentesDoCliente(int $idCliente, int $idRestaurante, int $limite = 5): array
+    /**
+     * Historico do cliente (mais novo primeiro), em um restaurante ou em todos. $antes = id do ultimo da pagina anterior.
+     * Nunca inclui comandas de mesa/balcao (status 'aberto' nao tem cliente). @return list<array<string,mixed>>
+     */
+    public function historicoDoCliente(int $idCliente, ?int $idRestaurante, ?int $antes, int $limite): array
     {
-        $q = $this->db->prepare('SELECT id, numero, status, total, criado_em FROM pedidos WHERE id_cliente = ? AND id_restaurante = ? ORDER BY id DESC LIMIT ' . max(1, min(20, $limite)));
-        $q->execute([$idCliente, $idRestaurante]);
+        $sql = "SELECT p.id, p.numero, p.status, p.tipo, p.total, p.criado_em, p.id_restaurante, r.nome AS restaurante_nome, r.slug AS restaurante_slug
+                FROM pedidos p JOIN restaurantes r ON r.id = p.id_restaurante
+                WHERE p.id_cliente = ? AND p.status <> 'aberto'";
+        $params = [$idCliente];
+        if ($idRestaurante !== null) {
+            $sql .= ' AND p.id_restaurante = ?';
+            $params[] = $idRestaurante;
+        }
+        if ($antes !== null) {
+            $sql .= ' AND p.id < ?';
+            $params[] = $antes;
+        }
+        $q = $this->db->prepare($sql . ' ORDER BY p.id DESC LIMIT ' . max(1, min(51, $limite)));
+        $q->execute($params);
         return $q->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Pedidos do cliente ainda em andamento neste restaurante (ultimas 24 h). @return list<array<string,mixed>> */
+    public function emAndamentoDoCliente(int $idCliente, int $idRestaurante): array
+    {
+        $q = $this->db->prepare("SELECT p.id, p.numero, p.status, p.tipo, p.total, p.criado_em, p.id_restaurante, r.nome AS restaurante_nome, r.slug AS restaurante_slug
+            FROM pedidos p JOIN restaurantes r ON r.id = p.id_restaurante
+            WHERE p.id_cliente = ? AND p.id_restaurante = ? AND p.status NOT IN ('aberto', 'concluido', 'cancelado') AND p.criado_em >= ?
+            ORDER BY p.id DESC LIMIT 3");
+        $q->execute([$idCliente, $idRestaurante, date('Y-m-d H:i:s', time() - 86400)]);
+        return $q->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Itens (nao cancelados) de varios pedidos, agrupados por pedido. @param list<int> $ids @return array<int,list<array{nome:string,quantidade:int}>> */
+    public function itensResumo(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) {
+            return [];
+        }
+        $q = $this->db->prepare('SELECT id_pedido, nome, quantidade FROM pedido_itens WHERE id_pedido IN (' . implode(',', array_fill(0, count($ids), '?')) . ') AND cancelado_em IS NULL ORDER BY id');
+        $q->execute($ids);
+        $por = [];
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $i) {
+            $por[(int) $i['id_pedido']][] = ['nome' => (string) $i['nome'], 'quantidade' => (int) $i['quantidade']];
+        }
+        return $por;
     }
 }

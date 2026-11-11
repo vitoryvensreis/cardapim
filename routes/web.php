@@ -8,6 +8,7 @@ use Cardapim\Controllers\CatalogoController;
 use Cardapim\Controllers\HomeController;
 use Cardapim\Controllers\LegalController;
 use Cardapim\Controllers\MidiaController;
+use Cardapim\Controllers\PwaController;
 use Cardapim\Controllers\RestauranteController;
 use Cardapim\Controllers\StatusController;
 use Cardapim\Controllers\WebhookController;
@@ -23,6 +24,10 @@ $router->post('/login/verificacao/reenviar', [AuthController::class, 'reenviar']
 $router->post('/sair', [AuthController::class, 'sair']);
 $router->get('/cadastro', [AuthController::class, 'register']);
 $router->get('/status', [StatusController::class, 'index']);
+// App instalavel (PWA) da equipe
+// Sem extensao de arquivo de proposito: o Nginx manda direto ao PHP (com o tipo certo e sem cache), sem regra de estaticos.
+$router->get('/pwa/manifesto', [PwaController::class, 'manifesto']);
+$router->get('/pwa/sw', [PwaController::class, 'serviceWorker']);
 $router->get('/catalogo', [CatalogoController::class, 'index']);
 $router->get('/restaurantes', static fn (): \Cardapim\Core\Response => \Cardapim\Core\Response::redirect('/catalogo', 301));
 $router->get('/privacidade', [LegalController::class, 'privacidade']);

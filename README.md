@@ -32,6 +32,12 @@
 - A equipe recebe, prepara e despacha os pedidos no **modo caixa** (seção acima).
 - [Arquitetura, regras e rotas](docs/architecture/pedidos.md).
 
+## App instalável (PWA) da equipe
+
+- A partir do **login** e do **cadastro**, o Cardapim pode ser **instalado no celular** como aplicativo (ícone na tela inicial, tela cheia). No Android/Chrome aparece o botão "Instalar app"; no iPhone, o passo a passo Compartilhar > Adicionar à Tela de Início.
+- O app abre no login e leva cada cargo para a sua área (gerência, caixa, entregas, painel). Sem internet, mostra uma tela "Você está sem internet"; páginas e dados nunca ficam guardados no aparelho.
+- [Como funciona](docs/architecture/pwa.md).
+
 ## Cardapio online do restaurante (cliente final)
 
 - `/{slug-do-restaurante}`: cardapio para o cliente pedir pelo celular, no estilo dos apps de delivery: capa, status aberto/fechado, horarios, busca, abas de categoria que acompanham a rolagem e produtos com botao "+".
@@ -39,6 +45,7 @@
 - **Login do cliente sem senha**: so numero do WhatsApp e nome. Codigo de 6 digitos enviado pelo **WhatsApp da plataforma** (`/painel/integracoes/whatsapp` precisa estar conectado), valido por 10 min, com limites de envio e tentativas; aparelho lembrado por 60 dias.
 - Tabelas `clientes` (nome, WhatsApp, CPF, endereco completo, ultimo acesso) e `cliente_sessoes`.
 - O botao "Continuar" leva para a finalizacao do pedido (secao acima).
+- **Seus pedidos**: na conta do cliente (botão com o nome no topo), o histórico de pedidos deste restaurante ou de todos, com status, itens e total; cada pedido abre o acompanhamento. Pedido em andamento aparece em destaque no topo do cardápio com "Acompanhar": basta voltar pelo link do restaurante.
 - [Arquitetura, rotas e seguranca](docs/architecture/cardapio-cliente.md).
 
 ## Painel da plataforma (administracao)

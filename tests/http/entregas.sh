@@ -92,6 +92,24 @@ pedido="$(json "$tmp/r.json" pedido.id)"
 numero="$(json "$tmp/r.json" pedido.numero)"
 curl -s -b "$cj" -o "$tmp/r.json" "$base/api/v1/pedidos/$pedido"
 contem "cliente ve a etapa Pronto na linha do tempo" "$tmp/r.json" '"status":"pronto"'
+echo "Meus pedidos (cliente)"
+curl -s -b "$cj" -o "$tmp/mp.json" "$base/api/v1/cliente/pedidos?restaurante=$slug"
+esperar "historico traz o pedido" "$(json "$tmp/mp.json" pedidos.0.id)" "$pedido"
+esperar "pedido aparece em andamento" "$(json "$tmp/mp.json" em_andamento.0.id)" "$pedido"
+esperar "link para acompanhar" "$(json "$tmp/mp.json" pedidos.0.url)" "/$slug/pedido/$pedido"
+contem "resumo dos itens" "$tmp/mp.json" '"resumo":"1x '
+curl -s -b "$cj" -o "$tmp/mp2.json" "$base/api/v1/cliente/pedidos"
+esperar "todos os restaurantes traz o nome da loja" "$(json "$tmp/mp2.json" pedidos.0.restaurante.slug)" "$slug"
+esperar "sem restaurante nao manda em_andamento" "$(json "$tmp/mp2.json" em_andamento)" "null"
+curl -s -b "$oc" -o "$tmp/mp3.json" "$base/api/v1/cliente/pedidos?restaurante=$slug"
+nao_contem "outro cliente nao ve o pedido" "$tmp/mp3.json" "\"id\":$pedido,"
+esperar "sem login (401)" "$(curl -s -o /dev/null -w '%{http_code}' "$base/api/v1/cliente/pedidos")" "401"
+esperar "pagina invalida (422)" "$(curl -s -o /dev/null -b "$cj" -w '%{http_code}' "$base/api/v1/cliente/pedidos?antes=abc")" "422"
+esperar "restaurante inexistente (404)" "$(curl -s -o /dev/null -b "$cj" -w '%{http_code}' "$base/api/v1/cliente/pedidos?restaurante=nao-existe-mesmo")" "404"
+curl -s -b "$cj" "$base/$slug" -o "$tmp/cd.html"
+contem "cardapio tem o aviso de pedido em andamento" "$tmp/cd.html" 'data-pedidos-ativos'
+contem "conta tem a lista de pedidos" "$tmp/cd.html" 'data-meus-pedidos'
+contem "cardapio carrega meus-pedidos.js" "$tmp/cd.html" '/assets/js/meus-pedidos.js'
 curl -s -b "$cj" -o "$tmp/rast.json" "$base/api/v1/pedidos/$pedido/rastreio"
 esperar "antes de sair, sem rastreio" "$(json "$tmp/rast.json" ativo)" "false"
 esperar "outro cliente nao ve o rastreio (404)" "$(curl -s -o /dev/null -b "$oc" -w '%{http_code}' "$base/api/v1/pedidos/$pedido/rastreio")" "404"
@@ -141,6 +159,9 @@ curl -s -b "$cj" -o "$tmp/r.json" "$base/api/v1/pedidos/$pedido"
 esperar "cliente ve entregue" "$(json "$tmp/r.json" status)" "concluido"
 curl -s -b "$cj" -o "$tmp/rast.json" "$base/api/v1/pedidos/$pedido/rastreio"
 esperar "depois de entregue, sem rastreio" "$(json "$tmp/rast.json" ativo)" "false"
+curl -s -b "$cj" -o "$tmp/mp.json" "$base/api/v1/cliente/pedidos?restaurante=$slug"
+esperar "historico mostra entregue" "$(json "$tmp/mp.json" pedidos.0.status_rotulo)" "Entregue"
+esperar "sai de em andamento" "$(json "$tmp/mp.json" em_andamento)" "[]"
 enviar "$mj" "$e/$pedido/entregue" "$e" >/dev/null
 esperar "nao confirma duas vezes" "$(aviso "$mj" "$e")" "Esta entrega já foi concluída ou cancelada."
 esperar "parar de compartilhar" "$(curl -s -o /dev/null -b "$mj" -w '%{http_code}' -X POST -H "X-CSRF-Token: $mcsrf" "$e/localizacao/parar")" "200"
@@ -158,4 +179,4 @@ if [[ "$falhas" -gt 0 ]]; then
   echo "$falhas falha(s) nas entregas."
   exit 1
 fi
-echo "OK: painel do entregador, localizacao em tempo real e rastreio pelo cliente."
+echo "OK: painel do entregador, localizacao em tempo real, rastreio e historico de pedidos do cliente."

@@ -127,6 +127,7 @@ $field = static function (array $f) use ($e): string {
 
                 <button class="btn btn-wine btn-lg btn-block" type="submit" disabled><?= Icon::svg('lock') ?>Cadastro disponível em breve</button>
             </form>
+            <?php require __DIR__ . '/../partials/pwa-instalar.php'; ?>
             <p class="auth-switch">Já possui uma conta? <a href="/login">Ir para o login <?= Icon::svg('arrow-right', 'icon-sm') ?></a></p>
         </div>
     </div>

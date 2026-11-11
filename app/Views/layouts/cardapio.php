@@ -12,8 +12,8 @@ $favicon = Configuracoes::logoOuPadrao('icone');
 $logoPreta = Configuracoes::logoOuPadrao('logo_preta');
 $title = $e((string) ($pageTitle ?? 'Cardápio | Cardapim'));
 $description = $e((string) ($pageDescription ?? 'Cardápio digital no Cardapim.'));
-$styles = ['css/cardapio.css', ...($pageStyles ?? [])];
-$scripts = ['js/cliente.js', ...($pageScripts ?? ['js/cardapio.js'])];
+$styles = ['css/cardapio.css', 'css/meus-pedidos.css', ...($pageStyles ?? [])];
+$scripts = ['js/cliente.js', 'js/meus-pedidos.js', ...($pageScripts ?? ['js/cardapio.js'])];
 [$voltarUrl, $voltarRotulo] = $voltar ?? ['/catalogo', 'Ver outros restaurantes'];
 ?>
 <!doctype html>

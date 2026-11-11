@@ -20,7 +20,7 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<?php require __DIR__ . '/../partials/head.php'; ?>
+<?php $pwa = true; require __DIR__ . '/../partials/head.php'; ?>
 </head>
 <body class="page-app page-entregador" data-csrf="<?= $e($csrf) ?>" data-slug="<?= $e((string) $restaurante['slug']) ?>" data-usuario="<?= (int) $usuario->id ?>"<?php if ($tempoReal !== null): ?> data-tempo-real="<?= $e($tempoReal) ?>" data-tempo-real-canais="entregas"<?php endif; ?>>
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>

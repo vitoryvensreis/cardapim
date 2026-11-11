@@ -128,3 +128,8 @@ rotate-ccw-clock
 hash
 tag
 book-open
+receipt-text
+download
+share
+square-plus
+ellipsis-vertical

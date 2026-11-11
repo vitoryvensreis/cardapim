@@ -48,8 +48,8 @@ esperar "gerente entra" "$(login "$gj" ci_gerente)" "303 $g"
 for caminho in /estoque /estoque/produtos /estoque/insumos /estoque/categorias /estoque/produtos/novo /estoque/insumos/novo /equipe /equipe/nova /perfil /assinatura /minha-conta /minha-conta/dois-fatores/app; do
   esperar "GET $caminho" "$(pagina "$gj" "$g$caminho")" "200"
   # Todo formulario e link interno aponta para a gerencia do restaurante (nunca para caminhos do servidor).
-  if grep -oE '(action|href)="[^"]*"' "$tmp/pagina.html" | grep -vE '="(/'"$slug"'["/]|/assets/|/sair|/login|/minha-conta|/painel|/midia/|#|https://)' | grep -q .; then
-    falha "$caminho tem link ou formulario fora do padrao: $(grep -oE '(action|href)="[^"]*"' "$tmp/pagina.html" | grep -vE '="(/'"$slug"'["/]|/assets/|/sair|/login|/minha-conta|/painel|/midia/|#|https://)' | head -2 | tr '\n' ' ')"
+  if grep -oE '(action|href)="[^"]*"' "$tmp/pagina.html" | grep -vE '="(/'"$slug"'["/]|/assets/|/sair|/login|/minha-conta|/painel|/midia/|/pwa/|#|https://)' | grep -q .; then
+    falha "$caminho tem link ou formulario fora do padrao: $(grep -oE '(action|href)="[^"]*"' "$tmp/pagina.html" | grep -vE '="(/'"$slug"'["/]|/assets/|/sair|/login|/minha-conta|/painel|/midia/|/pwa/|#|https://)' | head -2 | tr '\n' ' ')"
   fi
 done
 pagina "$gj" "$g/estoque/insumos/novo" >/dev/null

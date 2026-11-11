@@ -28,6 +28,7 @@ use Throwable;
  * POST /api/v1/restaurantes/{slug}/entrega        entrega neste endereco? taxa e pedido minimo
  * POST /api/v1/restaurantes/{slug}/pedidos        cria o pedido (cliente conectado)
  * GET  /api/v1/pedidos/{id}                       acompanhamento (so o dono do pedido)
+ * GET  /api/v1/cliente/pedidos?restaurante=&antes= meus pedidos (historico + em andamento no restaurante)
  * POST exige X-CSRF-Token.
  */
 final class PedidoClienteController
@@ -104,6 +105,46 @@ final class PedidoClienteController
             unset($r['status']);
             return Response::json($r, $status);
         });
+    }
+
+    /**
+     * Meus pedidos: historico do cliente (10 por pagina, ?antes=id para a proxima) e, com ?restaurante=slug,
+     * so os desse restaurante + os que ainda estao em andamento (para o aviso "Acompanhar" no cardapio).
+     */
+    public function meus(): Response
+    {
+        $cliente = ClienteSessao::atual();
+        if ($cliente === null) {
+            return Response::json(['erro' => 'Entre na sua conta para ver seus pedidos.', 'login' => true], 401);
+        }
+        if (!RateLimiter::padrao(60, 60)->permitir('meus-pedidos|' . (int) $cliente['id'])) {
+            return Response::json(['erro' => 'Muitas consultas. Aguarde um pouco.'], 429);
+        }
+        $slug = (string) ($_GET['restaurante'] ?? '');
+        $antes = (string) ($_GET['antes'] ?? '');
+        if (($slug !== '' && (!Slug::formatoValido($slug) || Slug::reservado($slug))) || ($antes !== '' && (!ctype_digit($antes) || strlen($antes) > 18))) {
+            return Response::json(['erro' => 'Consulta inválida.'], 422);
+        }
+        try {
+            $db = Database::connect();
+            $idRestaurante = null;
+            if ($slug !== '') {
+                $restaurante = (new RestauranteRepository($db))->buscarPublicoPorSlug($slug);
+                if ($restaurante === null) {
+                    return Response::json(['erro' => 'Restaurante não encontrado.'], 404);
+                }
+                $idRestaurante = (int) $restaurante['id'];
+            }
+            $historico = new \Cardapim\Services\Pedidos\HistoricoCliente($db);
+            $pagina = $historico->pagina((int) $cliente['id'], $idRestaurante, $antes === '' ? null : (int) $antes);
+            if ($idRestaurante !== null && $antes === '') {
+                $pagina['em_andamento'] = $historico->emAndamento((int) $cliente['id'], $idRestaurante);
+            }
+            return Response::json($pagina)->comCabecalhos(['Cache-Control' => 'no-store']);
+        } catch (Throwable $erro) {
+            error_log('[Cardapim] Meus pedidos indisponivel: ' . get_class($erro));
+            return Response::json(['erro' => 'Não foi possível carregar seus pedidos agora.'], 503);
+        }
     }
 
     /** Onde esta o entregador do pedido (so o dono do pedido; so enquanto saiu para entrega). */

@@ -264,6 +264,7 @@ jobs:
           bash tests/http/pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/caixa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/entregas.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          bash tests/http/pwa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null
           bash tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
           grep -q 'Redis conectado' /tmp/cardapim-ws.log
