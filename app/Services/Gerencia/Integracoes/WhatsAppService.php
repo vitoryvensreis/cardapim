@@ -29,7 +29,7 @@ final class WhatsAppService extends BaseIntegracao
     public function conectar(): Resultado
     {
         if (!WppConnectApi::disponivel()) {
-            return Resultado::falha('O WhatsApp ainda não está disponível neste servidor. Avise o suporte do Cardapim.');
+            return Resultado::falha('O WhatsApp ainda não está disponível neste servidor. Avise o suporte do ' . marca() . '.');
         }
         $atual = $this->integracoes->buscar($this->idRestaurante, 'whatsapp');
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
@@ -159,6 +159,6 @@ final class WhatsAppService extends BaseIntegracao
         $this->integracoes->limpar($this->idRestaurante, 'whatsapp');
         $this->log('WhatsApp desconectado', 'Sessão encerrada pelo painel.');
         $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'desconectado']);
-        return Resultado::sucesso('WhatsApp desconectado. O celular saiu do Cardapim.');
+        return Resultado::sucesso('WhatsApp desconectado. O celular saiu do ' . marca() . '.');
     }
 }

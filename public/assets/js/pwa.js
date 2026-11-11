@@ -9,6 +9,8 @@
  */
 (() => {
   "use strict";
+  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
+  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
 
   const instalado = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   if (instalado) document.documentElement.classList.add("is-app");
@@ -49,7 +51,7 @@
     botao.disabled = false;
     if (escolha && escolha.outcome === "accepted") {
       botao.hidden = true;
-      texto.textContent = "Instalando... O ícone do Cardapim vai aparecer na sua tela inicial.";
+      texto.textContent = `Instalando... O ícone do ${marca()} vai aparecer na sua tela inicial.`;
     }
   });
 
@@ -57,7 +59,7 @@
     botao.hidden = true;
     passosMenu.hidden = true;
     passosIos.hidden = true;
-    texto.textContent = "Pronto! Abra o Cardapim pelo ícone na tela inicial do celular.";
+    texto.textContent = `Pronto! Abra o ${marca()} pelo ícone na tela inicial do celular.`;
     convite.hidden = false;
   });
 

@@ -127,8 +127,8 @@ final class AuthController
 
         return Response::html(View::render('auth/register', [
             'pwa' => true,
-            'pageTitle' => 'Criar conta | Cardapim',
-            'pageDescription' => 'Prepare seu cadastro no Cardapim.',
+            'pageTitle' => 'Criar conta | ' . marca(),
+            'pageDescription' => 'Prepare seu cadastro no ' . marca() . '.',
             'noIndex' => true,
             'pageScripts' => ['js/forms.js'],
             'plano' => $plan,
@@ -148,7 +148,7 @@ final class AuthController
         $flash = Session::flash('flash_verificacao');
         $html = View::render('auth/verificacao', [
             'pwa' => true,
-            'pageTitle' => 'Confirme que é você | Cardapim',
+            'pageTitle' => 'Confirme que é você | ' . marca(),
             'pageDescription' => 'Verificação em duas etapas.',
             'noIndex' => true,
             'pageScripts' => ['js/forms.js'],
@@ -165,8 +165,8 @@ final class AuthController
         Session::iniciar();
         $html = View::render('auth/login', [
             'pwa' => true,
-            'pageTitle' => 'Entrar | Cardapim',
-            'pageDescription' => 'Acesse sua conta Cardapim.',
+            'pageTitle' => 'Entrar | ' . marca(),
+            'pageDescription' => 'Acesse sua conta ' . marca() . '.',
             'noIndex' => true,
             'pageScripts' => ['js/forms.js'],
             'csrf' => Session::tokenCsrf(),

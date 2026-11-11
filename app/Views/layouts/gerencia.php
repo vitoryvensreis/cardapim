@@ -23,10 +23,10 @@ foreach (MenuGerencia::GRUPOS as $grupo => $chaves) {
     }
 }
 $painel = [
-    'descricao' => 'Painel do gerente no Cardapim.',
+    'descricao' => 'Painel do gerente no ' . marca() . '.',
     'menu_rotulo' => 'Menu da gerência',
     'inicio' => MenuGerencia::url($slug, 'visao-geral'),
-    'inicio_rotulo' => 'Cardapim, visão geral',
+    'inicio_rotulo' => marca() . ', visão geral',
     'contexto' => ['rotulo' => 'Restaurante', 'nome' => (string) $restaurante['nome'], 'icone' => 'store'],
     'grupos' => $grupos,
     'trilha' => (string) $restaurante['nome'],
@@ -37,5 +37,5 @@ $painel = [
         ? ['ticket' => '/api/v1/tempo-real/ticket?restaurante=' . rawurlencode($slug), 'canais' => implode(',', Canais::daSecao($ativo))]
         : null,
 ];
-$pageTitle ??= 'Gerência | Cardapim';
+$pageTitle ??= 'Gerência | ' . marca();
 require __DIR__ . '/painel.php';

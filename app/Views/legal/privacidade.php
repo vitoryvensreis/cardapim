@@ -1,14 +1,14 @@
 <?php
 $legalTitle = 'Política de Privacidade';
-$legalLead = 'Entenda quais dados podem ser tratados no Cardapim, para quê e como exercer seus direitos.';
+$legalLead = 'Entenda quais dados podem ser tratados no ' . marca() . ', para quê e como exercer seus direitos.';
 ?>
 <div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <article class="legal-article" aria-label="Conteúdo da política de privacidade">
         <section>
-            <h2>1. Quem está por trás do Cardapim?</h2>
-            <p>O Cardapim é um produto da Escotilha Produtora, identificada no site pelo CNPJ <strong>64.069.224/0001-32</strong>. As informações completas de endereço, atendimento e encarregado de dados serão complementadas antes da abertura dos cadastros.</p>
-            <p>No relacionamento direto com assinantes e usuários da plataforma, o Cardapim poderá atuar como <strong>controlador</strong> dos dados necessários à prestação do serviço. No tratamento de dados de clientes finais realizado por conta de um restaurante, o estabelecimento poderá atuar como controlador e o Cardapim como operador, conforme a operação e os instrumentos contratuais aplicáveis.</p>
+            <h2>1. Quem está por trás do <?= marca_html() ?>?</h2>
+            <p>O <?= marca_html() ?> é um produto da Escotilha Produtora, identificada no site pelo CNPJ <strong>64.069.224/0001-32</strong>. As informações completas de endereço, atendimento e encarregado de dados serão complementadas antes da abertura dos cadastros.</p>
+            <p>No relacionamento direto com assinantes e usuários da plataforma, o <?= marca_html() ?> poderá atuar como <strong>controlador</strong> dos dados necessários à prestação do serviço. No tratamento de dados de clientes finais realizado por conta de um restaurante, o estabelecimento poderá atuar como controlador e o <?= marca_html() ?> como operador, conforme a operação e os instrumentos contratuais aplicáveis.</p>
         </section>
         <section>
             <h2>2. Dados envolvidos</h2>
@@ -22,7 +22,7 @@ $legalLead = 'Entenda quais dados podem ser tratados no Cardapim, para quê e co
         <section>
             <h2>4. Bases legais e compartilhamentos</h2>
             <p>O tratamento deverá se apoiar em bases previstas na LGPD, como execução de contrato, cumprimento de obrigação legal, legítimo interesse quando cabível e consentimento quando necessário. A base aplicável depende da finalidade.</p>
-            <p>Dados poderão ser compartilhados com fornecedores de hospedagem e infraestrutura necessários ao funcionamento. Integrações como iFood, Asaas e serviços de WhatsApp são parte do planejamento do Cardapim, mas não devem ser consideradas ativas apenas por serem mencionadas aqui. O site público pode carregar fontes disponibilizadas pelo Google, cujo servidor poderá receber dados técnicos da conexão.</p>
+            <p>Dados poderão ser compartilhados com fornecedores de hospedagem e infraestrutura necessários ao funcionamento. Integrações como iFood, Asaas e serviços de WhatsApp são parte do planejamento do <?= marca_html() ?>, mas não devem ser consideradas ativas apenas por serem mencionadas aqui. O site público pode carregar fontes disponibilizadas pelo Google, cujo servidor poderá receber dados técnicos da conexão.</p>
         </section>
         <section>
             <h2>5. Armazenamento, retenção e segurança</h2>

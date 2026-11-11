@@ -5,7 +5,7 @@
  * - Guarda so os arquivos da pagina offline. O resto do site segue o cache normal do navegador.
  * Ao mudar a lista abaixo ou a pagina offline, troque a VERSAO para o navegador baixar de novo.
  */
-const VERSAO = "cardapim-offline-v1";
+const VERSAO = "cardapim-offline-v2";
 const OFFLINE = "/offline.html";
 const ARQUIVOS = [
   OFFLINE,

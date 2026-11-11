@@ -27,13 +27,13 @@ $footerColumns = [
 ];
 ?>
 <footer class="site-footer" aria-labelledby="footer-title">
-    <h2 id="footer-title" class="sr-only">Rodapé do Cardapim</h2>
+    <h2 id="footer-title" class="sr-only">Rodapé do <?= marca_html() ?></h2>
     <div class="shell">
         <?php require __DIR__ . '/pwa-instalar.php'; ?>
         <div class="footer-grid">
             <div class="footer-brand">
-                <a class="brand" href="/" aria-label="Cardapim, página inicial">
-                    <img src="<?= $e($logoBranca) ?>" width="152" height="49" alt="Cardapim">
+                <a class="brand" href="/" aria-label="<?= marca_html() ?>, página inicial">
+                    <img src="<?= $e($logoBranca) ?>" width="152" height="49" alt="<?= marca_html() ?>">
                 </a>
                 <p class="footer-tagline"><?= $e($textoRodape) ?> Pedidos, mesas, caixa, cozinha e delivery no mesmo ritmo.</p>
                 <a class="btn btn-primary btn-sm footer-cta" href="/cadastro">Criar minha conta <?= Icon::svg('arrow-up-right', 'icon-move') ?></a>
@@ -55,7 +55,7 @@ $footerColumns = [
         </div>
         <div class="footer-bottom">
             <div class="footer-company">
-                <p>© <?= date('Y') ?> Cardapim. Todos os direitos reservados.</p>
+                <p>© <?= date('Y') ?> <?= marca_html() ?>. Todos os direitos reservados.</p>
                 <p>Um produto da Escotilha Produtora · CNPJ 64.069.224/0001-32</p>
             </div>
             <button class="back-to-top" type="button" data-back-to-top>

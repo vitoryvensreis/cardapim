@@ -12,8 +12,9 @@ use Cardapim\Core\AssetUrl;
 <meta name="description" content="<?= $description ?>">
 <?php if (!empty($noIndex)): ?><meta name="robots" content="noindex, nofollow">
 <?php endif; ?>
+<meta name="application-name" content="<?= marca_html() ?>">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Cardapim">
+<meta property="og:site_name" content="<?= marca_html() ?>">
 <meta property="og:title" content="<?= $title ?>">
 <meta property="og:description" content="<?= $description ?>">
 <title><?= $title ?></title>
@@ -23,7 +24,7 @@ use Cardapim\Core\AssetUrl;
 <link rel="apple-touch-icon" href="<?= AssetUrl::asset('img/pwa/apple-touch-icon.png') ?>">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Cardapim">
+<meta name="apple-mobile-web-app-title" content="<?= marca_html() ?>">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="<?= AssetUrl::asset('js/pwa.js') ?>" defer></script>
 <?php endif; ?>

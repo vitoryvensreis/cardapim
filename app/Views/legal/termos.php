@@ -1,13 +1,13 @@
 <?php
 $legalTitle = 'Termos de Uso';
-$legalLead = 'Regras gerais para utilizar a plataforma Cardapim e compreender as responsabilidades de cada parte.';
+$legalLead = 'Regras gerais para utilizar a plataforma ' . marca() . ' e compreender as responsabilidades de cada parte.';
 ?>
 <div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <article class="legal-article" aria-label="Conteúdo dos termos de uso">
         <section>
             <h2>1. Sobre o serviço</h2>
-            <p>O Cardapim é uma plataforma em desenvolvimento para apoiar restaurantes, bares e lanchonetes na organização de sua operação. Os módulos descritos na landing page representam recursos da solução, incluindo funcionalidades planejadas que podem ainda não estar disponíveis.</p>
+            <p>O <?= marca_html() ?> é uma plataforma em desenvolvimento para apoiar restaurantes, bares e lanchonetes na organização de sua operação. Os módulos descritos na landing page representam recursos da solução, incluindo funcionalidades planejadas que podem ainda não estar disponíveis.</p>
         </section>
         <section>
             <h2>2. Cadastro e segurança da conta</h2>
@@ -28,7 +28,7 @@ $legalLead = 'Regras gerais para utilizar a plataforma Cardapim e compreender as
         </section>
         <section>
             <h2>6. Dados, responsabilidade e propriedade intelectual</h2>
-            <p>O estabelecimento deverá tratar adequadamente as informações de seus consumidores e colaboradores, respeitando a legislação e os contratos aplicáveis. O Cardapim deverá observar suas próprias obrigações como fornecedor da plataforma. Marcas, software e conteúdos de terceiros permanecem protegidos pelos respectivos direitos.</p>
+            <p>O estabelecimento deverá tratar adequadamente as informações de seus consumidores e colaboradores, respeitando a legislação e os contratos aplicáveis. O <?= marca_html() ?> deverá observar suas próprias obrigações como fornecedor da plataforma. Marcas, software e conteúdos de terceiros permanecem protegidos pelos respectivos direitos.</p>
             <p>O serviço poderá passar por manutenções e atualizações. Qualquer limitação de responsabilidade deverá respeitar os direitos legais dos usuários e consumidores.</p>
         </section>
         <section>

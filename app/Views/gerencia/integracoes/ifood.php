@@ -15,7 +15,7 @@ $codigoValido = $expira > time();
         <div>
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
             <h1>iFood</h1>
-            <p>Ligue a sua loja do iFood ao Cardapim.</p>
+            <p>Ligue a sua loja do iFood ao <?= marca_html() ?>.</p>
         </div>
         <?php require __DIR__ . '/_status.php'; ?>
     </header>
@@ -25,15 +25,15 @@ $codigoValido = $expira > time();
             <div class="lista-vazia">
                 <?= Icon::svg('clock') ?>
                 <strong>A integração com o iFood ainda não foi liberada</strong>
-                <p>O Cardapim está concluindo o cadastro como parceiro do iFood. Quando estiver liberado, você conecta a sua loja por aqui em poucos passos.</p>
+                <p>O <?= marca_html() ?> está concluindo o cadastro como parceiro do iFood. Quando estiver liberado, você conecta a sua loja por aqui em poucos passos.</p>
             </div>
         </section>
     <?php elseif ($statusIntegracao === 'desconectado'): ?>
         <section class="bloco" aria-labelledby="titulo-como">
             <div class="bloco-cabecalho"><h2 id="titulo-como"><?= Icon::svg('info') ?>Como funciona</h2></div>
             <ol class="passos-2fa">
-                <li><strong>Gere um código de vínculo</strong> aqui no Cardapim.</li>
-                <li><strong>Entre no Portal do Parceiro iFood</strong> com a conta da loja e digite o código para autorizar o Cardapim.</li>
+                <li><strong>Gere um código de vínculo</strong> aqui no <?= marca_html() ?>.</li>
+                <li><strong>Entre no Portal do Parceiro iFood</strong> com a conta da loja e digite o código para autorizar o <?= marca_html() ?>.</li>
                 <li><strong>Copie o código de autorização</strong> que o iFood mostrar e cole aqui.</li>
             </ol>
             <form class="bloco-rodape" method="post" action="<?= $e($base . '/integracoes/ifood/iniciar') ?>">
@@ -63,7 +63,7 @@ $codigoValido = $expira > time();
         </section>
     <?php elseif ($statusIntegracao === 'pendente'): ?>
         <section class="bloco" aria-labelledby="titulo-vinculo">
-            <div class="bloco-cabecalho"><h2 id="titulo-vinculo"><?= Icon::svg('link') ?>Autorize o Cardapim no iFood</h2></div>
+            <div class="bloco-cabecalho"><h2 id="titulo-vinculo"><?= Icon::svg('link') ?>Autorize o <?= marca_html() ?> no iFood</h2></div>
             <?php if (!$codigoValido): ?>
                 <div class="notice notice-warning"><?= Icon::svg('clock') ?><div><strong>O código de vínculo venceu.</strong><p>Ele vale 10 minutos. Gere um novo para continuar.</p></div></div>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/iniciar') ?>">
@@ -80,7 +80,7 @@ $codigoValido = $expira > time();
                         <p class="texto-suave" data-expira="<?= $expira ?>">Vale até <?= $e(date('H:i', $expira)) ?>.</p>
                     </li>
                     <li>
-                        <strong>Abra o Portal do Parceiro iFood</strong>, entre com a conta da loja e autorize o Cardapim com esse código.
+                        <strong>Abra o Portal do Parceiro iFood</strong>, entre com a conta da loja e autorize o <?= marca_html() ?> com esse código.
                         <p><a class="btn btn-wine btn-sm" href="<?= $e((string) ($d['url'] ?? 'https://portal.ifood.com.br/apps/code')) ?>" target="_blank" rel="noopener noreferrer"><?= Icon::svg('arrow-up-right', 'icon-sm') ?>Abrir Portal do Parceiro</a></p>
                     </li>
                     <li>
@@ -111,14 +111,14 @@ $codigoValido = $expira > time();
                 <div class="resumo-linha"><span>Conectada em</span><strong><?= $e($data($integracao['conectado_em'])) ?></strong></div>
                 <div class="resumo-linha"><span>Última verificação</span><strong><?= $e($data($integracao['verificado_em'])) ?></strong></div>
             </div>
-            <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>Os pedidos do iFood vão aparecer no Cardapim quando o módulo de pedidos estiver pronto. A conexão já fica feita.</p></div></div>
+            <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>Os pedidos do iFood vão aparecer no <?= marca_html() ?> quando o módulo de pedidos estiver pronto. A conexão já fica feita.</p></div></div>
             <div class="acoes-2fa">
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/testar') ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('refresh-cw', 'icon-sm') ?>Testar conexão</button>
                 </form>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/desconectar') ?>"
-                      data-confirm="O Cardapim apaga o acesso à loja. Para remover de vez, tire a autorização também no Portal do Parceiro." data-confirm-titulo="Desconectar o iFood?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
+                      data-confirm="O <?= marca_html() ?> apaga o acesso à loja. Para remover de vez, tire a autorização também no Portal do Parceiro." data-confirm-titulo="Desconectar o iFood?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <button class="btn btn-outline btn-sm link-perigo" type="submit"><?= Icon::svg('unplug', 'icon-sm') ?>Desconectar</button>
                 </form>

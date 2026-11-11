@@ -85,7 +85,7 @@ final class IntegracoesController extends BaseGerencia
             'integracao' => $integracao,
             'disponivel' => WppConnectApi::disponivel(),
             'erros' => [],
-            'valores' => ['mensagem' => 'Olá! Esta é uma mensagem de teste do ' . $this->restaurante['nome'] . ' pelo Cardapim.'],
+            'valores' => ['mensagem' => 'Olá! Esta é uma mensagem de teste do ' . $this->restaurante['nome'] . ' pelo ' . marca() . '.'],
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
         ] + $this->dadosAvisos());
     }

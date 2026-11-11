@@ -32,7 +32,7 @@ final class MenuPlataforma
             'titulo' => 'Restaurantes',
             'rotulo' => 'Restaurantes',
             'icone' => 'store',
-            'descricao' => 'Todos os restaurantes que usam o Cardapim.',
+            'descricao' => 'Todos os restaurantes da plataforma.',
             'planejado' => [
                 'Lista com busca, situação e plano de cada restaurante',
                 'Aprovar cadastros novos',

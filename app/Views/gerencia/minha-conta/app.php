@@ -26,7 +26,7 @@ $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBS
             </li>
             <li>
                 <strong>No aplicativo, toque em "+" e escaneie este código:</strong>
-                <div class="qr-codigo" data-qr="<?= $e($uri) ?>" role="img" aria-label="QR Code para adicionar o Cardapim ao aplicativo autenticador">
+                <div class="qr-codigo" data-qr="<?= $e($uri) ?>" role="img" aria-label="QR Code para adicionar o <?= marca_html() ?> ao aplicativo autenticador">
                     <span class="texto-suave">Carregando QR Code...</span>
                 </div>
                 <p class="texto-suave">Não consegue escanear? Escolha "inserir chave" no aplicativo e digite:</p>

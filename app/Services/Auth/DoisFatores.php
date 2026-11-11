@@ -68,12 +68,12 @@ final class DoisFatores
         $codigo = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $this->contas->salvarCodigoEmail((int) $conta['id'], password_hash($codigo, PASSWORD_DEFAULT), date('Y-m-d H:i:s', time() + self::VALIDADE_CODIGO_EMAIL));
         $texto = sprintf(
-            "Olá, %s!\n\nSeu código do Cardapim para %s é:\n\n    %s\n\nEle vale por 10 minutos. Se não foi você quem pediu, ignore este e-mail e troque sua senha.\n\nEquipe Cardapim",
+            "Olá, %s!\n\nSeu código do " . marca() . " para %s é:\n\n    %s\n\nEle vale por 10 minutos. Se não foi você quem pediu, ignore este e-mail e troque sua senha.\n\nEquipe " . marca(),
             $conta['nome'],
             $finalidade === 'ativar' ? 'ativar a verificação em duas etapas' : 'entrar na sua conta',
             $codigo,
         );
-        $enviado = Mailer::enviar((string) $conta['email'], 'Seu código do Cardapim: ' . $codigo, $texto);
+        $enviado = Mailer::enviar((string) $conta['email'], 'Seu código do ' . marca() . ': ' . $codigo, $texto);
         if (!$enviado) {
             $this->contas->limparCodigoEmail((int) $conta['id']);
             return ['ok' => false, 'mensagem' => 'Não conseguimos enviar o e-mail agora. Tente de novo em alguns minutos ou use o aplicativo autenticador.'];

@@ -75,7 +75,7 @@ final class Autenticacao
         }
         if (!Autorizacao::contaLiberada($usuario)) {
             self::log($logs, 'Login recusado', 'Restaurante sem acesso liberado.', $usuario->id, $ip);
-            return ['ok' => false, 'erro' => 'O acesso deste restaurante está suspenso. Fale com o suporte do Cardapim.', 'status' => 403];
+            return ['ok' => false, 'erro' => 'O acesso deste restaurante está suspenso. Fale com o suporte do ' . marca() . '.', 'status' => 403];
         }
 
         if (password_needs_rehash((string) $hash, PASSWORD_DEFAULT)) {

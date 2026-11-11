@@ -12,8 +12,8 @@ use Cardapim\Services\Configuracoes;
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $favicon = Configuracoes::logoOuPadrao('icone');
 $logoPreta = Configuracoes::logoOuPadrao('logo_preta');
-$title = $e((string) ($pageTitle ?? 'Cardápio | Cardapim'));
-$description = $e((string) ($pageDescription ?? 'Cardápio digital no Cardapim.'));
+$title = $e((string) ($pageTitle ?? 'Cardápio | ' . marca()));
+$description = $e((string) ($pageDescription ?? 'Cardápio digital no ' . marca() . '.'));
 $styles = ['css/cardapio.css', 'css/meus-pedidos.css', ...($pageStyles ?? [])];
 $scripts = ['js/cliente.js', 'js/meus-pedidos.js', ...($pageScripts ?? ['js/cardapio.js'])];
 [$voltarUrl, $voltarRotulo] = $voltar ?? [null, null];
@@ -39,7 +39,7 @@ $scripts = ['js/cliente.js', 'js/meus-pedidos.js', ...($pageScripts ?? ['js/card
 
     <footer class="cd-rodape">
         <p class="cd-rodape-marca">
-            <span>Pedidos com</span><img src="<?= $e($logoPreta) ?>" width="96" height="31" alt="Cardapim" loading="lazy">
+            <span>Pedidos com</span><img src="<?= $e($logoPreta) ?>" width="96" height="31" alt="<?= marca_html() ?>" loading="lazy">
         </p>
         <nav aria-label="Links legais">
             <a href="/privacidade?r=<?= $e(rawurlencode((string) $restaurante['slug'])) ?>">Privacidade</a>

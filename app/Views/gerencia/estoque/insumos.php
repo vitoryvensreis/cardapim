@@ -32,7 +32,7 @@ $etiquetas = [
             <div class="lista-vazia">
                 <?= Icon::svg('wheat') ?>
                 <strong>Nenhum insumo cadastrado</strong>
-                <p>Cadastre o que você compra (pão, carne, refrigerante) e quanto tem de cada um. O Cardapim avisa quando estiver acabando.</p>
+                <p>Cadastre o que você compra (pão, carne, refrigerante) e quanto tem de cada um. O <?= marca_html() ?> avisa quando estiver acabando.</p>
                 <p class="lista-vazia-acao"><a class="btn btn-primary" href="<?= $e($base . '/estoque/insumos/novo') ?>"><?= Icon::svg('plus', 'icon-sm') ?>Cadastrar insumo</a></p>
             </div>
         </section>

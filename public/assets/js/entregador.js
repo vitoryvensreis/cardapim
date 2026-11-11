@@ -8,6 +8,8 @@
  */
 (() => {
   "use strict";
+  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
+  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
 
   const $ = (s, el = document) => el.querySelector(s);
   const corpo = document.body;
@@ -106,10 +108,10 @@
     }
     if (!bloqueado) return;
     const textos = {
-      pedindo: ["Ative sua localização para começar", "Para receber e fazer entregas, o Cardapim precisa da sua localização. Toque em Permitir na janela do celular. O cliente só vê você enquanto o pedido dele está a caminho.", "Ativar localização"],
+      pedindo: ["Ative sua localização para começar", `Para receber e fazer entregas, o ${marca()} precisa da sua localização. Toque em Permitir na janela do celular. O cliente só vê você enquanto o pedido dele está a caminho.`, "Ativar localização"],
       fechou: ["Falta permitir a localização", "A janela foi fechada sem permitir. Toque no botão abaixo e escolha Permitir. Sem a localização, não dá para fazer entregas.", "Ativar localização"],
-      negado: ["Sua localização está bloqueada", "O celular bloqueou a localização para o Cardapim. Libere assim:", "Tentar de novo"],
-      "sem-gps": ["Este navegador não informa a localização", "Abra o Cardapim no Chrome (Android) ou no Safari (iPhone) para fazer entregas.", "Tentar de novo"],
+      negado: ["Sua localização está bloqueada", `O celular bloqueou a localização para o ${marca()}. Libere assim:`, "Tentar de novo"],
+      "sem-gps": ["Este navegador não informa a localização", `Abra o ${marca()} no Chrome (Android) ou no Safari (iPhone) para fazer entregas.`, "Tentar de novo"],
     };
     const [titulo, texto, botao] = textos[bloqueio] || textos.pedindo;
     $("[data-bloqueio-titulo]").textContent = titulo;

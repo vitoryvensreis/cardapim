@@ -30,7 +30,7 @@ try {
         'logo_branca' => '/assets/img/logo-branca.svg',
         'logo_preta' => '/assets/img/logo-preta.svg',
         'icone' => '/assets/img/icone.svg',
-        'nome_sistema' => 'Cardapim',
+        'nome_sistema' => 'Deliveryzim',
         'descricao_padrao' => 'Gestão de restaurantes do jeito simples.',
         'texto_rodape' => 'Menos complicação. Mais restaurante.',
     ];

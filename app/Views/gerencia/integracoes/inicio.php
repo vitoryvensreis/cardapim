@@ -5,7 +5,7 @@ use Cardapim\Shared\Validation\Documento;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $cartoes = [
-    'ifood' => ['iFood', 'shopping-bag', 'Receba os pedidos do iFood direto no Cardapim.', $ifoodDisponivel],
+    'ifood' => ['iFood', 'shopping-bag', 'Receba os pedidos do iFood direto no ' . marca() . '.', $ifoodDisponivel],
     'whatsapp' => ['WhatsApp', 'message-circle', 'Conecte o WhatsApp do restaurante para avisar clientes e atender.', $whatsappDisponivel],
     'asaas' => ['Asaas', 'wallet', 'Receba o Pix dos pedidos online direto na sua conta Asaas.', true],
 ];
@@ -23,7 +23,7 @@ $detalhe = static function (string $provedor, array $i) use ($e): string {
     <header class="painel-cabecalho">
         <div>
             <h1>Integrações</h1>
-            <p>Conecte o Cardapim aos serviços que você já usa. Cada restaurante conecta as próprias contas.</p>
+            <p>Conecte o <?= marca_html() ?> aos serviços que você já usa. Cada restaurante conecta as próprias contas.</p>
         </div>
     </header>
 

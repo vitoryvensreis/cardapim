@@ -52,7 +52,7 @@ $pedidosMock = [
                 <span class="hero-line">Seu restaurante cresce.</span>
                 <em class="hero-line">A bagunça não precisa acompanhar.</em>
             </h1>
-            <p class="hero-lead">Pedidos, mesas, caixa, cozinha e delivery no mesmo ritmo. O Cardapim está chegando para deixar a operação mais simples, do primeiro pedido ao último fechamento.</p>
+            <p class="hero-lead">Pedidos, mesas, caixa, cozinha e delivery no mesmo ritmo. O <?= marca_html() ?> está chegando para deixar a operação mais simples, do primeiro pedido ao último fechamento.</p>
             <div class="hero-actions">
                 <a class="btn btn-primary btn-lg" href="/cadastro">Quero conhecer <?= Icon::svg('arrow-up-right', 'icon-move') ?></a>
                 <a class="btn btn-ghost btn-lg" href="#como-funciona">Como funciona <?= Icon::svg('arrow-down', 'icon-move-y') ?></a>
@@ -66,7 +66,7 @@ $pedidosMock = [
 
         <div class="hero-visual" data-tilt>
             <div class="hero-visual-inner" data-tilt-inner>
-                <div class="dashboard" role="img" aria-label="Prévia ilustrativa do painel do Cardapim com pedidos do dia, vendas e pedidos em andamento">
+                <div class="dashboard" role="img" aria-label="Prévia ilustrativa do painel do <?= marca_html() ?> com pedidos do dia, vendas e pedidos em andamento">
                     <aside class="dash-side" aria-hidden="true">
                         <span class="dash-logo"><?= Icon::svg('chef-hat') ?></span>
                         <span class="dash-nav is-active"><?= Icon::svg('layout-dashboard') ?></span>
@@ -154,7 +154,7 @@ $pedidosMock = [
     <div class="shell">
         <header class="section-head" data-reveal>
             <h2 id="features-title">Tudo o que você precisa.<br><em>Sem vinte abas abertas.</em></h2>
-            <p>Os módulos do Cardapim conversam entre si e acompanham o ritmo real de uma cozinha movimentada.</p>
+            <p>Os módulos do <?= marca_html() ?> conversam entre si e acompanham o ritmo real de uma cozinha movimentada.</p>
         </header>
         <div class="features-grid">
             <?php foreach ($recursos as $i => [$icone, $titulo, $texto, $modulo]): ?>
@@ -195,7 +195,7 @@ $pedidosMock = [
 <section class="section audience" id="para-quem" aria-labelledby="audience-title">
     <div class="shell audience-layout">
         <header class="section-head" data-reveal>
-            <h2 id="audience-title">Se tem pedido saindo, <em>tem lugar para o Cardapim.</em></h2>
+            <h2 id="audience-title">Se tem pedido saindo, <em>tem lugar para o <?= marca_html() ?>.</em></h2>
         </header>
         <div class="audience-grid">
             <?php foreach ($publicos as [$icone, $titulo, $texto]): ?>
@@ -268,7 +268,7 @@ $pedidosMock = [
             <span class="cta-spark cta-spark-a" aria-hidden="true"><?= Icon::svg('sparkles') ?></span>
             <span class="cta-spark cta-spark-b" aria-hidden="true"><?= Icon::svg('sparkles') ?></span>
             <h2 id="cta-title">Mais tempo para o que importa.<br><em>Menos tempo apagando incêndio.</em></h2>
-            <p>O Cardapim está em desenvolvimento. Vem acompanhar essa próxima fase.</p>
+            <p>O <?= marca_html() ?> está em desenvolvimento. Vem acompanhar essa próxima fase.</p>
             <a class="btn btn-dark btn-lg" href="/cadastro">Quero começar <?= Icon::svg('arrow-up-right', 'icon-move') ?></a>
         </div>
     </div>

@@ -18,7 +18,7 @@ $statusHistorico = ['ativa' => 'Ativa', 'cancelada' => 'Cancelada', 'encerrada' 
     <header class="painel-cabecalho">
         <div>
             <h1>Assinatura</h1>
-            <p>Seu plano do Cardapim: veja o que está contratado, troque de plano ou cancele.</p>
+            <p>Seu plano do <?= marca_html() ?>: veja o que está contratado, troque de plano ou cancele.</p>
         </div>
     </header>
 
@@ -26,7 +26,7 @@ $statusHistorico = ['ativa' => 'Ativa', 'cancelada' => 'Cancelada', 'encerrada' 
         <?= Icon::svg('info') ?>
         <div>
             <strong>O pagamento ainda não é feito por aqui.</strong>
-            <p>Quando você assina ou troca de plano, registramos a sua escolha e a equipe do Cardapim combina o pagamento com você.</p>
+            <p>Quando você assina ou troca de plano, registramos a sua escolha e a equipe do <?= marca_html() ?> combina o pagamento com você.</p>
         </div>
     </div>
 
@@ -36,7 +36,7 @@ $statusHistorico = ['ativa' => 'Ativa', 'cancelada' => 'Cancelada', 'encerrada' 
             <div class="lista-vazia">
                 <?= Icon::svg('credit-card') ?>
                 <strong>Você ainda não tem um plano ativo</strong>
-                <p>Escolha um dos planos abaixo para continuar usando o Cardapim.</p>
+                <p>Escolha um dos planos abaixo para continuar usando o <?= marca_html() ?>.</p>
             </div>
         <?php else:
             [$classe, $icone, $rotulo] = $situacoes[$vigente['situacao']];
@@ -88,7 +88,7 @@ $statusHistorico = ['ativa' => 'Ativa', 'cancelada' => 'Cancelada', 'encerrada' 
             <?php if ($vigente !== null): ?><p>Ao trocar, o novo plano começa hoje e o atual é encerrado.</p><?php endif; ?>
         </div>
         <?php if ($planos === []): ?>
-            <div class="lista-vazia"><?= Icon::svg('life-buoy') ?><strong>Nenhum plano disponível agora</strong><p>Fale com o suporte do Cardapim.</p></div>
+            <div class="lista-vazia"><?= Icon::svg('life-buoy') ?><strong>Nenhum plano disponível agora</strong><p>Fale com o suporte do <?= marca_html() ?>.</p></div>
         <?php else: ?>
             <div class="planos-grade">
                 <?php foreach ($planos as $plano):

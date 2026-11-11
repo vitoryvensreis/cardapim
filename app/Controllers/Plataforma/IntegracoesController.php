@@ -101,7 +101,7 @@ final class IntegracoesController extends BasePlataforma
         if ($r = $this->entrar()) {
             return $r;
         }
-        return $this->telaWhatsapp([], ['mensagem' => 'Olá! Esta é uma mensagem de teste do WhatsApp da plataforma Cardapim.']);
+        return $this->telaWhatsapp([], ['mensagem' => 'Olá! Esta é uma mensagem de teste do WhatsApp da plataforma ' . marca() . '.']);
     }
 
     public function whatsappConectar(): Response

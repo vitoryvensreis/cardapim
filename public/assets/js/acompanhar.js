@@ -4,6 +4,8 @@
  */
 (() => {
   "use strict";
+  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
+  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
 
   const raiz = document.querySelector("[data-acompanhar]");
   if (!raiz) return;
@@ -41,7 +43,7 @@
     em_preparo: ["chef-hat", "Em preparo", "Seu pedido está sendo preparado."],
     pronto: ["package-check", "Pronto", "Seu pedido está pronto."],
     saiu_entrega: ["bike", "Saiu para entrega", "O entregador está a caminho."],
-    concluido: ["circle-check", "Pedido concluído", "Bom apetite! Obrigado por pedir pelo Cardapim."],
+    concluido: ["circle-check", "Pedido concluído", `Bom apetite! Obrigado por pedir pelo ${marca()}.`],
     cancelado: ["circle-x", "Pedido cancelado", ""],
   };
 

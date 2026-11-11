@@ -1,11 +1,11 @@
 <main class="status-page">
     <div class="status-shell">
         <header class="status-header">
-            <a class="status-brand" href="/" aria-label="Cardapim, voltar à página inicial">
+            <a class="status-brand" href="/" aria-label="<?= marca_html() ?>, voltar à página inicial">
                 <?php if ($logoPreta !== null): ?>
-                    <img src="<?= htmlspecialchars($logoPreta, ENT_QUOTES, 'UTF-8') ?>" alt="Cardapim" width="190" height="61">
+                    <img src="<?= htmlspecialchars($logoPreta, ENT_QUOTES, 'UTF-8') ?>" alt="<?= marca_html() ?>" width="190" height="61">
                 <?php else: ?>
-                    <span>Cardapim</span>
+                    <span><?= marca_html() ?></span>
                 <?php endif; ?>
             </a>
             <a class="status-back" href="/">Voltar ao site</a>
@@ -44,7 +44,7 @@
 
         <footer class="status-footer">
             <span>Última verificação: <?= htmlspecialchars($checkedAt, ENT_QUOTES, 'UTF-8') ?></span>
-            <span>Cardapim</span>
+            <span><?= marca_html() ?></span>
         </footer>
     </div>
 </main>

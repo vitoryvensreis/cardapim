@@ -69,14 +69,14 @@ final class MenuGerencia
             'titulo' => 'Integrações',
             'rotulo' => 'Integrações',
             'icone' => 'plug-zap',
-            'descricao' => 'Conecte o Cardapim aos serviços que você já usa.',
+            'descricao' => 'Conecte seu restaurante aos serviços que você já usa.',
             'planejado' => ['iFood: receber pedidos direto no painel', 'Asaas: receber Pix dos pedidos online na sua conta'],
         ],
         'assinatura' => [
             'titulo' => 'Assinatura',
             'rotulo' => 'Assinatura',
             'icone' => 'credit-card',
-            'descricao' => 'Seu plano do Cardapim e os pagamentos.',
+            'descricao' => 'Seu plano e os pagamentos.',
             'planejado' => ['Plano atual e vencimento', 'Histórico de pagamentos', 'Trocar de plano'],
         ],
         'minha-conta' => [
@@ -90,7 +90,7 @@ final class MenuGerencia
             'titulo' => 'Suporte',
             'rotulo' => 'Suporte',
             'icone' => 'life-buoy',
-            'descricao' => 'Fale com a equipe do Cardapim.',
+            'descricao' => 'Fale com a nossa equipe.',
             'planejado' => ['Chat com o suporte', 'Abrir chamados', 'Acompanhar seus chamados'],
         ],
     ];

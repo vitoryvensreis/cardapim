@@ -65,7 +65,7 @@ final class Guard
     public static function proibido(UsuarioLogado $usuario, string $motivo = ''): Response
     {
         return self::semCache(Response::html(View::render('errors/403', [
-            'pageTitle' => 'Acesso não permitido | Cardapim',
+            'pageTitle' => 'Acesso não permitido | ' . marca(),
             'pageDescription' => 'Você não tem permissão para acessar esta área.',
             'noIndex' => true,
             'destino' => Autorizacao::destino($usuario),

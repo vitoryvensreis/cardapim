@@ -10,7 +10,7 @@ use Cardapim\Core\Icon;
 <section class="pwa-instalar" aria-labelledby="pwa-titulo" data-pwa-instalar hidden>
     <img class="pwa-icone" src="<?= AssetUrl::asset('img/pwa/icon-192.png') ?>" width="48" height="48" alt="">
     <div class="pwa-texto">
-        <h2 id="pwa-titulo">Instale o Cardapim no celular</h2>
+        <h2 id="pwa-titulo">Instale o <?= marca_html() ?> no celular</h2>
         <p data-pwa-texto>Abra direto da tela inicial, em tela cheia, como um aplicativo.</p>
         <ol class="pwa-passos" data-pwa-ios hidden>
             <li>Toque em <?= Icon::svg('share', 'icon-sm') ?><strong>Compartilhar</strong> na barra do Safari.</li>

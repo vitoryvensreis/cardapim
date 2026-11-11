@@ -19,7 +19,7 @@ $asideItems = [
             <p class="auth-lead">
                 <?= $porEmail
                     ? 'Digite o código de 6 números que enviamos para o seu e-mail.'
-                    : 'Abra o aplicativo autenticador (Google Authenticator, por exemplo) e digite o código de 6 números do Cardapim.' ?>
+                    : 'Abra o aplicativo autenticador (Google Authenticator, por exemplo) e digite o código de 6 números do ' . marca() . '.' ?>
             </p>
 
             <?php if (!empty($erro)): ?>

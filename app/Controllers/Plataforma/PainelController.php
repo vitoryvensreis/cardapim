@@ -23,7 +23,7 @@ final class PainelController extends BasePlataforma
         }
         $dados = MenuPlataforma::SECOES[$secao] ?? null;
         if ($dados === null || !empty($dados['pronto'])) {
-            return Response::html(View::render('errors/404', ['pageTitle' => 'Página não encontrada | Cardapim', 'pageDescription' => 'O endereço solicitado não foi encontrado.', 'noIndex' => true], 'layouts/public'), 404);
+            return Response::html(View::render('errors/404', ['pageTitle' => 'Página não encontrada | ' . marca(), 'pageDescription' => 'O endereço solicitado não foi encontrado.', 'noIndex' => true], 'layouts/public'), 404);
         }
         return $this->tela('area/em-construcao', $secao, $dados['titulo'], [
             'secao' => $dados,

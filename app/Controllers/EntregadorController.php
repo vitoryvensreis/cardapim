@@ -34,7 +34,7 @@ final class EntregadorController
         $s = new EntregadorService(Database::connect(), $restaurante['id'], $usuario);
         $flash = Session::flash('flash');
         return Guard::semCache(Response::html(View::render('entregador/painel', [
-            'pageTitle' => 'Minhas entregas · ' . $restaurante['nome'] . ' | Cardapim',
+            'pageTitle' => 'Minhas entregas · ' . $restaurante['nome'] . ' | ' . marca(),
             'pageDescription' => 'Painel do entregador.',
             'noIndex' => true,
             'usuario' => $usuario,

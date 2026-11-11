@@ -25,7 +25,7 @@ final class HomeController
         }
 
         return Response::html(View::render('marketing/home', [
-            'pageTitle' => 'Cardapim | Seu restaurante no controle',
+            'pageTitle' => marca() . ' | Seu restaurante no controle',
             'pageDescription' => 'Uma forma mais simples de organizar pedidos, mesas, caixa, cozinha e delivery em um unico lugar.',
             'planos' => $planos,
             'planosIndisponiveis' => $planosIndisponiveis,

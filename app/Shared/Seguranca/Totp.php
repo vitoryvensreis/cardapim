@@ -47,8 +47,9 @@ final class Totp
     }
 
     /** Endereco otpauth:// que o aplicativo le pelo QR Code. */
-    public static function uri(string $segredoBase32, string $conta, string $emissor = 'Cardapim'): string
+    public static function uri(string $segredoBase32, string $conta, ?string $emissor = null): string
     {
+        $emissor ??= marca();
         return 'otpauth://totp/' . rawurlencode($emissor . ':' . $conta)
             . '?secret=' . $segredoBase32 . '&issuer=' . rawurlencode($emissor)
             . '&algorithm=SHA1&digits=' . self::DIGITOS . '&period=' . self::PASSO;

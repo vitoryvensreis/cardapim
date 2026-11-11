@@ -260,7 +260,7 @@ final class Servidor
             }
         }
         if ($doUsuario >= $this->cfg['max_por_usuario'] || $doIp > $this->cfg['max_por_ip']) {
-            $this->recusar($c, 429, 'Conexoes demais. Feche outras abas do Cardapim.');
+            $this->recusar($c, 429, 'Conexoes demais. Feche outras abas abertas.');
             return;
         }
 

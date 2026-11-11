@@ -20,7 +20,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
             <h1>WhatsApp</h1>
             <p><?= $plataforma
-                ? 'Número da plataforma Cardapim: envia os códigos de verificação para os clientes entrarem só com o telefone. É separado do WhatsApp de cada restaurante.'
+                ? 'Número da plataforma ' . marca() . ': envia os códigos de verificação para os clientes entrarem só com o telefone. É separado do WhatsApp de cada restaurante.'
                 : 'Conecte o WhatsApp do restaurante para enviar avisos aos clientes e, depois, atender por ele.' ?></p>
         </div>
         <?php require __DIR__ . '/_status.php'; ?>
@@ -31,7 +31,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             <div class="lista-vazia">
                 <?= Icon::svg('clock') ?>
                 <strong>O WhatsApp ainda não foi liberado neste servidor</strong>
-                <p><?= $plataforma ? 'Configure WPPCONNECT_BASE_URL e WPPCONNECT_SECRET_KEY no .env do servidor (docs/deploy/wppconnect-docker.md).' : 'A equipe do Cardapim está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
+                <p><?= $plataforma ? 'Configure WPPCONNECT_BASE_URL e WPPCONNECT_SECRET_KEY no .env do servidor (docs/deploy/wppconnect-docker.md).' : 'A equipe do ' . marca() . ' está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
             </div>
         </section>
     <?php elseif ($statusIntegracao === 'desconectado'): ?>
@@ -40,7 +40,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             <ol class="passos-2fa">
                 <li><strong>Toque em "Conectar WhatsApp".</strong> Vai aparecer um QR Code.</li>
                 <li><strong>No <?= $e($celular) ?></strong>, abra o WhatsApp &gt; <strong>Aparelhos conectados</strong> &gt; <strong>Conectar um aparelho</strong>.</li>
-                <li><strong>Aponte a câmera para o QR Code.</strong> Pronto: o Cardapim passa a usar esse WhatsApp.</li>
+                <li><strong>Aponte a câmera para o QR Code.</strong> Pronto: o <?= marca_html() ?> passa a usar esse WhatsApp.</li>
             </ol>
             <p class="texto-suave"><?= $plataforma
                 ? 'Use um número exclusivo da plataforma (de preferência WhatsApp Business), diferente dos números dos restaurantes. O celular precisa ficar com internet.'
@@ -95,7 +95,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             </div>
 
             <form class="bloco-rodape" method="post" action="<?= $e($base . '/integracoes/whatsapp/desconectar') ?>"
-                  data-confirm="O celular sai do Cardapim. Para voltar, será preciso ler um novo QR Code." data-confirm-titulo="Desconectar o WhatsApp?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
+                  data-confirm="O celular sai do <?= marca_html() ?>. Para voltar, será preciso ler um novo QR Code." data-confirm-titulo="Desconectar o WhatsApp?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <button class="btn btn-outline btn-sm link-perigo" type="submit"><?= Icon::svg('unplug', 'icon-sm') ?><?= $statusIntegracao === 'conectado' ? 'Desconectar' : 'Cancelar conexão' ?></button>
             </form>

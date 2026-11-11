@@ -36,7 +36,7 @@ $ok(Totp::verificar($segredo, '287082', 59 + 30) !== null, 'TOTP aceita 1 passo 
 $ok(Totp::verificar($segredo, '287082', 59 + 90) === null, 'TOTP recusa codigo velho');
 $ok(Totp::verificar($segredo, '28708', 59) === null, 'TOTP recusa 5 digitos');
 $ok(strlen(Totp::gerarSegredo()) === 32, 'segredo novo com 160 bits');
-$ok(str_starts_with(Totp::uri($segredo, 'ana@x.com'), 'otpauth://totp/Cardapim%3Aana%40x.com?secret='), 'URI otpauth');
+$ok(str_starts_with(Totp::uri($segredo, 'ana@x.com'), 'otpauth://totp/Deliveryzim%3Aana%40x.com?secret='), 'URI otpauth');
 
 /* ---------- Cripto ---------- */
 Cripto::usarChave(random_bytes(32));

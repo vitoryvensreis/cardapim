@@ -20,7 +20,7 @@ use Cardapim\Services\Configuracoes;
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $favicon = Configuracoes::logoOuPadrao('icone');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
-$title = $e((string) ($pageTitle ?? 'Painel | Cardapim'));
+$title = $e((string) ($pageTitle ?? 'Painel | ' . marca()));
 $description = $e($painel['descricao']);
 $noIndex = true;
 $styles = ['css/pages.css', 'css/app.css', 'css/painel.css', ...($pageStyles ?? [])];
@@ -40,7 +40,7 @@ $acaoTopo = $painel['acao_topo'] ?? null;
         <aside class="painel-side" id="painel-menu" aria-label="<?= $e($painel['menu_rotulo']) ?>" data-painel-menu>
             <div class="painel-side-top">
                 <a class="painel-brand" href="<?= $e($painel['inicio']) ?>" aria-label="<?= $e($painel['inicio_rotulo']) ?>">
-                    <img src="<?= $e($logoBranca) ?>" width="128" height="41" alt="Cardapim">
+                    <img src="<?= $e($logoBranca) ?>" width="128" height="41" alt="<?= marca_html() ?>">
                 </a>
                 <button class="painel-close" type="button" aria-label="Fechar menu" data-painel-fechar><?= Icon::svg('x') ?></button>
             </div>
@@ -90,7 +90,7 @@ $acaoTopo = $painel['acao_topo'] ?? null;
                     <strong><?= $e($painel['titulo_atual']) ?></strong>
                 </p>
                 <?php if ($tempoReal !== null): ?>
-                    <p class="tempo-real" data-tempo-real-status data-estado="conectando" title="Quando algo muda, o Cardapim avisa nesta tela sem precisar recarregar.">
+                    <p class="tempo-real" data-tempo-real-status data-estado="conectando" title="Quando algo muda, o <?= marca_html() ?> avisa nesta tela sem precisar recarregar.">
                         <span class="tempo-real-icone tempo-real-icone-on"><?= Icon::svg('wifi', 'icon-sm') ?></span>
                         <span class="tempo-real-icone tempo-real-icone-off"><?= Icon::svg('wifi-off', 'icon-sm') ?></span>
                         <span data-tempo-real-texto>Conectando</span>

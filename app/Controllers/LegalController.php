@@ -43,8 +43,8 @@ final class LegalController
     {
         $cardapio = $this->cardapioDeOrigem();
         $html = View::render('legal/' . $template, [
-            'pageTitle' => $title . ' | Cardapim',
-            'pageDescription' => $title . ' e informações sobre o uso do Cardapim.',
+            'pageTitle' => $title . ' | ' . marca(),
+            'pageDescription' => $title . ' e informações sobre o uso do ' . marca() . '.',
             'activeLegalPage' => $template,
             'voltarCardapio' => $cardapio,
             'noIndex' => $cardapio !== null,

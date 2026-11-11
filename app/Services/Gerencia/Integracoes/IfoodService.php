@@ -63,7 +63,7 @@ final class IfoodService extends BaseIntegracao
             return Resultado::falha($erro->getMessage(), ['codigo' => $erro->getMessage()]);
         }
         if ($lojas === []) {
-            return Resultado::falha('O iFood não mostrou nenhuma loja autorizada. Confira se você autorizou o Cardapim com a conta da loja.');
+            return Resultado::falha('O iFood não mostrou nenhuma loja autorizada. Confira se você autorizou o ' . marca() . ' com a conta da loja.');
         }
         $this->integracoes->salvar($this->idRestaurante, 'ifood', [
             'credenciais' => ['acesso' => $tokens['acesso'], 'renovacao' => $tokens['renovacao'], 'expira' => $tokens['expira']],
@@ -135,8 +135,8 @@ final class IfoodService extends BaseIntegracao
             return Resultado::falha('O iFood já está desconectado.');
         }
         $this->integracoes->limpar($this->idRestaurante, 'ifood');
-        $this->log('Integração iFood desconectada', 'Acesso apagado do Cardapim' . (isset($atual['dados']['loja_nome']) ? ' (loja ' . $atual['dados']['loja_nome'] . ')' : '') . '.');
-        return Resultado::sucesso('iFood desconectado. Para remover o Cardapim de vez, tire a autorização também no Portal do Parceiro.');
+        $this->log('Integração iFood desconectada', 'Acesso apagado do ' . marca() . (isset($atual['dados']['loja_nome']) ? ' (loja ' . $atual['dados']['loja_nome'] . ')' : '') . '.');
+        return Resultado::sucesso('iFood desconectado. Para remover o ' . marca() . ' de vez, tire a autorização também no Portal do Parceiro.');
     }
 
     /** Token de acesso valido (renova com o refresh token quando vence). */

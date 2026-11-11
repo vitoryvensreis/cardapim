@@ -17,8 +17,8 @@ final class PwaController
     {
         $manifesto = [
             'id' => '/login',
-            'name' => 'Cardapim',
-            'short_name' => 'Cardapim',
+            'name' => marca(),
+            'short_name' => marca(),
             'description' => 'Gestão do restaurante: caixa, mesas, pedidos, entregas e estoque.',
             'lang' => 'pt-BR',
             'dir' => 'ltr',
