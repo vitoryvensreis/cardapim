@@ -275,7 +275,7 @@ jobs:
           sleep 2
           bash tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/tempo-real.js >/dev/null
-          for path in /assets/js/estoque.js /assets/js/equipe.js /assets/js/perfil.js /assets/js/minha-conta.js /assets/js/confirmar.js /assets/vendor/qrcode-generator/qrcode.js; do
+          for path in /assets/js/estoque.js /assets/js/equipe.js /assets/js/perfil.js /assets/js/minha-conta.js /assets/js/confirmar.js /assets/vendor/qrcode-generator/qrcode.js /assets/vendor/leaflet/leaflet.js /assets/vendor/leaflet/leaflet.css; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
           done
           login_page="$(curl --fail --silent --show-error http://127.0.0.1:18080/login)"
@@ -326,7 +326,7 @@ jobs:
           release="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           ssh_args=(-i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes)
           ssh "${ssh_args[@]}" "$host" "mkdir -p '$DEPLOY_ROOT/releases/$release'"
-          rsync -az --delete --exclude='.git/' --exclude='.github/' --exclude='.env' --exclude='storage/' --exclude='vendor/' \
+          rsync -az --delete --exclude='.git/' --exclude='.github/' --exclude='.env' --exclude='storage/' --exclude='/vendor/' \
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh

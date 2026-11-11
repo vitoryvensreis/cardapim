@@ -77,6 +77,9 @@ check_health() {
   [[ "$page" == *"Seu restaurante cresce"* ]] || return 1
   curl -fsS --max-time 20 "$site_url/login" >/dev/null || return 1
   curl -fsS --max-time 20 "$site_url/assets/css/site.css" >/dev/null || return 1
+  # Bibliotecas de terceiros em public/assets/vendor (mapa do cliente e QR Code do 2FA) precisam estar publicadas.
+  curl -fsS --max-time 20 "$site_url/assets/vendor/leaflet/leaflet.js" >/dev/null || return 1
+  curl -fsS --max-time 20 "$site_url/assets/vendor/qrcode-generator/qrcode.js" >/dev/null || return 1
   # /status so retorna HTTP 200 quando o PHP acessa o MySQL.
   curl -fsS --max-time 20 -H 'Accept: application/json' "$site_url/status" >/dev/null || return 1
 }
