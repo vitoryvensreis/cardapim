@@ -247,8 +247,12 @@ final class ComandaService
         }
         $this->db->beginTransaction();
         try {
-            $this->db->prepare('UPDATE pedidos SET servico_percentual = ?, desconto = ?, motivo_desconto = ?, pessoas = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ?')
-                ->execute([$percentual, $desconto, Numero::centavos((string) $desconto) > 0 ? $motivo : null, $pessoas, date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
+            // Tudo num UPDATE so: o banco confere "total = itens + servico - desconto" (CHECK) a cada comando.
+            $descontoCent = Numero::centavos((string) $desconto);
+            $this->db->prepare('UPDATE pedidos SET servico_percentual = ?, taxa_servico = ?, desconto = ?, total = ?, motivo_desconto = ?, pessoas = ?, atualizado_em = ?
+                WHERE id = ? AND id_restaurante = ?')
+                ->execute([$percentual, CaixaService::dec($taxa), CaixaService::dec($descontoCent), CaixaService::dec($subtotal + $taxa - $descontoCent),
+                    $descontoCent > 0 ? $motivo : null, $pessoas, date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
             $this->recalcular($id);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
             $this->db->commit();
