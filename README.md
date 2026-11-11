@@ -18,6 +18,7 @@
 ## Painel do garçom
 
 - O garçom entra e já vê as **mesas** (livre/ocupada, total e tempo). Toca na mesa, toca em **Adicionar**, escolhe os produtos com − / + (e observação) e lança tudo de uma vez.
+- **Cancelar comanda** (mesa aberta por engano, cliente foi embora): motivo em um toque, confirmação, estoque devolvido. Conta com pagamento só o caixa cancela.
 - **Fechar conta**: liga/tira os **10%**, divide por pessoas, escolhe a forma (dinheiro com troco na hora, débito, crédito, Pix) e registra que foi pago.
 - Com o **Asaas do restaurante** conectado, aparece **QR Code Pix**: o cliente paga pelo app do banco e a conta fecha sozinha.
 - Menu **Cardápio**: busca de produtos com preço e se tem (ou quantos restam).

@@ -13,6 +13,7 @@ return static function (Router $router): void {
     $router->get($g . '/comandas/{id}', [GarcomController::class, 'comanda']);
     $router->post($g . '/comandas/{id}/itens', [GarcomController::class, 'lancar']);
     $router->post($g . '/comandas/{id}/itens/{item}/cancelar', [GarcomController::class, 'cancelarItem']);
+    $router->post($g . '/comandas/{id}/cancelar', [GarcomController::class, 'cancelarComanda']);
     $router->get($g . '/comandas/{id}/conta', [GarcomController::class, 'conta']);
     $router->post($g . '/comandas/{id}/servico', [GarcomController::class, 'servico']);
     $router->post($g . '/comandas/{id}/pagamentos', [GarcomController::class, 'pagar']);

@@ -71,6 +71,9 @@ final class GarcomController
         if ($c === null) {
             return $this->voltar($this->url(), 'erro', 'Conta não encontrada.');
         }
+        if ($c['pedido']['status'] === 'cancelado') {
+            return $this->voltar($this->url(), 'aviso', $c['rotulo'] . ': esta conta foi cancelada.');
+        }
         if (!$c['aberta']) {
             return $this->voltar($this->url('comandas/' . (int) $c['pedido']['id'] . '/conta'), 'sucesso', '');
         }
@@ -135,6 +138,35 @@ final class GarcomController
         return $this->voltar($this->url('comandas/' . (int) $id), $res->ok ? 'sucesso' : 'erro', $res->mensagem);
     }
 
+    /**
+     * Cancela a comanda inteira (mesa aberta por engano, cliente foi embora...). Devolve o estoque e libera a mesa.
+     * Conta com pagamento nao pode ser cancelada aqui: so o caixa remove pagamentos.
+     */
+    public function cancelarComanda(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $c = $this->detalhes($id);
+        if ($c === null) {
+            return $this->voltar($this->url(), 'erro', 'Conta não encontrada.');
+        }
+        $volta = $this->url('comandas/' . (int) $c['pedido']['id']);
+        if (!$c['aberta']) {
+            return $this->voltar($this->url(), 'erro', 'Esta conta já foi fechada.');
+        }
+        if ($c['pago'] > 0) {
+            return $this->voltar($volta, 'erro', 'Esta conta já tem pagamento. Peça ao caixa para cancelar.');
+        }
+        $motivos = ['Mesa aberta por engano', 'Cliente foi embora', 'Cliente desistiu'];
+        $motivo = in_array($this->post('motivo'), $motivos, true) ? $this->post('motivo') : 'Cancelada pelo garçom';
+        $res = $this->comandas()->cancelar((int) $c['pedido']['id'], $motivo . ' (' . $this->usuario->nome . ')');
+        if (!$res->ok) {
+            return $this->voltar($volta, 'erro', $res->mensagem);
+        }
+        return $this->voltar($this->url(), 'sucesso', $c['rotulo'] . ' cancelada. ' . ($c['itens'] !== [] ? 'O estoque foi devolvido e a mesa está livre.' : 'A mesa está livre.'));
+    }
+
     /** Fechar a conta: total, 10% e formas de pagamento. Conta ja paga = tela de "Pago, mesa liberada". */
     public function conta(string $slug, string $id): Response
     {
@@ -144,6 +176,9 @@ final class GarcomController
         $c = $this->detalhes($id);
         if ($c === null) {
             return $this->voltar($this->url(), 'erro', 'Conta não encontrada.');
+        }
+        if ($c['pedido']['status'] === 'cancelado') {
+            return $this->voltar($this->url(), 'aviso', $c['rotulo'] . ': esta conta foi cancelada.');
         }
         $erros = Session::flash('garcom_erros');
         $enviado = Session::flash('garcom_enviado');

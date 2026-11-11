@@ -64,6 +64,22 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
         </ul>
     <?php endif; ?>
 
+    <?php if ($c['pago'] === 0): ?>
+        <details class="comanda-cancelar">
+            <summary><?= Icon::svg('ban', 'icon-sm') ?>Cancelar comanda</summary>
+            <form method="post" action="<?= $e($url . '/cancelar') ?>" class="remover-form" data-confirm="<?= $itens !== [] ? 'Os itens saem da conta, o estoque volta e a mesa fica livre.' : 'A mesa fica livre.' ?>" data-confirm-titulo="Cancelar a <?= $e((string) $c['rotulo']) ?>?" data-confirm-acao="Cancelar comanda" data-confirm-perigo="1">
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <fieldset>
+                    <legend>Por que cancelar?</legend>
+                    <label class="chip-opcao"><input type="radio" name="motivo" value="Mesa aberta por engano"<?= $itens === [] ? ' checked' : '' ?>><span>Abri por engano</span></label>
+                    <label class="chip-opcao"><input type="radio" name="motivo" value="Cliente foi embora"<?= $itens !== [] ? ' checked' : '' ?>><span>Cliente foi embora</span></label>
+                    <label class="chip-opcao"><input type="radio" name="motivo" value="Cliente desistiu"><span>Cliente desistiu</span></label>
+                </fieldset>
+                <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('ban', 'icon-sm') ?>Cancelar comanda</button>
+            </form>
+        </details>
+    <?php endif; ?>
+
     <div class="garcom-acoes">
         <a class="btn btn-primary btn-lg" href="#adicionar" data-abrir-folha><?= Icon::svg('plus') ?>Adicionar</a>
         <?php if ($c['total'] > 0): ?>

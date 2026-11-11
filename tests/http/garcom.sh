@@ -201,6 +201,43 @@ enviar "$wj" "$w/comandas/$comanda3/pagamentos" "$w" forma=debito valor= >/dev/n
 msg="$(aviso "$wj" "$w/comandas/$comanda3/conta")"
 case "$msg" in *"Conta fechada e mesa liberada."*) ok "debito fecha a conta";; *) falha "debito ($msg)";; esac
 
+echo "Cancelar a comanda"
+r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
+vazia="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+pagina "$wj" "$w/comandas/$vazia" >/dev/null
+contem "botao de cancelar a comanda" "$tmp/pagina.html" "comandas/$vazia/cancelar"
+contem "cancelar pede confirmacao" "$tmp/pagina.html" 'data-confirm-acao="Cancelar comanda"'
+esperar "cancelar sem CSRF volta" "$(curl -s -o /dev/null -b "$wj" -w '%{http_code}' -X POST "$w/comandas/$vazia/cancelar")" "303"
+r="$(enviar "$wj" "$w/comandas/$vazia/cancelar" "$w" "motivo=Mesa aberta por engano")"
+esperar "cancelar mesa vazia volta para as mesas" "$(echo "$r" | cut -d' ' -f2)" "$w"
+msg="$(aviso "$wj" "$w")"
+case "$msg" in *"cancelada. A mesa está livre."*) ok "mesa vazia cancelada";; *) falha "cancelar mesa vazia ($msg)";; esac
+contem "mesa livre depois de cancelar" "$tmp/aviso.html" "/garcom/mesas/$mesa/abrir"
+r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
+com_itens="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+[[ "$com_itens" != "$vazia" ]] && ok "abrir de novo cria outra conta" || falha "reaproveitou a conta cancelada"
+enviar "$wj" "$w/comandas/$com_itens/itens" "$w" "qtd[$cerveja]=2" >/dev/null
+enviar "$wj" "$w/comandas/$com_itens/cancelar" "$w" "motivo=Cliente foi embora" >/dev/null
+msg="$(aviso "$wj" "$w")"
+case "$msg" in *"estoque foi devolvido"*) ok "cancelar com itens devolve o estoque";; *) falha "cancelar com itens ($msg)";; esac
+esperar "conta cancelada volta para as mesas" "$(curl -s -o /dev/null -b "$wj" -w '%{http_code} %{redirect_url}' "$w/comandas/$com_itens")" "303 $w"
+esperar "fechar conta de comanda cancelada tambem volta" "$(curl -s -o /dev/null -b "$wj" -w '%{http_code} %{redirect_url}' "$w/comandas/$com_itens/conta")" "303 $w"
+msg="$(aviso "$wj" "$w")"
+case "$msg" in *"esta conta foi cancelada."*) ok "aviso de conta cancelada";; *) falha "aviso de conta cancelada ($msg)";; esac
+r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
+paga="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+enviar "$wj" "$w/comandas/$paga/itens" "$w" "qtd[$cerveja]=2" >/dev/null
+enviar "$wj" "$w/comandas/$paga/pagamentos" "$w" forma=dinheiro "valor=$(php -r 'echo number_format($argv[1] / 100, 2, ",", "");' "$preco_cerveja")" >/dev/null
+pagina "$wj" "$w/comandas/$paga" >/dev/null
+nao_contem "conta com pagamento sem botao de cancelar" "$tmp/pagina.html" "comandas/$paga/cancelar"
+enviar "$wj" "$w/comandas/$paga/cancelar" "$w" "motivo=Cliente desistiu" >/dev/null
+esperar "conta com pagamento nao cancela" "$(aviso "$wj" "$w/comandas/$paga")" "Esta conta já tem pagamento. Peça ao caixa para cancelar."
+enviar "$wj" "$w/comandas/$paga/pagamentos" "$w" forma=debito valor= >/dev/null
+msg="$(aviso "$wj" "$w/comandas/$paga/conta")"
+case "$msg" in *"Conta fechada e mesa liberada."*) ok "resto no debito fecha a conta";; *) falha "fechar a conta paga em parte ($msg)";; esac
+pagina "$cx" "$c/mesas" >/dev/null
+contem "caixa ve a mesa livre" "$tmp/pagina.html" "Abrir comanda da mesa"
+
 echo "Consulta do cardapio"
 esperar "cardapio abre" "$(pagina "$wj" "$w/cardapio")" "200"
 contem "titulo Cardapio" "$tmp/pagina.html" '<h1>Cardápio</h1>'
