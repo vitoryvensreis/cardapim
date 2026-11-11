@@ -194,7 +194,7 @@ jobs:
           [[ "$page" == *'Demonstração Anual'* ]]
           printf '%s' "$page" | grep -Eq 'href="/cadastro\?plano_id=[1-9][0-9]*"'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/rota-inexistente)" = "404"
-          # Validar views reais, sem post nem autenticacao funcional nesta fase.
+          # Views reais (o cadastro de verdade e testado em tests/http/planos-cadastro.sh).
           login="$(curl --fail --silent --show-error http://127.0.0.1:18080/login)"
           [[ "$login" == *'Entre na sua conta.'* ]]
           [[ "$login" == *'autocomplete="current-password"'* ]]
@@ -205,12 +205,13 @@ jobs:
           test "$plan_id" -gt 0
           register="$(curl --fail --silent --show-error "http://127.0.0.1:18080/cadastro?plano_id=$plan_id")"
           [[ "$register" == *'Crie sua conta.'* ]]
-          [[ "$register" == *'Plano selecionado'* ]]
-          [[ "$register" == *"name=\"plano_id\" value=\"$plan_id\""* ]]
+          [[ "$register" == *"name=\"plano_id\" value=\"$plan_id\" checked"* ]]
+          [[ "$register" == *'action="/cadastro"'* ]]
+          [[ "$register" == *'name="_csrf"'* ]]
           [[ "$register" == *'name="nome_restaurante"'* ]]
           [[ "$register" == *'name="usuario"'* ]]
           [[ "$register" == *'type="checkbox"'* ]]
-          [[ "$register" == *'Cadastro em preparação'* ]]
+          [[ "$register" == *'Criar conta e continuar'* ]]
           [[ "$register" == *'name="cpf"'* ]]
           [[ "$register" == *'data-mask="cpf"'* ]]
           [[ "$register" == *'data-mask="phone"'* ]]
@@ -239,7 +240,7 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:18080/api/v1/cadastro/disponibilidade?campo=senha&valor=x')" = "422"
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/catalogo)" = "405"
           invalid="$(curl --fail --silent --show-error 'http://127.0.0.1:18080/cadastro?plano_id=nao-existe')"
-          [[ "$invalid" == *'Plano não encontrado'* ]]
+          [[ "$invalid" == *'não está mais disponível'* ]]
           escaped="$(curl --fail --silent --show-error -G --data-urlencode 'plano_id=<script>alert(1)</script>' http://127.0.0.1:18080/cadastro)"
           [[ "$escaped" != *'<script>alert(1)</script>'* ]]
           for path in /privacidade /termos-de-uso /cookies /exclusao-de-dados /tratamento-de-dados; do
