@@ -10,6 +10,7 @@
  *     'grupos' => [titulo => list<[url, rotulo, icone, atual(bool), tag(?string)]>],
  *     'trilha' => string, 'titulo_atual' => string, 'acao_topo' => ?[url, rotulo, icone],
  *     'tempo_real' => ?['ticket' => url, 'canais' => string],
+ *     'alerta_pedido' => ?string (url do delivery: liga o aviso de pedido novo com luz, tremida e som),
  *   ]
  * @var \Cardapim\Services\Auth\UsuarioLogado $usuario
  */
@@ -28,13 +29,18 @@ $tempoReal = $painel['tempo_real'] ?? null;
 $scripts = ['js/painel.js', 'js/confirmar.js', ...($tempoReal !== null ? ['js/tempo-real.js'] : []), ...($pageScripts ?? [])];
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));
 $acaoTopo = $painel['acao_topo'] ?? null;
+$alertaPedido = $tempoReal !== null ? ($painel['alerta_pedido'] ?? null) : null;
+if ($alertaPedido !== null) {
+    $styles[] = 'css/alerta-pedido.css';
+    $scripts[] = 'js/alerta-pedido.js';
+}
 ?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
 <?php $pwa = true; require __DIR__ . '/../partials/head.php'; ?>
 </head>
-<body class="page-painel"<?php if ($tempoReal !== null): ?> data-tempo-real="<?= $e($tempoReal['ticket']) ?>" data-tempo-real-canais="<?= $e($tempoReal['canais']) ?>"<?php endif; ?>>
+<body class="page-painel"<?php if ($tempoReal !== null): ?> data-tempo-real="<?= $e($tempoReal['ticket']) ?>" data-tempo-real-canais="<?= $e($tempoReal['canais']) ?>"<?php endif; ?><?php if ($alertaPedido !== null): ?> data-alerta-pedido="<?= $e($alertaPedido) ?>"<?php endif; ?>>
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <div class="painel">
         <aside class="painel-side" id="painel-menu" aria-label="<?= $e($painel['menu_rotulo']) ?>" data-painel-menu>
@@ -96,6 +102,13 @@ $acaoTopo = $painel['acao_topo'] ?? null;
                         <span data-tempo-real-texto>Conectando</span>
                     </p>
                 <?php endif; ?>
+                <?php if ($alertaPedido !== null): ?>
+                    <button class="alerta-som" type="button" aria-pressed="true" data-alerta-som title="Som de pedido novo">
+                        <span class="alerta-som-on"><?= Icon::svg('bell-ring', 'icon-sm') ?></span>
+                        <span class="alerta-som-off"><?= Icon::svg('bell-off', 'icon-sm') ?></span>
+                        <span class="alerta-som-texto" data-alerta-som-texto>Som ligado</span>
+                    </button>
+                <?php endif; ?>
                 <?php if ($acaoTopo !== null): ?>
                     <a class="btn btn-primary btn-sm painel-caixa" href="<?= $e($acaoTopo[0]) ?>"><?= Icon::svg($acaoTopo[2], 'icon-sm') ?><?= $e($acaoTopo[1]) ?></a>
                 <?php endif; ?>
@@ -120,6 +133,21 @@ $acaoTopo = $painel['acao_topo'] ?? null;
             </main>
         </div>
     </div>
+    <?php if ($alertaPedido !== null): ?>
+        <div class="alerta-luz" data-alerta-luz aria-hidden="true"></div>
+        <section class="alerta-pedido" role="alert" aria-live="assertive" data-alerta-aviso hidden>
+            <span class="alerta-pedido-icone" aria-hidden="true"><?= Icon::svg('bell-ring') ?></span>
+            <div class="alerta-pedido-texto">
+                <strong data-alerta-titulo>Pedido novo!</strong>
+                <p data-alerta-texto></p>
+                <p class="alerta-pedido-dica" data-alerta-dica hidden>Toque em qualquer lugar da tela para ligar o som dos próximos pedidos.</p>
+            </div>
+            <div class="alerta-pedido-acoes">
+                <a class="btn btn-primary btn-sm" href="<?= $e($alertaPedido) ?>" data-alerta-ver><?= Icon::svg('eye', 'icon-sm') ?>Ver pedido</a>
+                <button class="btn btn-outline btn-sm" type="button" data-alerta-ok>Ok, vi</button>
+            </div>
+        </section>
+    <?php endif; ?>
     <dialog class="confirmar" data-confirmar-dialogo aria-labelledby="confirmar-titulo">
         <form method="dialog" class="confirmar-caixa">
             <span class="confirmar-icone" aria-hidden="true"><?= Icon::svg('info', 'icon-lg') ?></span>

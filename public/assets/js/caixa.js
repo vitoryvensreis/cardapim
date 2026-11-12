@@ -1,6 +1,6 @@
 /*
  * Modo caixa (carregado com defer).
- * - Fila de delivery no menu: atualiza sozinha (tempo real + a cada 60 s) e toca um aviso quando chega pedido novo.
+ * - Fila de delivery no menu: atualiza sozinha (tempo real + a cada 60 s); o aviso de pedido novo (luz, tremida e som) e do alerta-pedido.js.
  * - Telas com [data-regiao]: quando algo muda (outro aparelho, pedido novo), busca a tela de novo e troca so essas partes.
  * - Formularios [data-ajax]: enviam sem recarregar a pagina (a comanda continua no mesmo lugar) e mostram o aviso.
  * - Comanda: folha do produto (quantidade e observacao), cancelar item com motivo, busca, categorias e abas no celular.
@@ -51,30 +51,7 @@
     }, tipo === "erro" ? 5200 : 3200);
   };
 
-  /* ---------- Som de pedido novo (so depois de um toque na tela: regra dos navegadores) ---------- */
-  let audio = null;
-  document.addEventListener("pointerdown", () => {
-    if (!audio && window.AudioContext) {
-      try { audio = new window.AudioContext(); } catch (e) { audio = null; }
-    }
-  }, { once: true });
-  const tocar = () => {
-    if (!audio) return;
-    try {
-      [0, 0.18].forEach((atraso, i) => {
-        const osc = audio.createOscillator();
-        const vol = audio.createGain();
-        osc.type = "sine";
-        osc.frequency.value = i === 0 ? 880 : 1175;
-        vol.gain.setValueAtTime(0.0001, audio.currentTime + atraso);
-        vol.gain.exponentialRampToValueAtTime(0.25, audio.currentTime + atraso + 0.02);
-        vol.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + atraso + 0.16);
-        osc.connect(vol).connect(audio.destination);
-        osc.start(audio.currentTime + atraso);
-        osc.stop(audio.currentTime + atraso + 0.17);
-      });
-    } catch (e) { /* sem som: segue so o aviso visual */ }
-  };
+  /* Som e luz de pedido novo: alerta-pedido.js (o mesmo da gerencia). */
 
   /* ---------- Trocar partes da tela ---------- */
   const regioesDe = (doc) => {
@@ -161,10 +138,6 @@
     if (msg.canal === "pedidos") {
       const novo = msg.tipo === "pedido.novo";
       atualizarFila(novo);
-      if (novo) {
-        tocar();
-        avisar(`Pedido novo #${(msg.dados && msg.dados.numero) || ""} chegou no delivery.`);
-      }
     }
     atualizarTela();
   });

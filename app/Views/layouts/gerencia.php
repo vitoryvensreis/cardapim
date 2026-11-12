@@ -36,6 +36,7 @@ $painel = [
     'tempo_real' => TempoReal::ativo()
         ? ['ticket' => '/api/v1/tempo-real/ticket?restaurante=' . rawurlencode($slug), 'canais' => implode(',', Canais::daSecao($ativo))]
         : null,
+    'alerta_pedido' => '/' . rawurlencode($slug) . '/caixa/delivery',
 ];
 $pageTitle ??= 'Gerência | ' . marca();
 require __DIR__ . '/painel.php';

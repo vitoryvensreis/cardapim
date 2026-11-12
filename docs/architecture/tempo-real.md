@@ -72,6 +72,24 @@ document.addEventListener("cardapim:tempo-real", (ev) => {
 window.CardapimTempoReal.assinar("pedidos"); // canal extra (o servidor confere a permissão)
 ```
 
+## Aviso de pedido novo
+
+Na gerencia (todas as abas) e no modo caixa (`layouts/gerencia.php` e `layouts/caixa.php` passam `alerta_pedido` para
+`layouts/painel.php`, que carrega `js/alerta-pedido.js` e `css/alerta-pedido.css` quando o tempo real esta ligado).
+Garcom e entregador nao recebem (nao tratam pedidos do delivery).
+
+- Ouve `pedido.novo` no canal `pedidos` (a gerencia pede o canal com `CardapimTempoReal.assinar("pedidos")`, porque nem toda aba ouve).
+- **Visual**: luz laranja piscando em volta da tela (3 pulsos), tremida leve do sistema (0,5 s) e faixa no topo com
+  "Pedido novo! #123", **Ver pedido** (abre `/caixa/delivery/{id}`) e **Ok, vi**. Varios pedidos juntos: "3 pedidos novos".
+  O titulo da aba vira "(1) Pedido novo" e o celular vibra. Com "reduzir movimento" a luz fica parada e nada treme.
+- **Som**: campainha "ding-dong" gerada no navegador (Web Audio, sem arquivo), repetida a cada 20 s (ate 6 vezes) enquanto a
+  faixa estiver aberta. Navegadores so liberam som depois de um toque na pagina: ate la a faixa pede para tocar na tela.
+  Botao **Som ligado/desligado** no topo, lembrado no aparelho (`localStorage`); ao ligar, toca uma amostra.
+- Pedido aceito (`pedido.atualizado` com outra etapa) ou cancelado em outro aparelho sai da faixa sozinho.
+- Para testar no navegador sem pedido real: `CardapimAlertaPedido.simular()` no console.
+- Testes: `tests/http/alerta-pedido.sh` (onde aparece e onde nao aparece) e `tests/http/verificar-alerta-ci.php`
+  (o pedido feito pelo cardapio grava `pedido.novo` com id e numero do proprio restaurante).
+
 ## Protocolo (mensagens JSON)
 
 Navegador → servidor: `{"acao":"assinar","canais":["estoque"],"desde":123|null}` e `{"acao":"ping"}`.

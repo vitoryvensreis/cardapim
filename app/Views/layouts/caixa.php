@@ -46,6 +46,7 @@ $painel = [
     'tempo_real' => TempoReal::ativo()
         ? ['ticket' => '/api/v1/tempo-real/ticket?restaurante=' . rawurlencode($slug), 'canais' => 'pedidos,mesas,caixa']
         : null,
+    'alerta_pedido' => '/' . rawurlencode($slug) . '/caixa/delivery',
 ];
 $pageStyles = ['css/caixa.css', ...($pageStyles ?? [])];
 $pageScripts = ['js/forms.js', 'js/caixa.js', ...($pageScripts ?? [])];

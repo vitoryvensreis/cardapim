@@ -16,8 +16,8 @@ abrir e fechar o caixa, entradas e saidas de dinheiro e historico de fechamentos
 
 **Fila de delivery colada no menu**: logo abaixo dos links, do pedido mais antigo para o mais novo, com etapa
 (Novo, Em preparo, Pronto, Saiu, Esperando Pix), cliente, bairro, tempo e valor. Atualiza sozinha pelo tempo real
-(canal `pedidos`) e a cada 60 s; pedido novo toca um aviso sonoro (depois do primeiro toque na tela) e mostra
-"N novos" no item Delivery. No celular o menu e uma gaveta que rola inteira.
+(canal `pedidos`) e a cada 60 s e mostra "N novos" no item Delivery. Pedido novo acende o **aviso de pedido novo**
+(luz em volta da tela, tremida leve e campainha), o mesmo da gerencia: ver [tempo-real.md](tempo-real.md#aviso-de-pedido-novo). No celular o menu e uma gaveta que rola inteira.
 
 Gerente: `/gerencia/mesas` leva ao cadastro de mesas e `/entregas` ao Delivery do caixa. "Voltar a gerencia" no menu.
 

@@ -1,0 +1,73 @@
+/* Aviso de pedido novo (gerencia e modo caixa): luz em volta da tela, tremida leve e faixa com o pedido. */
+
+/* Botao de som no topo */
+.alerta-som {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .65rem; border: 1px solid var(--c-line);
+  border-radius: var(--r-pill); background: var(--c-white); color: var(--c-wine); font: 600 .8rem/1.2 var(--f-body); white-space: nowrap; cursor: pointer;
+}
+.tempo-real + .alerta-som, .alerta-som + .painel-caixa { margin-left: 0; }
+.alerta-som:hover { border-color: var(--c-wine-400); }
+.alerta-som:focus-visible { outline: 2px solid var(--c-wine); outline-offset: 2px; }
+.alerta-som[aria-pressed="false"] { color: var(--c-muted); }
+.alerta-som-on, .alerta-som-off { display: inline-flex; }
+.alerta-som[aria-pressed="false"] .alerta-som-on { display: none; }
+.alerta-som[aria-pressed="true"] .alerta-som-off { display: none; }
+
+/* Luz em volta da tela */
+.alerta-luz {
+  position: fixed; inset: 0; z-index: 90; pointer-events: none; opacity: 0;
+  box-shadow: inset 0 0 0 4px var(--c-orange), inset 0 0 70px 18px rgb(255 88 37 / 55%);
+}
+.alerta-luz.is-acesa { animation: alerta-luz 2.6s ease-in-out 1 both; }
+@keyframes alerta-luz {
+  0%, 100% { opacity: 0; }
+  12%, 38%, 64% { opacity: 1; }
+  25%, 51% { opacity: .25; }
+  85% { opacity: .6; }
+}
+
+/* Tremida leve do sistema todo */
+.painel.is-tremendo { animation: alerta-tremida .5s cubic-bezier(.36, .07, .19, .97) 1 both; }
+@keyframes alerta-tremida {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(3px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
+  40%, 60% { transform: translate3d(5px, 0, 0); }
+}
+
+/* Faixa com o pedido */
+.alerta-pedido {
+  position: fixed; left: 50%; top: .75rem; z-index: 95; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .75rem 1rem;
+  width: min(36rem, calc(100% - 1.5rem)); padding: 1rem 1.1rem; translate: -50% 0;
+  border: 2px solid var(--c-orange); border-radius: var(--r-xl); background: var(--c-white); box-shadow: var(--sh-lg);
+}
+.alerta-pedido[hidden] { display: none; }
+.alerta-pedido.is-entrando { animation: alerta-entrada .35s var(--ease-out) 1 both; }
+@keyframes alerta-entrada { from { opacity: 0; transform: translateY(-1rem); } to { opacity: 1; transform: none; } }
+.alerta-pedido-icone {
+  display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: var(--r-lg); background: var(--c-orange); color: var(--c-white);
+}
+.alerta-pedido-icone .icon { width: 1.6rem; height: 1.6rem; animation: alerta-sino 1s ease-in-out 3; transform-origin: 50% 10%; }
+@keyframes alerta-sino { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+.alerta-pedido-texto strong { display: block; color: var(--c-ink); font: 800 1.15rem/1.2 var(--f-head); }
+.alerta-pedido-texto p { margin-top: .15rem; color: var(--c-muted); font-size: .92rem; }
+.alerta-pedido-dica { color: var(--c-wine) !important; font-weight: 700; }
+.alerta-pedido-acoes { display: flex; flex-wrap: wrap; gap: .5rem; grid-column: 1 / -1; }
+.alerta-pedido-acoes .btn { flex: 1 1 9rem; min-height: 2.9rem; }
+
+@media (max-width: 39.99rem) {
+  .alerta-som { padding: .45rem; }
+  .alerta-som-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (min-width: 48rem) {
+  .alerta-pedido { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+  .alerta-pedido-acoes { grid-column: auto; flex-wrap: nowrap; }
+  .alerta-pedido-acoes .btn { flex: 0 0 auto; }
+}
+
+/* Sem animacao: a luz fica acesa parada por um instante e nada treme. */
+@media (prefers-reduced-motion: reduce) {
+  .alerta-luz.is-acesa { animation: none; opacity: .85; }
+  .painel.is-tremendo { animation: none; }
+  .alerta-pedido.is-entrando, .alerta-pedido-icone .icon { animation: none; }
+}
