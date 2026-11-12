@@ -146,6 +146,6 @@ DDL no MySQL provoca commits implícitos: um rollback dos arquivos NÃO desfaz m
 
 ## Arquivos persistentes do painel do gerente
 
-- `shared/storage/uploads/logos/`: logos enviadas pelos restaurantes (servidas pela rota `/midia/logos/...`; o Nginx nao precisa expor a pasta).
+- `shared/storage/uploads/logos/`: logos enviadas pelos restaurantes (servidas pela rota `/midia/logos/{nome}-{ext}`, sem extensao no endereco porque o bloco de arquivos estaticos do CloudPanel responde 404 a `.png`/`.webp`/`.svg` inexistentes em `public/`; o Nginx nao precisa expor a pasta nem mudar o vhost).
 - `shared/storage/keys/app.key`: chave AES-256 do segredo do aplicativo autenticador, criada automaticamente na primeira ativacao (permissao 0600). Copiar para o backup externo junto com o dump do banco. Alternativa: definir `APP_KEY` (base64 de 32 bytes) no `shared/.env`.
 - E-mail do codigo da verificacao em duas etapas usa o `mail()` do PHP. Antes de recomendar o metodo por e-mail aos clientes, confirmar que o servidor entrega mensagens (SPF/DKIM do dominio). Se o e-mail nao chegar, a ativacao simplesmente nao conclui (nada fica trancado).

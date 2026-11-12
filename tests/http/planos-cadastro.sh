@@ -105,7 +105,8 @@ envio() { local t; t="$(token "$aj" "$p/configuracoes")"; curl -s -o /dev/null -
 esperar "enviar logo SVG" "$(envio logo_preta "$tmp/logo.svg" image/svg+xml)" "303"
 esperar "logo enviada com sucesso" "$(flash "$aj" "$p/configuracoes")" "painel-flash-sucesso"
 pagina "$aj" "$p/configuracoes" >/dev/null
-logo="$(grep -o '/midia/marca/[a-f0-9]\{32\}\.svg' "$tmp/pagina.html" | head -1)"
+logo="$(grep -o '/midia/marca/[a-f0-9]\{32\}-svg' "$tmp/pagina.html" | head -1)"
+nao_contem "logo sem extensao no endereco (Nginx nao intercepta)" "$tmp/pagina.html" '/midia/marca/[a-f0-9]\{32\}\.svg'
 [[ -n "$logo" ]] && ok "logo nova aparece na tela" || falha "logo nova nao aparece"
 curl -s -D "$tmp/h.txt" -o /dev/null "$base$logo"
 contem "logo servida como SVG" "$tmp/h.txt" 'image/svg+xml'
@@ -114,10 +115,12 @@ esperar "SVG com script recusado" "$(envio logo_branca "$tmp/ruim.svg" image/svg
 esperar "aviso de SVG recusado" "$(flash "$aj" "$p/configuracoes")" "painel-flash-erro"
 esperar "icone do app PNG 600x600" "$(envio icone_app "$tmp/icone.png" image/png)" "303"
 pagina "$aj" "$p/configuracoes" >/dev/null
-icone="$(grep -o '/midia/marca/[a-f0-9]\{32\}-512\.png' "$tmp/pagina.html" | head -1)"
+icone="$(grep -o '/midia/marca/[a-f0-9]\{32\}-512-png' "$tmp/pagina.html" | head -1)"
 esperar "icone 512 gerado" "$(curl -s -o /dev/null -w '%{http_code}' "$base$icone")" "200"
-esperar "icone 192 gerado" "$(curl -s -o /dev/null -w '%{http_code}' "$base${icone%-512.png}-192.png")" "200"
-esperar "icone maskable gerado" "$(curl -s -o /dev/null -w '%{http_code}' "$base${icone%-512.png}-maskable.png")" "200"
+esperar "icone 192 gerado" "$(curl -s -o /dev/null -w '%{http_code}' "$base${icone%-512-png}-192-png")" "200"
+esperar "icone maskable gerado" "$(curl -s -o /dev/null -w '%{http_code}' "$base${icone%-512-png}-maskable-png")" "200"
+curl -s "$base/pwa/manifesto" > "$tmp/manifesto.json"
+contem "manifesto usa o icone enviado sem extensao" "$tmp/manifesto.json" "${icone%-512-png}-192-png"
 esperar "voltar logo ao padrao" "$(enviar "$aj" "$p/configuracoes/logo/padrao" "$p/configuracoes" chave=logo_preta | cut -d'#' -f1)" "303 $p/configuracoes"
 pagina "$aj" "$p/configuracoes" >/dev/null
 contem "logo original de volta" "$tmp/pagina.html" '/assets/img/logo-preta.svg'

@@ -86,6 +86,7 @@ final class LogoUpload
     /** "/midia/logos/abc...png" -> caminho no disco; null se nao for um arquivo deste modulo. */
     public static function arquivoDe(?string $caminhoPublico): ?string
     {
+        $caminhoPublico = $caminhoPublico === null ? null : \Cardapim\Shared\MidiaUrl::armazenada($caminhoPublico);
         if ($caminhoPublico === null || preg_match('~\A' . preg_quote(self::PREFIXO_URL, '~') . '([a-f0-9]{32}\.(?:webp|png|jpg))\z~', $caminhoPublico, $m) !== 1) {
             return null;
         }

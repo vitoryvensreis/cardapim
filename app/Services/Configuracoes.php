@@ -132,6 +132,6 @@ final class Configuracoes
         if (!$local && !$remote) {
             throw new RuntimeException('URL de logo nao autorizada.');
         }
-        return $url;
+        return \Cardapim\Shared\MidiaUrl::publica($url);
     }
 }
