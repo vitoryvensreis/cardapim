@@ -10,6 +10,7 @@ use Cardapim\Controllers\Gerencia\FinanceiroController;
 use Cardapim\Controllers\Gerencia\IntegracoesController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
 use Cardapim\Controllers\Gerencia\PerfilController;
+use Cardapim\Controllers\Gerencia\VisaoGeralController;
 use Cardapim\Core\Router;
 
 /**
@@ -18,6 +19,9 @@ use Cardapim\Core\Router;
  */
 return static function (Router $router): void {
     $g = '/{slug}/gerencia';
+
+    // Visao geral (primeira tela)
+    $router->get($g, [VisaoGeralController::class, 'mostrar']);
 
     // Estoque
     $router->get($g . '/estoque', [EstoqueController::class, 'resumo']);

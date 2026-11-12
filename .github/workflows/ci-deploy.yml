@@ -279,6 +279,7 @@ jobs:
           bash tests/http/equipe-no-painel.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/planos-cadastro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/financeiro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          bash tests/http/visao-geral.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/planos.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/marca.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null

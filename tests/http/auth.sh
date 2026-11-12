@@ -76,7 +76,7 @@ esperar "secao inexistente" "$(codigo "$tmp/g" "/$slug/gerencia/nao-existe")" "4
 esperar "caixa nao abre a gerencia/equipe" "$(codigo "$tmp/c" "/$slug/gerencia/equipe")" "403"
 esperar "entregador nao abre a gerencia/estoque" "$(codigo "$tmp/m" "/$slug/gerencia/estoque")" "403"
 esperar "master abre a gerencia/perfil" "$(codigo "$tmp/a" "/$slug/gerencia/perfil")" "200"
-esperar "menu lateral com Estoque" "$(curl -s -b "$tmp/g" "$base/$slug/gerencia" | grep -c "href=\"/$slug/gerencia/estoque\"")" "1"
+esperar "menu lateral com Estoque" "$(curl -s -b "$tmp/g" "$base/$slug/gerencia" | grep -c "class=\"painel-link\" href=\"/$slug/gerencia/estoque\"")" "1"
 esperar "modo caixa do gerente tem voltar" "$(curl -s -b "$tmp/g" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "1"
 esperar "caixa nao ve voltar a gerencia" "$(curl -s -b "$tmp/c" "$base/$slug/caixa" | grep -c 'Voltar à gerência')" "0"
 esperar "gerente em entregas vai para o delivery do caixa" "$(codigo "$tmp/g" "/$slug/entregas")" "303"

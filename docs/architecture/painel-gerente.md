@@ -5,7 +5,7 @@ Configuracao unica das secoes: `app/Services/Painel/MenuGerencia.php` (rotulo, i
 
 | Grupo | Item | Rota | Situacao |
 | --- | --- | --- | --- |
-| - | Visao geral | `/{slug}/gerencia` | em construcao (graficos depois) |
+| - | **Visao geral** | `/{slug}/gerencia` | **pronto**: vendas de hoje x ontem, pedidos em andamento, mesas, caixa, graficos, mais vendidos, estoque e atalhos ([detalhes](#visao-geral)) |
 | Operacao | Caixa | `/{slug}/caixa` | abre o **modo caixa** em tela cheia (mesas, comandas e delivery ficam la); o gerente tem "Voltar a gerencia" |
 | Gestao | **Estoque** | `/{slug}/gerencia/estoque` | **pronto**: resumo, produtos, insumos, categorias |
 | Gestao | **Equipe** | `/{slug}/gerencia/equipe` | **pronto**: caixas, garcons e entregadores |
@@ -71,6 +71,23 @@ Rotas: `GET /perfil`, `POST /perfil` (dados e endereco), `POST /perfil/logo`, `P
 - CNPJ e endereco da pagina (slug) sao so leitura (mudanca pelo suporte). Trocar o nome nao muda o slug.
 - Logo (`Modules/Restaurante/LogoUpload`): PNG, JPG ou WebP ate 2 MB, conferidos por `finfo` + `getimagesize` (SVG recusado), regravada com GD (WebP, ate 512 px, sem metadados), nome aleatorio em `storage/uploads/logos/` e servida por `GET /midia/logos/{32hex}.{ext}` (`MidiaController`, cache longo, `nosniff`). A logo antiga e apagada.
 - Horario (`Modules/Restaurante/HorarioFuncionamento`): "Sempre aberto" ou horarios por dia da semana, ate 2 turnos por dia, turno que passa da meia-noite (18:00-02:00), "usar este horario em todos os dias". Selo "Aberto agora / Fechado agora" no topo.
+
+## Visao geral
+
+Rota: `GET /{slug}/gerencia` (`Controllers/Gerencia/VisaoGeralController`, `Services/Gerencia/VisaoGeralService`, `Views/gerencia/visao-geral/*`,
+`css/visao-geral.css`, `js/visao-geral.js`). Somente leitura.
+
+- **Hoje**: vendas (pedidos concluidos), comparadas com **ontem ate a mesma hora** (comparacao justa no meio do dia), pedidos concluidos
+  + em andamento, ticket medio e mesas ocupadas com o valor das comandas abertas.
+- **Agora**: pedidos em andamento por etapa (novos, em preparo, prontos, sairam, esperando Pix) e os 6 mais novos; caixa aberto
+  (desde quando, quem abriu, vendas, dinheiro esperado na gaveta) ou botao para abrir.
+- **Graficos** em SVG gerado no servidor (sem biblioteca, sem estilo inline, com lista escondida para leitor de tela): vendas dos
+  ultimos 7 dias e vendas de hoje por hora (hora atual em laranja).
+- **Mais vendidos** dos ultimos 7 dias (itens nao cancelados de pedidos concluidos), **estoque** (acabou/baixo/fora de venda) e alertas
+  no topo (insumo que acabou, contas vencidas). Atalhos para as tarefas mais comuns.
+- **Atualiza sozinha**: ouve os canais `pedidos`, `caixa`, `mesas` e `estoque` do tempo real (`Canais::POR_SECAO['visao-geral']`), busca a
+  tela de novo e troca so o conteudo (`[data-visao-geral]`); sem conexao ao vivo, atualiza a cada 60 s com a aba visivel.
+- Os numeros de hoje usam as mesmas consultas do Financeiro (`FinanceiroRepository`); o teste `tests/http/visao-geral.sh` confere que batem.
 
 ## Assinatura
 

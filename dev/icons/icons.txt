@@ -153,3 +153,4 @@ trending-down
 piggy-bank
 undo-2
 arrow-right-left
+trophy
