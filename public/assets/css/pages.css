@@ -25,6 +25,12 @@
 .notice-success > .icon { color: var(--c-success); }
 .auth-help { display: flex; align-items: flex-start; gap: .45rem; margin-top: 1rem; color: var(--c-muted); font-size: .85rem; line-height: 1.5; }
 .auth-help .icon { margin-top: .15rem; color: var(--c-wine-400); }
+.auth-esqueci { display: flex; justify-content: flex-end; margin-top: -.85rem; }
+.auth-esqueci a { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--c-wine); font-size: .88rem; font-weight: 700; }
+.auth-esqueci a:hover, .auth-esqueci a:focus-visible { text-decoration: underline; text-underline-offset: .15em; }
+.auth-passos { display: grid; gap: .65rem; margin: 1.25rem 0 1.5rem; padding: 0; list-style: none; color: var(--c-ink); font-size: .92rem; line-height: 1.5; }
+.auth-passos li { display: flex; align-items: flex-start; gap: .55rem; }
+.auth-passos .icon { flex: 0 0 auto; margin-top: .2rem; color: var(--c-wine-400); }
 .btn.is-loading { pointer-events: none; opacity: .85; }
 
 /* ---------- Acesso: login e cadastro ---------- */

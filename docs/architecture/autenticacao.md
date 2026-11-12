@@ -72,6 +72,25 @@ respondem **303** para a area do cargo. Excecao: o gerente abre o cardapio do **
 - E-mail: `Services/Email/Mailer` usa o `mail()` do servidor (`MAIL_FROM` opcional, senao `no-reply@` dominio do `APP_URL`). `MAIL_DRIVER=log` grava em `storage/logs/mail.log` (so CI/desenvolvimento).
 - Logs: `Login` registra como foi verificado ("Verificado pelo aplicativo autenticador", "por codigo no e-mail" ou "com codigo de recuperacao (restam N)"); codigo errado gera `Verificacao recusada`.
 
+## Esqueci minha senha
+
+Rotas (páginas públicas; equipe logada volta para o painel): `GET|POST /recuperar-senha`, `GET /recuperar-senha/{token}`,
+`GET|POST /recuperar-senha/nova`. Código: `Services/Auth/RecuperarSenha`, `Controllers/RecuperarSenhaController`,
+views `auth/recuperar.php` e `auth/recuperar-nova.php`. Sem tabela nova.
+
+- **Pedido**: e-mail ou usuário. A tela responde sempre igual ("se a conta existir e tiver e-mail...") e o e-mail sai depois da
+  resposta, para não revelar contas. Só contas ativas, não excluídas e com e-mail de verdade (`@equipe.cardapim.invalid` não recebe:
+  caixa, garçom e entregador sem e-mail pedem a senha ao gerente). Limites: 10 pedidos/hora por IP e 3/hora por conta.
+- **Link**: `{id}.{expira}.{assinatura}` com HMAC-SHA256 (chave derivada da `APP_KEY`, propósito `recuperar-senha-v1`) de
+  id + expira + `senha_hash` + e-mail. Vale 1 hora; para de valer sozinho quando a senha muda (uso único) ou o e-mail muda.
+  Ao abrir, o link vai para a sessão e a página redireciona para `/recuperar-senha/nova` (sai do histórico); as páginas usam
+  `Referrer-Policy: no-referrer`.
+- **Senha nova**: mesmas regras da equipe (8 a 128), repetir igual e diferente da atual. Grava numa transação conferindo o hash
+  de novo, apaga o código de 2FA por e-mail pendente e todos os "manter conectado" da conta, registra em `log_user`
+  ("Recuperar senha: link enviado" e "Recuperar senha: senha alterada") e manda o e-mail "Sua senha foi alterada".
+  A verificação em duas etapas continua sendo pedida no login.
+- Testes: `tests/unit/recuperar-senha.php` e `tests/http/recuperar-senha.sh`.
+
 ## Registros em `log_user`
 
 | Titulo | Quando | Exemplo de descricao |

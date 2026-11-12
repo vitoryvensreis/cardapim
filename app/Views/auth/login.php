@@ -21,6 +21,11 @@ $asideItems = [
                     <?= Icon::svg('circle-x') ?>
                     <div><strong>Não foi possível entrar</strong><p><?= $e($erro) ?></p></div>
                 </div>
+            <?php elseif (!empty($senhaAlterada)): ?>
+                <div class="notice notice-success" role="status">
+                    <?= Icon::svg('circle-check') ?>
+                    <div><strong>Senha alterada.</strong><p>Entre com a senha nova.</p></div>
+                </div>
             <?php elseif (!empty($saiu)): ?>
                 <div class="notice notice-success" role="status">
                     <?= Icon::svg('circle-check') ?>
@@ -49,6 +54,7 @@ $asideItems = [
                     </div>
                     <p class="field-msg" id="login-senha-msg" aria-live="polite"></p>
                 </div>
+                <p class="auth-esqueci"><a href="/recuperar-senha">Esqueci minha senha</a></p>
                 <label class="check check-remember">
                     <input type="checkbox" name="lembrar" value="1"<?= !empty($lembrar) ? ' checked' : '' ?> aria-describedby="lembrar-ajuda">
                     <span class="check-box" aria-hidden="true"><?= Icon::svg('check') ?></span>
@@ -61,7 +67,6 @@ $asideItems = [
                     <?= Icon::svg('log-in') ?><span>Entrar</span>
                 </button>
             </form>
-            <p class="auth-help"><?= Icon::svg('info', 'icon-sm') ?>Esqueceu a senha? Por enquanto, peça ao gerente do restaurante para redefinir.</p>
             <p class="auth-switch">Ainda não tem conta? <a href="/cadastro">Conheça o cadastro <?= Icon::svg('arrow-right', 'icon-sm') ?></a></p>
         </div>
     </div>

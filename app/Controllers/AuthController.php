@@ -247,6 +247,7 @@ final class AuthController
             'csrf' => Session::tokenCsrf(),
             'erro' => $erro,
             'saiu' => $erro === null && isset($_GET['saiu']),
+            'senhaAlterada' => $erro === null && ($_GET['senha'] ?? '') === 'alterada',
             'identificacao' => mb_substr($identificacao, 0, 190),
             'lembrar' => $lembrar,
         ], 'layouts/public');
