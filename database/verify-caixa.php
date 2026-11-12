@@ -32,7 +32,11 @@ try {
     $exigir('caixas', ['status' => "enum('aberto','fechado')", 'valor_abertura' => 'decimal(10,2)', 'dinheiro_esperado' => 'decimal(10,2)',
         'dinheiro_contado' => 'decimal(10,2)', 'diferenca' => 'decimal(10,2)', 'aberto_restaurante', 'resumo']);
     $exigir('caixa_movimentos', ['tipo' => "enum('entrada','saida')", 'valor' => 'decimal(10,2)', 'categoria', 'descricao', 'id_user']);
-    $exigir('pedido_pagamentos', ['forma' => "enum('dinheiro','debito','credito','pix','pix_online')", 'valor' => 'decimal(10,2)', 'troco' => 'decimal(10,2)', 'id_caixa']);
+    $exigir('pedido_pagamentos', ['valor' => 'decimal(10,2)', 'troco' => 'decimal(10,2)', 'id_caixa']);
+    // 'ifood' entrou depois (pagamento pelo app do iFood, migration 20261112140000).
+    if (!str_starts_with((string) ($colunas('pedido_pagamentos')['forma'] ?? ''), "enum('dinheiro','debito','credito','pix','pix_online'")) {
+        throw new RuntimeException('Coluna pedido_pagamentos.forma incorreta ou ausente.');
+    }
     $exigir('pedidos', ['id_mesa' => 'bigint unsigned', 'id_entregador' => 'bigint unsigned', 'id_caixa' => 'bigint unsigned',
         'taxa_servico' => 'decimal(10,2)', 'servico_percentual' => 'decimal(4,2)', 'motivo_desconto', 'pessoas', 'despachado_em', 'mesa_aberta']);
     $exigir('pedido_itens', ['id_user', 'consumo_estoque', 'cancelado_em', 'motivo_cancelamento', 'id_user_cancelou']);
