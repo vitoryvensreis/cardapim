@@ -280,9 +280,11 @@ jobs:
           bash tests/http/planos-cadastro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/financeiro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/visao-geral.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          bash tests/http/adm-gestao.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/alerta-pedido.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-alerta-ci.php
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/planos.js >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/plataforma-gestao.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/css/alerta-pedido.css >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/marca.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null

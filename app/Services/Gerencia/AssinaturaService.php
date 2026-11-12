@@ -82,9 +82,13 @@ final class AssinaturaService
         return (new PlanoRepository($this->db))->listarPublicos();
     }
 
-    public function assinar(int $planoId): Resultado
+    /** $incluirPrivados: a administracao da plataforma pode colocar o restaurante em qualquer plano ativo (ex.: parceiro). */
+    public function assinar(int $planoId, bool $incluirPrivados = false): Resultado
     {
-        $plano = (new PlanoRepository($this->db))->buscarPublicoPorId($planoId);
+        $plano = $incluirPrivados ? (new PlanoRepository($this->db))->buscar($planoId) : (new PlanoRepository($this->db))->buscarPublicoPorId($planoId);
+        if ($plano !== null && (int) $plano['ativo'] !== 1) {
+            $plano = null;
+        }
         if ($plano === null) {
             return Resultado::falha('Este plano não está disponível. Escolha outro da lista.');
         }
