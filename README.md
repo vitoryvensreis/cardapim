@@ -71,7 +71,9 @@
 - **Asaas da plataforma para assinaturas**: chave, avisos (webhook com eventos de assinatura), lista "Pronto para cobrar?" (conta aprovada, chave Pix, avisos ativos) e regras da cobranca recorrente: Pix, Boleto e/ou Cartao, vencimento da 1a cobranca, dias gratis, multa, juros, desconto, dias de atraso para suspender e fatura enviada pelo Asaas. Ciclo mensal, semestral ou anual vem do plano.
 - **Planos** (`/painel/planos`): criar, editar, pausar e excluir planos; publicos aparecem no site, privados so com **link de convite**; periodo **vitalicio** e sempre gratis (parceiros). [Detalhes](docs/architecture/assinaturas.md).
 - **Restaurantes** (`/painel/restaurantes`): lista com busca e filtros, cadastrar restaurante com gerente e plano (inclusive privado), editar dados e CNPJ, liberar/suspender/desativar com motivo, trocar o plano, ver as contas e excluir quem ainda nao teve movimento. **Usuarios** (`/painel/usuarios`): todas as contas (administradores e equipe dos restaurantes), criar, editar, trocar senha, bloquear, desligar a verificacao em duas etapas e excluir, sem deixar a plataforma sem administrador. [Detalhes](docs/architecture/painel-plataforma.md#restaurantes).
-- **Configuracoes** (`/painel/configuracoes`): nome da plataforma, descricao, frase do rodape, logos (SVG/PNG), favicon e icone do app (gera os tamanhos do celular).
+- **Configuracoes** (`/painel/configuracoes`): nome da plataforma, descricao, frase do rodape, logos (SVG/PNG), favicon e icone do app (gera os tamanhos do celular) e **e-mail do sistema** (como envia, sem senha, e botao de e-mail de teste). [Configurar o e-mail](docs/deploy/email.md).
+- **Faturas** (`/painel/faturas`): recebido no mes, a receber, vencido e restaurantes em atraso; lista com filtros por situacao, mes e restaurante, link da fatura no Asaas e "Atualizar agora". [Detalhes](docs/architecture/painel-plataforma.md#faturas).
+- **Suporte** (`/painel/suporte`): chamados de todos os restaurantes, os que esperam resposta primeiro (selo no menu), responder, resolver e reabrir; aviso por e-mail nos dois sentidos. [Detalhes](docs/architecture/suporte.md).
 - **Cadastro e assinatura de verdade**: cadastro cria o restaurante e a assinatura no Asaas da plataforma; o aviso de pagamento libera o cardapio; fatura atrasada alem da tolerancia pausa o acesso (so o gerente entra, para pagar).
 - **Cada um no seu lugar**: equipe logada (administrador, gerente, caixa, garcom, motoqueiro) nao volta ao site, catalogo, login, cadastro ou cardapios, sempre cai no proprio painel (gerente ainda abre o proprio cardapio). No cardapio o cliente nao tem caminho para outros restaurantes. [Detalhes](docs/architecture/autenticacao.md).
 - Demais secoes mostram "Em construcao" com o que vai ter. [Detalhes](docs/architecture/painel-plataforma.md).
@@ -96,7 +98,7 @@
 - **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
 - Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
 - **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (WPPConnect proprio em Docker, QR Code e mensagem de teste) e iFood (vinculo da loja, pedidos com entregador e codigo de coleta, aceitar/pronto/cancelar indo para o iFood e estoque sincronizado). [Detalhes](docs/architecture/integracoes.md) · [iFood](docs/architecture/ifood.md) · [WPPConnect em Docker](docs/deploy/wppconnect-docker.md).
-- Suporte continua com a tela "em construcao".
+- **Suporte**: abrir chamado (assunto, sobre o que e, mensagem), conversa com a equipe da plataforma, selo "Resposta nova" no menu, resolver e reabrir respondendo. So o restaurante dono ve o chamado. [Detalhes](docs/architecture/suporte.md).
 
 ---
 
@@ -950,8 +952,13 @@ Nginx → public/index.php → PHP-FPM
 APP_ENV=local
 APP_URL=http://localhost
 APP_KEY=            # opcional: base64 de 32 bytes; sem ele, storage/keys/app.key e criado sozinho
-MAIL_DRIVER=mail    # mail (padrao) ou log (CI/desenvolvimento)
-MAIL_FROM=          # opcional: remetente dos e-mails (codigo da verificacao em duas etapas)
+MAIL_DRIVER=smtp    # smtp (recomendado, mailcow), mail (mail() do servidor) ou log (CI/desenvolvimento)
+MAIL_FROM=          # remetente, ex.: no-reply@deliveryzim.com.br (docs/deploy/email.md)
+MAIL_HOST=          # servidor SMTP (ex.: mailcow da VPS)
+MAIL_PORT=587
+MAIL_ENCRYPTION=tls # tls (STARTTLS na 587), ssl (465) ou none
+MAIL_USERNAME=
+MAIL_PASSWORD=      # so no shared/.env da VPS
 WPPCONNECT_BASE_URL=http://127.0.0.1:21467   # WPPConnect proprio (docs/deploy/wppconnect-docker.md)
 WPPCONNECT_SECRET_KEY=
 DB_HOST=127.0.0.1

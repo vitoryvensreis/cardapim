@@ -1,0 +1,30 @@
+/* Faturas das assinaturas (plataforma). Mobile-first. */
+.faturas-aviso {
+  display: flex; align-items: flex-start; gap: .6rem; margin-bottom: 1rem; padding: .85rem 1rem;
+  border: 1px solid #f3d9a6; border-radius: var(--r-lg); background: #fff8e8; color: var(--c-ink); font-size: .92rem;
+}
+.faturas-aviso .icon { flex: 0 0 auto; margin-top: .1rem; color: #8a5300; }
+.faturas-aviso p { margin: 0; }
+.faturas-aviso a { color: var(--c-wine); font-weight: 700; }
+
+.faturas-ambiente { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0 0 1rem; color: var(--c-muted); font-size: .9rem; }
+
+.faturas-mes { display: flex; align-items: center; gap: .5rem; flex: 1 1 12rem; color: var(--c-muted); font-size: .86rem; }
+.faturas-mes input {
+  flex: 1 1 auto; min-height: 2.9rem; padding: .5rem .8rem; border: 1.5px solid var(--c-line); border-radius: var(--r-pill);
+  background: var(--c-white); color: var(--c-ink); font: inherit; font-size: .92rem;
+}
+.faturas-mes input:focus { outline: none; border-color: var(--c-wine); box-shadow: 0 0 0 4px rgb(101 20 36 / 12%); }
+
+.lista-faturas-adm .lista-dado .texto-suave { font-size: .8rem; }
+.faturas-outro { margin-top: 1.25rem; text-align: center; font-size: .9rem; }
+.faturas-outro a { color: var(--c-wine); font-weight: 700; }
+
+@media (min-width: 64rem) {
+  .faturas-indicadores { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .lista-faturas-adm { --colunas: minmax(0, 2fr) 7.5rem 7rem 11rem minmax(0, 1fr) 8.5rem; }
+}
+.painel-page .faturas-indicadores .indicador strong { font-size: clamp(1.15rem, 5.2vw, 1.6rem); white-space: nowrap; }
+.faturas-indicadores .indicador-link { color: inherit; text-decoration: none; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+.faturas-indicadores .indicador-link:hover, .faturas-indicadores .indicador-link:focus-visible { border-color: var(--c-wine-400); box-shadow: var(--sh-sm); }
+@media (prefers-reduced-motion: reduce) { .faturas-indicadores .indicador-link { transition: none; } }

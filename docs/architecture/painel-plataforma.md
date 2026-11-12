@@ -10,12 +10,12 @@ login; qualquer outro cargo recebe 403. Todo POST exige CSRF e toda ação gera 
 | Dashboard | `/painel` | Em construção (com atalhos: integrações e status do sistema) |
 | Restaurantes | `/painel/restaurantes` | **Pronto**: lista, cadastrar, editar, situação, plano, contas e excluir ([detalhes](#restaurantes)) |
 | Planos | `/painel/planos` | **Pronta**: planos publicos e privados (link de convite), vitalicio gratis ([assinaturas.md](assinaturas.md)) |
-| Configurações | `/painel/configuracoes` | **Pronta**: nome, textos, logos e icone do app |
-| Faturas | `/painel/faturas` | Em construção (cobranças das assinaturas pelo Asaas da plataforma) |
+| Configurações | `/painel/configuracoes` | **Pronta**: nome, textos, logos, icone do app e teste do e-mail do sistema ([email.md](../deploy/email.md)) |
+| Faturas | `/painel/faturas` | **Pronta**: números do mês, lista com filtros e "Atualizar agora" ([detalhes](#faturas)) |
 | Usuários | `/painel/usuarios` | **Pronto**: todas as contas, criar, editar, senha, bloquear, 2FA e excluir ([detalhes](#usuarios)) |
 | Integrações | `/painel/integracoes` | **Pronta**: Asaas da plataforma e WhatsApp da plataforma |
 | Logs de auditoria | `/painel/logs` | Em construção |
-| Suporte | `/painel/suporte` | Em construção (chamados dos restaurantes) |
+| Suporte | `/painel/suporte` | **Pronto**: chamados dos restaurantes ([suporte.md](suporte.md)) |
 | Minha conta | `/painel/minha-conta` | Em construção (senha e verificação em duas etapas) |
 
 Fonte única do menu e do que cada seção vai ter: `app/Services/Painel/MenuPlataforma.php`.
@@ -78,3 +78,17 @@ GET  /painel/integracoes/whatsapp/estado (JSON)  POST /painel/integracoes/whatsa
 - **WhatsApp**: número da plataforma, separado dos restaurantes, no mesmo WPPConnect (`127.0.0.1:21467`).
   Próximo uso: código de verificação do cliente final, que entra só com o número de telefone.
 - Detalhes técnicos: [integracoes.md](integracoes.md). Teste: `tests/http/plataforma.sh` (CI).
+
+## Faturas
+
+Rotas: `GET /painel/faturas` (`?situacao=pendente|paga|vencida|cancelada|estornada&mes=AAAA-MM&busca=&ambiente=producao|sandbox&pagina=`)
+e `POST /painel/faturas/atualizar`. Código: `Controllers/Plataforma/FaturasController`, `Repositories/Plataforma/FaturaAdminRepository`,
+view `plataforma/faturas/lista.php`, CSS `faturas.css`. Tabela: `assinatura_faturas` (já existente, gravada pela `AssinaturaCobranca`).
+
+- **Números do topo**: recebido no mês (pela data do pagamento), a receber (em aberto), vencido e restaurantes com fatura vencida.
+- **Lista**: vencidas primeiro, depois em aberto, pagas, estornadas e canceladas; restaurante, plano, valor, vencimento, situação
+  (texto + ícone), data e forma do pagamento e link "Ver no Asaas" (só `https://`).
+- **Ambiente**: mostra as faturas do ambiente da conta Asaas conectada (produção ou teste). Se houver faturas do outro, aparece o atalho.
+- **Atualizar agora**: consulta no Asaas até 40 assinaturas ativas (as com fatura em aberto primeiro) pela `AssinaturaCobranca::sincronizar`.
+  Normalmente não precisa: o aviso (webhook) do Asaas já muda a situação sozinho.
+- Somente leitura: nenhuma fatura é criada, editada ou apagada nesta tela.

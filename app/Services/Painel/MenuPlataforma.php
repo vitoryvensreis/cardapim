@@ -49,13 +49,8 @@ final class MenuPlataforma
             'rotulo' => 'Faturas',
             'icone' => 'receipt',
             'descricao' => 'Cobranças das assinaturas, recebidas pelo Asaas da plataforma.',
-            'planejado' => [
-                'Gerar as cobranças das assinaturas (Pix e boleto) pelo Asaas',
-                'Situação de cada fatura: aberta, paga ou vencida',
-                'Baixa automática quando o Asaas avisar o pagamento',
-                'Reenviar cobrança por e-mail e WhatsApp',
-                'Histórico de faturas por restaurante',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
         'usuarios' => [
             'titulo' => 'Usuários',
@@ -97,11 +92,8 @@ final class MenuPlataforma
             'rotulo' => 'Suporte',
             'icone' => 'life-buoy',
             'descricao' => 'Pedidos de ajuda dos restaurantes.',
-            'planejado' => [
-                'Chamados abertos pelos restaurantes',
-                'Responder e acompanhar cada chamado',
-                'Situação: aberto, em atendimento, resolvido',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
         'minha-conta' => [
             'titulo' => 'Minha conta',

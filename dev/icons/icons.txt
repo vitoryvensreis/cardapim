@@ -160,3 +160,4 @@ ticket-percent
 car
 list-checks
 circle-pause
+flask-conical

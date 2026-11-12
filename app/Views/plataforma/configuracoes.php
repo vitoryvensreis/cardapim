@@ -1,5 +1,5 @@
 <?php
-/** Configuracoes da marca. Espera: $atuais, $valores, $erros, $base, $csrf. */
+/** Configuracoes da marca e do e-mail. Espera: $atuais, $valores, $erros, $base, $csrf, $email, $emailErro, $emailPara. */
 use Cardapim\Core\Icon;
 use Cardapim\Services\Configuracoes;
 use Cardapim\Services\Plataforma\MarcaService;
@@ -12,7 +12,7 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
     <header class="painel-cabecalho">
         <div>
             <h1>Configurações</h1>
-            <p>Nome, textos e logos da plataforma. O que você salvar aqui aparece em todo o sistema: site, painéis, cardápios, WhatsApp e e-mails.</p>
+            <p>Nome, textos e logos da plataforma. O que você salvar aqui aparece em todo o sistema: site, painéis, cardápios, WhatsApp e e-mails. No fim da página, teste o envio de e-mail.</p>
         </div>
     </header>
 
@@ -84,5 +84,40 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
             <?php endforeach; ?>
         </div>
         <p class="texto-suave"><?= Icon::svg('info', 'icon-sm') ?>Quem já instalou o app no celular vê o ícone novo depois de instalar de novo.</p>
+    </section>
+
+    <section class="bloco" aria-labelledby="titulo-email" id="email">
+        <div class="bloco-cabecalho">
+            <h2 id="titulo-email"><?= Icon::svg('mail') ?>E-mail do sistema</h2>
+            <p>Usado nos avisos de chamados, na recuperação de senha e nos códigos de acesso. O servidor e a senha ficam no arquivo de configuração do servidor, nunca nesta tela.</p>
+        </div>
+        <?php
+        $emailPronto = $email['driver'] === 'smtp' && !empty($email['host']);
+        $emailModo = match ($email['driver']) {
+            'smtp' => 'Servidor de e-mail (SMTP)',
+            'log' => 'Somente registro (modo de desenvolvimento: nada é enviado)',
+            default => 'Envio simples do servidor (sem assinatura DKIM, pode cair no spam)',
+        };
+        ?>
+        <div class="resumo-assinatura">
+            <div class="resumo-linha"><span>Situação</span><strong><?php if ($emailPronto): ?><span class="etiqueta etiqueta-ok"><?= Icon::svg('circle-check') ?>Configurado</span><?php else: ?><span class="etiqueta etiqueta-atencao"><?= Icon::svg('triangle-exclamation-point') ?>Sem servidor de e-mail</span><?php endif; ?></strong></div>
+            <div class="resumo-linha"><span>Como envia</span><strong><?= $e($emailModo) ?></strong></div>
+            <?php if ($email['driver'] === 'smtp'): ?>
+                <div class="resumo-linha"><span>Servidor</span><strong><?= $e((string) ($email['host'] ?? '—')) ?>:<?= (int) $email['porta'] ?> (<?= $e(match ($email['seguranca']) { 'ssl' => 'SSL', 'tls' => 'TLS', default => 'sem criptografia' }) ?>)</strong></div>
+                <div class="resumo-linha"><span>Conta</span><strong><?= $e((string) ($email['usuario'] ?: '—')) ?></strong></div>
+            <?php endif; ?>
+            <div class="resumo-linha"><span>Remetente</span><strong><?= $e((string) $email['remetente']) ?></strong></div>
+        </div>
+        <?php if (is_string($emailErro) && $emailErro !== ''): ?>
+            <p class="config-email-erro" role="alert"><?= Icon::svg('circle-x', 'icon-sm') ?><span><strong>Motivo da última falha:</strong> <?= $e($emailErro) ?></span></p>
+        <?php endif; ?>
+        <form method="post" action="<?= $e($base . '/configuracoes/email-teste') ?>" class="config-email-teste" novalidate data-validate-form>
+            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+            <?= Campo::texto(['nome' => 'para', 'rotulo' => 'Mandar um teste para', 'valor' => (string) $emailPara, 'icone' => 'mail', 'tipo' => 'email',
+                'dica' => 'Chega em até um minuto. Se não aparecer, confira o spam.', 'attrs' => ['maxlength' => 190, 'autocomplete' => 'email', 'required' => true]]) ?>
+            <div class="form-acoes">
+                <button class="btn btn-outline" type="submit" data-submit-label="Enviando..."><?= Icon::svg('send', 'icon-sm') ?><span>Enviar e-mail de teste</span></button>
+            </div>
+        </form>
     </section>
 </div>

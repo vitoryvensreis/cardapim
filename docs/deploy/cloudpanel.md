@@ -140,6 +140,10 @@ DDL no MySQL provoca commits implícitos: um rollback dos arquivos NÃO desfaz m
 | A cada minuto (`* * * * *`) | `php8.4 /home/<usuario>/apps/cardapim/current/bin/ifood.php >> /home/<usuario>/apps/cardapim/shared/storage/logs/ifood.log 2>&1` | Pedidos e avisos do iFood a cada 30 s, ações e disponibilidade ([ifood.md](../architecture/ifood.md)). Sai sem fazer nada enquanto `IFOOD_CLIENT_ID/SECRET` não estiverem no `shared/.env`. |
 | Uma vez por dia | `php8.4 /home/<usuario>/apps/cardapim/current/bin/cobranca-diaria.php` | Bloqueio de restaurantes com fatura atrasada além da tolerância. |
 
+## E-mail do sistema
+
+Use o mailcow da própria VPS (SMTP com DKIM), adicionando o domínio da plataforma nele: passo a passo em [email.md](email.md).
+
 ## Segurança
 
 - Deploy com usuário limitado, sem acesso root ou escrita em outros sites.

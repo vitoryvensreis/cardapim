@@ -91,7 +91,7 @@ final class MenuGerencia
             'rotulo' => 'Suporte',
             'icone' => 'life-buoy',
             'descricao' => 'Fale com a nossa equipe.',
-            'planejado' => ['Chat com o suporte', 'Abrir chamados', 'Acompanhar seus chamados'],
+            'planejado' => [],
         ],
     ];
 

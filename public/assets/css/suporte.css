@@ -1,0 +1,69 @@
+/* Suporte: chamados do gerente e da plataforma. Mobile-first. */
+.suporte-filtros { margin-bottom: 1rem; }
+
+/* Lista de chamados */
+.suporte-lista { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.suporte-item {
+  display: grid; gap: .45rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-left: 3px solid var(--c-line);
+  border-radius: var(--r-lg); background: var(--c-white); color: var(--c-ink); text-decoration: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.suporte-item:hover { border-color: var(--c-wine); box-shadow: 0 2px 10px rgb(101 20 36 / 8%); }
+.suporte-item:focus-visible { outline: 3px solid rgb(101 20 36 / 35%); outline-offset: 2px; }
+.suporte-item.is-novo { border-left-color: var(--c-orange); background: var(--c-cream); }
+.suporte-item-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.suporte-item-topo strong { min-width: 0; font-family: var(--f-head); overflow-wrap: anywhere; }
+.suporte-item-sub { display: grid; gap: .2rem; color: var(--c-muted); font-size: .86rem; }
+.suporte-item-sub > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.suporte-novo { display: inline-flex; align-items: center; gap: .25rem; color: var(--c-wine); }
+.suporte-novo .icon { color: var(--c-orange); }
+
+/* Chamado aberto */
+.suporte-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; color: var(--c-muted); font-size: .9rem; }
+.suporte-colunas { display: grid; gap: 1rem; }
+.suporte-colunas > div { display: grid; gap: 1rem; align-content: start; min-width: 0; }
+.suporte-bloco { padding-block: 1rem; }
+
+.suporte-conversa { display: grid; gap: .85rem; margin: 0; padding: 0; list-style: none; }
+.suporte-msg {
+  display: grid; gap: .4rem; max-width: 46rem; padding: .8rem 1rem; border: 1px solid var(--c-line);
+  border-radius: var(--r-lg); background: var(--c-white);
+}
+.suporte-msg.is-suporte { border-color: rgb(101 20 36 / 18%); background: var(--c-blush); }
+.suporte-msg.is-minha { justify-self: end; }
+.suporte-msg-autor { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: 0; font-size: .86rem; }
+.suporte-msg-autor .icon { color: var(--c-wine); }
+.suporte-msg-autor time { margin-left: auto; }
+.suporte-msg-texto { color: var(--c-ink); line-height: 1.55; overflow-wrap: anywhere; }
+
+.suporte-espera {
+  display: flex; align-items: center; gap: .45rem; margin: 1rem 0 0; padding: .7rem .9rem;
+  border-radius: var(--r-md); background: var(--c-cream); color: var(--c-muted); font-size: .9rem;
+}
+
+.suporte-responder { display: grid; gap: .6rem; }
+.suporte-responder textarea {
+  width: 100%; min-height: 7rem; padding: .7rem .9rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md);
+  background: var(--c-white); color: var(--c-ink); font: inherit; font-size: .95rem; line-height: 1.5; resize: vertical;
+}
+.suporte-responder textarea:focus { outline: none; border-color: var(--c-wine); box-shadow: 0 0 0 4px rgb(101 20 36 / 12%); }
+.suporte-responder .bloco-rodape { margin-top: 0; }
+.suporte-check { display: inline-flex; align-items: center; gap: .5rem; min-height: 2.75rem; color: var(--c-ink); font-size: .92rem; cursor: pointer; }
+.suporte-check input { width: 1.15rem; height: 1.15rem; accent-color: var(--c-wine); }
+
+.suporte-resolver { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.suporte-resolver p { margin: 0; color: var(--c-muted); font-size: .9rem; }
+
+.suporte-lateral { display: grid; gap: 1rem; align-content: start; }
+.suporte-lateral-titulo { margin: 0; color: var(--c-ink); font-family: var(--f-head); font-size: .95rem; }
+.suporte-lateral a { color: var(--c-wine); }
+.suporte-status { display: grid; gap: .5rem; }
+
+@media (min-width: 64rem) {
+  .suporte-colunas { grid-template-columns: minmax(0, 1fr) 20rem; align-items: start; }
+  .suporte-lateral { position: sticky; top: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suporte-item { transition: none; }
+}

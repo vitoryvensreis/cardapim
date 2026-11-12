@@ -8,7 +8,7 @@ $canais = [
     ['store', 'Balcão e retirada', false],
     ['bike', 'Delivery próprio', false],
     ['message-circle', 'WhatsApp', false],
-    ['shopping-bag', 'iFood', true],
+    ['shopping-bag', 'iFood', false],
     ['qr-code', 'Pix Asaas', false],
 ];
 
@@ -18,7 +18,7 @@ $recursos = [
     ['chef-hat', 'Cozinha no ritmo', 'Pedidos chegam na tela da cozinha em tempo real, por ordem e prioridade. Sem bilhete perdido.', 'Cozinha'],
     ['package', 'Estoque sob controle', 'Insumos, fichas técnicas e movimentações organizados, com aviso quando algo estiver acabando.', 'Estoque'],
     ['wallet', 'Financeiro mais claro', 'Caixa, recebimentos, despesas e vendas do dia em números fáceis de entender.', 'Financeiro'],
-    ['plug-zap', 'Conectado de verdade', 'WhatsApp, Pix Asaas e iFood estão no planejamento de integrações do produto.', 'Integrações'],
+    ['plug-zap', 'Conectado de verdade', 'Pedidos do iFood, avisos pelo WhatsApp e Pix pelo Asaas ligados ao caixa e ao estoque.', 'Integrações'],
 ];
 
 $passos = [

@@ -22,7 +22,7 @@ $legalLead = 'Entenda quais dados podem ser tratados no ' . marca() . ', para qu
         <section>
             <h2>4. Bases legais e compartilhamentos</h2>
             <p>O tratamento deverá se apoiar em bases previstas na LGPD, como execução de contrato, cumprimento de obrigação legal, legítimo interesse quando cabível e consentimento quando necessário. A base aplicável depende da finalidade.</p>
-            <p>Dados poderão ser compartilhados com fornecedores de hospedagem e infraestrutura necessários ao funcionamento. Integrações como iFood, Asaas e serviços de WhatsApp são parte do planejamento do <?= marca_html() ?>, mas não devem ser consideradas ativas apenas por serem mencionadas aqui. O site público pode carregar fontes disponibilizadas pelo Google, cujo servidor poderá receber dados técnicos da conexão.</p>
+            <p>Dados poderão ser compartilhados com fornecedores de hospedagem e infraestrutura necessários ao funcionamento. Quando o restaurante conecta integrações (iFood, Asaas para Pix e WhatsApp), os dados necessários para o pedido, o pagamento e os avisos são trocados com esses serviços. O site público pode carregar fontes disponibilizadas pelo Google, cujo servidor poderá receber dados técnicos da conexão.</p>
         </section>
         <section>
             <h2>5. Armazenamento, retenção e segurança</h2>

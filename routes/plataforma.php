@@ -7,6 +7,8 @@ use Cardapim\Controllers\Plataforma\IntegracoesController;
 use Cardapim\Controllers\Plataforma\PainelController;
 use Cardapim\Controllers\Plataforma\PlanosController;
 use Cardapim\Controllers\Plataforma\RestaurantesController;
+use Cardapim\Controllers\Plataforma\SuporteController;
+use Cardapim\Controllers\Plataforma\FaturasController;
 use Cardapim\Controllers\Plataforma\UsuariosController;
 use Cardapim\Core\Router;
 
@@ -64,6 +66,19 @@ return static function (Router $router): void {
     $router->post('/painel/configuracoes/textos', [ConfiguracoesController::class, 'textos']);
     $router->post('/painel/configuracoes/logo', [ConfiguracoesController::class, 'logo']);
     $router->post('/painel/configuracoes/logo/padrao', [ConfiguracoesController::class, 'logoPadrao']);
+
+    // Suporte: chamados dos restaurantes.
+    $router->get('/painel/suporte', [SuporteController::class, 'lista']);
+    $router->get('/painel/suporte/{id}', [SuporteController::class, 'ver']);
+    $router->post('/painel/suporte/{id}/responder', [SuporteController::class, 'responderChamado']);
+    $router->post('/painel/suporte/{id}/status', [SuporteController::class, 'status']);
+
+    // Faturas das assinaturas (Asaas da plataforma).
+    $router->get('/painel/faturas', [FaturasController::class, 'lista']);
+    $router->post('/painel/faturas/atualizar', [FaturasController::class, 'atualizar']);
+
+    // E-mail de teste (Configuracoes).
+    $router->post('/painel/configuracoes/email-teste', [ConfiguracoesController::class, 'emailTeste']);
 
     // Demais secoes (em construcao): dashboard, restaurantes, planos, faturas, usuarios, logs...
     $router->get('/painel/{secao}', [PainelController::class, 'secao']);

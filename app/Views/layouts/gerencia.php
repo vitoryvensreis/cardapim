@@ -6,9 +6,17 @@
  */
 use Cardapim\Realtime\Canais;
 use Cardapim\Realtime\TempoReal;
+use Cardapim\Core\Database;
+use Cardapim\Repositories\SuporteRepository;
 use Cardapim\Services\Painel\MenuGerencia;
 
 $slug = (string) $restaurante['slug'];
+// Resposta nova do suporte vira um selo no menu (nunca derruba a tela).
+try {
+    $suporteNovidades = (new SuporteRepository(Database::connect()))->novidadesRestaurante((int) ($restaurante['id'] ?? 0));
+} catch (\Throwable) {
+    $suporteNovidades = 0;
+}
 $grupos = [];
 foreach (MenuGerencia::GRUPOS as $grupo => $chaves) {
     foreach ($chaves as $chave) {
@@ -18,7 +26,7 @@ foreach (MenuGerencia::GRUPOS as $grupo => $chaves) {
             $area['rotulo'] ?? MenuGerencia::SECOES[$chave]['rotulo'],
             $area['icone'] ?? MenuGerencia::SECOES[$chave]['icone'],
             $ativo === ($area['area'] ?? $chave),
-            $area !== null && $area['area'] === 'caixa' ? 'Tela cheia' : null,
+            $area !== null && $area['area'] === 'caixa' ? 'Tela cheia' : ($chave === 'suporte' && $suporteNovidades > 0 ? 'Resposta nova' : null),
         ];
     }
 }
