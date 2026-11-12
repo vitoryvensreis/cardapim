@@ -33,13 +33,8 @@ final class MenuPlataforma
             'rotulo' => 'Restaurantes',
             'icone' => 'store',
             'descricao' => 'Todos os restaurantes da plataforma.',
-            'planejado' => [
-                'Lista com busca, situação e plano de cada restaurante',
-                'Aprovar cadastros novos',
-                'Suspender e reativar o acesso',
-                'Entrar no painel do restaurante para dar suporte',
-                'Dados, endereço e histórico de cada um',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
         'planos' => [
             'titulo' => 'Planos',
@@ -67,12 +62,8 @@ final class MenuPlataforma
             'rotulo' => 'Usuários',
             'icone' => 'users',
             'descricao' => 'Todas as contas da plataforma.',
-            'planejado' => [
-                'Buscar qualquer conta por nome, usuário ou e-mail',
-                'Bloquear e liberar acessos',
-                'Redefinir senha e desligar a verificação em duas etapas',
-                'Administradores da plataforma',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
         'logs' => [
             'titulo' => 'Logs de auditoria',

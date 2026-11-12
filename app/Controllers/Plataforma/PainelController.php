@@ -29,6 +29,8 @@ final class PainelController extends BasePlataforma
             'secao' => $dados,
             'saudacao' => $secao === 'dashboard',
             'atalhos' => $secao === 'dashboard' ? [
+                ['/painel/restaurantes', 'Restaurantes', 'store', 'Cadastrar, editar, suspender e excluir restaurantes'],
+                ['/painel/usuarios', 'Usuários', 'users', 'Contas da equipe e administradores'],
                 ['/painel/integracoes', 'Integrações da plataforma', 'plug-zap', 'Asaas das assinaturas e WhatsApp da plataforma'],
                 ['/status', 'Status do sistema', 'activity', 'PHP, banco de dados e tempo real'],
             ] : [],

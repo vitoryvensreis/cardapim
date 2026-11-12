@@ -6,6 +6,8 @@ use Cardapim\Controllers\Plataforma\ConfiguracoesController;
 use Cardapim\Controllers\Plataforma\IntegracoesController;
 use Cardapim\Controllers\Plataforma\PainelController;
 use Cardapim\Controllers\Plataforma\PlanosController;
+use Cardapim\Controllers\Plataforma\RestaurantesController;
+use Cardapim\Controllers\Plataforma\UsuariosController;
 use Cardapim\Core\Router;
 
 // Painel da PLATAFORMA (adm_master). Registrado antes das rotas /{slug}. Acesso conferido em BasePlataforma.
@@ -35,6 +37,27 @@ return static function (Router $router): void {
     $router->post('/painel/planos/{id}/convite', [PlanosController::class, 'convite']);
     $router->post('/painel/planos/{id}/ativo', [PlanosController::class, 'alternar']);
     $router->post('/painel/planos/{id}/excluir', [PlanosController::class, 'excluir']);
+
+    // Restaurantes: lista, cadastrar (com gerente e plano), ver/editar, situacao, plano e excluir (sem movimento).
+    $router->get('/painel/restaurantes', [RestaurantesController::class, 'lista']);
+    $router->get('/painel/restaurantes/novo', [RestaurantesController::class, 'novo']);
+    $router->post('/painel/restaurantes', [RestaurantesController::class, 'criar']);
+    $router->get('/painel/restaurantes/{id}', [RestaurantesController::class, 'ver']);
+    $router->post('/painel/restaurantes/{id}', [RestaurantesController::class, 'salvar']);
+    $router->post('/painel/restaurantes/{id}/status', [RestaurantesController::class, 'status']);
+    $router->post('/painel/restaurantes/{id}/plano', [RestaurantesController::class, 'plano']);
+    $router->post('/painel/restaurantes/{id}/excluir', [RestaurantesController::class, 'excluir']);
+
+    // Usuarios: administradores e equipe de todos os restaurantes.
+    $router->get('/painel/usuarios', [UsuariosController::class, 'lista']);
+    $router->get('/painel/usuarios/novo', [UsuariosController::class, 'novo']);
+    $router->post('/painel/usuarios', [UsuariosController::class, 'criar']);
+    $router->get('/painel/usuarios/{id}', [UsuariosController::class, 'editar']);
+    $router->post('/painel/usuarios/{id}', [UsuariosController::class, 'atualizar']);
+    $router->post('/painel/usuarios/{id}/senha', [UsuariosController::class, 'senha']);
+    $router->post('/painel/usuarios/{id}/acesso', [UsuariosController::class, 'acesso']);
+    $router->post('/painel/usuarios/{id}/dois-fatores', [UsuariosController::class, 'doisFatores']);
+    $router->post('/painel/usuarios/{id}/excluir', [UsuariosController::class, 'excluir']);
 
     // Configuracoes: nome da marca, textos e logos.
     $router->get('/painel/configuracoes', [ConfiguracoesController::class, 'inicio']);
