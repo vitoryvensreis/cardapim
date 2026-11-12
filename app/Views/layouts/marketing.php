@@ -12,6 +12,8 @@ $title = $escape($pageTitle ?? Configuracoes::textoOuPadrao('nome_sistema', marc
 $description = $escape($pageDescription ?? Configuracoes::textoOuPadrao('descricao_padrao', ''));
 $styles = ['css/site.css'];
 $scripts = ['js/site.js'];
+// App instalado (PWA) nao mostra a pagina de vendas: vai direto para o login (e dali para o painel de cada um).
+$scriptsCedo = ['js/so-no-navegador.js'];
 ?>
 <!doctype html>
 <html lang="pt-BR">

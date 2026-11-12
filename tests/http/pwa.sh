@@ -49,6 +49,12 @@ for pagina in /login /cadastro; do
 done
 curl -s "$base/" -o "$tmp/p.html"
 nao_contem "landing nao vira app" "$tmp/p.html" 'rel="manifest"'
+contem "landing sai do app instalado (vai ao login)" "$tmp/p.html" '/assets/js/so-no-navegador.js'
+curl -s "$base/assets/js/so-no-navegador.js" -o "$tmp/sn.js"
+contem "confere o modo app (display-mode)" "$tmp/sn.js" 'display-mode'
+contem "manda para o login do app" "$tmp/sn.js" '/login?origem=app'
+curl -s "$base/login" -o "$tmp/p.html"
+nao_contem "login nao redireciona no app" "$tmp/p.html" 'so-no-navegador.js'
 curl -s "$base/$slug" -o "$tmp/p.html"
 nao_contem "cardapio do cliente nao vira app da equipe" "$tmp/p.html" 'rel="manifest"'
 

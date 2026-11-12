@@ -36,7 +36,7 @@ contem "botao de som no topo" "$tmp/pagina.html" 'data-alerta-som'
 contem "luz em volta da tela" "$tmp/pagina.html" 'data-alerta-luz'
 contem "faixa com ver pedido" "$tmp/pagina.html" 'data-alerta-ver'
 contem "faixa escondida ate chegar pedido" "$tmp/pagina.html" 'data-alerta-aviso hidden'
-contem "explica como ligar o som" "$tmp/pagina.html" 'Toque em qualquer lugar da tela para ligar o som'
+nao_contem "faixa sem aviso de tocar na tela (nao muda ao clicar)" "$tmp/pagina.html" 'Toque em qualquer lugar da tela'
 
 echo "Modo caixa avisa"
 for tela in "" /delivery /mesas; do
@@ -55,7 +55,8 @@ pagina "$mj" "$base/$slug/entregas"
 nao_contem "entregador sem aviso de delivery" "$tmp/pagina.html" 'data-alerta-pedido'
 
 curl --fail --silent --show-error "$base/assets/js/alerta-pedido.js" -o "$tmp/alerta.js"
-contem "som so depois de um toque (regra do navegador)" "$tmp/alerta.js" 'pointerdown'
+contem "som liga no primeiro toque (regra do navegador)" "$tmp/alerta.js" 'pointerdown'
+contem "tenta ligar o som ja ao abrir (app instalado)" "$tmp/alerta.js" 'liberarAudio();'
 contem "respeita reduzir movimento" "$tmp/alerta.js" 'prefers-reduced-motion'
 contem "ouve pedido.novo" "$tmp/alerta.js" 'pedido.novo'
 

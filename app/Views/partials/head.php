@@ -2,12 +2,16 @@
 /**
  * Cabecalho HTML comum. Espera: $title, $description (ja escapados), $favicon,
  * $styles (lista de arquivos em assets/css), $scripts (lista em assets/js), $noIndex.
+ * $scriptsCedo: scripts pequenos que rodam ANTES de desenhar a pagina (sem defer), ex.: tirar a landing do app instalado.
  * $pwa = true liga o app instalavel (manifesto, icones do celular e service worker): login, cadastro e areas da equipe.
  */
 use Cardapim\Core\AssetUrl;
 ?>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<?php foreach ($scriptsCedo ?? [] as $scriptCedo): ?>
+<script src="<?= AssetUrl::asset($scriptCedo) ?>"></script>
+<?php endforeach; ?>
 <meta name="theme-color" content="#651424">
 <meta name="description" content="<?= $description ?>">
 <?php if (!empty($noIndex)): ?><meta name="robots" content="noindex, nofollow">

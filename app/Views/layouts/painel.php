@@ -140,7 +140,6 @@ if ($alertaPedido !== null) {
             <div class="alerta-pedido-texto">
                 <strong data-alerta-titulo>Pedido novo!</strong>
                 <p data-alerta-texto></p>
-                <p class="alerta-pedido-dica" data-alerta-dica hidden>Toque em qualquer lugar da tela para ligar o som dos próximos pedidos.</p>
             </div>
             <div class="alerta-pedido-acoes">
                 <a class="btn btn-primary btn-sm" href="<?= $e($alertaPedido) ?>" data-alerta-ver><?= Icon::svg('eye', 'icon-sm') ?>Ver pedido</a>

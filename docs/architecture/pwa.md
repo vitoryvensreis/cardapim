@@ -41,3 +41,11 @@ certo e "sem cache" (o navegador precisa ver o service worker novo logo apos cad
 
 `tests/http/pwa.sh` (manifesto, icones, service worker, pagina offline, onde o app e oferecido).
 Conferido no Chrome: manifesto sem erros, service worker ativo e pagina offline sem internet.
+
+## Pagina inicial fora do app
+
+A landing (`/`) e so para o navegador. Aberta dentro do app instalado (`display-mode: standalone`, `fullscreen`,
+`minimal-ui` ou `navigator.standalone` no iPhone), `js/so-no-navegador.js` (carregado sem `defer`, antes de desenhar a
+pagina, via `$scriptsCedo` em `partials/head.php`) manda para `/login?origem=app`, que leva cada pessoa logada ao proprio
+painel. No navegador comum nada muda. Teste: `tests/http/pwa.sh`.
+

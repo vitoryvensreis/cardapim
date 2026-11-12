@@ -51,7 +51,6 @@
 @keyframes alerta-sino { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
 .alerta-pedido-texto strong { display: block; color: var(--c-ink); font: 800 1.15rem/1.2 var(--f-head); }
 .alerta-pedido-texto p { margin-top: .15rem; color: var(--c-muted); font-size: .92rem; }
-.alerta-pedido-dica { color: var(--c-wine) !important; font-weight: 700; }
 .alerta-pedido-acoes { display: flex; flex-wrap: wrap; gap: .5rem; grid-column: 1 / -1; }
 .alerta-pedido-acoes .btn { flex: 1 1 9rem; min-height: 2.9rem; }
 

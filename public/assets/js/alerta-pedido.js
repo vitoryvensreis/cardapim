@@ -4,7 +4,9 @@
  *   luz laranja piscando em volta da tela, uma tremida leve no sistema e um som de campainha.
  * - A faixa com o pedido fica na tela ate alguem tocar em "Ver pedido" ou "Ok, vi"; enquanto isso o som
  *   repete a cada 20 s (no maximo 6 vezes). Varios pedidos juntos viram "3 pedidos novos".
- * - Navegadores so deixam tocar som depois de um toque na pagina: ate la a faixa avisa para tocar na tela.
+ * - Som: o navegador so libera depois do primeiro toque na pagina, a NAO ser que o app esteja instalado (PWA) ou o site
+ *   tenha "Som: permitir" nas configuracoes do navegador. Por isso tenta ligar ja ao abrir; se nao der, liga no 1o toque.
+ *   A faixa nao muda por causa disso (sem aviso de "toque na tela").
  * - Botao "Som ligado/desligado" no topo (lembrado neste aparelho). Com "reduzir movimento", nada pisca nem treme.
  */
 (() => {
@@ -20,7 +22,6 @@
   const aviso = $("[data-alerta-aviso]");
   const titulo = $("[data-alerta-titulo]");
   const texto = $("[data-alerta-texto]");
-  const dica = $("[data-alerta-dica]");
   const ver = $("[data-alerta-ver]");
   const ok = $("[data-alerta-ok]");
   const botaoSom = $("[data-alerta-som]");
@@ -53,14 +54,21 @@
       if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
       if (audio.state === "suspended") audio.resume();
     } catch (e) { audio = null; }
-    if (dica) dica.hidden = audioPronto();
   }
   const audioPronto = () => !!audio && audio.state === "running";
   ["pointerdown", "keydown", "touchstart"].forEach((tipo) => document.addEventListener(tipo, liberarAudio, { passive: true }));
+  // App instalado ou som permitido no site: ja fica pronto sem toque.
+  liberarAudio();
 
   // Campainha "ding-dong" em dois toques, com harmonico para ser ouvida na cozinha.
   function tocar() {
-    if (!somLigado || !audioPronto()) return;
+    if (!somLigado || !audio) return;
+    if (audio.state === "suspended") {
+      // Pode ter sido liberado depois (permissao do site): tenta e toca quando der.
+      audio.resume().then(() => { if (audioPronto()) tocar(); }).catch(() => {});
+      return;
+    }
+    if (!audioPronto()) return;
     try {
       const t0 = audio.currentTime + 0.02;
       [[988, 0], [784, 0.32], [988, 0.9], [784, 1.22]].forEach(([freq, atraso]) => {
@@ -114,7 +122,6 @@
       ver.href = qtd === 1 && ultimo.id ? `${urlDelivery}/${encodeURIComponent(ultimo.id)}` : urlDelivery;
       ver.lastChild.textContent = qtd > 1 ? "Ver pedidos" : "Ver pedido";
     }
-    if (dica) dica.hidden = !somLigado || audioPronto();
     document.title = `(${qtd}) ${qtd > 1 ? "Pedidos novos" : "Pedido novo"} | ${tituloOriginal}`;
   }
 
@@ -191,7 +198,6 @@
         liberarAudio();
         tocar(); // amostra: a pessoa ouve como vai soar
       }
-      if (dica) dica.hidden = !somLigado || audioPronto();
     });
   }
   mostrarBotaoSom();

@@ -83,7 +83,9 @@ Garcom e entregador nao recebem (nao tratam pedidos do delivery).
   "Pedido novo! #123", **Ver pedido** (abre `/caixa/delivery/{id}`) e **Ok, vi**. Varios pedidos juntos: "3 pedidos novos".
   O titulo da aba vira "(1) Pedido novo" e o celular vibra. Com "reduzir movimento" a luz fica parada e nada treme.
 - **Som**: campainha "ding-dong" gerada no navegador (Web Audio, sem arquivo), repetida a cada 20 s (ate 6 vezes) enquanto a
-  faixa estiver aberta. Navegadores so liberam som depois de um toque na pagina: ate la a faixa pede para tocar na tela.
+  faixa estiver aberta. O navegador so libera som depois do primeiro toque na pagina, EXCETO no app instalado (PWA) ou
+  com "Som: Permitir" nas configuracoes do site (cadeado da barra de endereco > Configuracoes do site > Som). O script
+  tenta ligar o som ja ao abrir a pagina; se nao der, liga no primeiro toque. A faixa nao mostra aviso de toque.
   Botao **Som ligado/desligado** no topo, lembrado no aparelho (`localStorage`); ao ligar, toca uma amostra.
 - Pedido aceito (`pedido.atualizado` com outra etapa) ou cancelado em outro aparelho sai da faixa sozinho.
 - Para testar no navegador sem pedido real: `CardapimAlertaPedido.simular()` no console.
