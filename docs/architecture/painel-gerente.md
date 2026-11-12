@@ -69,7 +69,7 @@ Rotas: `GET /perfil`, `POST /perfil` (dados e endereco), `POST /perfil/logo`, `P
 
 - Nome, telefone (obrigatorio), e-mail de contato e endereco completo (CEP, UF em lista, cidade, bairro, rua, numero ou S/N, complemento, referencia). Mudou o endereco: latitude/longitude sao limpas.
 - CNPJ e endereco da pagina (slug) sao so leitura (mudanca pelo suporte). Trocar o nome nao muda o slug.
-- Logo (`Modules/Restaurante/LogoUpload`): PNG, JPG ou WebP ate 2 MB, conferidos por `finfo` + `getimagesize` (SVG recusado), regravada com GD (WebP, ate 512 px, sem metadados), nome aleatorio em `storage/uploads/logos/` e servida por `GET /midia/logos/{32hex}.{ext}` (`MidiaController`, cache longo, `nosniff`). A logo antiga e apagada.
+- Logo (`Modules/Restaurante/LogoUpload`): PNG, JPG ou WebP ate 2 MB, conferidos por `finfo` + `getimagesize` (SVG recusado), regravada com GD (WebP, ate 512 px, sem metadados), nome aleatorio em `storage/uploads/logos/` e servida por `GET /midia/logos/{32hex}-{ext}` (`MidiaController`, cache longo, `nosniff`). O endereco publico vai **sem extensao** (`Shared/MidiaUrl`): o Nginx do CloudPanel responde 404 sozinho a todo `.png`/`.webp`/`.svg` que nao existe em `public/`, entao `abc.webp` nunca chegaria ao PHP. O banco guarda `abc.webp` e o formato antigo continua aceito. A logo antiga e apagada.
 - Horario (`Modules/Restaurante/HorarioFuncionamento`): "Sempre aberto" ou horarios por dia da semana, ate 2 turnos por dia, turno que passa da meia-noite (18:00-02:00), "usar este horario em todos os dias". Selo "Aberto agora / Fechado agora" no topo.
 
 ## Visao geral

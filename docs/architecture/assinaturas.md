@@ -54,7 +54,7 @@ plataforma conectado.
 `MarcaService` grava `nome_sistema`, `descricao_padrao`, `texto_rodape` e as imagens (`logo_preta`, `logo_branca`,
 `logo_colorida`, `icone`, `icone_app`) na tabela `configuracoes`. Uploads (`MarcaUpload`): SVG conferido (sem script,
 eventos, links externos, entidades) ou PNG/JPG/WebP regravado com GD; icone do app quadrado >= 512 gera 512, 192,
-maskable e apple (180). Arquivos em `storage/uploads/marca`, servidos por `/midia/marca/...` com CSP `sandbox`.
+maskable e apple (180). Arquivos em `storage/uploads/marca`, servidos por `/midia/marca/{nome}-{ext}` (sem extensao no endereco, ver `Shared/MidiaUrl`: o Nginx do CloudPanel intercepta `.svg`/`.png` e responde 404) com CSP `sandbox`.
 
 ## Testes
 

@@ -55,7 +55,7 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
             ?>
                 <article class="marca-cartao" id="logo-<?= $e($chave) ?>" data-logo>
                     <div class="marca-previa is-<?= $e($fundo) ?><?= str_starts_with($chave, 'icone') ? ' is-icone' : '' ?>">
-                        <img src="<?= $e($atual) ?>" alt="<?= $e($rotulo . ' atual') ?>" data-logo-previa>
+                        <img src="<?= $e(\Cardapim\Shared\MidiaUrl::publica((string) $atual)) ?>" alt="<?= $e($rotulo . ' atual') ?>" data-logo-previa>
                     </div>
                     <div class="marca-info">
                         <h3><?= $e($rotulo) ?></h3>

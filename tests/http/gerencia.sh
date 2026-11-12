@@ -129,9 +129,12 @@ php -r '$i=imagecreatetruecolor(40,40); imagefill($i,0,0,imagecolorallocate($i,1
 printf '<?php echo 1;' > "$tmp/falso.png"
 t="$(token "$gj" "$g/perfil")"
 esperar "enviar logo" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' -F "_csrf=$t" -F "logo=@$tmp/logo.png;type=image/png" "$g/perfil/logo")" "303"
-logo="$(curl -s -b "$gj" "$g/perfil" | grep -o '/midia/logos/[a-f0-9]\{32\}\.[a-z]*' | head -1)"
+# Endereco SEM extensao (o Nginx do CloudPanel responde 404 a qualquer .png/.webp que nao exista em public/).
+logo="$(curl -s -b "$gj" "$g/perfil" | grep -o '/midia/logos/[a-f0-9]\{32\}-[a-z]*' | head -1)"
 [[ -n "$logo" ]] && ok "logo publicada em $logo" || falha "logo nao aparece no perfil"
 esperar "logo servida" "$(curl -s -o /dev/null -w '%{http_code}' "$base$logo")" "200"
+esperar "endereco antigo (com extensao) continua valendo" "$(curl -s -o /dev/null -w '%{http_code}' "$base${logo%-*}.${logo##*-}")" "200"
+esperar "perfil sem endereco de logo com extensao" "$(curl -s -b "$gj" "$g/perfil" | grep -c '/midia/logos/[a-f0-9]\{32\}\.')" "0"
 curl -s -o /dev/null -b "$gj" -F "_csrf=$t" -F "logo=@$tmp/falso.png;type=image/png" "$g/perfil/logo"
 esperar "arquivo falso recusado" "$(flash "$gj" "$g/perfil")" "painel-flash-erro"
 esperar "caminho invalido em /midia" "$(curl -s -o /dev/null -w '%{http_code}' "$base/midia/logos/..%2F..%2F.env")" "404"

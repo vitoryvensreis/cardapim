@@ -87,6 +87,7 @@ final class MarcaUpload
     /** "/midia/marca/abc.svg" -> caminho no disco; null se nao for um arquivo deste modulo. */
     public static function arquivoDe(?string $caminhoPublico): ?string
     {
+        $caminhoPublico = $caminhoPublico === null ? null : \Cardapim\Shared\MidiaUrl::armazenada($caminhoPublico);
         if ($caminhoPublico === null || preg_match('~\A' . preg_quote(self::PREFIXO_URL, '~') . '([a-f0-9]{32}(?:-(?:512|192|maskable|apple))?\.(?:svg|png|jpg|webp))\z~', $caminhoPublico, $m) !== 1) {
             return null;
         }
@@ -96,6 +97,7 @@ final class MarcaUpload
     /** Tamanhos do icone do app gerados junto com o de 512. @return array{192:string, maskable:string, apple:string}|null */
     public static function variantesIcone(string $caminho512): ?array
     {
+        $caminho512 = \Cardapim\Shared\MidiaUrl::armazenada($caminho512);
         if (preg_match('~\A(' . preg_quote(self::PREFIXO_URL, '~') . '[a-f0-9]{32})-512\.png\z~', $caminho512, $m) !== 1) {
             return null;
         }
@@ -106,7 +108,8 @@ final class MarcaUpload
                 return null;
             }
         }
-        return ['192' => $v['192'], 'maskable' => $v['maskable'], 'apple' => $v['apple']];
+        // Enderecos para a tela (sem extensao: ver Shared\MidiaUrl).
+        return array_map([\Cardapim\Shared\MidiaUrl::class, 'publica'], ['192' => $v['192'], 'maskable' => $v['maskable'], 'apple' => $v['apple']]);
     }
 
     /**
