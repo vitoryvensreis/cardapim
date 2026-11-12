@@ -201,13 +201,23 @@ contem "aceito sozinho" "$tmp/pagina.html" 'Aceito automaticamente. Em preparo.'
 no_registro "iFood recebeu o aceite automatico" "acao ped-ci-3 confirm"
 enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/opcoes" sincronizar_estoque=1 >/dev/null
 
+echo "Item recriado pelo iFood (outro id, mesmo nome) usa a ligacao existente"
+curl -s -o /dev/null -H 'Content-Type: application/json' --data '{"id":"ped-ci-4","displayId":"7811","orderType":"TAKEOUT","merchant":{"id":"'"$loja"'"},"customer":{"name":"Ana iFood CI"},"items":[{"id":"item-ci-1-novo","name":"Lanche iFood CI","externalCode":"PDV-NOVO","unit":"UN","quantity":1,"unitPrice":25.9,"totalPrice":25.9}],"total":{"subTotal":25.9,"orderAmount":25.9},"payments":{"prepaid":25.9,"methods":[{"method":"PIX","type":"ONLINE","prepaid":true,"value":25.9}]}}' "$fake/_teste/pedido"
+rodar
+id4="$(id_local 7811)"
+esperar "pedido do item recriado chegou" "$(pagina "$cx" "$c/delivery/$id4")" "200"
+contem "pedido do item recriado aberto" "$tmp/pagina.html" 'iFood #7811'
+nao_contem "sem aviso de item sem ligacao" "$tmp/pagina.html" 'Sem produto ligado'
+pagina "$gj" "$g/integracoes/ifood/cardapio?filtro=soltos" >/dev/null
+nao_contem "item novo ligado sozinho" "$tmp/pagina.html" 'Código PDV PDV-NOVO'
+
 echo "Disponibilidade e situacao da integracao"
 esperar "enviar disponibilidade agora" "$(enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/cardapio/sincronizar" | cut -d' ' -f1)" "303"
-esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio")" "1 item(ns) atualizado(s) no iFood."
+esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio")" "2 item(ns) atualizado(s) no iFood."
 pagina "$gj" "$g/integracoes/ifood" >/dev/null
 contem "pedidos do iFood hoje" "$tmp/pagina.html" 'Pedidos do iFood hoje'
 nao_contem "rotina rodando (sem alerta de parada)" "$tmp/pagina.html" 'não estão chegando agora'
-contem "item ligado no resumo" "$tmp/pagina.html" '1 de'
+contem "itens ligados no resumo" "$tmp/pagina.html" '2 de'
 
 enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/desconectar" >/dev/null
 if (( falhas > 0 )); then

@@ -90,7 +90,7 @@ $statusIfood = static fn (?string $s): array => match ($s) {
                                 <?php if ($item['id_produto'] !== null): ?>
                                     <small class="texto-suave">
                                         <?= $item['vinculo'] === 'automatico' ? 'Ligado sozinho. ' : '' ?>
-                                        <?php if ($item['desejado'] === 'AVAILABLE'): ?>Tem estoque<?= $item['porcoes'] !== null ? ' para ' . (int) $item['porcoes'] . ' un.' : '' ?>.<?php else: ?>Sem estoque ou pausado aqui.<?php endif; ?>
+                                        <?php if ($item['desejado'] === 'AVAILABLE'): ?><?= $item['porcoes'] !== null ? 'Tem estoque para ' . (int) $item['porcoes'] . ' un.' : 'Tem estoque.' ?><?php else: ?>Sem estoque ou pausado aqui.<?php endif; ?>
                                         <?= $item['sincronizado_em'] ? 'Enviado às ' . $e(date('H:i', (int) strtotime((string) $item['sincronizado_em']))) . '.' : ($sincronizar ? 'Será enviado em até 1 minuto.' : '') ?>
                                     </small>
                                 <?php endif; ?>

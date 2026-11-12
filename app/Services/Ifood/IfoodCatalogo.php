@@ -76,7 +76,11 @@ final class IfoodCatalogo
         return $ligados;
     }
 
-    /** Produto do restaurante para um item vindo em pedido: ligacao salva, codigo ou nome. */
+    /**
+     * Produto do restaurante para um item vindo em pedido: ligacao do proprio item, outro item do iFood com o mesmo
+     * codigo PDV ou o mesmo nome ja ligado (so se todos apontam para o mesmo produto), ou produto daqui com o mesmo
+     * codigo/nome. Achado por codigo ou nome, o item novo fica ligado sozinho (o iFood pode recriar o item com outro id).
+     */
     public function produtoDoItem(?string $idItem, ?string $codigo, string $nome): ?int
     {
         if ($idItem !== null) {
@@ -87,15 +91,34 @@ final class IfoodCatalogo
                 return (int) $id;
             }
         }
+        $produto = null;
         if ($codigo !== null) {
-            $q = $this->db->prepare('SELECT id_produto FROM ifood_itens WHERE id_restaurante = ? AND codigo_externo = ? AND id_produto IS NOT NULL ORDER BY id LIMIT 1');
-            $q->execute([$this->idRestaurante, $codigo]);
-            $id = $q->fetchColumn();
-            if ($id !== false) {
-                return (int) $id;
-            }
+            $produto = $this->unicoLigado('codigo_externo = ?', [$codigo], $idItem);
         }
-        return $this->produtoParecido($codigo, $nome);
+        if ($produto === null && trim($nome) !== '') {
+            $produto = $this->unicoLigado('LOWER(nome) = ?', [mb_strtolower(trim($nome))], $idItem);
+        }
+        $produto ??= $this->produtoParecido($codigo, $nome);
+        if ($produto !== null && $idItem !== null) {
+            $this->db->prepare("UPDATE ifood_itens SET id_produto = ?, vinculo = 'automatico' WHERE id_restaurante = ? AND ifood_item_id = ? AND id_produto IS NULL")
+                ->execute([$produto, $this->idRestaurante, $idItem]);
+        }
+        return $produto;
+    }
+
+    /** Produto ligado a outros itens do iFood que batem com a condicao, se todos apontam para o MESMO produto. @param list<string> $valores */
+    private function unicoLigado(string $condicao, array $valores, ?string $menosItem): ?int
+    {
+        $sql = 'SELECT DISTINCT id_produto FROM ifood_itens WHERE id_restaurante = ? AND id_produto IS NOT NULL AND ' . $condicao;
+        $params = [$this->idRestaurante, ...$valores];
+        if ($menosItem !== null) {
+            $sql .= ' AND ifood_item_id <> ?';
+            $params[] = $menosItem;
+        }
+        $q = $this->db->prepare($sql);
+        $q->execute($params);
+        $ids = $q->fetchAll(PDO::FETCH_COLUMN);
+        return count($ids) === 1 ? (int) $ids[0] : null;
     }
 
     /** Liga (ou solta, com null) um item a um produto deste restaurante. */

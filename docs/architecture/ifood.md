@@ -30,6 +30,8 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
   daqui (ligação automática pelo **código PDV = código do produto** ou pelo mesmo nome; manual por lista), situação no
   iFood, estoque daqui, último envio e erros. Botões: *Buscar cardápio do iFood* e *Enviar disponibilidade agora*.
   Itens que chegam em pedidos e ainda não estão no cardápio buscado também aparecem para ligar.
+  Item que chega com outro id (o iFood recria itens, e o gerador de pedidos de teste usa ids novos a cada pedido) usa a
+  ligação de outro item com o mesmo código PDV ou o mesmo nome, desde que todos apontem para o mesmo produto, e já fica ligado.
 - `Caixa > Delivery`: selo `iFood #código` na lista e na fila lateral; no pedido, avisos, entregador do iFood, código de
   coleta, pagamento ("Pago pelo app do iFood", "Cobrar na entrega: Dinheiro, troco para R$ 100,00", "O cliente paga ao
   entregador do iFood") e cancelamento com motivo do iFood.
