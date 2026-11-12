@@ -1,0 +1,44 @@
+/* Dashboard da plataforma. Usa indicadores, grafico e ranking de painel.css / visao-geral.css. Mobile-first. */
+.dash-alerta-atencao { border-color: #f3d9a6; background: #fff8e8; }
+.dash-alerta-atencao > .icon:first-child { color: #8a5300; }
+.dash-alerta-atencao:hover, .dash-alerta-atencao:focus-visible { border-color: #8a5300; }
+
+.dash-periodos { margin: 0; }
+
+.dash-origens { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 0; padding: 1rem 0 0; border-top: 1px solid var(--c-line); list-style: none; }
+.dash-origens li {
+  display: inline-flex; align-items: center; gap: .5rem; padding: .35rem .7rem; border: 1px solid var(--c-line);
+  border-radius: var(--r-pill); color: var(--c-muted); font-size: .86rem;
+}
+.dash-origens strong { color: var(--c-ink); font-family: var(--f-head); font-variant-numeric: tabular-nums; }
+
+.vg-ranking-nome a { color: inherit; text-decoration: none; }
+.vg-ranking-nome a:hover, .vg-ranking-nome a:focus-visible { color: var(--c-wine); text-decoration: underline; text-underline-offset: .15em; }
+
+.dash-situacoes { margin: 0; padding: 0; list-style: none; }
+.dash-situacoes li + li { border-top: 1px solid var(--c-line); }
+.dash-situacoes a { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.9rem; padding: .35rem 0; color: var(--c-ink); text-decoration: none; }
+.dash-situacoes a:hover strong, .dash-situacoes a:focus-visible strong { color: var(--c-wine); }
+.dash-situacoes strong { font: 800 1.15rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
+
+.dash-saude { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.dash-saude li {
+  display: flex; align-items: center; gap: .75rem; padding: .75rem .9rem; border: 1px solid var(--c-line); border-radius: var(--r-lg);
+  background: var(--c-white);
+}
+.dash-saude li.is-atencao { border-color: #f3d9a6; background: #fff8e8; }
+.dash-saude-icone { display: grid; place-items: center; flex: 0 0 auto; width: 2.25rem; height: 2.25rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-wine); }
+.dash-saude li.is-atencao .dash-saude-icone { background: #fff1d6; color: #8a5300; }
+.dash-saude-texto { display: grid; flex: 1 1 auto; gap: .15rem; min-width: 0; }
+.dash-saude-texto strong { color: var(--c-ink); font-size: .95rem; }
+.dash-saude-texto small { display: flex; align-items: flex-start; gap: .3rem; color: var(--c-muted); font-size: .84rem; overflow-wrap: anywhere; }
+.dash-saude-texto small .icon { flex: 0 0 auto; margin-top: .1rem; }
+.dash-saude li.is-ok small .icon { color: var(--c-success); }
+.dash-saude li.is-atencao small .icon { color: #8a5300; }
+
+@media (min-width: 40rem) {
+  .dash-saude { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 64rem) {
+  .dash-indicadores { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

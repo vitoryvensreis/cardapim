@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Teste HTTP do painel da PLATAFORMA (adm_master): menu, secoes em construcao e as integracoes da plataforma
+# Teste HTTP do painel da PLATAFORMA (adm_master): menu, secoes e as integracoes da plataforma
 # (Asaas das assinaturas e WhatsApp da plataforma) contra o servidor FALSO tests/fakes/integracoes-fake.php.
 # Uso: bash tests/http/plataforma.sh <base> <slug-restaurante> <base-do-fake>
 set -Eeuo pipefail
@@ -43,11 +43,12 @@ for item in 'Dashboard' 'Restaurantes' 'Planos' 'Faturas' 'Usuários' 'Logs de a
   contem "menu tem $item" "$tmp/pagina.html" ">$item</span>"
 done
 contem "menu marca a secao atual" "$tmp/pagina.html" 'href="/painel" aria-current="page"'
-contem "atalho para as integracoes" "$tmp/pagina.html" 'href="/painel/integracoes"'
+contem "dashboard mostra a saude do sistema" "$tmp/pagina.html" 'Saúde do sistema'
+nao_contem "dashboard nao esta em construcao" "$tmp/pagina.html" 'Em construção'
 for secao in restaurantes planos faturas usuarios logs configuracoes suporte minha-conta; do
-  esperar "/painel/$secao abre (em construcao)" "$(pagina "$aj" "$p/$secao")" "200"
+  esperar "/painel/$secao abre" "$(pagina "$aj" "$p/$secao")" "200"
+  nao_contem "/painel/$secao tem tela propria" "$tmp/pagina.html" 'Em construção'
 done
-contem "secao em construcao explica o que vem" "$tmp/pagina.html" 'Em construção'
 esperar "secao inexistente: 404" "$(pagina "$aj" "$p/nao-existe")" "404"
 esperar "sem login vai para o login" "$(curl -s -o /dev/null -w '%{http_code}' "$p/integracoes")" "302"
 esperar "gerente nao entra no painel da plataforma" "$(pagina "$gj" "$p/integracoes")" "403"

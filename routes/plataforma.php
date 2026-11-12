@@ -9,6 +9,8 @@ use Cardapim\Controllers\Plataforma\PlanosController;
 use Cardapim\Controllers\Plataforma\RestaurantesController;
 use Cardapim\Controllers\Plataforma\SuporteController;
 use Cardapim\Controllers\Plataforma\FaturasController;
+use Cardapim\Controllers\Plataforma\LogsController;
+use Cardapim\Controllers\Plataforma\MinhaContaController;
 use Cardapim\Controllers\Plataforma\UsuariosController;
 use Cardapim\Core\Router;
 
@@ -77,7 +79,24 @@ return static function (Router $router): void {
     $router->get('/painel/faturas', [FaturasController::class, 'lista']);
     $router->post('/painel/faturas/atualizar', [FaturasController::class, 'atualizar']);
 
-    // E-mail de teste (Configuracoes).
+    // Logs de auditoria.
+$router->get('/painel/logs', [LogsController::class, 'lista']);
+$router->get('/painel/logs/planilha', [LogsController::class, 'planilha']);
+// Minha conta do administrador (mesmo fluxo da Minha conta do gerente).
+$router->get('/painel/minha-conta', [MinhaContaController::class, 'mostrar']);
+$router->post('/painel/minha-conta/dados', [MinhaContaController::class, 'dados']);
+$router->post('/painel/minha-conta/senha', [MinhaContaController::class, 'senha']);
+$router->get('/painel/minha-conta/dois-fatores/app', [MinhaContaController::class, 'appIniciar']);
+$router->post('/painel/minha-conta/dois-fatores/app', [MinhaContaController::class, 'appConfirmar']);
+$router->post('/painel/minha-conta/dois-fatores/email', [MinhaContaController::class, 'emailEnviar']);
+$router->get('/painel/minha-conta/dois-fatores/email', [MinhaContaController::class, 'emailForm']);
+$router->post('/painel/minha-conta/dois-fatores/email/confirmar', [MinhaContaController::class, 'emailConfirmar']);
+$router->post('/painel/minha-conta/dois-fatores/desativar', [MinhaContaController::class, 'desativar']);
+$router->get('/painel/minha-conta/codigos', [MinhaContaController::class, 'codigos']);
+$router->post('/painel/minha-conta/codigos', [MinhaContaController::class, 'novosCodigos']);
+$router->post('/painel/minha-conta/aparelhos/sair-todos', [MinhaContaController::class, 'sairOutros']);
+$router->post('/painel/minha-conta/aparelhos/{id}/sair', [MinhaContaController::class, 'sairAparelho']);
+// E-mail de teste (Configuracoes).
     $router->post('/painel/configuracoes/email-teste', [ConfiguracoesController::class, 'emailTeste']);
 
     // Demais secoes (em construcao): dashboard, restaurantes, planos, faturas, usuarios, logs...

@@ -1,7 +1,7 @@
 <?php
 /**
- * Minha conta do gerente. Espera: $conta, $dados, $erros (por formulario), $codigosRestantes, $aparelhos,
- * $seletorAtual, $acessos, $appDisponivel, $base, $csrf.
+ * Minha conta (gerente e administrador). Espera: $conta, $dados, $erros (por formulario), $codigosRestantes, $aparelhos,
+ * $seletorAtual, $acessos, $appDisponivel, $ajudaLogin, $base, $csrf.
  */
 use Cardapim\Core\Icon;
 use Cardapim\Services\Auth\DoisFatores;
@@ -48,7 +48,7 @@ $quando = static function (?string $data): string {
                 <div><dt>Usuário</dt><dd><?= $e((string) $conta['usuario']) ?></dd></div>
                 <div><dt>E-mail</dt><dd><?= $e((string) $conta['email']) ?></dd></div>
             </dl>
-            <p class="texto-suave">Para trocar o usuário ou o e-mail, fale com o suporte.</p>
+            <p class="texto-suave"><?= $e((string) ($ajudaLogin ?? 'Para trocar o usuário ou o e-mail, fale com o suporte.')) ?></p>
             <div class="bloco-rodape">
                 <button class="btn btn-primary btn-sm" type="submit" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar meus dados</button>
             </div>

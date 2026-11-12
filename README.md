@@ -76,7 +76,7 @@
 - **Suporte** (`/painel/suporte`): chamados de todos os restaurantes, os que esperam resposta primeiro (selo no menu), responder, resolver e reabrir; aviso por e-mail nos dois sentidos. [Detalhes](docs/architecture/suporte.md).
 - **Cadastro e assinatura de verdade**: cadastro cria o restaurante e a assinatura no Asaas da plataforma; o aviso de pagamento libera o cardapio; fatura atrasada alem da tolerancia pausa o acesso (so o gerente entra, para pagar).
 - **Cada um no seu lugar**: equipe logada (administrador, gerente, caixa, garcom, motoqueiro) nao volta ao site, catalogo, login, cadastro ou cardapios, sempre cai no proprio painel (gerente ainda abre o proprio cardapio). No cardapio o cliente nao tem caminho para outros restaurantes. [Detalhes](docs/architecture/autenticacao.md).
-- Demais secoes mostram "Em construcao" com o que vai ter. [Detalhes](docs/architecture/painel-plataforma.md).
+- **Dashboard** (`/painel`): receita das assinaturas, faturas, restaurantes, pedidos de toda a plataforma por dia e saude do sistema. **Logs de auditoria** (`/painel/logs`): tudo o que foi feito, com filtros e planilha. **Minha conta** do administrador: dados, senha, verificacao em duas etapas e aparelhos. [Detalhes](docs/architecture/painel-plataforma.md).
 
 ## Tempo real (WebSocket proprio)
 

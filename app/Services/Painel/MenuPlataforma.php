@@ -20,13 +20,8 @@ final class MenuPlataforma
             'rotulo' => 'Dashboard',
             'icone' => 'layout-dashboard',
             'descricao' => 'Os números de toda a plataforma em uma tela.',
-            'planejado' => [
-                'Faturamento das assinaturas no mês e previsão do próximo',
-                'Restaurantes ativos, novos, em teste e cancelados',
-                'Pedidos e vendas de toda a plataforma por período',
-                'Faturas vencidas e restaurantes com pagamento atrasado',
-                'Saúde do sistema: banco, tempo real, WhatsApp e Asaas',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
         'restaurantes' => [
             'titulo' => 'Restaurantes',
@@ -65,11 +60,8 @@ final class MenuPlataforma
             'rotulo' => 'Logs de auditoria',
             'icone' => 'file-text',
             'descricao' => 'Tudo o que foi feito na plataforma, por quem e quando.',
-            'planejado' => [
-                'Todos os registros com filtro por restaurante, pessoa, data e tipo',
-                'Logins, alertas de segurança e alterações',
-                'Exportar para planilha',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
         'integracoes' => [
             'titulo' => 'Integrações',
@@ -100,12 +92,8 @@ final class MenuPlataforma
             'rotulo' => 'Minha conta',
             'icone' => 'circle-user',
             'descricao' => 'Seus dados e a segurança da sua conta.',
-            'planejado' => [
-                'Nome e telefone',
-                'Trocar a senha',
-                'Verificação em duas etapas (aplicativo ou e-mail)',
-                'Aparelhos conectados e últimos acessos',
-            ],
+            'planejado' => [],
+            'pronto' => true,
         ],
     ];
 

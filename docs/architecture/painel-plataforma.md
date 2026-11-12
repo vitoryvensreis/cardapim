@@ -7,16 +7,16 @@ login; qualquer outro cargo recebe 403. Todo POST exige CSRF e toda ação gera 
 
 | Seção | Rota | Situação |
 | --- | --- | --- |
-| Dashboard | `/painel` | Em construção (com atalhos: integrações e status do sistema) |
+| Dashboard | `/painel` | **Pronto**: assinaturas, restaurantes, pedidos da plataforma e saúde do sistema ([detalhes](#dashboard)) |
 | Restaurantes | `/painel/restaurantes` | **Pronto**: lista, cadastrar, editar, situação, plano, contas e excluir ([detalhes](#restaurantes)) |
 | Planos | `/painel/planos` | **Pronta**: planos publicos e privados (link de convite), vitalicio gratis ([assinaturas.md](assinaturas.md)) |
 | Configurações | `/painel/configuracoes` | **Pronta**: nome, textos, logos, icone do app e teste do e-mail do sistema ([email.md](../deploy/email.md)) |
 | Faturas | `/painel/faturas` | **Pronta**: números do mês, lista com filtros e "Atualizar agora" ([detalhes](#faturas)) |
 | Usuários | `/painel/usuarios` | **Pronto**: todas as contas, criar, editar, senha, bloquear, 2FA e excluir ([detalhes](#usuarios)) |
 | Integrações | `/painel/integracoes` | **Pronta**: Asaas da plataforma e WhatsApp da plataforma |
-| Logs de auditoria | `/painel/logs` | Em construção |
+| Logs de auditoria | `/painel/logs` | **Pronto**: filtros por tipo, restaurante, pessoa, texto e datas; planilha ([detalhes](#logs-de-auditoria)) |
 | Suporte | `/painel/suporte` | **Pronto**: chamados dos restaurantes ([suporte.md](suporte.md)) |
-| Minha conta | `/painel/minha-conta` | Em construção (senha e verificação em duas etapas) |
+| Minha conta | `/painel/minha-conta` | **Pronta**: dados, senha, verificação em duas etapas, aparelhos e acessos ([detalhes](#minha-conta)) |
 
 Fonte única do menu e do que cada seção vai ter: `app/Services/Painel/MenuPlataforma.php`.
 Rotas: `routes/plataforma.php` (registradas antes das rotas `/{slug}`).
@@ -92,3 +92,39 @@ view `plataforma/faturas/lista.php`, CSS `faturas.css`. Tabela: `assinatura_fatu
 - **Atualizar agora**: consulta no Asaas até 40 assinaturas ativas (as com fatura em aberto primeiro) pela `AssinaturaCobranca::sincronizar`.
   Normalmente não precisa: o aviso (webhook) do Asaas já muda a situação sozinho.
 - Somente leitura: nenhuma fatura é criada, editada ou apagada nesta tela.
+
+## Dashboard
+
+Rota: `GET /painel` (`?periodo=hoje|7dias|30dias`, padrão 7 dias). Código: `PainelController::inicio`,
+`Repositories/Plataforma/DashboardRepository`, view `plataforma/dashboard.php`, CSS `dashboard-plataforma.css` (+ `visao-geral.css`
+pelo gráfico e ranking; o gráfico reaproveita `gerencia/visao-geral/_barras.php`).
+
+- **Avisos no topo**: chamados esperando resposta, faturas vencidas e restaurantes esperando o 1º pagamento (cada um com link).
+- **Números**: receita por mês (assinaturas ativas, valor dividido pelos meses do período), recebido no mês e a receber (faturas
+  do ambiente do Asaas conectado), restaurantes ativos e novos em 30 dias, pedidos do período comparados ao período anterior.
+- **Pedidos na plataforma**: barras por dia (14 dias, ou 30 no período de 30 dias), valor, quantos restaurantes venderam e
+  pedidos por canal. Cancelados e Pix não pagos ficam de fora.
+- **Quem mais vendeu** (5 restaurantes) e **restaurantes por situação** (links para a lista filtrada).
+- **Saúde do sistema**: banco, tempo real (`StatusController::tempoReal`), Asaas e WhatsApp da plataforma, iFood (chaves,
+  lojas conectadas e última passagem da rotina, alerta acima de 3 minutos) e e-mail (SMTP configurado ou não), com link para resolver.
+
+## Logs de auditoria
+
+Rotas: `GET /painel/logs` (`?tipo=acessos|seguranca|alteracoes|clientes&restaurante=<id>|plataforma&pessoa=&busca=&de=AAAA-MM-DD&ate=&pagina=`)
+e `GET /painel/logs/planilha` (mesmos filtros, CSV com `;` e BOM, até 20 mil linhas; o download também vira log "Logs exportados").
+Código: `Controllers/Plataforma/LogsController`, `Repositories/Plataforma/LogAdminRepository`, view `plataforma/logs.php`, CSS `logs.css`.
+Planilhas usam `Shared/Planilha` (a mesma proteção contra fórmulas do Financeiro).
+
+- Lista agrupada por dia (Hoje, Ontem, data), mais recentes primeiro, 50 por página: o que aconteceu, detalhes, quem (nome, usuário,
+  função, restaurante) e IP. Ícone e cor por tipo, sempre com texto.
+- Só leitura: nada é editado ou apagado. Restaurante = restaurante da conta que fez; "Administração da plataforma" = contas `adm_master`.
+
+## Minha conta
+
+Rotas em `/painel/minha-conta` iguais às do gerente (`/dados`, `/senha`, `/dois-fatores/app`, `/dois-fatores/email`,
+`/dois-fatores/email/confirmar`, `/dois-fatores/desativar`, `/codigos`, `/aparelhos/sair-todos`, `/aparelhos/{id}/sair`).
+O fluxo é o mesmo do gerente: `Controllers/Concerns/FluxoMinhaConta` (trait) usado por `Gerencia\MinhaContaController` e
+`Plataforma\MinhaContaController`; views em `app/Views/minha-conta/`. Usuário e e-mail do administrador mudam em Usuários, por
+outro administrador.
+
+Teste: `tests/http/painel-adm.sh`.

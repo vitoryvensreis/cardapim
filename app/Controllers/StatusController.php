@@ -77,7 +77,7 @@ final class StatusController
      * Situacao do servidor WebSocket pelo arquivo que ele atualiza a cada 10 s (nao afeta o HTTP 200/503).
      * @return array{situacao:string, redis?:string}
      */
-    private static function tempoReal(): array
+    public static function tempoReal(): array
     {
         $arquivo = dirname(__DIR__, 2) . '/storage/cache/tempo-real.json';
         $dados = is_file($arquivo) ? json_decode((string) @file_get_contents($arquivo), true) : null;

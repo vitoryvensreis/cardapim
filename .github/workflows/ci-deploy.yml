@@ -289,6 +289,7 @@ jobs:
           bash tests/http/alerta-pedido.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/suporte.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/recuperar-senha.sh http://127.0.0.1:18080
+          bash tests/http/painel-adm.sh http://127.0.0.1:18080
           php tests/http/verificar-alerta-ci.php
           IFOOD_BASE_URL=http://127.0.0.1:18099/ifood IFOOD_CLIENT_ID=ifood-ci IFOOD_CLIENT_SECRET=ifood-segredo-ci APP_URL=https://cardapim.test \
             bash tests/http/ifood.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099

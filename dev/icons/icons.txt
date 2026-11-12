@@ -161,3 +161,8 @@ car
 list-checks
 circle-pause
 flask-conical
+chart-column
+radio
+database
+shield-exclamation-point
+cpu

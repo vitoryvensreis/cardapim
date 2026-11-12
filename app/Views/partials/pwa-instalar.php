@@ -4,11 +4,20 @@
  * login, cadastro e verificacao): o pwa.js mostra
  * so quando o aparelho permite instalar (botao) ou explica o caminho no iPhone/iPad. Ja instalado = some.
  */
-use Cardapim\Core\AssetUrl;
+use Cardapim\Controllers\PwaController;
 use Cardapim\Core\Icon;
+use Cardapim\Services\Configuracoes;
+use Cardapim\Shared\MidiaUrl;
+
+// O mesmo icone do app instalado (Configuracoes > Icone do app). Sem ele, o favicon enviado; sem nenhum, o original.
+$pwaIcone = PwaController::icones()[0]['src'];
+if (str_starts_with($pwaIcone, '/assets/')) {
+    $favicon = Configuracoes::logoOuPadrao('icone');
+    $pwaIcone = str_starts_with($favicon, '/midia/') ? MidiaUrl::publica($favicon) : $pwaIcone;
+}
 ?>
 <section class="pwa-instalar" aria-labelledby="pwa-titulo" data-pwa-instalar hidden>
-    <img class="pwa-icone" src="<?= AssetUrl::asset('img/pwa/icon-192.png') ?>" width="48" height="48" alt="">
+    <img class="pwa-icone" src="<?= htmlspecialchars($pwaIcone, ENT_QUOTES, 'UTF-8') ?>" width="48" height="48" alt="">
     <div class="pwa-texto">
         <h2 id="pwa-titulo">Instale o <?= marca_html() ?> no celular</h2>
         <p data-pwa-texto>Abra direto da tela inicial, em tela cheia, como um aplicativo.</p>

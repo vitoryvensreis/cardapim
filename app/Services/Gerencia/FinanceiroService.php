@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Gerencia;
 
+use Cardapim\Shared\Planilha;
 use Cardapim\Repositories\Gerencia\FinanceiroRepository;
 use Cardapim\Services\Caixa\CaixaService;
 use Cardapim\Shared\Numero;
@@ -268,23 +269,6 @@ final class FinanceiroService
             $sentido = $l['transferencia'] ? 'Transferência' : ($l['sentido'] === 'entrada' ? 'Entrada' : 'Saída');
             $linhas[] = [date('d/m/Y', (int) strtotime($l['dia'])), $hora, $sentido, $l['categoria'], $l['descricao'], ($l['sentido'] === 'saida' ? '-' : '') . $reais($l['valor']), $l['autor']];
         }
-        $saida = fopen('php://temp', 'r+');
-        fwrite($saida, "\u{FEFF}");
-        foreach ($linhas as $linha) {
-            fputcsv($saida, array_map(self::seguroParaPlanilha(...), $linha), ';', '"', '');
-        }
-        rewind($saida);
-        $csv = (string) stream_get_contents($saida);
-        fclose($saida);
-        return $csv;
-    }
-
-    /** Evita que um texto digitado vire formula ao abrir a planilha (=, +, -, @ no inicio). */
-    private static function seguroParaPlanilha(string $valor): string
-    {
-        if ($valor !== '' && preg_match('/\A-?\d[\d.,]*\z/', $valor) !== 1 && in_array($valor[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
-            return "'" . $valor;
-        }
-        return $valor;
+        return Planilha::csv($linhas);
     }
 }
