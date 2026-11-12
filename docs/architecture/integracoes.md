@@ -77,7 +77,7 @@ O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de 
   `GET /merchant/v1.0/merchants` lista as lojas → o gerente escolhe a loja deste restaurante (se houver só uma, é escolhida sozinha).
 - Tokens cifrados; o de acesso é renovado com o refresh token quando vence. "Testar conexão" consulta `GET /merchant/v1.0/merchants/{id}/status`.
 - O isolamento entre restaurantes é feito pelo Cardapim: cada restaurante só usa a loja que escolheu.
-- Recebimento de pedidos (polling/webhook do iFood) entra com o módulo de pedidos.
+- Pedidos, entregador e estoque sincronizado: [ifood.md](ifood.md) (rotina `bin/ifood.php` com polling a cada 30 s).
 
 ## Testes
 

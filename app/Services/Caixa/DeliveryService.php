@@ -10,6 +10,9 @@ use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Ifood\DadosPedidoIfood;
+use Cardapim\Services\Ifood\IfoodAcoes;
+use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\CancelarPedido;
 use Cardapim\Shared\Numero;
@@ -22,6 +25,7 @@ use Throwable;
  * Caminho: Recebido -> Em preparo -> Pronto -> Saiu para entrega (com o motoqueiro escolhido) -> Entregue.
  * Retirada: Pronto -> Entregue ao cliente. O estoque ja foi baixado quando o cliente fez o pedido
  * (nao baixa de novo no despacho); cancelar devolve. Ao concluir, o pagamento entra no caixa aberto.
+ * Pedido do iFood: aceitar, pronto, despachar e cancelar tambem vao para o iFood (fila IfoodAcoes).
  */
 final class DeliveryService
 {
@@ -34,7 +38,7 @@ final class DeliveryService
     ];
 
     /** Forma do pedido online -> forma registrada no caixa. */
-    private const FORMA_CAIXA = ['pix_entrega' => 'pix', 'debito' => 'debito', 'credito' => 'credito', 'dinheiro' => 'dinheiro', 'pix_online' => 'pix_online'];
+    private const FORMA_CAIXA = ['pix_entrega' => 'pix', 'debito' => 'debito', 'credito' => 'credito', 'dinheiro' => 'dinheiro', 'pix_online' => 'pix_online', 'ifood' => 'ifood'];
 
     private readonly PedidoRepository $pedidos;
 
@@ -49,7 +53,7 @@ final class DeliveryService
         $marcadores = implode(',', array_fill(0, count(self::ATIVOS), '?'));
         $q = $this->db->prepare(
             "SELECT p.id, p.numero, p.tipo, p.status, p.forma_pagamento, p.pagamento_status, p.total, p.cliente_nome, p.entrega_bairro, p.criado_em,
-                    p.despachado_em, p.id_entregador, CONCAT(u.nome, ' ', u.sobrenome) AS entregador,
+                    p.origem, p.ifood_display_id, p.ifood_entregue_por, p.despachado_em, p.id_entregador, CONCAT(u.nome, ' ', u.sobrenome) AS entregador,
                     (SELECT COUNT(*) FROM pedido_itens i WHERE i.id_pedido = p.id AND i.id_restaurante = p.id_restaurante) AS itens
              FROM pedidos p LEFT JOIN `user` u ON u.id = p.id_entregador
              WHERE p.id_restaurante = ? AND p.tipo IN ('entrega', 'retirada') AND p.status IN ($marcadores)
@@ -121,8 +125,19 @@ final class DeliveryService
         if (!in_array($p['status'], $de, true)) {
             return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
         }
-        $this->mudar($p, $de, $para, $texto, []);
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ': ' . mb_strtolower(rtrim($texto, '.')) . '.');
+        $ifood = $this->ifoodAtivo($p);
+        $this->mudar($p, $de, $para, $texto, [], $ifood ? function () use ($p, $acao): void {
+            if ($p['status'] === 'recebido') {
+                IfoodAcoes::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], 'confirmar');
+            }
+            if ($acao === 'pronto') {
+                IfoodAcoes::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], 'pronto');
+            }
+        } : null);
+        if ($ifood) {
+            IfoodAcoes::agendarEnvio($this->idRestaurante);
+        }
+        return Resultado::sucesso('Pedido #' . $p['numero'] . ': ' . mb_strtolower(rtrim($texto, '.')) . '.' . ($ifood ? ' O iFood foi avisado.' : ''));
     }
 
     public function despachar(int $id, int $idEntregador): Resultado
@@ -137,6 +152,9 @@ final class DeliveryService
         if (!in_array($p['status'], ['recebido', 'em_preparo', 'pronto'], true)) {
             return Resultado::falha('Este pedido não pode sair para entrega agora.');
         }
+        if ($p['origem'] === 'ifood' && $p['ifood_entregue_por'] === 'ifood') {
+            return Resultado::falha('O entregador do iFood vai buscar este pedido. Ele sai sozinho daqui quando o entregador pegar.');
+        }
         $entregador = null;
         foreach ($this->entregadores() as $e) {
             if ($e['id'] === $idEntregador) {
@@ -146,8 +164,20 @@ final class DeliveryService
         if ($entregador === null) {
             return Resultado::falha('Escolha um entregador da sua equipe.', ['entregador' => 'Escolha quem vai levar.']);
         }
+        $ifood = $this->ifoodAtivo($p);
         $this->mudar($p, ['recebido', 'em_preparo', 'pronto'], 'saiu_entrega', 'Saiu para entrega com ' . $entregador['nome'] . '.',
-            ['id_entregador' => $idEntregador, 'despachado_em' => date('Y-m-d H:i:s')]);
+            ['id_entregador' => $idEntregador, 'despachado_em' => date('Y-m-d H:i:s')], $ifood ? function () use ($p): void {
+                if ($p['status'] === 'recebido') {
+                    IfoodAcoes::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], 'confirmar');
+                }
+                if ($p['status'] !== 'pronto') {
+                    IfoodAcoes::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], 'pronto');
+                }
+                IfoodAcoes::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], 'despachar');
+            } : null);
+        if ($ifood) {
+            IfoodAcoes::agendarEnvio($this->idRestaurante);
+        }
         TempoReal::publicar($this->idRestaurante, 'entregas', 'entrega.despachada', ['id' => $id, 'entregador' => $idEntregador]);
         // Casa do cliente no mapa: se o pedido veio sem coordenada (area por bairro), busca agora, uma vez so.
         \Cardapim\Services\Entregas\DestinoEntrega::garantir($this->db, $p);
@@ -204,11 +234,14 @@ final class DeliveryService
         return Resultado::sucesso('Pedido #' . $p['numero'] . ' concluído.' . ($jaPago ? '' : ' Pagamento de ' . Numero::reais((string) $p['total']) . ' no caixa.'));
     }
 
-    public function cancelar(int $id, string $motivo): Resultado
+    public function cancelar(int $id, string $motivo, string $codigoIfood = ''): Resultado
     {
         $p = $this->pedido($id);
         if ($p instanceof Resultado) {
             return $p;
+        }
+        if ($this->ifoodAtivo($p)) {
+            return $this->pedirCancelamentoIfood($p, $codigoIfood, $motivo);
         }
         $motivo = trim((string) preg_replace('/\s+/u', ' ', $motivo));
         if (mb_strlen($motivo) < 3 || mb_strlen($motivo) > 140) {
@@ -217,9 +250,50 @@ final class DeliveryService
         if (!(new CancelarPedido($this->db))->cancelar($this->idRestaurante, $id, 'Cancelado pelo restaurante: ' . $motivo, $this->autor->id)) {
             return Resultado::falha('Este pedido já foi concluído ou cancelado.');
         }
-        $aviso = $p['pagamento_status'] === 'pago' ? ' Ele já estava pago: devolva o valor ao cliente pelo Asaas.' : '';
+        $aviso = $p['origem'] === 'ifood' ? ' Cancele também no Gestor de Pedidos do iFood (a integração está desligada).'
+            : ($p['pagamento_status'] === 'pago' ? ' Ele já estava pago: devolva o valor ao cliente pelo Asaas.' : '');
         Auditoria::registrar($this->autor, 'Pedido cancelado', sprintf('Pedido #%d (%s). Motivo: %s. Estoque devolvido.%s', (int) $p['numero'], Numero::reais((string) $p['total']), $motivo, $aviso));
         return Resultado::sucesso('Pedido #' . $p['numero'] . ' cancelado. O estoque foi devolvido.' . $aviso);
+    }
+
+    /** Pedido do iFood com a integracao ligada: as mudancas tambem vao para o iFood. @param array<string,mixed> $p */
+    private function ifoodAtivo(array $p): bool
+    {
+        return $p['origem'] === 'ifood' && is_string($p['ifood_id'] ?? null) && $p['ifood_id'] !== ''
+            && (new IfoodConta($this->db, $this->idRestaurante))->conectada();
+    }
+
+    /**
+     * O cancelamento de pedido do iFood e pedido ao iFood: o pedido so e cancelado aqui (e o estoque volta)
+     * quando o iFood confirmar. @param array<string,mixed> $p
+     */
+    private function pedirCancelamentoIfood(array $p, string $codigo, string $detalhe): Resultado
+    {
+        if (!isset(IfoodAcoes::MOTIVOS[$codigo])) {
+            return Resultado::falha('Escolha o motivo do cancelamento (o iFood pede um da lista).', ['motivo_ifood' => 'Escolha o motivo.']);
+        }
+        $dados = DadosPedidoIfood::ler($p['ifood_dados'] ?? null);
+        if (($dados['cancelamento'] ?? null) === 'solicitado') {
+            return Resultado::falha('O cancelamento já foi pedido ao iFood. Aguarde a resposta.');
+        }
+        $detalhe = trim((string) preg_replace('/\s+/u', ' ', $detalhe));
+        $motivo = IfoodAcoes::MOTIVOS[$codigo] . ($detalhe !== '' ? ': ' . mb_substr($detalhe, 0, 140) : '');
+        $this->db->beginTransaction();
+        try {
+            IfoodAcoes::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], 'cancelar', ['codigo' => $codigo, 'motivo' => $motivo]);
+            DadosPedidoIfood::alterar($this->db, $this->idRestaurante, (int) $p['id'], static function (array $d): array {
+                $d['cancelamento'] = 'solicitado';
+                return $d;
+            });
+            $this->pedidos->registrarEvento($this->idRestaurante, (int) $p['id'], (string) $p['status'], 'Cancelamento pedido ao iFood: ' . $motivo . '.', $this->autor->id);
+            $this->db->commit();
+        } catch (Throwable $erro) {
+            $this->db->rollBack();
+            throw $erro;
+        }
+        IfoodAcoes::agendarEnvio($this->idRestaurante);
+        Auditoria::registrar($this->autor, 'Cancelamento pedido ao iFood', sprintf('Pedido #%d (%s). Motivo: %s.', (int) $p['numero'], Numero::reais((string) $p['total']), $motivo));
+        return Resultado::sucesso('Pedimos ao iFood para cancelar o pedido #' . $p['numero'] . '. Ele é cancelado aqui (e o estoque volta) quando o iFood confirmar, em poucos segundos.');
     }
 
     /** @return array<string,mixed>|Resultado */
@@ -242,8 +316,9 @@ final class DeliveryService
      * @param array<string,mixed> $p
      * @param list<string> $de
      * @param array<string,mixed> $extra colunas extras (id_entregador, despachado_em)
+     * @param (callable():void)|null $naTransacao gravado junto (ex.: fila de acoes do iFood)
      */
-    private function mudar(array $p, array $de, string $para, string $texto, array $extra): void
+    private function mudar(array $p, array $de, string $para, string $texto, array $extra, ?callable $naTransacao = null): void
     {
         $sets = 'status = ?, atualizado_em = ?';
         $valores = [$para, date('Y-m-d H:i:s')];
@@ -260,6 +335,9 @@ final class DeliveryService
                 throw new \RuntimeException('Pedido mudou de situacao.');
             }
             $this->pedidos->registrarEvento($this->idRestaurante, (int) $p['id'], $para, $texto, $this->autor->id);
+            if ($naTransacao !== null) {
+                $naTransacao();
+            }
             AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], $para);
             TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => (int) $p['numero'], 'status' => $para]);
             $this->db->commit();

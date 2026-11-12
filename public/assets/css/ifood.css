@@ -1,0 +1,19 @@
+/* Cardapio do iFood ligado aos produtos (gerencia > integracoes > iFood > cardapio) */
+.ifood-filtros { margin-bottom: 1rem; }
+.ifood-cardapio { padding: 0; overflow: hidden; }
+.ifood-itens { list-style: none; margin: 0; padding: 0; }
+.ifood-item { display: grid; gap: .75rem; padding: 1rem; border-bottom: 1px solid var(--c-line); }
+.ifood-item:last-child { border-bottom: 0; }
+.ifood-item-info { display: grid; gap: .25rem; align-content: start; min-width: 0; }
+.ifood-item-info strong { color: var(--c-ink); font: 700 1rem/1.3 var(--f-head); overflow-wrap: anywhere; }
+.ifood-item-info small { color: var(--c-muted); font-size: .85rem; }
+.ifood-item-info .etiqueta { justify-self: start; }
+.ifood-item-produto { display: grid; gap: .3rem; align-content: start; min-width: 0; }
+.ifood-item-produto label { color: var(--c-muted); font-size: .8rem; font-weight: 700; }
+.ifood-item-produto select { width: 100%; min-height: 2.75rem; padding: .5rem .75rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); color: var(--c-ink); font: inherit; }
+.ifood-item-produto select:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 1px; border-color: var(--c-wine); }
+.ifood-item-produto small { font-size: .82rem; }
+.ifood-salvar { position: sticky; bottom: 0; margin: 0; padding: .85rem 1rem; border-top: 1px solid var(--c-line); background: var(--c-white); }
+@media (min-width: 48rem) {
+  .ifood-item { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); align-items: start; }
+}

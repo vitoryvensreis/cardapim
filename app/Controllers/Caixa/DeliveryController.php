@@ -10,6 +10,8 @@ use Cardapim\Repositories\Caixa\CaixaRepository;
 use Cardapim\Services\Auth\Guard;
 use Cardapim\Services\Caixa\DeliveryService;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Ifood\DadosPedidoIfood;
+use Cardapim\Services\Ifood\IfoodConta;
 
 /** Pedidos do cardapio online no caixa: fila, ver o pedido, aceitar, pronto, despachar, entregue e cancelar. */
 final class DeliveryController extends BaseCaixa
@@ -50,6 +52,10 @@ final class DeliveryController extends BaseCaixa
             'entregadores' => $s->entregadores(),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'gestor' => in_array($this->usuario->cargo, ['gerente', 'adm_master'], true),
+            'ifood' => $d['pedido']['origem'] === 'ifood' ? [
+                'dados' => DadosPedidoIfood::ler($d['pedido']['ifood_dados'] ?? null),
+                'conectado' => (new IfoodConta($this->db, $this->restaurante['id']))->conectada(),
+            ] : null,
         ]);
     }
 
@@ -65,7 +71,7 @@ final class DeliveryController extends BaseCaixa
             in_array($acao, ['aceitar', 'pronto'], true) => $s->avancar($pedido, $acao),
             $acao === 'despachar' => $s->despachar($pedido, self::id($this->post('entregador')) ?? 0),
             $acao === 'concluir' => $s->concluir($pedido),
-            $acao === 'cancelar' => $s->cancelar($pedido, $this->post('motivo')),
+            $acao === 'cancelar' => $s->cancelar($pedido, $this->post('motivo'), $this->post('motivo_ifood')),
             default => Resultado::falha('Ação desconhecida.'),
         };
         return $this->responder($res, $this->url('delivery/' . (int) $pedido));

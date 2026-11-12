@@ -8,11 +8,14 @@ use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Ifood\IfoodCatalogo;
+use Cardapim\Services\Ifood\IfoodConta;
 use PDO;
 
 /**
  * iFood: o restaurante autoriza o app do Cardapim no Portal do Parceiro (codigo de vinculo),
  * cola o codigo de autorizacao e escolhe a loja. Tokens ficam cifrados e sao renovados sozinhos.
+ * Depois de conectado: opcoes (aceitar sozinho, enviar disponibilidade) e o cardapio do iFood ligado aos produtos.
  */
 final class IfoodService extends BaseIntegracao
 {
@@ -98,7 +101,14 @@ final class IfoodService extends BaseIntegracao
             'ultimo_erro' => null,
         ]);
         $this->log('Integração iFood conectada', 'Loja: ' . $loja['nome'] . '.');
-        return Resultado::sucesso('iFood conectado à loja "' . $loja['nome'] . '".');
+        $extra = '';
+        try {
+            $r = (new IfoodCatalogo($this->db, (int) $this->idRestaurante))->importar($this->conta());
+            $extra = $r['total'] > 0 ? ' Encontramos ' . $r['total'] . ' itens no cardápio do iFood (' . $r['ligados'] . ' ligados aos seus produtos).' : '';
+        } catch (IntegracaoErro) {
+            $extra = ' Busque o cardápio do iFood em "Cardápio do iFood" para ligar os itens aos produtos.';
+        }
+        return Resultado::sucesso('iFood conectado à loja "' . $loja['nome'] . '".' . $extra);
     }
 
     public function testar(): Resultado
@@ -139,22 +149,98 @@ final class IfoodService extends BaseIntegracao
         return Resultado::sucesso('iFood desconectado. Para remover o ' . marca() . ' de vez, tire a autorização também no Portal do Parceiro.');
     }
 
+    /** Opcoes do gerente: aceitar pedidos sozinho e enviar a disponibilidade pelo estoque. */
+    public function salvarOpcoes(bool $aceitarAutomatico, bool $sincronizarEstoque): Resultado
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return Resultado::falha('Conecte o iFood primeiro.');
+        }
+        $antes = [$conta->opcao('aceitar_automatico'), $conta->opcao('sincronizar_estoque')];
+        $conta->salvarOpcoes(['aceitar_automatico' => $aceitarAutomatico, 'sincronizar_estoque' => $sincronizarEstoque]);
+        $sim = static fn (bool $v): string => $v ? 'ligado' : 'desligado';
+        $this->log('iFood: opções', sprintf('Aceitar sozinho: %s (antes %s). Disponibilidade pelo estoque: %s (antes %s).',
+            $sim($aceitarAutomatico), $sim($antes[0]), $sim($sincronizarEstoque), $sim($antes[1])));
+        return Resultado::sucesso('Opções do iFood salvas.');
+    }
+
+    /** Busca os itens do cardapio no iFood e liga sozinho os que tiverem o mesmo codigo ou nome. */
+    public function buscarCardapio(): Resultado
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return Resultado::falha('Conecte o iFood primeiro.');
+        }
+        try {
+            $r = (new IfoodCatalogo($this->db, (int) $this->idRestaurante))->importar($conta);
+        } catch (IntegracaoErro $erro) {
+            return Resultado::falha($erro->getMessage());
+        }
+        if ($r['total'] === 0) {
+            return Resultado::falha('O iFood não mostrou nenhum item no cardápio da loja. Confira o cardápio no Portal do Parceiro.');
+        }
+        $this->log('iFood: cardápio buscado', sprintf('%d itens (%d novos); %d ligados automaticamente.', $r['total'], $r['novos'], $r['ligados']));
+        return Resultado::sucesso(sprintf('Cardápio atualizado: %d itens do iFood%s.', $r['total'], $r['ligados'] > 0 ? ', ' . $r['ligados'] . ' ligados sozinhos pelo código ou pelo nome' : ''));
+    }
+
+    /** Liga cada item do iFood ao produto escolhido (vazio = solta). @param array<mixed> $escolhas id do item => id do produto */
+    public function salvarLigacoes(array $escolhas): Resultado
+    {
+        $catalogo = new IfoodCatalogo($this->db, (int) $this->idRestaurante);
+        $atuais = [];
+        foreach ($catalogo->itens() as $i) {
+            $atuais[(int) $i['id']] = $i['id_produto'] !== null ? (int) $i['id_produto'] : null;
+        }
+        $mudados = 0;
+        $recusados = 0;
+        foreach ($escolhas as $idItem => $idProduto) {
+            $idItem = (int) $idItem;
+            if (!array_key_exists($idItem, $atuais) || !is_scalar($idProduto)) {
+                continue;
+            }
+            $novo = preg_match('/\A[1-9][0-9]{0,18}\z/', (string) $idProduto) === 1 ? (int) $idProduto : null;
+            if ($novo === $atuais[$idItem]) {
+                continue;
+            }
+            $catalogo->ligar($idItem, $novo) ? $mudados++ : $recusados++;
+        }
+        if ($mudados === 0 && $recusados === 0) {
+            return Resultado::sucesso('Nada mudou nas ligações.');
+        }
+        $this->log('iFood: ligações do cardápio', $mudados . ' item(ns) alterado(s).');
+        return $recusados > 0
+            ? Resultado::falha($mudados . ' ligação(ões) salva(s). ' . $recusados . ' produto(s) não encontrado(s): recarregue a página.')
+            : Resultado::sucesso($mudados . ' ligação(ões) salva(s). A disponibilidade vai para o iFood em até 1 minuto.');
+    }
+
+    /** Envia agora a disponibilidade de todos os itens ligados. */
+    public function sincronizarAgora(): Resultado
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return Resultado::falha('Conecte o iFood primeiro.');
+        }
+        try {
+            $r = (new IfoodCatalogo($this->db, (int) $this->idRestaurante))->sincronizar($conta, true);
+        } catch (IntegracaoErro $erro) {
+            return Resultado::falha($erro->getMessage());
+        }
+        if ($r['erros'] > 0) {
+            return Resultado::falha(sprintf('%d item(ns) enviado(s), %d com erro. Último erro: %s', $r['enviados'], $r['erros'], (string) $r['ultimo_erro']));
+        }
+        return $r['enviados'] === 0
+            ? Resultado::falha('Nenhum item ligado a produto ainda. Ligue os itens abaixo e tente de novo.')
+            : Resultado::sucesso($r['enviados'] . ' item(ns) atualizado(s) no iFood.');
+    }
+
+    private function conta(): IfoodConta
+    {
+        return new IfoodConta($this->db, (int) $this->idRestaurante, $this->api);
+    }
+
     /** Token de acesso valido (renova com o refresh token quando vence). */
     private function tokenValido(): string
     {
-        $cred = $this->integracoes->credenciais($this->idRestaurante, 'ifood');
-        if (!empty($cred['acesso']) && (int) ($cred['expira'] ?? 0) > time()) {
-            return (string) $cred['acesso'];
-        }
-        if (empty($cred['renovacao'])) {
-            throw new IntegracaoErro('O acesso ao iFood venceu. Desconecte e conecte de novo.');
-        }
-        $tokens = $this->api->renovar((string) $cred['renovacao']);
-        $this->integracoes->salvar($this->idRestaurante, 'ifood', ['credenciais' => [
-            'acesso' => $tokens['acesso'],
-            'renovacao' => $tokens['renovacao'] !== '' ? $tokens['renovacao'] : (string) $cred['renovacao'],
-            'expira' => $tokens['expira'],
-        ]]);
-        return $tokens['acesso'];
+        return $this->conta()->token();
     }
 }

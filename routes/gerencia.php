@@ -128,4 +128,9 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/ifood/testar', [IntegracoesController::class, 'ifoodTestar']);
     $router->post($g . '/integracoes/ifood/cancelar', [IntegracoesController::class, 'ifoodCancelar']);
     $router->post($g . '/integracoes/ifood/desconectar', [IntegracoesController::class, 'ifoodDesconectar']);
+    $router->post($g . '/integracoes/ifood/opcoes', [IntegracoesController::class, 'ifoodOpcoes']);
+    $router->get($g . '/integracoes/ifood/cardapio', [IntegracoesController::class, 'ifoodCardapio']);
+    $router->post($g . '/integracoes/ifood/cardapio/buscar', [IntegracoesController::class, 'ifoodCardapioBuscar']);
+    $router->post($g . '/integracoes/ifood/cardapio/ligar', [IntegracoesController::class, 'ifoodCardapioLigar']);
+    $router->post($g . '/integracoes/ifood/cardapio/sincronizar', [IntegracoesController::class, 'ifoodSincronizar']);
 };

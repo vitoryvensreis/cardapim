@@ -25,6 +25,7 @@ final class StatusPedido
         'credito' => 'Cartão de crédito',
         'dinheiro' => 'Dinheiro',
         'misto' => 'Mais de uma forma',
+        'ifood' => 'Pago no iFood',
     ];
 
     /** Etapas mostradas ao cliente (linha do tempo). @return list<string> */

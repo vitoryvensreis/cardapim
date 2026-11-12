@@ -98,6 +98,147 @@ class IfoodApi
         ];
     }
 
+    /* ---------- Pedidos (polling, confirmacao de leitura, detalhes e acoes) ---------- */
+
+    /**
+     * Avisos novos da loja. O iFood exige consulta a cada 30 s (mantem a loja aberta) e nunca mais rapido.
+     * @return list<array<string,mixed>>
+     */
+    public function eventos(string $token, string $idLoja): array
+    {
+        $r = $this->requisicao('GET', '/events/v1.0/events:polling', $token, null, ['x-polling-merchants' => $idLoja]);
+        if ($r->status === 204) {
+            return [];
+        }
+        $d = $this->exigirOk($r, 'buscar os pedidos novos');
+        return array_values(array_filter($d, static fn (mixed $ev): bool => is_array($ev) && is_string($ev['id'] ?? null)));
+    }
+
+    /** Confirma ao iFood que os avisos foram recebidos (obrigatorio; ate 2000 por vez). @param list<string> $ids */
+    public function confirmarEventos(string $token, array $ids): void
+    {
+        foreach (array_chunk(array_values(array_unique($ids)), 2000) as $lote) {
+            $r = $this->requisicao('POST', '/events/v1.0/events/acknowledgment', $token, array_map(static fn (string $id): array => ['id' => $id], $lote));
+            $this->exigirOk($r, 'confirmar o recebimento dos avisos');
+        }
+    }
+
+    /** Detalhes completos do pedido. @return array<string,mixed> */
+    public function pedido(string $token, string $idPedido): array
+    {
+        return $this->exigirOk($this->requisicao('GET', '/order/v1.0/orders/' . self::id($idPedido), $token), 'buscar o pedido');
+    }
+
+    /**
+     * Acao no pedido: confirm, startPreparation, readyToPickup, dispatch ou requestCancellation.
+     * @param array<string,mixed>|null $corpo
+     */
+    public function acaoPedido(string $token, string $idPedido, string $acao, ?array $corpo = null): void
+    {
+        if (!in_array($acao, ['confirm', 'startPreparation', 'readyToPickup', 'dispatch', 'requestCancellation'], true)) {
+            throw new IntegracaoErro('Ação do iFood inválida.');
+        }
+        $r = $this->requisicao('POST', '/order/v1.0/orders/' . self::id($idPedido) . '/' . $acao, $token, $corpo);
+        $this->exigirOk($r, 'atualizar o pedido');
+    }
+
+    /** Posicao e previsao do entregador do iFood (null enquanto o iFood nao tem). @return array<string,mixed>|null */
+    public function rastreio(string $token, string $idPedido): ?array
+    {
+        $r = $this->requisicao('GET', '/order/v1.0/orders/' . self::id($idPedido) . '/tracking', $token);
+        if ($r->status === 404 || $r->status === 204) {
+            return null;
+        }
+        return $this->exigirOk($r, 'buscar o entregador');
+    }
+
+    /* ---------- Cardapio (itens e disponibilidade) ---------- */
+
+    /** @return list<string> ids dos cardapios da loja */
+    public function catalogos(string $token, string $idLoja): array
+    {
+        $d = $this->exigirOk($this->requisicao('GET', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/catalogs', $token), 'buscar o cardápio');
+        $ids = [];
+        foreach ($d as $c) {
+            if (is_array($c) && is_string($c['catalogId'] ?? null) && strtoupper((string) ($c['status'] ?? 'AVAILABLE')) !== 'DELETED') {
+                $ids[] = $c['catalogId'];
+            }
+        }
+        return $ids;
+    }
+
+    /**
+     * Itens de um cardapio da loja, ja simplificados.
+     * @return list<array{id:string, produto:?string, nome:string, codigo:?string, categoria:?string, preco:?float, status:?string}>
+     */
+    public function itensCatalogo(string $token, string $idLoja, string $idCatalogo): array
+    {
+        $r = $this->requisicao('GET', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/catalogs/' . self::id($idCatalogo) . '/categories?includeItems=true', $token);
+        $d = $this->exigirOk($r, 'buscar os itens do cardápio');
+        $itens = [];
+        foreach ($d as $categoria) {
+            if (!is_array($categoria)) {
+                continue;
+            }
+            foreach (is_array($categoria['items'] ?? null) ? $categoria['items'] : [] as $item) {
+                if (!is_array($item) || !is_string($item['id'] ?? null) || $item['id'] === '') {
+                    continue;
+                }
+                $preco = $item['price']['value'] ?? $item['price'] ?? null;
+                $itens[] = [
+                    'id' => mb_substr($item['id'], 0, 64),
+                    'produto' => is_string($item['productId'] ?? null) ? mb_substr($item['productId'], 0, 64) : null,
+                    'nome' => mb_substr(trim((string) ($item['name'] ?? $item['description'] ?? 'Item sem nome')), 0, 180),
+                    'codigo' => is_scalar($item['externalCode'] ?? null) && trim((string) $item['externalCode']) !== '' ? mb_substr(trim((string) $item['externalCode']), 0, 80) : null,
+                    'categoria' => is_string($categoria['name'] ?? null) ? mb_substr($categoria['name'], 0, 120) : null,
+                    'preco' => is_numeric($preco) ? (float) $preco : null,
+                    'status' => is_string($item['status'] ?? null) ? mb_substr(strtoupper($item['status']), 0, 20) : null,
+                ];
+            }
+        }
+        return $itens;
+    }
+
+    /** Liga ou desliga a venda do item no iFood. */
+    public function disponibilidadeItem(string $token, string $idLoja, string $idItem, bool $disponivel): void
+    {
+        $r = $this->requisicao('PATCH', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/items/status', $token,
+            ['itemId' => $idItem, 'status' => $disponivel ? 'AVAILABLE' : 'UNAVAILABLE']);
+        $this->exigirOk($r, 'mudar a disponibilidade do item');
+    }
+
+    /** Quantidade em estoque do produto no iFood (no zero o iFood para de vender sozinho). */
+    public function estoqueProduto(string $token, string $idLoja, string $idProduto, int $quantidade): void
+    {
+        $r = $this->requisicao('POST', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/inventory', $token,
+            ['productId' => $idProduto, 'amount' => max(0, $quantidade)]);
+        $this->exigirOk($r, 'atualizar o estoque do item');
+    }
+
+    /**
+     * @param array<mixed>|null $corpo JSON
+     * @param array<string,string> $extras cabecalhos extras
+     */
+    private function requisicao(string $metodo, string $caminho, string $token, ?array $corpo = null, array $extras = []): RespostaHttp
+    {
+        try {
+            return $this->http->enviar($metodo, self::urlBase() . $caminho, ['Authorization' => 'Bearer ' . $token] + $extras, $corpo);
+        } catch (ErroHttp $erro) {
+            throw new IntegracaoErro('Não foi possível falar com o iFood agora: ' . $erro->getMessage());
+        } catch (\JsonException) {
+            throw new IntegracaoErro('Dados inválidos para o iFood.');
+        }
+    }
+
+    /** Id vindo do iFood usado no endereco: so letras, numeros e hifen. */
+    private static function id(string $id): string
+    {
+        if (preg_match('/\A[A-Za-z0-9-]{1,64}\z/', $id) !== 1) {
+            throw new IntegracaoErro('Código do iFood inválido.');
+        }
+        return $id;
+    }
+
     /** @return array{acesso:string, renovacao:string, expira:int} */
     private function tokens(RespostaHttp $r, string $acao): array
     {
@@ -141,9 +282,12 @@ class IfoodApi
         if ($r->ok()) {
             return $r->json();
         }
-        if (in_array($r->status, [400, 401, 403], true)) {
-            throw new IntegracaoErro('O iFood recusou ao ' . $acao . '. Se você acabou de colar o código, confira se copiou certo e se ele não venceu (vale 5 minutos).');
+        if (in_array($r->status, [400, 401, 403], true) && str_contains($acao, 'código')) {
+            throw new IntegracaoErro('O iFood recusou ao ' . $acao . '. Se você acabou de colar o código, confira se copiou certo e se ele não venceu (vale 5 minutos).', $r->status);
         }
-        throw new IntegracaoErro('O iFood não respondeu como esperado ao ' . $acao . ' (código ' . $r->status . '). Tente de novo em instantes.');
+        if ($r->status === 401 || $r->status === 403) {
+            throw new IntegracaoErro('O iFood recusou o acesso ao ' . $acao . '. Se a autorização foi removida no Portal do Parceiro, conecte de novo.', $r->status);
+        }
+        throw new IntegracaoErro('O iFood não respondeu como esperado ao ' . $acao . ' (código ' . $r->status . '). Tente de novo em instantes.', $r->status);
     }
 }
