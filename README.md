@@ -95,7 +95,7 @@
 - **Assinatura**: plano atual, faturas com botao "Pagar agora" (pagina do Asaas: Pix, boleto ou cartao), assinar, trocar, cancelar e desfazer, historico. Cobranca recorrente pelo Asaas da plataforma. [Detalhes](docs/architecture/assinaturas.md).
 - **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
 - Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
-- **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (WPPConnect proprio em Docker, QR Code e mensagem de teste) e iFood (codigo de vinculo, autorizacao e escolha da loja). [Detalhes](docs/architecture/integracoes.md) · [WPPConnect em Docker](docs/deploy/wppconnect-docker.md).
+- **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (WPPConnect proprio em Docker, QR Code e mensagem de teste) e iFood (vinculo da loja, pedidos com entregador e codigo de coleta, aceitar/pronto/cancelar indo para o iFood e estoque sincronizado). [Detalhes](docs/architecture/integracoes.md) · [iFood](docs/architecture/ifood.md) · [WPPConnect em Docker](docs/deploy/wppconnect-docker.md).
 - Suporte continua com a tela "em construcao".
 
 ---
@@ -396,7 +396,11 @@ Permissões granulares previstas: `orders.create`, `orders.cancel`, `orders.disc
 - Relatórios por empresa, unidade, caixa, canal, produto, período e colaborador; exportação CSV/PDF.
 - Histórico contábil **append-only** para movimentos relevantes; corrigir com lançamentos de reversão, não apagando o passado.
 
-### 4.9 Integração com iFood (módulo planejado)
+### 4.9 Integração com iFood
+
+**Implementado** ([detalhes](docs/architecture/ifood.md)): pedidos do iFood entram sozinhos no Delivery do caixa (polling a cada 30 s pela rotina `bin/ifood.php`, avisos guardados antes da confirmação de leitura, sem duplicar), entregador do iFood com etapa e código de coleta, aceitar/pronto/despachar/cancelar enviados ao iFood, concluído e cancelado vindos do iFood, venda no iFood baixando o estoque e disponibilidade dos itens enviada ao iFood pelo estoque (tela "Cardápio do iFood" para ligar itens a produtos). Para ligar em produção: app distribuído homologado, `IFOOD_CLIENT_ID/SECRET` no `shared/.env` e o cron da rotina.
+
+Planejamento original:
 - Conexão e autorização por estabelecimento (`merchantId` ↔ `establishment_id`).
 - Recebimento de pedidos/eventos na **Merchant API oficial** via Webhook e/ou Polling.
 - Validação de autenticidade, persistência de payload original, deduplicação por ID do evento e processamento assíncrono.

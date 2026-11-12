@@ -133,6 +133,13 @@ DDL no MySQL provoca commits implícitos: um rollback dos arquivos NÃO desfaz m
 
 **Nunca presumir deploy realizado apenas pelo commit.** É obrigatório conferir o status do workflow e a resposta do ambiente de produção. Nunca compartilhar segredos pelo chat.
 
+## Rotinas agendadas (Cron Jobs do CloudPanel, usuário do site)
+
+| Quando | Comando | Para que |
+| --- | --- | --- |
+| A cada minuto (`* * * * *`) | `php8.4 /home/<usuario>/apps/cardapim/current/bin/ifood.php >> /home/<usuario>/apps/cardapim/shared/storage/logs/ifood.log 2>&1` | Pedidos e avisos do iFood a cada 30 s, ações e disponibilidade ([ifood.md](../architecture/ifood.md)). Sai sem fazer nada enquanto `IFOOD_CLIENT_ID/SECRET` não estiverem no `shared/.env`. |
+| Uma vez por dia | `php8.4 /home/<usuario>/apps/cardapim/current/bin/cobranca-diaria.php` | Bloqueio de restaurantes com fatura atrasada além da tolerância. |
+
 ## Segurança
 
 - Deploy com usuário limitado, sem acesso root ou escrita em outros sites.

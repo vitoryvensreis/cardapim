@@ -25,7 +25,7 @@ $tempo = static function (string $desde): string {
     <header class="painel-cabecalho">
         <div>
             <h1>Delivery</h1>
-            <p>Pedidos do cardápio online em ordem de chegada. Toque no pedido para ver, preparar e despachar.</p>
+            <p>Pedidos do cardápio online e do iFood em ordem de chegada. Toque no pedido para ver, preparar e despachar.</p>
         </div>
     </header>
 
@@ -43,7 +43,7 @@ $tempo = static function (string $desde): string {
                         <ul class="delivery-cartoes">
                             <?php foreach ($porStatus[$status] as $p): ?>
                                 <li><a class="delivery-cartao" href="<?= $e($base . '/delivery/' . (int) $p['id']) ?>">
-                                    <span class="delivery-linha"><strong>#<?= (int) $p['numero'] ?></strong><span><?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $p['criado_em'])) ?></span></span>
+                                    <span class="delivery-linha"><strong>#<?= (int) $p['numero'] ?><?php if (($p['origem'] ?? '') === 'ifood'): ?> <span class="selo-ifood">iFood<?= $p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '' ?></span><?php endif; ?></strong><span><?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $p['criado_em'])) ?></span></span>
                                     <span class="delivery-linha"><span><?= $e((string) ($p['cliente_nome'] ?? 'Cliente')) ?></span><strong><?= $e(Numero::reais((string) $p['total'])) ?></strong></span>
                                     <span class="delivery-linha delivery-sub">
                                         <span><?= $p['tipo'] === 'entrega' ? Icon::svg('map-pin', 'icon-sm') . $e((string) ($p['entrega_bairro'] ?? 'Entrega')) : Icon::svg('store', 'icon-sm') . 'Retirada' ?></span>

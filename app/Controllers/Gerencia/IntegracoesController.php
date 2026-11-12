@@ -15,6 +15,8 @@ use Cardapim\Services\Gerencia\Integracoes\BaseIntegracao;
 use Cardapim\Services\Gerencia\Integracoes\IfoodService;
 use Cardapim\Services\Gerencia\Integracoes\WhatsAppService;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Ifood\IfoodCatalogo;
+use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Shared\Seguranca\Cripto;
 
 /** Aba Integracoes: iFood, WhatsApp (WPPConnect) e Asaas. Rotas em /{slug}/gerencia/integracoes/... */
@@ -160,9 +162,20 @@ final class IntegracoesController extends BaseGerencia
         if ($r = $this->entrar($slug)) {
             return $r;
         }
+        $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
+        $itens = $conta->conectada() ? (new IfoodCatalogo($this->db, (int) $this->restaurante['id']))->itens() : [];
+        $hoje = $this->db->prepare("SELECT COUNT(*) FROM pedidos WHERE id_restaurante = ? AND origem = 'ifood' AND criado_em >= ?");
+        $hoje->execute([$this->restaurante['id'], date('Y-m-d 00:00:00')]);
         return $this->tela('gerencia/integracoes/ifood', 'integracoes', 'iFood', [
             'integracao' => (new IntegracaoRepository($this->db))->buscar($this->restaurante['id'], 'ifood'),
             'disponivel' => IfoodApi::disponivel(),
+            'opcoes' => ['aceitar_automatico' => $conta->opcao('aceitar_automatico'), 'sincronizar_estoque' => $conta->opcao('sincronizar_estoque')],
+            'resumoCardapio' => [
+                'total' => count($itens),
+                'ligados' => count(array_filter($itens, static fn (array $i): bool => $i['id_produto'] !== null)),
+                'erros' => count(array_filter($itens, static fn (array $i): bool => $i['ultimo_erro'] !== null)),
+            ],
+            'pedidosHoje' => (int) $hoje->fetchColumn(),
             'pageScripts' => ['js/integracoes.js'],
         ]);
     }
@@ -195,6 +208,51 @@ final class IntegracoesController extends BaseGerencia
     public function ifoodDesconectar(string $slug): Response
     {
         return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->desconectar(), 'integracoes/ifood');
+    }
+
+    public function ifoodOpcoes(string $slug): Response
+    {
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->salvarOpcoes(isset($_POST['aceitar_automatico']), isset($_POST['sincronizar_estoque'])), 'integracoes/ifood');
+    }
+
+    /** Cardapio do iFood: cada item ligado a um produto (estoque e disponibilidade). */
+    public function ifoodCardapio(string $slug): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
+        if (!$conta->conectada()) {
+            return $this->voltar($this->url('integracoes/ifood'), 'erro', 'Conecte o iFood primeiro.');
+        }
+        $catalogo = new IfoodCatalogo($this->db, (int) $this->restaurante['id']);
+        $filtro = in_array($_GET['filtro'] ?? '', ['soltos', 'erros'], true) ? (string) $_GET['filtro'] : 'todos';
+        $itens = $catalogo->itens();
+        return $this->tela('gerencia/integracoes/ifood-cardapio', 'integracoes', 'Cardápio do iFood', [
+            'itens' => $itens,
+            'filtro' => $filtro,
+            'produtos' => $catalogo->produtos(),
+            'sincronizar' => $conta->opcao('sincronizar_estoque'),
+            'pageStyles' => ['css/ifood.css'],
+            'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
+        ]);
+    }
+
+    public function ifoodCardapioBuscar(string $slug): Response
+    {
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->buscarCardapio(), 'integracoes/ifood/cardapio');
+    }
+
+    public function ifoodCardapioLigar(string $slug): Response
+    {
+        $escolhas = is_array($_POST['produto'] ?? null) ? $_POST['produto'] : [];
+        $volta = 'integracoes/ifood/cardapio' . (in_array($_POST['filtro'] ?? '', ['soltos', 'erros'], true) ? '?filtro=' . $_POST['filtro'] : '');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->salvarLigacoes($escolhas), $volta);
+    }
+
+    public function ifoodSincronizar(string $slug): Response
+    {
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->sincronizarAgora(), 'integracoes/ifood/cardapio');
     }
 
     /* ---------- Internos ---------- */

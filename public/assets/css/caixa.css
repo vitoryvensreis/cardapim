@@ -415,6 +415,27 @@
   .folha[open] { animation: folha-aparece var(--t-med) var(--ease-out); }
   @keyframes folha-aparece { from { opacity: 0; transform: scale(.96); } }
 }
+/* Pedidos do iFood: selo, entregador do iFood e codigo de coleta */
+.delivery-acao > .notice { margin: 0; }
+.pedido-info { display: flex; align-items: flex-start; gap: .35rem; }
+.pedido-info .icon { flex: none; margin-top: .2rem; }
+.selo-ifood, .etiqueta-ifood { display: inline-flex; align-items: center; gap: .25rem; padding: .05rem .4rem; border-radius: var(--r-pill); background: var(--c-wine); color: var(--c-white); font: 800 .66rem/1.5 var(--f-head); letter-spacing: .02em; vertical-align: 2px; white-space: nowrap; }
+.etiqueta-ifood { padding: .15rem .5rem; font-size: .72rem; margin-right: .25rem; vertical-align: 0; }
+.etiqueta-ifood .icon { width: .8rem; height: .8rem; }
+.ifood-entrega { display: grid; gap: .6rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); }
+.ifood-entrega h3 { display: flex; align-items: center; gap: .4rem; font: 800 1rem/1.3 var(--f-head); color: var(--c-ink); }
+.ifood-entrega.is-chegou { border-color: var(--c-orange); box-shadow: 0 0 0 3px var(--c-orange-100); }
+.ifood-etapa { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.ifood-etapa .icon { color: var(--c-orange); }
+.ifood-dados { display: grid; gap: .35rem; margin: 0; }
+.ifood-dados div { display: flex; justify-content: space-between; gap: .75rem; }
+.ifood-dados dt { color: var(--c-muted); font-size: .85rem; }
+.ifood-dados dd { margin: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.ifood-codigo { display: grid; gap: .15rem; padding: .75rem; border-radius: var(--r-md); background: #fbf6f7; text-align: center; }
+.ifood-codigo span { color: var(--c-muted); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.ifood-codigo strong { color: var(--c-wine); font: 800 1.9rem/1.1 var(--f-head); letter-spacing: .12em; }
+.ifood-codigo small { color: var(--c-muted); font-size: .8rem; }
+
 @media (min-width: 90rem) {
   .delivery-colunas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

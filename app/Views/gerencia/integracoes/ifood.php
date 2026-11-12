@@ -1,5 +1,5 @@
 <?php
-/** iFood. Espera: $integracao, $disponivel, $base, $csrf. */
+/** iFood. Espera: $integracao, $disponivel, $opcoes, $resumoCardapio, $pedidosHoje, $base, $csrf. */
 use Cardapim\Core\Icon;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -9,6 +9,10 @@ $d = $integracao['dados'];
 $lojas = is_array($d['lojas'] ?? null) ? $d['lojas'] : [];
 $expira = (int) ($d['expira'] ?? 0);
 $codigoValido = $expira > time();
+$opcoes ??= ['aceitar_automatico' => false, 'sincronizar_estoque' => true];
+$resumoCardapio ??= ['total' => 0, 'ligados' => 0, 'erros' => 0];
+$ultimaConsulta = $integracao['verificado_em'] ? time() - (int) strtotime((string) $integracao['verificado_em']) : null;
+$rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'pendente' && ($ultimaConsulta === null || $ultimaConsulta > 180);
 ?>
 <div class="painel-page painel-page-form">
     <header class="painel-cabecalho">
@@ -101,6 +105,10 @@ $codigoValido = $expira > time();
             </form>
         </section>
     <?php else: ?>
+        <?php if ($rotinaParada): ?>
+            <div class="notice notice-warning"><?= Icon::svg('triangle-exclamation-point') ?><div><strong>Os pedidos do iFood não estão chegando agora.</strong>
+                <p>A consulta automática ao iFood não rodou nos últimos minutos<?= $ultimaConsulta !== null ? ' (última às ' . $e(date('H:i', (int) strtotime((string) $integracao['verificado_em']))) . ')' : '' ?>. Use o Gestor de Pedidos do iFood enquanto isso e avise o suporte do <?= marca_html() ?>.</p></div></div>
+        <?php endif; ?>
         <section class="bloco" aria-labelledby="titulo-conectado">
             <div class="bloco-cabecalho"><h2 id="titulo-conectado"><?= Icon::svg('shopping-bag') ?>Loja conectada</h2></div>
             <?php if ($integracao['ultimo_erro']): ?>
@@ -108,21 +116,56 @@ $codigoValido = $expira > time();
             <?php endif; ?>
             <div class="resumo-assinatura">
                 <div class="resumo-linha"><span>Loja no iFood</span><strong><?= $e((string) ($d['loja_nome'] ?? '-')) ?></strong></div>
+                <div class="resumo-linha"><span>Pedidos do iFood hoje</span><strong><?= (int) $pedidosHoje ?></strong></div>
+                <div class="resumo-linha"><span>Última consulta ao iFood</span><strong><?= $ultimaConsulta === null ? '-' : ($ultimaConsulta < 60 ? 'agora há pouco' : $e($data($integracao['verificado_em']))) ?></strong></div>
                 <div class="resumo-linha"><span>Conectada em</span><strong><?= $e($data($integracao['conectado_em'])) ?></strong></div>
-                <div class="resumo-linha"><span>Última verificação</span><strong><?= $e($data($integracao['verificado_em'])) ?></strong></div>
             </div>
-            <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>Os pedidos do iFood vão aparecer no <?= marca_html() ?> quando o módulo de pedidos estiver pronto. A conexão já fica feita.</p></div></div>
+            <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>Os pedidos do iFood chegam sozinhos no Delivery do caixa, com o aviso de pedido novo. Aceitar, marcar como pronto, despachar e cancelar por lá também atualiza o iFood.</p></div></div>
             <div class="acoes-2fa">
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/testar') ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('refresh-cw', 'icon-sm') ?>Testar conexão</button>
                 </form>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/desconectar') ?>"
-                      data-confirm="O <?= marca_html() ?> apaga o acesso à loja. Para remover de vez, tire a autorização também no Portal do Parceiro." data-confirm-titulo="Desconectar o iFood?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
+                      data-confirm="Os pedidos do iFood param de chegar aqui. Para remover de vez, tire a autorização também no Portal do Parceiro." data-confirm-titulo="Desconectar o iFood?" data-confirm-acao="Desconectar" data-confirm-perigo="1">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <button class="btn btn-outline btn-sm link-perigo" type="submit"><?= Icon::svg('unplug', 'icon-sm') ?>Desconectar</button>
                 </form>
             </div>
+        </section>
+
+        <section class="bloco" aria-labelledby="titulo-cardapio-ifood">
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-cardapio-ifood"><?= Icon::svg('list-checks') ?>Cardápio e estoque</h2>
+                <p>Ligue cada item do iFood a um produto daqui. A venda no iFood baixa o estoque, e o produto que acabar ou for pausado aqui fica indisponível no iFood sozinho.</p>
+            </div>
+            <div class="resumo-assinatura">
+                <div class="resumo-linha"><span>Itens do iFood ligados a produtos</span><strong><?= (int) $resumoCardapio['ligados'] ?> de <?= (int) $resumoCardapio['total'] ?></strong></div>
+                <?php if ($resumoCardapio['erros'] > 0): ?><div class="resumo-linha"><span>Itens com erro ao enviar</span><strong class="texto-alerta"><?= (int) $resumoCardapio['erros'] ?></strong></div><?php endif; ?>
+            </div>
+            <?php if ($resumoCardapio['total'] > $resumoCardapio['ligados']): ?>
+                <p class="texto-suave"><?= $resumoCardapio['total'] === 0 ? 'Busque o cardápio do iFood para começar.' : 'Itens sem ligação entram no pedido, mas não baixam o estoque.' ?></p>
+            <?php endif; ?>
+            <div class="bloco-rodape"><a class="btn btn-primary" href="<?= $e($base . '/integracoes/ifood/cardapio') ?>"><?= Icon::svg('link', 'icon-sm') ?>Ligar itens do cardápio</a></div>
+        </section>
+
+        <section class="bloco" aria-labelledby="titulo-opcoes-ifood">
+            <div class="bloco-cabecalho"><h2 id="titulo-opcoes-ifood"><?= Icon::svg('settings') ?>Opções</h2></div>
+            <form method="post" action="<?= $e($base . '/integracoes/ifood/opcoes') ?>">
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <fieldset class="opcoes-modo">
+                    <legend class="sr-only">Opções do iFood</legend>
+                    <label class="opcao-modo">
+                        <input type="checkbox" name="aceitar_automatico" value="1"<?= $opcoes['aceitar_automatico'] ? ' checked' : '' ?>>
+                        <span><strong>Aceitar pedidos do iFood sozinho</strong><small>O pedido já entra em preparo e o iFood é avisado na hora. Desligado, alguém aceita no caixa (o iFood cancela pedidos não aceitos em poucos minutos).</small></span>
+                    </label>
+                    <label class="opcao-modo">
+                        <input type="checkbox" name="sincronizar_estoque" value="1"<?= $opcoes['sincronizar_estoque'] ? ' checked' : '' ?>>
+                        <span><strong>Atualizar a disponibilidade no iFood pelo estoque</strong><small>Produto sem estoque, pausado ou arquivado aqui fica indisponível no iFood; quando voltar, volta a vender.</small></span>
+                    </label>
+                </fieldset>
+                <div class="bloco-rodape"><button class="btn btn-primary" type="submit"><?= Icon::svg('check', 'icon-sm') ?>Salvar opções</button></div>
+            </form>
         </section>
     <?php endif; ?>
 </div>

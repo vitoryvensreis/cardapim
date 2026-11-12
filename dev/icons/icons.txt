@@ -156,3 +156,7 @@ arrow-right-left
 trophy
 bell-ring
 bell-off
+ticket-percent
+car
+list-checks
+circle-pause

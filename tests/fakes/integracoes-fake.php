@@ -318,4 +318,88 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
         $responder(200, [['operation' => 'delivery', 'available' => true, 'state' => 'OK', 'message' => ['title' => 'Loja aberta no iFood']]]);
     }
 }
+/* ---------- iFood: pedidos, avisos (polling) e cardapio ---------- */
+$ifoodLog = static function (string $linha) use ($pasta): void {
+    file_put_contents($pasta . '/ifood-registro.log', $linha . "\n", FILE_APPEND);
+};
+$ifoodFila = static fn (): array => $ler('ifood-eventos.json') ?? [];
+$ifoodPedidos = static fn (): array => $ler('ifood-pedidos.json') ?? [];
+// Ajudantes SO do teste: criar pedido (gera o aviso PLACED) e criar avisos (entregador, cancelado, concluido).
+if ($caminho === '/ifood/_teste/pedido' && $metodo === 'POST') {
+    $pedidos = $ifoodPedidos();
+    $pedidos[$json['id']] = $json;
+    $guardar('ifood-pedidos.json', $pedidos);
+    $fila = $ifoodFila();
+    $fila[] = ['id' => 'ev-' . bin2hex(random_bytes(6)), 'code' => 'PLC', 'fullCode' => 'PLACED', 'orderId' => $json['id'], 'merchantId' => $json['merchant']['id'] ?? '', 'createdAt' => gmdate('c')];
+    $guardar('ifood-eventos.json', $fila);
+    $responder(201, ['ok' => true]);
+}
+if ($caminho === '/ifood/_teste/evento' && $metodo === 'POST') {
+    $fila = $ifoodFila();
+    $fila[] = ['id' => (string) ($json['id'] ?? 'ev-' . bin2hex(random_bytes(6)))] + $json + ['createdAt' => gmdate('c')];
+    $guardar('ifood-eventos.json', $fila);
+    $responder(201, ['ok' => true]);
+}
+if ($caminho === '/ifood/_teste/registro' && $metodo === 'GET') {
+    $responder(200, ['linhas' => is_file($pasta . '/ifood-registro.log') ? file($pasta . '/ifood-registro.log', FILE_IGNORE_NEW_LINES) : [], 'fila' => count($ifoodFila())]);
+}
+if (preg_match('~\A/ifood/(events|order|catalog)/~', $caminho)) {
+    if (!str_starts_with($cab('Authorization'), 'Bearer acc-')) {
+        $responder(401, ['error' => 'unauthorized']);
+    }
+    if ($caminho === '/ifood/events/v1.0/events:polling' && $metodo === 'GET') {
+        $loja = $cab('x-polling-merchants');
+        if ($loja === '') {
+            $responder(400, ['error' => 'x-polling-merchants obrigatorio']);
+        }
+        $ifoodLog('polling ' . $loja);
+        $eventos = array_values(array_filter($ifoodFila(), static fn (array $ev): bool => ($ev['merchantId'] ?? $loja) === $loja || ($ev['merchantId'] ?? '') === ''));
+        if ($eventos === []) {
+            http_response_code(204);
+            exit;
+        }
+        $responder(200, $eventos);
+    }
+    if ($caminho === '/ifood/events/v1.0/events/acknowledgment' && $metodo === 'POST') {
+        $ids = array_map(static fn (array $a): string => (string) ($a['id'] ?? ''), array_filter($json, 'is_array'));
+        $guardar('ifood-eventos.json', array_values(array_filter($ifoodFila(), static fn (array $ev): bool => !in_array($ev['id'], $ids, true))));
+        $ifoodLog('ack ' . implode(',', $ids));
+        http_response_code(202);
+        exit;
+    }
+    if (preg_match('~\A/ifood/order/v1\.0/orders/([A-Za-z0-9-]+)\z~', $caminho, $m) && $metodo === 'GET') {
+        $ifoodLog('pedido ' . $m[1]);
+        $pedido = $ifoodPedidos()[$m[1]] ?? null;
+        $pedido === null ? $responder(404, ['error' => 'not found']) : $responder(200, $pedido);
+    }
+    if (preg_match('~\A/ifood/order/v1\.0/orders/([A-Za-z0-9-]+)/(confirm|startPreparation|readyToPickup|dispatch|requestCancellation)\z~', $caminho, $m) && $metodo === 'POST') {
+        if (!isset($ifoodPedidos()[$m[1]])) {
+            $responder(404, ['error' => 'not found']);
+        }
+        $ifoodLog('acao ' . $m[1] . ' ' . $m[2] . ($m[2] === 'requestCancellation' ? ' ' . ($json['cancellationCode'] ?? '') : ''));
+        http_response_code(202);
+        exit;
+    }
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs\z~', $caminho) && $metodo === 'GET') {
+        $responder(200, [['catalogId' => 'cat-ci', 'status' => 'AVAILABLE', 'context' => ['DEFAULT'], 'modifiedAt' => gmdate('c')]]);
+    }
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs/cat-ci/categories\z~', $caminho) && $metodo === 'GET') {
+        $responder(200, [
+            ['id' => 'cat-lanches', 'name' => 'Lanches CI', 'status' => 'AVAILABLE', 'items' => [
+                ['id' => 'item-ci-1', 'productId' => 'prod-ci-1', 'name' => 'Lanche iFood CI', 'externalCode' => 'PDV-CI-1', 'status' => 'AVAILABLE', 'price' => ['value' => 25.9, 'originalValue' => 25.9]],
+                ['id' => 'item-ci-2', 'productId' => 'prod-ci-2', 'name' => 'Item sem par CI', 'status' => 'AVAILABLE', 'price' => ['value' => 9.5]],
+            ]],
+        ]);
+    }
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/items/status\z~', $caminho) && $metodo === 'PATCH') {
+        $ifoodLog('status ' . ($json['itemId'] ?? '') . ' ' . ($json['status'] ?? ''));
+        http_response_code(202);
+        exit;
+    }
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/inventory\z~', $caminho) && $metodo === 'POST') {
+        $ifoodLog('estoque ' . ($json['productId'] ?? '') . ' ' . ($json['amount'] ?? ''));
+        http_response_code(202);
+        exit;
+    }
+}
 $responder(404, ['error' => 'rota falsa nao encontrada', 'caminho' => $caminho]);
