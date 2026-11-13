@@ -49,10 +49,10 @@ try {
     $unicos = $db->query(<<<'SQL'
 SELECT INDEX_NAME FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0
-  AND INDEX_NAME IN ('uq_mesas_numero', 'uq_mesas_id_restaurante', 'uq_caixas_um_aberto', 'uq_caixas_id_restaurante', 'uq_pedidos_mesa_aberta')
+  AND INDEX_NAME IN ('uq_mesas_numero', 'uq_mesas_id_restaurante', 'uq_caixas_um_aberto', 'uq_caixas_id_restaurante')
 GROUP BY INDEX_NAME
 SQL)->fetchAll(PDO::FETCH_COLUMN);
-    if (count($unicos) !== 5) {
+    if (count($unicos) !== 4) { // uq_pedidos_mesa_aberta saiu em 20261113100000 (varias comandas por mesa)
         throw new RuntimeException('Indices unicos de mesas/caixas ausentes (' . implode(', ', $unicos) . ').');
     }
     $checks = $db->query(<<<'SQL'
