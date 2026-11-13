@@ -127,8 +127,16 @@ final class Seo
     /** @return array{nome:string, frase:string, icone:?string, endereco:string} */
     public static function dadosCartaoPlataforma(): array
     {
-        $icone = Configuracoes::logoOuPadrao('icone_app');
-        $disco = MarcaUpload::arquivoDe($icone) ?? self::arquivoPublico($icone);
+        // So icones ENVIADOS no painel (icone do app ou favicon em PNG/JPG/WebP). Os arquivos originais do repositorio
+        // nao entram: podem ser de uma marca antiga. Sem nenhum, o cartao sai so com o nome e a frase.
+        $disco = null;
+        foreach (['icone_app', 'icone'] as $chave) {
+            $arquivo = MarcaUpload::arquivoDe(Configuracoes::logoOuPadrao($chave));
+            if ($arquivo !== null && is_file($arquivo) && preg_match('/\.(?:png|jpg|webp)\z/', $arquivo) === 1) {
+                $disco = $arquivo;
+                break;
+            }
+        }
         return ['nome' => marca(), 'frase' => self::frase(), 'icone' => $disco, 'endereco' => self::dominio()];
     }
 
@@ -140,7 +148,7 @@ final class Seo
     {
         // So logos guardadas no servidor: nunca baixa imagem de outro site.
         $caminho = $restaurante['logo_path'];
-        $logo = $caminho !== null ? (LogoUpload::arquivoDe($caminho) ?? self::arquivoPublico($caminho)) : null;
+        $logo = $caminho !== null ? LogoUpload::arquivoDe($caminho) : null;
         return [
             'nome' => $restaurante['nome'],
             'local' => $local,
@@ -242,17 +250,6 @@ final class Seo
             'jsonLd' => $jsonLd,
             'verificacao' => $noIndex ? '' : self::verificacaoGoogle(),
         ];
-    }
-
-    /** "/assets/img/x.png" -> arquivo dentro de public/ (somente PNG, JPG ou WebP). */
-    private static function arquivoPublico(string $caminho): ?string
-    {
-        $caminho = (string) parse_url($caminho, PHP_URL_PATH);
-        if (preg_match('~\A/assets/[A-Za-z0-9_/-]+\.(?:png|jpe?g|webp)\z~', $caminho) !== 1 || str_contains($caminho, '..')) {
-            return null;
-        }
-        $arquivo = dirname(__DIR__, 3) . '/public' . $caminho;
-        return is_file($arquivo) ? $arquivo : null;
     }
 
     private static function texto(string $chave, string $padrao, int $max): string

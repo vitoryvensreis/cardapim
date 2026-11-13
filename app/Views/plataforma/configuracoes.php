@@ -120,7 +120,7 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
                     : Icon::svg('sparkles', 'icon-sm') . 'Imagem automática: ícone do app, nome e frase' ?></p>
                 <p class="texto-suave seo-dica"><?= $imagemEnviada
                     ? 'Para voltar à imagem que se atualiza sozinha, use "Voltar à imagem automática".'
-                    : 'Ela muda sozinha quando você troca o nome, a frase ou o ícone do app. Se preferir, envie uma arte pronta.' ?></p>
+                    : 'Ela muda sozinha quando você troca o nome, a frase ou o ícone do app. O ícone só aparece depois de enviado em "Ícone do app no celular", acima. Se preferir, envie uma arte pronta.' ?></p>
                 <form class="marca-envio" method="post" action="<?= $e($base . '/configuracoes/compartilhamento') ?>" enctype="multipart/form-data" data-logo-form>
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <label class="btn btn-outline btn-sm marca-escolher">

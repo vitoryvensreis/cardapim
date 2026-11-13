@@ -23,7 +23,9 @@ marca), `tipo` e `jsonLd` (lista de arrays). O JSON-LD sai com `JSON_HEX_TAG`, e
 
 - **Plataforma** (`GET /midia/cartao?v=...`): JPG 1200 x 630 desenhado com GD (`Services\Seo\CartaoCompartilhamento`):
   fundo vinho, icone do app, nome da plataforma, `frase_compartilhamento` e o dominio. Muda sozinho quando o nome, a
-  frase ou o icone do app mudam (o `?v=` e um resumo desses dados, entao WhatsApp e Facebook pedem a imagem nova).
+  frase ou o icone do app mudam. O icone so entra se foi ENVIADO no painel (icone do app, ou favicon em PNG/JPG/WebP);
+  os arquivos originais do repositorio nunca entram (sao da marca antiga) e, sem icone enviado, o cartao sai so com o
+  nome e a frase. Mesma regra para o restaurante: so a logo enviada por ele, senao as iniciais (o `?v=` e um resumo desses dados, entao WhatsApp e Facebook pedem a imagem nova).
 - **Arte enviada pelo adm** (`imagem_compartilhamento`): PNG/JPG/WebP de 600 x 315 ou mais, recortada pelo centro e
   regravada em JPG 1200 x 630 (`MarcaUpload::salvarCompartilhamento`), guardada em `storage/uploads/marca` e servida
   em `/midia/marca/{nome}-jpg`. "Voltar a imagem automatica" limpa a chave.

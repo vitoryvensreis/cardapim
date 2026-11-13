@@ -103,14 +103,19 @@ final class CartaoCompartilhamento
         imagefilledellipse($img, 1120 * $s, 640 * $s, 620 * $s, 620 * $s, self::cor($img, [117, 27, 45]));
         imagefilledellipse($img, 1180 * $s, -40 * $s, 260 * $s, 260 * $s, self::cor($img, [117, 27, 45]));
 
-        // Icone do app sobre um quadrado branco (o icone padrao e vinho e sumiria no fundo vinho).
-        [$ix, $iy, $il] = [96, 195, 240];
-        self::retanguloArredondado($img, $ix * $s, $iy * $s, $il * $s, $il * $s, 48 * $s, self::cor($img, [255, 255, 255]));
-        if (!self::colarImagem($img, $d['icone'], ($ix + 22) * $s, ($iy + 22) * $s, ($il - 44) * $s, ($il - 44) * $s)) {
-            self::textoCentralizado($img, self::iniciais($d['nome']), ($ix + $il / 2) * $s, ($iy + $il / 2) * $s, 96 * $s, self::VINHO);
+        // Icone enviado no painel sobre um quadrado branco. Sem icone enviado, o cartao fica so com o nome e a frase
+        // (nunca usa os arquivos originais do repositorio, que podem ser de uma marca antiga).
+        $x = 96;
+        if ($d['icone'] !== null) {
+            [$ix, $iy, $il] = [96, 195, 240];
+            self::retanguloArredondado($img, $ix * $s, $iy * $s, $il * $s, $il * $s, 48 * $s, self::cor($img, [255, 255, 255]));
+            if (self::colarImagem($img, $d['icone'], ($ix + 22) * $s, ($iy + 22) * $s, ($il - 44) * $s, ($il - 44) * $s)) {
+                $x = 400;
+            } else {
+                // Arquivo ilegivel: apaga o quadro e segue so com o texto.
+                imagefilledrectangle($img, $ix * $s, $iy * $s, ($ix + $il) * $s, ($iy + $il) * $s, self::cor($img, self::VINHO));
+            }
         }
-
-        $x = 400;
         $largura = 1200 - $x - 80;
         $nomeLinhas = self::quebrar($d['nome'], 'Bold', 84 * $s, $largura * $s, 1);
         $frase = self::quebrar($d['frase'], 'Medium', 36 * $s, $largura * $s, 3);
