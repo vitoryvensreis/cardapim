@@ -1,0 +1,59 @@
+/* Varias comandas por mesa (caixa e garcom): abas por pessoa, "Nova comanda" e "Dar nome". Mobile-first. */
+.comandas-mesa { display: grid; gap: .6rem; margin-bottom: 1rem; }
+.comandas-mesa-topo { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
+.comandas-mesa-topo h2 { display: inline-flex; align-items: center; gap: .4rem; margin: 0; color: var(--c-wine); font: 800 .95rem/1.3 var(--f-head); }
+.comandas-mesa-qtd { padding: .15rem .55rem; border-radius: var(--r-pill); background: var(--c-orange-100); color: var(--c-orange-700); font: 700 .75rem/1.4 var(--f-head); }
+
+.comandas-mesa-lista { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.comandas-mesa-lista > li { min-width: 0; max-width: 100%; }
+.comandas-mesa-lista > li:has(> .comanda-nova[open]) { flex-basis: 100%; }
+
+.comanda-chip {
+  display: inline-flex; align-items: center; gap: .55rem; max-width: 100%; min-height: 3rem;
+  padding: .4rem .85rem .4rem .45rem; border: 1.5px solid var(--c-line); border-radius: var(--r-lg);
+  background: var(--c-white); color: var(--c-ink); text-decoration: none; cursor: pointer;
+  transition: border-color var(--t-fast), background-color var(--t-fast), box-shadow var(--t-fast);
+}
+.comanda-chip:hover { border-color: rgb(255 88 37 / 55%); box-shadow: var(--sh-sm); }
+.comanda-chip:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.comanda-chip.is-atual { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); }
+.comanda-chip-icone { display: grid; flex: none; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-wine); }
+.comanda-chip.is-atual .comanda-chip-icone { background: rgb(255 255 255 / 16%); color: var(--c-white); }
+.comanda-chip-texto { display: grid; min-width: 0; line-height: 1.2; }
+.comanda-chip-nome { overflow: hidden; max-width: 13rem; font: 700 .95rem/1.25 var(--f-head); text-overflow: ellipsis; white-space: nowrap; }
+.comanda-chip.sem-nome .comanda-chip-nome { font-weight: 600; }
+.comanda-chip-valor { color: var(--c-muted); font-size: .8rem; white-space: nowrap; }
+.comanda-chip.is-atual .comanda-chip-valor { color: rgb(255 255 255 / 82%); }
+
+.comanda-nova > summary { list-style: none; }
+.comanda-nova > summary::-webkit-details-marker { display: none; }
+.comanda-chip-nova { border-style: dashed; border-color: rgb(255 88 37 / 55%); color: var(--c-orange-700); }
+.comanda-chip-nova .comanda-chip-icone { background: var(--c-orange-100); color: var(--c-orange-700); }
+.comanda-nova[open] > .comanda-chip-nova { border-style: solid; border-color: var(--c-orange); }
+
+.comanda-nome-form {
+  display: grid; gap: .65rem; max-width: 24rem; margin-top: .5rem; padding: .9rem;
+  border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); box-shadow: var(--sh-sm);
+}
+.comanda-nome-form .btn { justify-self: start; min-height: 2.75rem; }
+.comanda-nome-dica { margin: 0; color: var(--c-muted); font-size: .86rem; line-height: 1.45; }
+.comanda-nome-acoes { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+.comanda-renomear > summary {
+  display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; padding: .2rem 0;
+  color: var(--c-wine); font: 700 .9rem/1.3 var(--f-head); cursor: pointer; list-style: none;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.comanda-renomear > summary::-webkit-details-marker { display: none; }
+.comanda-renomear > summary:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+
+/* Nomes das comandas no desenho da mesa (mapa) */
+.mesa-nomes { display: block; overflow: hidden; max-width: 100%; color: var(--c-wine); font-size: .76rem; font-weight: 700; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.mesa-nomes .icon { width: .85rem; height: .85rem; margin-right: .2rem; vertical-align: -.1rem; }
+
+@media (min-width: 48rem) {
+  .comanda-chip-nome { max-width: 16rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .comanda-chip { transition: none; }
+}

@@ -110,7 +110,7 @@ $iconeForma = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' =>
                 <ul class="caixa-linhas">
                     <?php foreach ($pagamentos as $pg): ?>
                         <li>
-                            <span><strong>#<?= (int) $pg['numero'] ?></strong> <?= $pg['mesa_numero'] !== null ? 'Mesa ' . (int) $pg['mesa_numero'] : ($pg['tipo'] === 'balcao' ? 'Balcão' : ($pg['tipo'] === 'entrega' ? 'Entrega' : 'Retirada')) ?>
+                            <span><strong>#<?= (int) $pg['numero'] ?></strong> <?= $pg['mesa_numero'] !== null ? 'Mesa ' . (int) $pg['mesa_numero'] . (($pg['comanda_nome'] ?? '') !== '' ? ' · ' . $e((string) $pg['comanda_nome']) : '') : ($pg['tipo'] === 'balcao' ? 'Balcão' : ($pg['tipo'] === 'entrega' ? 'Entrega' : 'Retirada')) ?>
                                 <small><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?> · <?= $e($hora((string) $pg['criado_em'])) ?></small></span>
                             <span class="caixa-valor"><?= $e(Numero::reais((string) $pg['valor'])) ?></span>
                         </li>

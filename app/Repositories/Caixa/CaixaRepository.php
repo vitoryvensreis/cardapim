@@ -110,7 +110,7 @@ final class CaixaRepository
     public function pagamentos(int $idRestaurante, int $idCaixa): array
     {
         $q = $this->db->prepare(
-            "SELECT pg.id, pg.forma, pg.valor, pg.troco, pg.criado_em, p.id AS id_pedido, p.numero, p.tipo, p.id_mesa, m.numero AS mesa_numero,
+            "SELECT pg.id, pg.forma, pg.valor, pg.troco, pg.criado_em, p.id AS id_pedido, p.numero, p.tipo, p.id_mesa, m.numero AS mesa_numero, p.comanda_nome,
                     CONCAT(u.nome, ' ', u.sobrenome) AS autor
              FROM pedido_pagamentos pg
              JOIN pedidos p ON p.id = pg.id_pedido AND p.id_restaurante = pg.id_restaurante

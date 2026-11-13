@@ -16,7 +16,7 @@ $favicon = Configuracoes::logoOuPadrao('icone');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
 $title = $e((string) ($pageTitle ?? 'Garçom | ' . marca()));
 $description = $e((string) ($pageDescription ?? 'Painel do garçom.'));
-$styles = ['css/pages.css', 'css/app.css', 'css/painel.css', 'css/caixa.css', 'css/garcom.css'];
+$styles = ['css/pages.css', 'css/app.css', 'css/painel.css', 'css/caixa.css', 'css/comandas-mesa.css', 'css/garcom.css'];
 $scripts = [...($tempoReal !== null ? ['js/tempo-real.js'] : []), 'js/forms.js', 'js/confirmar.js', ...($pageScripts ?? []), 'js/garcom.js'];
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));
 $detalhe = $voltar !== null;

@@ -10,10 +10,12 @@ return static function (Router $router): void {
     $g = '/{slug}/garcom';
     $router->get($g, [GarcomController::class, 'mesas']);
     $router->post($g . '/mesas/{id}/abrir', [GarcomController::class, 'abrirMesa']);
+    $router->post($g . '/mesas/{id}/comandas', [GarcomController::class, 'novaComanda']);
     $router->get($g . '/comandas/{id}', [GarcomController::class, 'comanda']);
     $router->post($g . '/comandas/{id}/itens', [GarcomController::class, 'lancar']);
     $router->post($g . '/comandas/{id}/itens/{item}/cancelar', [GarcomController::class, 'cancelarItem']);
     $router->post($g . '/comandas/{id}/cancelar', [GarcomController::class, 'cancelarComanda']);
+    $router->post($g . '/comandas/{id}/nome', [GarcomController::class, 'renomear']);
     $router->get($g . '/comandas/{id}/conta', [GarcomController::class, 'conta']);
     $router->post($g . '/comandas/{id}/servico', [GarcomController::class, 'servico']);
     $router->post($g . '/comandas/{id}/pagamentos', [GarcomController::class, 'pagar']);

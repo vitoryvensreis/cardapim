@@ -238,6 +238,36 @@ case "$msg" in *"Conta fechada e mesa liberada."*) ok "resto no debito fecha a c
 pagina "$cx" "$c/mesas" >/dev/null
 contem "caixa ve a mesa livre" "$tmp/pagina.html" "Abrir comanda da mesa"
 
+echo "Varias comandas na mesma mesa (garcom)"
+r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
+g1="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+pagina "$wj" "$w/comandas/$g1" >/dev/null
+contem "garcom ve o botao nova comanda" "$tmp/pagina.html" "/garcom/mesas/$mesa/comandas"
+r="$(enviar "$wj" "$w/mesas/$mesa/comandas" "$w/comandas/$g1" nome="Ana" voltar_comanda="$g1")"
+g2="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+[[ -n "$g2" && "$g2" != "$g1" ]] && ok "garcom abre comanda para quem chegou ($g2)" || falha "garcom nova comanda ($r)"
+msg="$(aviso "$wj" "$w/comandas/$g2")"
+case "$msg" in "Comanda de Ana aberta na Mesa "*) ok "mensagem da comanda da Ana";; *) falha "mensagem da comanda da Ana ($msg)";; esac
+contem "abas no celular do garcom" "$tmp/aviso.html" 'class="comandas-mesa-lista"'
+contem "aba da primeira comanda" "$tmp/aviso.html" "comandas/$g1"
+pagina "$wj" "$w" >/dev/null
+contem "mapa do garcom mostra 2 comandas" "$tmp/pagina.html" '2 comandas'
+enviar "$wj" "$w/comandas/$g1/nome" "$w/comandas/$g1" nome="Bruno" >/dev/null
+esperar "garcom da nome a comanda" "$(aviso "$wj" "$w/comandas/$g1")" "Comanda agora é de Bruno."
+enviar "$wj" "$w/comandas/$g2/itens" "$w" "qtd[$cerveja]=1" >/dev/null
+enviar "$wj" "$w/comandas/$g2/pagamentos" "$w" forma=debito valor= >/dev/null
+msg="$(aviso "$wj" "$w/comandas/$g2/conta")"
+case "$msg" in *"A mesa continua com 1 comanda aberta."*) ok "conta da Ana paga, a do Bruno continua";; *) falha "pagar uma das comandas ($msg)";; esac
+contem "tela de conta paga avisa a comanda aberta" "$tmp/aviso.html" 'ainda tem 1 comanda aberta'
+contem "tela de conta paga leva para a do Bruno" "$tmp/aviso.html" "comandas/$g1"
+r="$(enviar "$wj" "$w/mesas/$mesa/comandas" "$w/comandas/$g1" nome="Carla" voltar_comanda="$g1")"
+g3="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+r="$(enviar "$wj" "$w/comandas/$g1/cancelar" "$w/comandas/$g1" "motivo=Cliente foi embora")"
+esperar "cancelar a do Bruno vai para a da Carla" "$(echo "$r" | cut -d' ' -f2)" "$w/comandas/$g3"
+enviar "$wj" "$w/comandas/$g3/cancelar" "$w/comandas/$g3" "motivo=Mesa aberta por engano" >/dev/null
+pagina "$wj" "$w" >/dev/null
+contem "sem comandas a mesa volta a ficar livre" "$tmp/pagina.html" "/garcom/mesas/$mesa/abrir"
+
 echo "Consulta do cardapio"
 esperar "cardapio abre" "$(pagina "$wj" "$w/cardapio")" "200"
 contem "titulo Cardapio" "$tmp/pagina.html" '<h1>Cardápio</h1>'

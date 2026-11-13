@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Teste HTTP do MODO CAIXA de ponta a ponta: acesso por cargo, abrir/fechar caixa (contagem cega), entradas e saidas,
-# cadastro de mesas, comanda (lancar, cancelar item, servico, desconto, dividir, transferir, receber em varias formas),
+# cadastro de mesas, comanda (varias por mesa com nome, lancar, cancelar item, servico, desconto, dividir, transferir, receber em varias formas),
 # venda no balcao e delivery (aceitar, pronto, despachar para o motoqueiro, entregue, cancelar).
 # Confere a BAIXA DE ESTOQUE dos insumos: no pedido do cardapio, no item da comanda, NAO de novo no despacho,
 # e a devolucao ao cancelar. Usa o servidor FALSO tests/fakes/integracoes-fake.php (WhatsApp da plataforma).
@@ -160,7 +160,7 @@ pagina "$cx" "$c/mesas" >/dev/null
 contem "mesa 1 ficou livre" "$tmp/pagina.html" 'Abrir comanda da mesa 1'
 nao_contem "mesa 2 ocupada (nao aparece como livre)" "$tmp/pagina.html" 'Abrir comanda da mesa 2"'
 enviar "$cx" "$c/mesas/$m2/excluir" >/dev/null
-esperar "nao exclui mesa com comanda aberta" "$(aviso "$cx" "$c/mesas/gerenciar")" "Esta mesa tem uma comanda aberta. Feche ou cancele a comanda antes de excluir."
+esperar "nao exclui mesa com comanda aberta" "$(aviso "$cx" "$c/mesas/gerenciar")" "Esta mesa tem comanda aberta. Feche ou cancele as comandas antes de excluir."
 
 echo "Receber a conta (varias formas e troco)"
 esperar "tela de receber abre" "$(pagina "$cx" "$c/comandas/$comanda/pagar")" "200"
@@ -182,6 +182,52 @@ pagina "$cx" "$c/mesas" >/dev/null
 contem "mesa 2 liberada" "$tmp/pagina.html" 'Abrir comanda da mesa 2'
 enviar "$cx" "$c/comandas/$comanda/itens" produto="$produto" quantidade=1 >/dev/null
 esperar "conta fechada nao recebe item" "$(aviso "$cx" "$c/comandas/$comanda")" "Esta comanda já foi fechada."
+
+echo "Varias comandas na mesma mesa (uma por pessoa, com nome)"
+r="$(enviar "$cx" "$c/mesas/$m1/abrir")"
+ca="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+[[ -n "$ca" ]] && ok "primeira comanda da mesa 1 ($ca)" || falha "mesa 1 nao abriu ($r)"
+pagina "$cx" "$c/comandas/$ca" >/dev/null
+contem "comanda mostra a area das comandas da mesa" "$tmp/pagina.html" 'Comanda da Mesa 1'
+contem "botao nova comanda" "$tmp/pagina.html" "/caixa/mesas/$m1/comandas"
+contem "opcao de dar nome" "$tmp/pagina.html" 'Dar o nome da pessoa a esta comanda'
+r="$(enviar "$cx" "$c/mesas/$m1/comandas" nome="João" voltar_comanda="$ca")"
+cb="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+[[ -n "$cb" && "$cb" != "$ca" ]] && ok "nova comanda para quem chegou depois ($cb)" || falha "nova comanda nao abriu ($r)"
+esperar "mensagem da nova comanda" "$(aviso "$cx" "$c/comandas/$cb")" "Comanda de João aberta na Mesa 1."
+contem "titulo com o nome da pessoa" "$tmp/aviso.html" 'Mesa 1 · João'
+contem "abas mostram as duas comandas" "$tmp/aviso.html" 'Comandas da Mesa 1'
+contem "aba da primeira comanda sem nome" "$tmp/aviso.html" 'Comanda 1</span>'
+contem "aba atual marcada" "$tmp/aviso.html" 'aria-current="page"'
+r="$(enviar "$cx" "$c/mesas/$m1/comandas" nome="$(printf 'N%.0s' {1..41})" voltar_comanda="$cb")"
+esperar "nome com mais de 40 letras recusado" "$(echo "$r" | cut -d' ' -f2)" "$c/comandas/$cb"
+esperar "aviso do nome longo" "$(aviso "$cx" "$c/comandas/$cb")" "Use até 40 letras no nome."
+pagina "$cx" "$c/mesas" >/dev/null
+contem "mapa mostra 2 comandas na mesa" "$tmp/pagina.html" '2 comandas'
+contem "mapa mostra o nome da pessoa" "$tmp/pagina.html" 'class="mesa-nomes"'
+r="$(enviar "$cx" "$c/mesas/$m1/abrir")"
+esperar "tocar na mesa abre a comanda mais antiga" "$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)" "$ca"
+enviar "$cx" "$c/comandas/$ca/nome" nome="Maria" >/dev/null
+esperar "dar nome a comanda" "$(aviso "$cx" "$c/comandas/$ca")" "Comanda agora é de Maria."
+contem "titulo com o novo nome" "$tmp/aviso.html" 'Mesa 1 · Maria'
+enviar "$cx" "$c/comandas/$cb/itens" produto="$produto" quantidade=1 >/dev/null
+r="$(enviar "$cx" "$c/comandas/$cb/pagamentos" forma=dinheiro valor= recebido=100,00)"
+m="$(aviso "$cx" "$c/comandas/$cb")"
+[[ "$m" == *"Conta fechada. A mesa continua com 1 comanda aberta." ]] && ok "pagar a conta do João mantem a da Maria ($m)" || falha "pagamento de uma comanda ($m)"
+contem "comanda paga mostra a que ainda esta aberta" "$tmp/aviso.html" "comandas/$ca"
+# Repoe a cerveja vendida ao Joao para os testes seguintes terem o mesmo estoque de antes.
+enviar "$gj" "$g/estoque/insumos/$insumo/repor" quantidade=1 >/dev/null
+pagina "$cx" "$c/mesas" >/dev/null
+nao_contem "mesa 1 continua ocupada" "$tmp/pagina.html" 'Abrir comanda da mesa 1"'
+r="$(enviar "$cx" "$c/mesas/${mesas[2]}/abrir")"
+cc="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+enviar "$cx" "$c/comandas/$cc/transferir" mesa="$m1" >/dev/null
+esperar "levar a comanda para mesa ocupada junta as comandas" "$(aviso "$cx" "$c/comandas/$cc")" "Comanda levada para a Mesa 1, junto com as outras comandas da mesa."
+r="$(enviar "$cx" "$c/comandas/$ca/cancelar")"
+esperar "cancelar uma comanda vai para a outra da mesa" "$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)" "$cc"
+enviar "$cx" "$c/comandas/$cc/cancelar" >/dev/null
+pagina "$cx" "$c/mesas" >/dev/null
+contem "sem comandas a mesa 1 fica livre" "$tmp/pagina.html" 'Abrir comanda da mesa 1"'
 
 echo "Venda no balcao cancelada devolve o estoque"
 r="$(enviar "$cx" "$c/balcao" nome=Joana)"
@@ -281,8 +327,9 @@ echo "Fechar o caixa (contagem cega)"
 pagina "$cx" "$c" >/dev/null
 contem "resumo mostra vendas em dinheiro" "$tmp/pagina.html" 'Dinheiro na gaveta'
 esperado="$(php -r 'if (preg_match("~Dinheiro na gaveta</span>\s*<strong>R\\$ ([\d.,]+)</strong>~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
-# 100 de troco + dinheiro da mesa (o que faltava) + delivery em dinheiro + 50 de reforco - 30 de despesa
-conta=$((10000 + restante + preco * 2 + 500 + 5000 - 3000))
+# 100 de troco + dinheiro da mesa (o que faltava) + conta do Joao (1 item + 10%) + delivery em dinheiro + 50 de reforco - 30 de despesa
+joao=$((preco + (preco * 1000 + 5000) / 10000))
+conta=$((10000 + restante + joao + preco * 2 + 500 + 5000 - 3000))
 esperar "dinheiro esperado na gaveta bate com a conta" "$(cents "$esperado")" "$conta"
 esperar "tela de fechar abre" "$(pagina "$cx" "$c/fechar")" "200"
 nao_contem "fechamento cego (nao mostra o esperado)" "$tmp/pagina.html" "R\$ $esperado"

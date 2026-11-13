@@ -29,6 +29,7 @@ return static function (Router $router): void {
     $router->post($c . '/mesas/varias', [MesasController::class, 'criarVarias']);
     $router->post($c . '/mesas/nova', [MesasController::class, 'criarProxima']);
     $router->post($c . '/mesas/{id}/abrir', [MesasController::class, 'abrir']);
+    $router->post($c . '/mesas/{id}/comandas', [MesasController::class, 'novaComanda']);
     $router->post($c . '/mesas/{id}/excluir', [MesasController::class, 'excluir']);
     $router->post($c . '/mesas/{id}', [MesasController::class, 'atualizar']);
 
@@ -38,6 +39,7 @@ return static function (Router $router): void {
     $router->post($c . '/comandas/{id}/itens', [ComandaController::class, 'lancar']);
     $router->post($c . '/comandas/{id}/itens/{item}/cancelar', [ComandaController::class, 'cancelarItem']);
     $router->post($c . '/comandas/{id}/ajustes', [ComandaController::class, 'ajustar']);
+    $router->post($c . '/comandas/{id}/nome', [ComandaController::class, 'renomear']);
     $router->post($c . '/comandas/{id}/transferir', [ComandaController::class, 'transferir']);
     $router->get($c . '/comandas/{id}/pagar', [ComandaController::class, 'pagarForm']);
     $router->post($c . '/comandas/{id}/pagamentos', [ComandaController::class, 'pagamento']);

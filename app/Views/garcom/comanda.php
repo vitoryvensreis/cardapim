@@ -1,6 +1,6 @@
 <?php
 /**
- * Comanda da mesa: o que ja foi lancado, total e as duas acoes (Adicionar / Fechar conta).
+ * Comanda da mesa: abas das comandas da mesa (uma por pessoa), o que ja foi lancado, total e as acoes (Adicionar / Fechar conta).
  * "Adicionar" abre a folha do cardapio (#adicionar, funciona sem JavaScript pelo :target).
  * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf.
  */
@@ -17,6 +17,8 @@ $min = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em'])) /
 $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) ($min % 60), 2, '0', STR_PAD_LEFT);
 ?>
 <div class="garcom-pagina garcom-comanda" data-regiao="comanda" data-comanda="<?= (int) $p['id'] ?>">
+    <?php $novaComandaUrl = $base . '/mesas/' . (int) ($p['id_mesa'] ?? 0) . '/comandas'; require __DIR__ . '/../caixa/_comandas-mesa.php'; ?>
+
     <section class="comanda-resumo" aria-label="Resumo da conta">
         <div>
             <span class="comanda-resumo-rotulo">Total</span>
@@ -32,7 +34,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
     <?php if ($itens === []): ?>
         <a class="garcom-vazio garcom-vazio-acao" href="#adicionar" data-abrir-folha>
             <span class="garcom-vazio-icone" aria-hidden="true"><?= Icon::svg('hand-platter', 'icon-lg') ?></span>
-            <strong>Mesa aberta</strong>
+            <strong><?= $c['nome'] !== '' ? 'Comanda de ' . $e((string) $c['nome']) : 'Mesa aberta' ?></strong>
             <p>Toque aqui para lançar o primeiro pedido.</p>
         </a>
     <?php else: ?>
@@ -67,7 +69,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
     <?php if ($c['pago'] === 0): ?>
         <details class="comanda-cancelar">
             <summary><?= Icon::svg('ban', 'icon-sm') ?>Cancelar comanda</summary>
-            <form method="post" action="<?= $e($url . '/cancelar') ?>" class="remover-form" data-confirm="<?= $itens !== [] ? 'Os itens saem da conta, o estoque volta e a mesa fica livre.' : 'A mesa fica livre.' ?>" data-confirm-titulo="Cancelar a <?= $e((string) $c['rotulo']) ?>?" data-confirm-acao="Cancelar comanda" data-confirm-perigo="1">
+            <form method="post" action="<?= $e($url . '/cancelar') ?>" class="remover-form" data-confirm="<?= count($c['irmas']) > 1 ? ($itens !== [] ? 'Os itens saem da conta e o estoque volta. As outras comandas da mesa continuam abertas.' : 'As outras comandas da mesa continuam abertas.') : ($itens !== [] ? 'Os itens saem da conta, o estoque volta e a mesa fica livre.' : 'A mesa fica livre.') ?>" data-confirm-titulo="Cancelar a <?= $e((string) $c['rotulo']) ?>?" data-confirm-acao="Cancelar comanda" data-confirm-perigo="1">
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <fieldset>
                     <legend>Por que cancelar?</legend>

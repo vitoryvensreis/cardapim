@@ -29,7 +29,13 @@ Gerente: `/gerencia/mesas` leva ao cadastro de mesas e `/entregas` ao Delivery d
 - **Fechamento cego**: a pessoa conta as notas e moedas e digita o total ANTES de ver o esperado. O sistema grava
   esperado, contado, diferenca (sobrou/faltou), observacao e o resumo por forma (JSON, nao muda depois).
 - **Comanda** = pedido `status 'aberto'`, `tipo 'mesa'` (a mesa e o "cliente", `id_mesa`) ou `tipo 'balcao'`.
-  Uma comanda aberta por mesa (UNIQUE na coluna gerada `mesa_aberta`). Taxa de servico de 10% ligada por padrao
+  **Varias comandas por mesa** (desde 13/11/2026): quem chega depois ganha a propria comanda na mesma mesa, com o
+  nome da pessoa (`pedidos.comanda_nome`, ate 40 letras; vazio = "Comanda 1", "Comanda 2"... na ordem de abertura).
+  Cada comanda tem sua conta, servico, desconto e pagamento. Tocar na mesa abre a comanda mais antiga; dentro dela,
+  abas com todas as comandas da mesa, "Nova comanda" e "Dar nome" (`_comandas-mesa.php`, sem JavaScript). A mesa so
+  fica livre quando a ultima comanda fecha. Trocar de mesa aceita mesa ocupada (entra como mais uma comanda).
+  Limite: 20 comandas abertas por mesa. Dois aparelhos tocando na mesma mesa livre: `SELECT ... FOR UPDATE` na mesa,
+  o segundo recebe a mesma comanda. Taxa de servico de 10% ligada por padrao
   na mesa (desligavel), desconto exige motivo, "dividir por N pessoas", trocar de mesa, imprimir a conta (80 mm).
 - **Estoque**: cada item lancado na comanda baixa os insumos NA HORA pela ficha tecnica e guarda o consumo no item
   (`pedido_itens.consumo_estoque`). Item cancelado (com motivo) devolve exatamente esse consumo; comanda cancelada
@@ -60,6 +66,16 @@ Gerente: `/gerencia/mesas` leva ao cadastro de mesas e `/entregas` ao Delivery d
 - `pedido_itens` (+): `id_user` (quem lancou), `consumo_estoque`, `cancelado_em`, `motivo_cancelamento`, `id_user_cancelou`.
 
 Verificacao: `php database/verify-caixa.php --verify`.
+
+Varias comandas por mesa (migration `20261113100000_pedidos_varias_comandas.php`): `pedidos.comanda_nome` e o indice
+de `mesa_aberta` deixa de ser unico (`idx_pedidos_mesa_aberta`). Verificacao: `php database/verify-comandas.php --verify`.
+
+Rotas novas (CSRF, caixa/gerente; as mesmas no garcom em `/{slug}/garcom/...`):
+
+| Metodo | Rota | O que faz |
+| --- | --- | --- |
+| POST | `/{slug}/caixa/mesas/{id}/comandas` | Nova comanda na mesa (`nome` opcional, `voltar_comanda` para voltar em caso de erro) |
+| POST | `/{slug}/caixa/comandas/{id}/nome` | Da, troca ou tira (`nome` vazio) o nome da comanda; no balcao muda o nome do cliente |
 
 ## Funcoes de caixa pesquisadas
 

@@ -32,10 +32,11 @@ final class ComandaController extends BaseCaixa
         if ($c === null) {
             return $this->voltar($this->url('mesas'), 'erro', 'Comanda não encontrada.');
         }
+        // Destinos para "Trocar de mesa": qualquer mesa em uso (ocupada recebe como mais uma comanda), menos a atual.
         $livres = [];
         if ($c['aberta']) {
             foreach ((new MesaService($this->db, $this->restaurante['id'], $this->usuario))->listar() as $m) {
-                if ((int) $m['ativo'] === 1 && $m['comanda_id'] === null) {
+                if ((int) $m['ativo'] === 1 && (int) $m['id'] !== (int) ($c['pedido']['id_mesa'] ?? 0)) {
                     $livres[] = $m;
                 }
             }
@@ -83,6 +84,15 @@ final class ComandaController extends BaseCaixa
             : Resultado::falha('Comanda não encontrada.');
         $volta = $this->origem($this->url('comandas/' . (int) $id));
         return $this->responder($res, $volta);
+    }
+
+    public function renomear(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = self::id($id) !== null ? $this->servico()->renomear((int) $id, $this->post('nome')) : Resultado::falha('Comanda não encontrada.');
+        return $this->responder($res, $this->url('comandas/' . (int) $id));
     }
 
     public function transferir(string $slug, string $id): Response
@@ -153,7 +163,8 @@ final class ComandaController extends BaseCaixa
             return $r;
         }
         $res = self::id($id) !== null ? $this->servico()->cancelar((int) $id, $this->post('motivo')) : Resultado::falha('Comanda não encontrada.');
-        return $this->responder($res, $this->url('mesas'), $this->url('comandas/' . (int) $id));
+        // Ainda tem comanda aberta na mesma mesa? Vai direto para ela.
+        return $this->responder($res, $res->id !== null ? $this->url('comandas/' . $res->id) : $this->url('mesas'), $this->url('comandas/' . (int) $id));
     }
 
     private function servico(): ComandaService

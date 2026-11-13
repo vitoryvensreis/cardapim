@@ -69,7 +69,7 @@ $todas = CaixaService::ENTRADAS + CaixaService::SAIDAS;
         <?php if ($pagamentos === []): ?><p class="texto-suave">Nenhum recebimento neste caixa.</p><?php else: ?>
             <ul class="caixa-linhas">
                 <?php foreach ($pagamentos as $pg): ?>
-                    <li><span><strong>#<?= (int) $pg['numero'] ?></strong> <?= $pg['mesa_numero'] !== null ? 'Mesa ' . (int) $pg['mesa_numero'] : ($pg['tipo'] === 'balcao' ? 'Balcão' : ($pg['tipo'] === 'entrega' ? 'Entrega' : 'Retirada')) ?>
+                    <li><span><strong>#<?= (int) $pg['numero'] ?></strong> <?= $pg['mesa_numero'] !== null ? 'Mesa ' . (int) $pg['mesa_numero'] . (($pg['comanda_nome'] ?? '') !== '' ? ' · ' . $e((string) $pg['comanda_nome']) : '') : ($pg['tipo'] === 'balcao' ? 'Balcão' : ($pg['tipo'] === 'entrega' ? 'Entrega' : 'Retirada')) ?>
                         <small><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?><?= Numero::centavos((string) $pg['troco']) > 0 ? ' (troco ' . $e(Numero::reais((string) $pg['troco'])) . ')' : '' ?> · <?= $e(date('H:i', (int) strtotime((string) $pg['criado_em']))) ?> · <?= $e((string) $pg['autor']) ?></small></span>
                         <span class="caixa-valor"><?= $e(Numero::reais((string) $pg['valor'])) ?></span></li>
                 <?php endforeach; ?>

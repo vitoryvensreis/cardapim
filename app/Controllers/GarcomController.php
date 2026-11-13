@@ -25,7 +25,7 @@ use PDO;
 
 /**
  * Painel do garcom (/{slug}/garcom), feito para o celular:
- * mesas -> comanda (lancar itens) -> fechar conta (10% opcional, receber ou Pix com QR Code) e consulta do cardapio.
+ * mesas -> comanda (lancar itens; uma mesa pode ter varias comandas, uma por pessoa) -> fechar conta (10% opcional, receber ou Pix com QR Code) e consulta do cardapio.
  * Acesso: garcom e gerente do restaurante (ou adm_master), conferido a cada requisicao. Todo POST com CSRF.
  * As regras de comanda e pagamento sao as mesmas do modo caixa (ComandaService).
  */
@@ -164,7 +164,34 @@ final class GarcomController
         if (!$res->ok) {
             return $this->voltar($volta, 'erro', $res->mensagem);
         }
+        if ($res->id !== null) {
+            // A mesa ainda tem outras comandas: vai direto para a proxima.
+            return $this->voltar($this->url('comandas/' . $res->id), 'sucesso', $c['rotulo'] . ' cancelada.' . ($c['itens'] !== [] ? ' O estoque foi devolvido.' : '') . ' As outras comandas da mesa continuam abertas.');
+        }
         return $this->voltar($this->url(), 'sucesso', $c['rotulo'] . ' cancelada. ' . ($c['itens'] !== [] ? 'O estoque foi devolvido e a mesa está livre.' : 'A mesa está livre.'));
+    }
+
+    /** Mais uma comanda na mesma mesa (quem chegou depois), com o nome da pessoa. */
+    public function novaComanda(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = self::id($id) !== null ? $this->comandas()->novaComanda((int) $id, $this->post('nome')) : Resultado::falha('Mesa não encontrada.');
+        $volta = $this->post('voltar_comanda') !== '' && self::id($this->post('voltar_comanda')) !== null ? $this->url('comandas/' . (int) $this->post('voltar_comanda')) : $this->url();
+        return $res->ok && $res->id !== null
+            ? $this->voltar($this->url('comandas/' . $res->id), 'sucesso', $res->mensagem)
+            : $this->voltar($volta, 'erro', $res->mensagem);
+    }
+
+    /** Da ou troca o nome da comanda (nome da pessoa). */
+    public function renomear(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = self::id($id) !== null ? $this->comandas()->renomear((int) $id, $this->post('nome')) : Resultado::falha('Conta não encontrada.');
+        return $this->voltar($this->url('comandas/' . (int) $id), $res->ok ? 'sucesso' : 'erro', $res->mensagem);
     }
 
     /** Fechar a conta: total, 10% e formas de pagamento. Conta ja paga = tela de "Pago, mesa liberada". */

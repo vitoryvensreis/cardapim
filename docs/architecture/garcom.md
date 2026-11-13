@@ -9,7 +9,9 @@ Acesso: cargo `garcom` e `gerente` do restaurante (ou `adm_master`), conferido n
 | Tela | Rota | O que faz |
 | --- | --- | --- |
 | Mesas | `GET /{slug}/garcom` | Mesas desenhadas (livre/ocupada com total e tempo), filtro Todas/Livres/Ocupadas. Atualiza sozinha (tempo real, canal `mesas`, e a cada 30 s). |
-| Abrir mesa | `POST /{slug}/garcom/mesas/{id}/abrir` | Abre (ou reaproveita) a comanda da mesa. |
+| Abrir mesa | `POST /{slug}/garcom/mesas/{id}/abrir` | Abre a primeira comanda da mesa ou leva para a mais antiga aberta. Mesa com mais de uma comanda mostra "2 comandas" e os nomes. |
+| Nova comanda | `POST /{slug}/garcom/mesas/{id}/comandas` | Quem chegou depois: comanda separada na mesma mesa, com o nome da pessoa (opcional). |
+| Dar nome | `POST /{slug}/garcom/comandas/{id}/nome` | Nome da pessoa na comanda (vazio tira o nome). As abas da mesa no topo da comanda mostram nome, total e itens de cada uma. |
 | Comanda | `GET /{slug}/garcom/comandas/{id}` | Total, itens (com observação, hora e quem lançou), remover item com motivo em um toque. Barra fixa: **Adicionar** e **Fechar conta**. |
 | Adicionar | `#adicionar` na comanda, `POST .../comandas/{id}/itens` | Folha do cardápio: busca, categorias, botões − / + por produto, observação por produto e "Lançar 3 itens · R$ X". Vários produtos em um envio (`qtd[id]`, `obs[id]`). Funciona sem JavaScript (`:target`). |
 | Remover item | `POST .../comandas/{id}/itens/{item}/cancelar` | Motivo por chip (Lancei errado, Cliente desistiu, Demorou). Estoque devolvido, log de auditoria. |

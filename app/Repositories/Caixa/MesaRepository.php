@@ -6,7 +6,7 @@ namespace Cardapim\Repositories\Caixa;
 
 use PDO;
 
-/** Mesas do salao e a comanda aberta de cada uma. */
+/** Mesas do salao e as comandas abertas de cada uma. */
 final class MesaRepository
 {
     public function __construct(private readonly PDO $db)
@@ -14,22 +14,59 @@ final class MesaRepository
     }
 
     /**
-     * Mesas (nao excluidas) com a comanda aberta, se houver.
+     * Mesas (nao excluidas) com as comandas abertas de cada uma (uma mesa pode ter varias, uma por pessoa).
+     * Resumo por mesa: comanda_id (a mais antiga, aberta ao tocar na mesa), comandas (quantas), comanda_total (soma),
+     * comanda_itens (soma), comanda_desde (a mais antiga) e lista_comandas (id, numero, comanda_nome, total, itens).
      * @return list<array<string,mixed>>
      */
     public function listar(int $idRestaurante): array
     {
         $q = $this->db->prepare(
             "SELECT m.id, m.numero, m.apelido, m.lugares, m.ativo,
-                    p.id AS comanda_id, p.numero AS comanda_numero, p.total AS comanda_total, p.criado_em AS comanda_desde, p.cliente_nome AS comanda_nome,
-                    (SELECT COUNT(*) FROM pedido_itens i WHERE i.id_pedido = p.id AND i.id_restaurante = p.id_restaurante AND i.cancelado_em IS NULL) AS comanda_itens,
                     (SELECT COUNT(*) FROM pedidos h WHERE h.id_mesa = m.id AND h.id_restaurante = m.id_restaurante) AS historico
              FROM mesas m
-             LEFT JOIN pedidos p ON p.id_mesa = m.id AND p.id_restaurante = m.id_restaurante AND p.status = 'aberto'
              WHERE m.id_restaurante = ? AND m.excluida_em IS NULL
              ORDER BY m.numero"
         );
         $q->execute([$idRestaurante]);
+        $mesas = $q->fetchAll(PDO::FETCH_ASSOC);
+        $porMesa = [];
+        foreach ($this->comandasAbertas($idRestaurante) as $c) {
+            $porMesa[(int) $c['id_mesa']][] = $c;
+        }
+        foreach ($mesas as &$m) {
+            $lista = $porMesa[(int) $m['id']] ?? [];
+            $centavos = 0;
+            $itens = 0;
+            foreach ($lista as $c) {
+                $centavos += \Cardapim\Shared\Numero::centavos((string) $c['total']);
+                $itens += (int) $c['itens'];
+            }
+            $m['comanda_id'] = $lista !== [] ? (int) $lista[0]['id'] : null;
+            $m['comandas'] = count($lista);
+            $m['comanda_total'] = sprintf('%d.%02d', intdiv($centavos, 100), $centavos % 100);
+            $m['comanda_itens'] = $itens;
+            $m['comanda_desde'] = $lista !== [] ? (string) $lista[0]['criado_em'] : null;
+            $m['lista_comandas'] = $lista;
+        }
+        unset($m);
+        return $mesas;
+    }
+
+    /**
+     * Comandas abertas das mesas do restaurante (todas, ou so de uma mesa), da mais antiga para a mais nova.
+     * @return list<array<string,mixed>>
+     */
+    public function comandasAbertas(int $idRestaurante, ?int $idMesa = null): array
+    {
+        $q = $this->db->prepare(
+            "SELECT p.id, p.id_mesa, p.numero, p.comanda_nome, p.total, p.criado_em,
+                    (SELECT COALESCE(SUM(i.quantidade), 0) FROM pedido_itens i WHERE i.id_pedido = p.id AND i.id_restaurante = p.id_restaurante AND i.cancelado_em IS NULL) AS itens
+             FROM pedidos p
+             WHERE p.id_restaurante = ? AND p.status = 'aberto' AND p.id_mesa IS NOT NULL" . ($idMesa !== null ? ' AND p.id_mesa = ?' : '') . "
+             ORDER BY p.id"
+        );
+        $q->execute($idMesa !== null ? [$idRestaurante, $idMesa] : [$idRestaurante]);
         return $q->fetchAll(PDO::FETCH_ASSOC);
     }
 

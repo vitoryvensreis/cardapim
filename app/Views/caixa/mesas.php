@@ -17,7 +17,7 @@ $ocupadas = count(array_filter($mesas, static fn (array $m): bool => $m['comanda
     <header class="painel-cabecalho">
         <div>
             <h1>Mesas e comandas</h1>
-            <p>Toque numa mesa livre para abrir a comanda. Mesas ocupadas mostram o total até agora.</p>
+            <p>Toque numa mesa livre para abrir a comanda. Chegou mais alguém? Dentro da comanda, use <strong>Nova comanda</strong> para separar a conta dessa pessoa.</p>
         </div>
         <div class="painel-acoes">
             <form method="post" action="<?= $e($base . '/balcao') ?>">
@@ -70,13 +70,19 @@ $ocupadas = count(array_filter($mesas, static fn (array $m): bool => $m['comanda
             <?php foreach ($mesas as $m): $ocupada = $m['comanda_id'] !== null; $lugares = $m['lugares'] !== null ? (int) $m['lugares'] : null; ?>
                 <li data-mesa-estado="<?= $ocupada ? 'ocupada' : 'livre' ?>">
                     <?php if ($ocupada): ?>
-                        <a class="mesa is-ocupada" href="<?= $e($base . '/comandas/' . (int) $m['comanda_id']) ?>" aria-label="Mesa <?= (int) $m['numero'] ?>, ocupada, <?= $e(Numero::reais((string) $m['comanda_total'])) ?>">
+                        <a class="mesa is-ocupada" href="<?= $e($base . '/comandas/' . (int) $m['comanda_id']) ?>" aria-label="Mesa <?= (int) $m['numero'] ?>, <?= (int) $m['comandas'] > 1 ? (int) $m['comandas'] . ' comandas' : 'ocupada' ?>, <?= $e(Numero::reais((string) $m['comanda_total'])) ?>">
                             <?php $centro = '<strong>' . (int) $m['numero'] . '</strong><small>' . $e(Numero::reais((string) $m['comanda_total'])) . '</small>'; require __DIR__ . '/_mesa-desenho.php'; ?>
                             <span class="mesa-rodape">
-                                <span class="mesa-estado"><?= Icon::svg('utensils', 'icon-sm') ?>Ocupada</span>
+                                <?php if ((int) $m['comandas'] > 1): ?>
+                                    <span class="mesa-estado"><?= Icon::svg('users', 'icon-sm') ?><?= (int) $m['comandas'] ?> comandas</span>
+                                <?php else: ?>
+                                    <span class="mesa-estado"><?= Icon::svg('utensils', 'icon-sm') ?>Ocupada</span>
+                                <?php endif; ?>
                                 <span class="mesa-info"><?= (int) $m['comanda_itens'] ?> <?= (int) $m['comanda_itens'] === 1 ? 'item' : 'itens' ?> · <?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $m['comanda_desde'])) ?></span>
                             </span>
                             <?php if ($m['apelido']): ?><span class="mesa-apelido"><?= $e((string) $m['apelido']) ?></span><?php endif; ?>
+                            <?php $nomes = array_values(array_filter(array_map(static fn (array $cm): string => trim((string) ($cm['comanda_nome'] ?? '')), $m['lista_comandas']))); ?>
+                            <?php if ($nomes !== []): ?><span class="mesa-nomes" title="<?= $e(implode(', ', $nomes)) ?>"><?= Icon::svg('user', 'icon-sm') ?><?= $e(implode(', ', $nomes)) ?></span><?php endif; ?>
                         </a>
                     <?php else: ?>
                         <form method="post" action="<?= $e($base . '/mesas/' . (int) $m['id'] . '/abrir') ?>">

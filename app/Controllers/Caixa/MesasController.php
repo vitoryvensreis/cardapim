@@ -8,7 +8,7 @@ use Cardapim\Core\Response;
 use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Services\Caixa\MesaService;
 
-/** Mapa das mesas (livre/ocupada), abrir comanda e cadastro das mesas. */
+/** Mapa das mesas (livre/ocupada), abrir comanda (uma ou varias por mesa) e cadastro das mesas. */
 final class MesasController extends BaseCaixa
 {
     public function mapa(string $slug): Response
@@ -33,6 +33,20 @@ final class MesasController extends BaseCaixa
             ? (new ComandaService($this->db, $this->restaurante['id'], $this->usuario))->abrirMesa((int) $id)
             : \Cardapim\Services\Gerencia\Resultado::falha('Mesa não encontrada.');
         return $this->responder($res, $res->id !== null ? $this->url('comandas/' . $res->id) : $this->url('mesas'), $this->url('mesas'));
+    }
+
+    /** Mais uma comanda na mesma mesa (quem chegou depois), com o nome da pessoa. */
+    public function novaComanda(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = self::id($id) !== null
+            ? (new ComandaService($this->db, $this->restaurante['id'], $this->usuario))->novaComanda((int) $id, $this->post('nome'))
+            : \Cardapim\Services\Gerencia\Resultado::falha('Mesa não encontrada.');
+        $voltar = self::id($this->post('voltar_comanda'));
+        $erro = $voltar !== null ? $this->url('comandas/' . $voltar) : $this->url('mesas');
+        return $this->responder($res, $res->id !== null ? $this->url('comandas/' . $res->id) : $erro, $erro);
     }
 
     public function gerenciar(string $slug): Response

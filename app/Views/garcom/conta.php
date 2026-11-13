@@ -27,7 +27,8 @@ $formas = [
     <section class="gc-paga" aria-live="polite">
         <span class="gc-paga-icone" aria-hidden="true"><?= Icon::svg('circle-check', 'icon-lg') ?></span>
         <h1>Conta paga</h1>
-        <p><?= $e((string) $c['rotulo']) ?> <?= ($p['tipo'] ?? '') === 'mesa' ? 'está livre.' : 'fechada.' ?></p>
+        <?php $abertasMesa = count($c['irmas'] ?? []); ?>
+        <p><?php if (($p['tipo'] ?? '') !== 'mesa'): ?><?= $e((string) $c['rotulo']) ?> fechada.<?php elseif ($abertasMesa > 0): ?><?= $e((string) $c['rotulo']) ?> fechada. A <?= $e((string) $c['rotulo_mesa']) ?> ainda tem <?= $abertasMesa ?> <?= $abertasMesa === 1 ? 'comanda aberta' : 'comandas abertas' ?>.<?php else: ?><?= $e((string) $c['rotulo_mesa']) ?> está livre.<?php endif; ?></p>
         <?php if (is_array($troco)): ?>
             <div class="troco-destaque" role="status">
                 <?= Icon::svg('hand-coins', 'icon-lg') ?>
@@ -40,6 +41,7 @@ $formas = [
                 <div><dt><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?></dt><dd><?= $e(Numero::reais((string) $pg['valor'])) ?></dd></div>
             <?php endforeach; ?>
         </dl>
+        <?php if ($abertasMesa > 0): $novaComandaUrl = $base . '/mesas/' . (int) $p['id_mesa'] . '/comandas'; require __DIR__ . '/../caixa/_comandas-mesa.php'; endif; ?>
         <a class="btn btn-primary btn-lg btn-block" href="<?= $e($base) ?>"><?= Icon::svg('layout-grid') ?>Voltar às mesas</a>
     </section>
 <?php else: ?>

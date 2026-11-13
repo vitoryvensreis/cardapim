@@ -48,7 +48,7 @@ $painel = [
         : null,
     'alerta_pedido' => '/' . rawurlencode($slug) . '/caixa/delivery',
 ];
-$pageStyles = ['css/caixa.css', ...($pageStyles ?? [])];
+$pageStyles = ['css/caixa.css', 'css/comandas-mesa.css', ...($pageStyles ?? [])];
 $pageScripts = ['js/forms.js', 'js/caixa.js', ...($pageScripts ?? [])];
 $pageTitle ??= 'Caixa | ' . marca();
 require __DIR__ . '/painel.php';

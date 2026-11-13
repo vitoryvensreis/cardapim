@@ -16,11 +16,12 @@ use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Pedidos\CancelarPedido;
 use Cardapim\Shared\Numero;
 use PDO;
-use PDOException;
 use Throwable;
 
 /**
  * Comanda = pedido aberto (status 'aberto') de uma MESA (tipo 'mesa', a mesa e o "cliente") ou do BALCAO.
+ * Uma mesa pode ter VARIAS comandas abertas (uma por pessoa, ex.: quem chegou depois), cada uma com nome opcional
+ * (comanda_nome; sem nome aparece "Comanda 1", "Comanda 2"... na ordem de abertura). Cada uma e paga separada.
  *
  * - Cada item lancado baixa o estoque NA HORA (ficha tecnica) e guarda o que baixou no proprio item.
  *   Item cancelado devolve exatamente esse consumo. Comanda cancelada devolve tudo.
@@ -30,6 +31,8 @@ use Throwable;
 final class ComandaService
 {
     public const SERVICO_PADRAO = '10.00';
+    public const MAX_COMANDAS_POR_MESA = 20;
+    public const MAX_NOME = 40;
     public const FORMAS_PRESENCIAIS = ['dinheiro' => 'Dinheiro', 'debito' => 'Débito', 'credito' => 'Crédito', 'pix' => 'Pix'];
 
     private readonly PedidoRepository $pedidos;
@@ -39,7 +42,7 @@ final class ComandaService
         $this->pedidos = new PedidoRepository($db);
     }
 
-    /** Abre (ou devolve a ja aberta) a comanda da mesa. */
+    /** Toque na mesa: devolve a comanda aberta mais antiga ou, se a mesa esta livre, abre a primeira. */
     public function abrirMesa(int $idMesa): Resultado
     {
         $mesa = (new MesaRepository($this->db))->buscar($this->idRestaurante, $idMesa);
@@ -53,17 +56,113 @@ final class ComandaService
         if ((int) $mesa['ativo'] !== 1) {
             return Resultado::falha('Esta mesa está pausada. Ative em "Gerenciar mesas" para usar.');
         }
+        $this->db->beginTransaction();
         try {
-            $id = $this->criar('mesa', $idMesa, MesaService::rotulo($mesa), self::SERVICO_PADRAO);
-        } catch (PDOException $erro) {
-            // Outro aparelho abriu a mesma mesa no mesmo instante (regra "uma comanda aberta por mesa" do banco).
+            // Dois aparelhos tocando na mesma mesa livre ao mesmo tempo: o segundo espera e recebe a mesma comanda.
+            $this->travarMesa($idMesa);
             $aberta = $this->abertaDaMesa($idMesa);
-            if ($aberta !== null) {
-                return Resultado::sucesso('', $aberta);
+            $id = $aberta ?? $this->criar('mesa', $idMesa, MesaService::rotulo($mesa), self::SERVICO_PADRAO);
+            $this->db->commit();
+        } catch (Throwable $erro) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
             }
             throw $erro;
         }
-        return Resultado::sucesso(MesaService::rotulo($mesa) . ' aberta.', $id);
+        return Resultado::sucesso($aberta !== null ? '' : MesaService::rotulo($mesa) . ' aberta.', $id);
+    }
+
+    /** Mais uma comanda na mesma mesa (ex.: alguem chegou depois), ja com o nome da pessoa se informado. */
+    public function novaComanda(int $idMesa, string $nome): Resultado
+    {
+        $mesa = (new MesaRepository($this->db))->buscar($this->idRestaurante, $idMesa);
+        if ($mesa === null) {
+            return Resultado::falha('Mesa não encontrada. Ela pode ter sido excluída.');
+        }
+        if ((int) $mesa['ativo'] !== 1) {
+            return Resultado::falha('Esta mesa está pausada. Ative em "Gerenciar mesas" para usar.');
+        }
+        $nome = self::limparNome($nome);
+        if (mb_strlen($nome) > self::MAX_NOME) {
+            return Resultado::falha('Use até ' . self::MAX_NOME . ' letras no nome.', ['nome' => 'Use até ' . self::MAX_NOME . ' letras.']);
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->travarMesa($idMesa);
+            $abertas = count((new MesaRepository($this->db))->comandasAbertas($this->idRestaurante, $idMesa));
+            if ($abertas >= self::MAX_COMANDAS_POR_MESA) {
+                $this->db->rollBack();
+                return Resultado::falha('Esta mesa já tem ' . self::MAX_COMANDAS_POR_MESA . ' comandas abertas. Feche alguma antes.');
+            }
+            $id = $this->criar('mesa', $idMesa, MesaService::rotulo($mesa), self::SERVICO_PADRAO, $nome !== '' ? $nome : null);
+            $this->db->commit();
+        } catch (Throwable $erro) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $erro;
+        }
+        $rotulo = $nome !== '' ? $nome : 'Comanda ' . ($abertas + 1);
+        Auditoria::registrar($this->autor, 'Comanda aberta', MesaService::rotulo($mesa) . ': nova comanda "' . $rotulo . '" (' . ($abertas + 1) . 'ª da mesa).');
+        return Resultado::sucesso('Comanda de ' . $rotulo . ' aberta na ' . MesaService::rotulo($mesa) . '.', $id);
+    }
+
+    /** Da (ou troca) o nome da comanda. Vazio volta para "Comanda N". Balcao: nome do cliente. */
+    public function renomear(int $id, string $nome): Resultado
+    {
+        $comanda = $this->aberta($id);
+        if ($comanda instanceof Resultado) {
+            return $comanda;
+        }
+        $nome = self::limparNome($nome);
+        if (mb_strlen($nome) > self::MAX_NOME) {
+            return Resultado::falha('Use até ' . self::MAX_NOME . ' letras no nome.', ['nome' => 'Use até ' . self::MAX_NOME . ' letras.']);
+        }
+        $coluna = $comanda['tipo'] === 'mesa' ? 'comanda_nome' : 'cliente_nome';
+        $antes = (string) ($comanda[$coluna] ?? '');
+        if ($antes === $nome) {
+            return Resultado::sucesso('Nada mudou.');
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare("UPDATE pedidos SET {$coluna} = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ? AND status = 'aberto'")
+                ->execute([$nome !== '' ? $nome : null, date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
+            $this->pedidos->registrarEvento($this->idRestaurante, $id, 'aberto', $nome !== '' ? 'Comanda agora se chama "' . $nome . '".' : 'Nome da comanda removido.', $this->autor->id);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
+            $this->db->commit();
+        } catch (Throwable $erro) {
+            $this->db->rollBack();
+            throw $erro;
+        }
+        Auditoria::registrar($this->autor, 'Comanda renomeada', 'Pedido #' . $comanda['numero'] . ': "' . ($antes !== '' ? $antes : 'sem nome') . '" -> "' . ($nome !== '' ? $nome : 'sem nome') . '".');
+        return Resultado::sucesso($nome !== '' ? 'Comanda agora é de ' . $nome . '.' : 'Nome removido da comanda.');
+    }
+
+    /**
+     * Comandas abertas da mesma mesa, com o nome que aparece na tela ("Joao" ou "Comanda 2").
+     * @return list<array{id:int, numero:int, nome:string, tem_nome:bool, total:int, itens:int}>
+     */
+    public function comandasDaMesa(int $idMesa): array
+    {
+        $lista = [];
+        foreach ((new MesaRepository($this->db))->comandasAbertas($this->idRestaurante, $idMesa) as $i => $c) {
+            $lista[] = [
+                'id' => (int) $c['id'],
+                'numero' => (int) $c['numero'],
+                'nome' => self::nomeComanda($c['comanda_nome'] ?? null, $i + 1),
+                'tem_nome' => trim((string) ($c['comanda_nome'] ?? '')) !== '',
+                'total' => Numero::centavos((string) $c['total']),
+                'itens' => (int) $c['itens'],
+            ];
+        }
+        return $lista;
+    }
+
+    /** Nome mostrado da comanda: o que foi digitado ou "Comanda N" (posicao na mesa). */
+    public static function nomeComanda(?string $nome, int $posicao): string
+    {
+        $nome = trim((string) $nome);
+        return $nome !== '' ? $nome : 'Comanda ' . $posicao;
     }
 
     public function abrirBalcao(string $nome): Resultado
@@ -94,10 +193,24 @@ final class ComandaService
         $pagamentos = $this->pagamentos($id);
         $pago = array_sum(array_map(static fn (array $pg): int => Numero::centavos((string) $pg['valor']), $pagamentos));
         $mesa = $p['id_mesa'] !== null ? (new MesaRepository($this->db))->buscarQualquer($this->idRestaurante, (int) $p['id_mesa']) : null;
+        // Outras comandas abertas da mesma mesa (inclui esta, se aberta): viram as abas "Joao | Comanda 2 | + Nova".
+        $irmas = $p['tipo'] === 'mesa' && $p['id_mesa'] !== null ? $this->comandasDaMesa((int) $p['id_mesa']) : [];
+        $nome = trim((string) ($p['comanda_nome'] ?? ''));
+        if ($nome === '' && $p['tipo'] === 'mesa' && count($irmas) > 1) {
+            foreach ($irmas as $irma) {
+                if ($irma['id'] === (int) $p['id']) {
+                    $nome = $irma['nome'];
+                }
+            }
+        }
+        $rotuloMesa = $mesa !== null ? MesaService::rotulo($mesa) : 'Mesa';
         return [
             'pedido' => $p,
             'mesa' => $mesa,
-            'rotulo' => $p['tipo'] === 'mesa' && $mesa !== null ? MesaService::rotulo($mesa) : 'Balcão' . ($p['cliente_nome'] ? ' · ' . $p['cliente_nome'] : ''),
+            'rotulo' => $p['tipo'] === 'mesa' ? $rotuloMesa . ($nome !== '' ? ' · ' . $nome : '') : 'Balcão' . ($p['cliente_nome'] ? ' · ' . $p['cliente_nome'] : ''),
+            'rotulo_mesa' => $p['tipo'] === 'mesa' ? $rotuloMesa : 'Balcão',
+            'nome' => (string) ($p['tipo'] === 'mesa' ? ($p['comanda_nome'] ?? '') : ($p['cliente_nome'] ?? '')),
+            'irmas' => $irmas,
             'itens' => $itens,
             'pagamentos' => $pagamentos,
             'subtotal' => Numero::centavos((string) $p['subtotal']),
@@ -276,33 +389,36 @@ final class ComandaService
         $mesas = new MesaRepository($this->db);
         $destino = $mesas->buscar($this->idRestaurante, $idMesaDestino);
         if ($destino === null || (int) $destino['ativo'] !== 1) {
-            return Resultado::falha('Escolha uma mesa livre.');
+            return Resultado::falha('Escolha uma mesa.');
         }
         if ($comanda['tipo'] === 'mesa' && (int) $comanda['id_mesa'] === $idMesaDestino) {
             return Resultado::falha('A comanda já está nesta mesa.');
         }
-        if ($mesas->temComandaAberta($this->idRestaurante, $idMesaDestino)) {
-            return Resultado::falha(MesaService::rotulo($destino) . ' já está ocupada.');
-        }
+        // Mesa ocupada tambem serve: a comanda entra como mais uma comanda dela (cada um continua com a sua conta).
+        $juntou = $mesas->temComandaAberta($this->idRestaurante, $idMesaDestino);
         $origem = $this->rotulo($comanda);
         try {
             $this->db->beginTransaction();
-            $this->db->prepare("UPDATE pedidos SET tipo = 'mesa', origem = 'mesa', id_mesa = ?, cliente_nome = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ? AND status = 'aberto'")
-                ->execute([$idMesaDestino, MesaService::rotulo($destino), date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
+            // Do balcao para a mesa: o nome do cliente do balcao vira o nome da comanda.
+            $nomeComanda = $comanda['tipo'] === 'balcao' && trim((string) $comanda['cliente_nome']) !== ''
+                ? mb_substr(trim((string) $comanda['cliente_nome']), 0, self::MAX_NOME)
+                : ($comanda['comanda_nome'] ?? null);
+            $this->db->prepare("UPDATE pedidos SET tipo = 'mesa', origem = 'mesa', id_mesa = ?, cliente_nome = ?, comanda_nome = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ? AND status = 'aberto'")
+                ->execute([$idMesaDestino, MesaService::rotulo($destino), $nomeComanda, date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
             $this->pedidos->registrarEvento($this->idRestaurante, $id, 'aberto', 'Transferida de ' . $origem . ' para ' . MesaService::rotulo($destino) . '.', $this->autor->id);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
             $this->db->commit();
-        } catch (PDOException) {
+        } catch (Throwable $erro) {
             $this->db->rollBack();
-            return Resultado::falha(MesaService::rotulo($destino) . ' acabou de ser ocupada. Escolha outra.');
+            throw $erro;
         }
         Auditoria::registrar($this->autor, 'Comanda transferida', 'Pedido #' . $comanda['numero'] . ': ' . $origem . ' -> ' . MesaService::rotulo($destino) . '.');
-        return Resultado::sucesso('Comanda levada para a ' . MesaService::rotulo($destino) . '.');
+        return Resultado::sucesso('Comanda levada para a ' . MesaService::rotulo($destino) . ($juntou ? ', junto com as outras comandas da mesa.' : '.'));
     }
 
     /**
      * Recebe um pagamento. Dinheiro: "recebido" pode ser maior que o valor e a diferenca vira troco.
-     * Quando a conta fica paga, a comanda e concluida e a mesa fica livre.
+     * Quando a conta fica paga, a comanda e concluida (a mesa fica livre se nao houver outra comanda nela).
      */
     public function pagar(int $id, string $forma, string $valorTexto, string $recebidoTexto): Resultado
     {
@@ -365,7 +481,9 @@ final class ComandaService
         $msg = self::FORMAS_PRESENCIAIS[$forma] . ' ' . Numero::reais(CaixaService::dec($centavos)) . ' recebido.' . ($troco > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco)) . '.' : '');
         if ($concluiu) {
             Auditoria::registrar($this->autor, 'Conta fechada', sprintf('%s: pedido #%d, total %s.', $this->rotulo($comanda), (int) $comanda['numero'], Numero::reais((string) $comanda['total'])));
-            return Resultado::sucesso($msg . ' Conta fechada' . ($comanda['tipo'] === 'mesa' ? ' e mesa liberada.' : '.'), $id);
+            $outras = $comanda['tipo'] === 'mesa' ? count((new MesaRepository($this->db))->comandasAbertas($this->idRestaurante, (int) $comanda['id_mesa'])) : 0;
+            $fim = $comanda['tipo'] !== 'mesa' ? '.' : ($outras > 0 ? '. A mesa continua com ' . $outras . ($outras === 1 ? ' comanda aberta.' : ' comandas abertas.') : ' e mesa liberada.');
+            return Resultado::sucesso($msg . ' Conta fechada' . $fim, $id);
         }
         return Resultado::sucesso($msg);
     }
@@ -406,7 +524,9 @@ final class ComandaService
         TempoReal::publicar($this->idRestaurante, 'mesas', 'comanda.fechada', ['id' => $id]);
         Auditoria::registrar($this->autor, 'Comanda cancelada', sprintf('%s: pedido #%d (%s). Motivo: %s. Estoque devolvido.',
             $this->rotulo($comanda), (int) $comanda['numero'], Numero::reais((string) $comanda['total']), $motivo));
-        return Resultado::sucesso('Comanda cancelada. O estoque dos itens foi devolvido.');
+        // Ainda tem gente na mesa? Devolve a proxima comanda aberta dela para a tela ir direto para la.
+        $proxima = $comanda['tipo'] === 'mesa' ? $this->abertaDaMesa((int) $comanda['id_mesa']) : null;
+        return Resultado::sucesso('Comanda cancelada. O estoque dos itens foi devolvido.', $proxima);
     }
 
     /** @return list<array<string,mixed>> */
@@ -434,11 +554,15 @@ final class ComandaService
         return intdiv($subtotal * $pct + 5000, 10000);
     }
 
-    private function criar(string $tipo, ?int $idMesa, ?string $nome, string $servico): int
+    /** Cria a comanda. Pode rodar dentro de uma transacao ja aberta (abrirMesa/novaComanda travam a mesa antes). */
+    private function criar(string $tipo, ?int $idMesa, ?string $nome, string $servico, ?string $comandaNome = null): int
     {
         $agora = date('Y-m-d H:i:s');
         $chave = bin2hex(random_bytes(16));
-        $this->db->beginTransaction();
+        $propria = !$this->db->inTransaction();
+        if ($propria) {
+            $this->db->beginTransaction();
+        }
         try {
             if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
                 $this->db->prepare('SELECT id FROM restaurantes WHERE id = ? FOR UPDATE')->execute([$this->idRestaurante]);
@@ -447,20 +571,35 @@ final class ComandaService
             $n->execute([$this->idRestaurante]);
             $numero = (int) $n->fetchColumn();
             $this->db->prepare("INSERT INTO pedidos (id_restaurante, numero, id_cliente, id_user, id_mesa, origem, tipo, status, forma_pagamento, pagamento_status,
-                    subtotal, taxa_entrega, servico_percentual, taxa_servico, desconto, total, cliente_nome, chave_idempotencia, criado_em, atualizado_em)
-                VALUES (?, ?, NULL, ?, ?, ?, ?, 'aberto', NULL, 'pendente', '0.00', '0.00', ?, '0.00', '0.00', '0.00', ?, ?, ?, ?)")
-                ->execute([$this->idRestaurante, $numero, $this->autor->id, $idMesa, $tipo, $tipo, $servico, $nome, $chave, $agora, $agora]);
+                    subtotal, taxa_entrega, servico_percentual, taxa_servico, desconto, total, cliente_nome, comanda_nome, chave_idempotencia, criado_em, atualizado_em)
+                VALUES (?, ?, NULL, ?, ?, ?, ?, 'aberto', NULL, 'pendente', '0.00', '0.00', ?, '0.00', '0.00', '0.00', ?, ?, ?, ?, ?)")
+                ->execute([$this->idRestaurante, $numero, $this->autor->id, $idMesa, $tipo, $tipo, $servico, $nome, $comandaNome, $chave, $agora, $agora]);
             $id = (int) $this->pedidos->porChave($this->idRestaurante, $chave)['id'];
-            $this->pedidos->registrarEvento($this->idRestaurante, $id, 'aberto', ($tipo === 'mesa' ? 'Comanda aberta' : 'Venda no balcão aberta') . ' por ' . $this->autor->nome . '.', $this->autor->id);
+            $this->pedidos->registrarEvento($this->idRestaurante, $id, 'aberto', ($tipo === 'mesa' ? 'Comanda aberta' . ($comandaNome !== null ? ' para ' . $comandaNome : '') : 'Venda no balcão aberta') . ' por ' . $this->autor->nome . '.', $this->autor->id);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.aberta', ['id' => $id]);
-            $this->db->commit();
+            if ($propria) {
+                $this->db->commit();
+            }
             return $id;
         } catch (Throwable $erro) {
-            if ($this->db->inTransaction()) {
+            if ($propria && $this->db->inTransaction()) {
                 $this->db->rollBack();
             }
             throw $erro;
         }
+    }
+
+    /** Trava a linha da mesa ate o fim da transacao (MySQL), para duas abas nao abrirem comandas ao mesmo tempo. */
+    private function travarMesa(int $idMesa): void
+    {
+        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+            $this->db->prepare('SELECT id FROM mesas WHERE id = ? AND id_restaurante = ? FOR UPDATE')->execute([$idMesa, $this->idRestaurante]);
+        }
+    }
+
+    private static function limparNome(string $nome): string
+    {
+        return trim((string) preg_replace('/[\x00-\x1F\x7F]+|\s+/u', ' ', $nome));
     }
 
     /** Fecha a comanda paga: forma (unica ou 'misto'), caixa, datas e linha do tempo. */
@@ -520,7 +659,7 @@ final class ComandaService
 
     private function abertaDaMesa(int $idMesa): ?int
     {
-        $q = $this->db->prepare("SELECT id FROM pedidos WHERE id_mesa = ? AND id_restaurante = ? AND status = 'aberto' LIMIT 1");
+        $q = $this->db->prepare("SELECT id FROM pedidos WHERE id_mesa = ? AND id_restaurante = ? AND status = 'aberto' ORDER BY id LIMIT 1");
         $q->execute([$idMesa, $this->idRestaurante]);
         $id = $q->fetchColumn();
         return $id === false ? null : (int) $id;
@@ -542,6 +681,8 @@ final class ComandaService
     /** @param array<string,mixed> $p */
     private function rotulo(array $p): string
     {
-        return $p['tipo'] === 'mesa' ? (string) ($p['cliente_nome'] ?: 'Mesa') : 'Balcão' . ($p['cliente_nome'] ? ' (' . $p['cliente_nome'] . ')' : '');
+        return $p['tipo'] === 'mesa'
+            ? (string) ($p['cliente_nome'] ?: 'Mesa') . (($p['comanda_nome'] ?? '') !== '' ? ' (' . $p['comanda_nome'] . ')' : '')
+            : 'Balcão' . ($p['cliente_nome'] ? ' (' . $p['cliente_nome'] . ')' : '');
     }
 }

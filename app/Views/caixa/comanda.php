@@ -1,6 +1,6 @@
 <?php
 /**
- * Comanda da mesa ou do balcao.
+ * Comanda da mesa ou do balcao. A mesa pode ter varias comandas (uma por pessoa): abas no topo (_comandas-mesa.php).
  * Computador: cardapio a esquerda, conta a direita. Celular/tablet: abas "Cardapio" e "Conta" + barra fixa com o total.
  * Espera: $c (ComandaService::detalhes), $cardapio, $livres, $caixaAberto, $base, $csrf, $erros, $enviado.
  */
@@ -38,6 +38,8 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
             <a class="btn btn-outline btn-sm" href="<?= $e($base . '/mesas') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Mesas</a>
         </div>
     </header>
+
+    <?php $novaComandaUrl = $base . '/mesas/' . (int) ($p['id_mesa'] ?? 0) . '/comandas'; require __DIR__ . '/_comandas-mesa.php'; ?>
 
     <?php if ($c['aberta']): ?>
         <nav class="segmento comanda-abas" aria-label="Partes da comanda" data-comanda-abas hidden>
@@ -165,9 +167,9 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                             <summary><?= Icon::svg('move', 'icon-sm') ?><?= $p['tipo'] === 'mesa' ? 'Trocar de mesa' : 'Levar para uma mesa' ?></summary>
                             <form method="post" action="<?= $e($url . '/transferir') ?>" class="conta-ajustes">
                                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                                <label class="campo-caixa"><span>Mesa livre</span>
+                                <label class="campo-caixa"><span>Para qual mesa?</span>
                                     <select name="mesa" required>
-                                        <?php foreach ($livres as $m): ?><option value="<?= (int) $m['id'] ?>">Mesa <?= (int) $m['numero'] ?><?= $m['apelido'] ? ' · ' . $e((string) $m['apelido']) : '' ?></option><?php endforeach; ?>
+                                        <?php foreach ($livres as $m): ?><option value="<?= (int) $m['id'] ?>">Mesa <?= (int) $m['numero'] ?><?= $m['apelido'] ? ' · ' . $e((string) $m['apelido']) : '' ?><?= (int) $m['comandas'] > 0 ? ' (ocupada: entra como mais uma comanda)' : ' (livre)' ?></option><?php endforeach; ?>
                                     </select>
                                 </label>
                                 <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('move', 'icon-sm') ?>Levar a conta</button>
@@ -179,7 +181,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                         <details class="conta-mais conta-perigo">
                             <summary><?= Icon::svg('circle-x', 'icon-sm') ?>Cancelar comanda</summary>
                             <form method="post" action="<?= $e($url . '/cancelar') ?>" class="conta-ajustes"
-                                  data-confirm="Os itens voltam para o estoque e a mesa fica livre." data-confirm-titulo="Cancelar esta comanda?" data-confirm-acao="Cancelar comanda" data-confirm-perigo="1">
+                                  data-confirm="<?= count($c['irmas']) > 1 ? 'Os itens voltam para o estoque. As outras comandas da mesa continuam abertas.' : 'Os itens voltam para o estoque e a mesa fica livre.' ?>" data-confirm-titulo="Cancelar <?= $e($c['nome'] !== '' ? 'a comanda de ' . $c['nome'] : 'esta comanda') ?>?" data-confirm-acao="Cancelar comanda" data-confirm-perigo="1">
                                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                                 <label class="campo-caixa"><span>Motivo (opcional)</span><input name="motivo" maxlength="140" placeholder="Ex.: cliente foi embora sem consumir"></label>
                                 <button class="btn btn-ghost btn-sm area-remover" type="submit"><?= Icon::svg('circle-x', 'icon-sm') ?>Cancelar comanda</button>

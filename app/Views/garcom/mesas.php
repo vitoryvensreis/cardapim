@@ -37,13 +37,19 @@ $livres = count($mesas) - $ocupadas;
             <?php foreach ($mesas as $m): $ocupada = $m['comanda_id'] !== null; $lugares = $m['lugares'] !== null ? (int) $m['lugares'] : null; ?>
                 <li data-mesa-estado="<?= $ocupada ? 'ocupada' : 'livre' ?>">
                     <?php if ($ocupada): ?>
-                        <a class="mesa is-ocupada" href="<?= $e($base . '/comandas/' . (int) $m['comanda_id']) ?>" aria-label="Mesa <?= (int) $m['numero'] ?>, ocupada, <?= $e(Numero::reais((string) $m['comanda_total'])) ?>">
+                        <a class="mesa is-ocupada" href="<?= $e($base . '/comandas/' . (int) $m['comanda_id']) ?>" aria-label="Mesa <?= (int) $m['numero'] ?>, <?= (int) $m['comandas'] > 1 ? (int) $m['comandas'] . ' comandas' : 'ocupada' ?>, <?= $e(Numero::reais((string) $m['comanda_total'])) ?>">
                             <?php $centro = '<strong>' . (int) $m['numero'] . '</strong><small>' . $e(Numero::reais((string) $m['comanda_total'])) . '</small>'; require __DIR__ . '/../caixa/_mesa-desenho.php'; ?>
                             <span class="mesa-rodape">
-                                <span class="mesa-estado"><?= Icon::svg('utensils', 'icon-sm') ?>Ocupada</span>
+                                <?php if ((int) $m['comandas'] > 1): ?>
+                                    <span class="mesa-estado"><?= Icon::svg('users', 'icon-sm') ?><?= (int) $m['comandas'] ?> comandas</span>
+                                <?php else: ?>
+                                    <span class="mesa-estado"><?= Icon::svg('utensils', 'icon-sm') ?>Ocupada</span>
+                                <?php endif; ?>
                                 <span class="mesa-info"><?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $m['comanda_desde'])) ?></span>
                             </span>
                             <?php if ($m['apelido']): ?><span class="mesa-apelido"><?= $e((string) $m['apelido']) ?></span><?php endif; ?>
+                            <?php $nomes = array_values(array_filter(array_map(static fn (array $cm): string => trim((string) ($cm['comanda_nome'] ?? '')), $m['lista_comandas']))); ?>
+                            <?php if ($nomes !== []): ?><span class="mesa-nomes" title="<?= $e(implode(', ', $nomes)) ?>"><?= Icon::svg('user', 'icon-sm') ?><?= $e(implode(', ', $nomes)) ?></span><?php endif; ?>
                         </a>
                     <?php else: ?>
                         <form method="post" action="<?= $e($base . '/mesas/' . (int) $m['id'] . '/abrir') ?>">

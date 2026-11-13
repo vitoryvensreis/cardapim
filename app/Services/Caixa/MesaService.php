@@ -127,7 +127,7 @@ final class MesaService
         }
         $ativo = ($d['ativo'] ?? '1') === '1';
         if (!$ativo && $this->repo->temComandaAberta($this->idRestaurante, $id)) {
-            return Resultado::falha('Feche a comanda desta mesa antes de pausá-la.');
+            return Resultado::falha('Feche as comandas desta mesa antes de pausá-la.');
         }
         $this->repo->atualizar($this->idRestaurante, $id, $v['numero'], $v['apelido'], $v['lugares'], $ativo);
         TempoReal::publicar($this->idRestaurante, 'mesas', 'mesa.atualizada', ['id' => $id]);
@@ -147,7 +147,7 @@ final class MesaService
             return Resultado::falha('Mesa não encontrada. Ela pode já ter sido excluída.');
         }
         if ($this->repo->temComandaAberta($this->idRestaurante, $id)) {
-            return Resultado::falha('Esta mesa tem uma comanda aberta. Feche ou cancele a comanda antes de excluir.');
+            return Resultado::falha('Esta mesa tem comanda aberta. Feche ou cancele as comandas antes de excluir.');
         }
         $historico = $this->repo->temHistorico($this->idRestaurante, $id);
         $historico ? $this->repo->arquivar($this->idRestaurante, $id) : $this->repo->excluir($this->idRestaurante, $id);
