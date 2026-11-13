@@ -10,6 +10,7 @@ use Cardapim\Core\View;
 use Cardapim\Repositories\RestauranteRepository;
 use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Shared\RestauranteLogo;
+use Cardapim\Services\Seo\Seo;
 use Cardapim\Shared\Slug;
 
 /**
@@ -50,9 +51,16 @@ final class RestauranteController
             ], 'layouts/public'), 503);
         }
 
+        $imagem = Seo::imagemRestaurante($restaurante, $info['bairro_cidade']);
         return Response::html(View::render('restaurante/cardapio', [
-            'pageTitle' => $restaurante['nome'] . ' · Cardápio | ' . marca(),
-            'pageDescription' => 'Veja o cardápio de ' . $restaurante['nome'] . ' e faça seu pedido pelo ' . marca() . '.',
+            'pageTitle' => $restaurante['nome'] . ' · Cardápio online | ' . marca(),
+            'pageDescription' => self::descricaoCardapio($restaurante['nome'], $info['bairro_cidade']),
+            'seo' => [
+                'titulo' => $restaurante['nome'] . ' · Cardápio online',
+                'imagem' => $imagem,
+                'tipo' => 'restaurant.restaurant',
+                'jsonLd' => Seo::jsonLdRestaurante($restaurante, $info, $imagem['url']),
+            ],
             'restaurante' => $restaurante,
             'logo' => RestauranteLogo::urlSegura($restaurante['logo_path']),
             'iniciais' => RestauranteLogo::iniciais($restaurante['nome']),
@@ -79,6 +87,7 @@ final class RestauranteController
             'pageTitle' => 'Finalizar pedido · ' . $restaurante['nome'] . ' | ' . marca(),
             'pageDescription' => 'Finalize seu pedido em ' . $restaurante['nome'] . '.',
             'noIndex' => true,
+            'seo' => ['titulo' => $restaurante['nome'] . ' · Cardápio online', 'imagem' => $this->imagemDoLink($restaurante)],
             'restaurante' => $restaurante,
             'config' => $config,
             'voltar' => ['/' . $restaurante['slug'], 'Voltar ao cardápio'],
@@ -99,14 +108,19 @@ final class RestauranteController
             return $this->naoEncontrado();
         }
         $telefone = '';
+        $local = '';
         try {
-            $telefone = (new CardapioPublico(Database::connect()))->informacoes($restaurante['id'])['telefone'];
+            $infoRest = (new CardapioPublico(Database::connect()))->informacoes($restaurante['id']);
+            $telefone = $infoRest['telefone'];
+            $local = $infoRest['bairro_cidade'];
         } catch (\Throwable) {
         }
         return Response::html(View::render('restaurante/pedido', [
             'pageTitle' => 'Seu pedido · ' . $restaurante['nome'] . ' | ' . marca(),
-            'pageDescription' => 'Acompanhe seu pedido em ' . $restaurante['nome'] . '.',
+            'pageDescription' => 'Acompanhe seu pedido em ' . $restaurante['nome'] . ': preparo, entrega e pagamento em tempo real.',
             'noIndex' => true,
+            // Link mandado pelo WhatsApp: o cartao mostra a logo do restaurante.
+            'seo' => ['titulo' => 'Acompanhe seu pedido · ' . $restaurante['nome'], 'imagem' => Seo::imagemRestaurante($restaurante, $local)],
             'restaurante' => $restaurante,
             'idPedido' => (int) $id,
             'telefone' => $telefone,
@@ -115,6 +129,27 @@ final class RestauranteController
             'pageScripts' => ['vendor/qrcode-generator/qrcode.js', 'vendor/leaflet/leaflet.js', 'js/acompanhar.js'],
             'pageStyles' => ['vendor/leaflet/leaflet.css', 'css/checkout.css'],
         ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-store']);
+    }
+
+    /** Texto do cardapio no Google e no link compartilhado. */
+    private static function descricaoCardapio(string $nome, string $local): string
+    {
+        $onde = $local !== '' ? ' (' . $local . ')' : '';
+        return mb_substr('Peça online no cardápio de ' . $nome . $onde . '. Veja os preços, monte seu pedido e acompanhe a entrega pelo celular.', 0, 200);
+    }
+
+    /**
+     * @param array{id:int,nome:string,slug:string,logo_path:?string} $restaurante
+     * @return array{url:string, largura:int, altura:int, tipo:string, alt:string}
+     */
+    private function imagemDoLink(array $restaurante): array
+    {
+        $local = '';
+        try {
+            $local = (new CardapioPublico(Database::connect()))->informacoes($restaurante['id'])['bairro_cidade'];
+        } catch (\Throwable) {
+        }
+        return Seo::imagemRestaurante($restaurante, $local);
     }
 
     /** @return array{id:int,nome:string,slug:string,logo_path:?string}|Response */

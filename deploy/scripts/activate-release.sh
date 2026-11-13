@@ -95,3 +95,7 @@ if ! check_health; then
   exit 1
 fi
 echo "Deploy validado: $site_url (release $release_id)"
+# Google e redes sociais (so informa, nao reverte): robots.txt, sitemap.xml e a imagem automatica do link.
+for caminho in /robots.txt /sitemap.xml /midia/cartao; do
+  echo "SEO $caminho: $(curl -sL -o /dev/null -w '%{http_code} %{content_type}' --max-time 20 "$site_url$caminho" || true)"
+done

@@ -84,6 +84,49 @@ final class MarcaUpload
         return self::PREFIXO_URL . $nome . '.png';
     }
 
+    /**
+     * Imagem do link compartilhado (WhatsApp, Instagram, Facebook, X): PNG/JPG/WebP de 600 x 315 ou mais, recortada
+     * pelo centro na proporcao 1,91:1 e regravada em JPG 1200 x 630 (o formato que todas as redes aceitam).
+     * @param array<string,mixed> $arquivo item de $_FILES
+     * @throws RuntimeException com mensagem amigavel
+     */
+    public static function salvarCompartilhamento(array $arquivo): string
+    {
+        $tmp = self::receber($arquivo);
+        $mime = (string) (new \finfo(FILEINFO_MIME_TYPE))->file($tmp);
+        $info = @getimagesize($tmp);
+        if (!isset(self::RASTER[$mime]) || $info === false || ($info['mime'] ?? '') !== $mime || $info[0] > 8000 || $info[1] > 8000) {
+            throw new RuntimeException('Envie a imagem em PNG, JPG ou WebP.');
+        }
+        [$largura, $altura] = [(int) $info[0], (int) $info[1]];
+        if ($largura < 600 || $altura < 315) {
+            throw new RuntimeException('A imagem é pequena demais. Use pelo menos 600 x 315 pixels (o ideal é 1200 x 630).');
+        }
+        $origem = self::abrir($tmp, $mime);
+        if ($origem === null) {
+            throw new RuntimeException('Não foi possível preparar a imagem agora. Tente mais tarde.');
+        }
+        // Recorte "cobrir": mantem o centro e corta as sobras para ficar 1200 x 630.
+        $proporcao = 1200 / 630;
+        if ($largura / $altura > $proporcao) {
+            $lc = (int) round($altura * $proporcao);
+            [$x, $y, $l, $a] = [intdiv($largura - $lc, 2), 0, $lc, $altura];
+        } else {
+            $ac = (int) round($largura / $proporcao);
+            [$x, $y, $l, $a] = [0, intdiv($altura - $ac, 2), $largura, $ac];
+        }
+        $destino = self::tela(1200, 630, [255, 255, 255]);
+        imagealphablending($destino, true);
+        imagecopyresampled($destino, $origem, 0, 0, $x, $y, 1200, 630, $l, $a);
+        ob_start();
+        imagejpeg($destino, null, 86);
+        $bytes = (string) ob_get_clean();
+        $nome = bin2hex(random_bytes(16));
+        self::garantirPasta();
+        self::gravar($nome . '.jpg', $bytes);
+        return self::PREFIXO_URL . $nome . '.jpg';
+    }
+
     /** "/midia/marca/abc.svg" -> caminho no disco; null se nao for um arquivo deste modulo. */
     public static function arquivoDe(?string $caminhoPublico): ?string
     {

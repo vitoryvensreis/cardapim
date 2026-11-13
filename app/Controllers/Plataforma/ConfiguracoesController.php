@@ -10,6 +10,7 @@ use Cardapim\Core\Session;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Email\Mailer;
 use Cardapim\Services\Plataforma\MarcaService;
+use Cardapim\Services\Seo\Seo;
 
 /** Configuracoes da plataforma (/painel/configuracoes): nome, textos e logos usados em todo o sistema, e o teste do e-mail. */
 final class ConfiguracoesController extends BasePlataforma
@@ -55,6 +56,39 @@ final class ConfiguracoesController extends BasePlataforma
         return $this->responder($res, '/painel/configuracoes#logo-' . preg_replace('/[^a-z_]/', '', $chave));
     }
 
+    /** Titulo, descricao e frase do link e o codigo do Google (Google e redes sociais). */
+    public function seo(): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        $res = (new MarcaService($this->db, $this->usuario))->salvarSeo($_POST);
+        if (!$res->ok) {
+            return $this->formulario($_POST, $res->erros, 422);
+        }
+        return $this->responder($res, '/painel/configuracoes#seo');
+    }
+
+    /** Imagem do link compartilhado enviada pelo adm (recortada para 1200 x 630). */
+    public function compartilhamento(): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        $arquivo = is_array($_FILES['arquivo'] ?? null) ? $_FILES['arquivo'] : [];
+        $res = (new MarcaService($this->db, $this->usuario))->enviarImagemCompartilhamento($arquivo);
+        return $this->responder($res, '/painel/configuracoes#seo');
+    }
+
+    public function compartilhamentoPadrao(): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        $res = (new MarcaService($this->db, $this->usuario))->voltarImagemAutomatica();
+        return $this->responder($res, '/painel/configuracoes#seo');
+    }
+
     /** Manda um e-mail de teste e mostra o resultado (o motivo da falha nunca traz a senha). */
     public function emailTeste(): Response
     {
@@ -87,7 +121,11 @@ final class ConfiguracoesController extends BasePlataforma
         $atuais = (new MarcaService($this->db, $this->usuario))->atuais();
         return $this->tela('plataforma/configuracoes', 'configuracoes', 'Configurações', [
             'atuais' => $atuais,
-            'valores' => $valores ?? $atuais,
+            // Com erro, mostra o que foi digitado no formulario enviado e o salvo nos outros.
+            'valores' => $valores !== null ? array_merge($atuais, $valores) : $atuais,
+            'previaImagem' => self::caminhoLocal(Seo::imagemPlataforma()['url']),
+            'imagemEnviada' => Seo::imagemEnviada() !== null,
+            'dominio' => Seo::dominio(),
             'erros' => $erros,
             'email' => Mailer::configuracao(),
             'emailErro' => Session::flash('email_teste_erro'),
@@ -95,6 +133,14 @@ final class ConfiguracoesController extends BasePlataforma
             'pageStyles' => ['css/plataforma-gestao.css'],
             'pageScripts' => ['js/forms.js', 'js/marca.js'],
         ], $status);
+    }
+
+    /** "https://site/midia/cartao?v=1" -> "/midia/cartao?v=1" (a previa funciona em qualquer endereco do painel). */
+    private static function caminhoLocal(string $url): string
+    {
+        $caminho = (string) parse_url($url, PHP_URL_PATH);
+        $query = parse_url($url, PHP_URL_QUERY);
+        return ($caminho !== '' ? $caminho : '/') . (is_string($query) ? '?' . $query : '');
     }
 
     private function emailDoUsuario(): string

@@ -133,6 +133,16 @@ final class CardapioPublico
             'endereco' => trim($rua . ($complemento !== '' ? ' - ' . $complemento : '')),
             'bairro_cidade' => $bairroCidade,
             'telefone' => (string) ($r['telefone'] ?? ''),
+            // Partes do endereco para o Google (dados estruturados do restaurante).
+            'local' => [
+                'rua' => $rua,
+                'bairro' => (string) ($r['bairro'] ?? ''),
+                'cidade' => (string) ($r['cidade'] ?? ''),
+                'estado' => (string) ($r['estado'] ?? ''),
+                'cep' => (string) ($r['cep'] ?? ''),
+                'latitude' => isset($r['latitude']) && is_numeric($r['latitude']) ? (float) $r['latitude'] : null,
+                'longitude' => isset($r['longitude']) && is_numeric($r['longitude']) ? (float) $r['longitude'] : null,
+            ],
         ];
     }
 

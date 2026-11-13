@@ -638,6 +638,25 @@
 .marca-nome { flex: 1 1 100%; font-size: .8rem; overflow-wrap: anywhere; }
 .marca-nome:empty { display: none; }
 
+/* Google e redes sociais: previa do link como aparece no WhatsApp */
+.seo-grade { display: grid; gap: 1.5rem; align-items: start; margin-bottom: 1rem; }
+.seo-previa { display: grid; gap: .6rem; scroll-margin-top: 5rem; }
+.seo-previa-rotulo { display: inline-flex; align-items: center; gap: .35rem; color: var(--c-ink); font-weight: 700; font-size: .9rem; }
+.seo-bolha { justify-self: start; width: min(100%, 24rem); padding: .3rem .3rem .5rem; border-radius: var(--r-lg); background: #d9fdd3; box-shadow: 0 1px 1px rgb(0 0 0 / .08); }
+.seo-cartao { overflow: hidden; border-radius: var(--r-md); background: #f0f2f0; }
+.seo-cartao img { display: block; width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: cover; background: var(--c-line); }
+.seo-cartao-texto { display: grid; gap: .15rem; padding: .55rem .65rem .6rem; }
+.seo-cartao-texto strong { color: #111b21; font-size: .88rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.seo-cartao-texto span { color: #54656f; font-size: .8rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.seo-cartao-texto small { color: #8696a0; font-size: .75rem; }
+.seo-bolha-link { margin: .4rem .4rem 0; color: #027eb5; font-size: .85rem; overflow-wrap: anywhere; }
+.seo-previa .marca-origem { margin-top: .2rem; font-size: .9rem; }
+.seo-dica { font-size: .82rem; }
+.seo-form { display: grid; gap: .25rem; }
+@media (min-width: 64rem) {
+  .seo-grade { grid-template-columns: minmax(18rem, 24rem) 1fr; gap: 2rem; }
+}
+
 /* ---------- Gerencia: faturas da assinatura ---------- */
 .fatura-destaque { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.1rem; border: 1.5px solid var(--c-orange); border-radius: var(--r-lg); background: var(--c-orange-100); }
 .fatura-destaque.is-atrasada { border-color: var(--c-danger); background: var(--c-danger-bg); }

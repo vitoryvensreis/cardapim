@@ -8,6 +8,7 @@ use Cardapim\Core\Database;
 use Cardapim\Core\Response;
 use Cardapim\Core\View;
 use Cardapim\Repositories\PlanoRepository;
+use Cardapim\Services\Seo\Seo;
 use Throwable;
 
 final class HomeController
@@ -25,8 +26,10 @@ final class HomeController
         }
 
         return Response::html(View::render('marketing/home', [
-            'pageTitle' => marca() . ' | Seu restaurante no controle',
-            'pageDescription' => 'Uma forma mais simples de organizar pedidos, mesas, caixa, cozinha e delivery em um unico lugar.',
+            // Titulo e descricao editaveis em Configuracoes > Google e redes sociais (painel do adm_master).
+            'pageTitle' => Seo::tituloInicio(),
+            'pageDescription' => Seo::descricaoInicio(),
+            'seo' => ['jsonLd' => Seo::jsonLdInicio()],
             'planos' => $planos,
             'planosIndisponiveis' => $planosIndisponiveis,
         ]));

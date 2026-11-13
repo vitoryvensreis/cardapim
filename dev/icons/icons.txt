@@ -167,3 +167,4 @@ database
 shield-exclamation-point
 cpu
 circle-play
+share-2

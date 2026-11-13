@@ -3,6 +3,7 @@
 use Cardapim\Core\Icon;
 use Cardapim\Services\Configuracoes;
 use Cardapim\Services\Plataforma\MarcaService;
+use Cardapim\Services\Seo\Seo;
 use Cardapim\Shared\Html\Campo;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -84,6 +85,81 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
             <?php endforeach; ?>
         </div>
         <p class="texto-suave"><?= Icon::svg('info', 'icon-sm') ?>Quem já instalou o app no celular vê o ícone novo depois de instalar de novo.</p>
+    </section>
+
+    <section class="bloco" aria-labelledby="titulo-seo" id="seo">
+        <div class="bloco-cabecalho">
+            <h2 id="titulo-seo"><?= Icon::svg('share-2') ?>Google e redes sociais</h2>
+            <p>Como o site aparece no Google e quando alguém manda o link no WhatsApp, Instagram, Facebook ou Telegram. Os cardápios dos restaurantes já saem com uma imagem própria, com a logo, o nome e a cidade de cada um.</p>
+        </div>
+        <?php
+        $seoPadrao = [
+            'seo_titulo' => Seo::tituloPadrao(),
+            'seo_descricao' => Seo::DESCRICAO_PADRAO,
+            'frase_compartilhamento' => Seo::FRASE_PADRAO,
+            'google_verificacao' => '',
+        ];
+        $seoMostrar = static fn (string $c): string => $v($c) !== '' ? $v($c) : $seoPadrao[$c];
+        ?>
+        <div class="seo-grade">
+            <div class="seo-previa" data-logo>
+                <p class="seo-previa-rotulo"><?= Icon::svg('message-circle', 'icon-sm') ?>Assim o link aparece no WhatsApp</p>
+                <div class="seo-bolha">
+                    <div class="seo-cartao">
+                        <img src="<?= $e($previaImagem) ?>" width="1200" height="630" alt="Imagem que aparece no link" data-logo-previa>
+                        <div class="seo-cartao-texto">
+                            <strong data-seo-previa="seo_titulo"><?= $e($seoMostrar('seo_titulo')) ?></strong>
+                            <span data-seo-previa="seo_descricao"><?= $e($seoMostrar('seo_descricao')) ?></span>
+                            <small><?= $e($dominio !== '' ? $dominio : 'seu-site.com.br') ?></small>
+                        </div>
+                    </div>
+                    <p class="seo-bolha-link"><?= $e('https://' . ($dominio !== '' ? $dominio : 'seu-site.com.br')) ?></p>
+                </div>
+                <p class="marca-origem"><?= $imagemEnviada
+                    ? Icon::svg('upload', 'icon-sm') . 'Imagem enviada por você'
+                    : Icon::svg('sparkles', 'icon-sm') . 'Imagem automática: ícone do app, nome e frase' ?></p>
+                <p class="texto-suave seo-dica"><?= $imagemEnviada
+                    ? 'Para voltar à imagem que se atualiza sozinha, use "Voltar à imagem automática".'
+                    : 'Ela muda sozinha quando você troca o nome, a frase ou o ícone do app. Se preferir, envie uma arte pronta.' ?></p>
+                <form class="marca-envio" method="post" action="<?= $e($base . '/configuracoes/compartilhamento') ?>" enctype="multipart/form-data" data-logo-form>
+                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                    <label class="btn btn-outline btn-sm marca-escolher">
+                        <?= Icon::svg('image', 'icon-sm') ?>Escolher imagem
+                        <input class="sr-only" type="file" name="arquivo" accept="image/png,image/jpeg,image/webp" required aria-describedby="seo-imagem-dica">
+                    </label>
+                    <span class="texto-suave marca-nome" data-logo-nome></span>
+                    <button class="btn btn-primary btn-sm" type="submit" data-logo-enviar disabled><?= Icon::svg('upload', 'icon-sm') ?>Enviar</button>
+                </form>
+                <p class="texto-suave seo-dica" id="seo-imagem-dica">PNG, JPG ou WebP de até 2 MB. Tamanho ideal: 1200 x 630 pixels; imagens em outro formato são recortadas pelo centro.</p>
+                <?php if ($imagemEnviada): ?>
+                    <form method="post" action="<?= $e($base . '/configuracoes/compartilhamento/padrao') ?>"
+                          data-confirm="O link volta a usar a imagem automática, com o ícone, o nome e a frase." data-confirm-titulo="Voltar à imagem automática?" data-confirm-acao="Voltar à automática">
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <button class="link-acao" type="submit"><?= Icon::svg('rotate-ccw', 'icon-sm') ?>Voltar à imagem automática</button>
+                    </form>
+                <?php endif; ?>
+            </div>
+
+            <form method="post" action="<?= $e($base . '/configuracoes/seo') ?>" class="seo-form" novalidate data-validate-form>
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <?= Campo::texto(['nome' => 'seo_titulo', 'rotulo' => 'Título da página inicial', 'valor' => $v('seo_titulo'), 'icone' => 'type', 'opcional' => true,
+                    'erro' => $erros['seo_titulo'] ?? null, 'dica' => 'Aparece em azul no Google e em negrito no link. Até ' . Seo::TITULO_MAX . ' letras; vazio usa o padrão.',
+                    'attrs' => ['maxlength' => Seo::TITULO_MAX, 'placeholder' => $seoPadrao['seo_titulo'], 'autocomplete' => 'off', 'data-seo-campo' => 'seo_titulo']]) ?>
+                <?= Campo::areaTexto(['nome' => 'seo_descricao', 'rotulo' => 'Descrição da página inicial', 'valor' => $v('seo_descricao'), 'opcional' => true,
+                    'erro' => $erros['seo_descricao'] ?? null, 'dica' => 'Resumo do que o sistema faz, embaixo do título. Até ' . Seo::DESCRICAO_MAX . ' letras.',
+                    'attrs' => ['maxlength' => Seo::DESCRICAO_MAX, 'rows' => 3, 'placeholder' => $seoPadrao['seo_descricao'], 'data-seo-campo' => 'seo_descricao']]) ?>
+                <?= Campo::texto(['nome' => 'frase_compartilhamento', 'rotulo' => 'Frase da imagem automática', 'valor' => $v('frase_compartilhamento'), 'icone' => 'sparkles', 'opcional' => true,
+                    'erro' => $erros['frase_compartilhamento'] ?? null, 'dica' => 'Vai na imagem do link, embaixo do nome. Até ' . Seo::FRASE_MAX . ' letras.',
+                    'attrs' => ['maxlength' => Seo::FRASE_MAX, 'placeholder' => $seoPadrao['frase_compartilhamento'], 'autocomplete' => 'off']]) ?>
+                <?= Campo::texto(['nome' => 'google_verificacao', 'rotulo' => 'Código de verificação do Google', 'valor' => $v('google_verificacao'), 'icone' => 'search', 'opcional' => true,
+                    'erro' => $erros['google_verificacao'] ?? null, 'dica' => 'Do Google Search Console, opção "Tag HTML". Pode colar a etiqueta inteira: fica só o código.',
+                    'attrs' => ['maxlength' => 300, 'autocomplete' => 'off', 'spellcheck' => 'false']]) ?>
+                <div class="form-acoes">
+                    <button class="btn btn-primary" type="submit" data-submit-label="Salvando..."><?= Icon::svg('check', 'icon-sm') ?><span>Salvar textos do Google e do link</span></button>
+                </div>
+            </form>
+        </div>
+        <p class="texto-suave"><?= Icon::svg('info', 'icon-sm') ?>O WhatsApp e o Facebook guardam a prévia de cada link por alguns dias: links enviados antes podem demorar a mostrar a novidade. O mapa do site para o Google fica em <a href="/sitemap.xml" target="_blank" rel="noopener">/sitemap.xml</a>.</p>
     </section>
 
     <section class="bloco" aria-labelledby="titulo-email" id="email">

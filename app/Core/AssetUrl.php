@@ -41,6 +41,15 @@ final class AssetUrl
      */
     public static function absolute(string $relativePath): string
     {
+        return self::base() . self::asset($relativePath);
+    }
+
+    /**
+     * Endereco do site sem barra no fim (APP_URL do .env), ex.: "https://exemplo.com.br".
+     * @throws RuntimeException se APP_URL estiver ausente ou invalida
+     */
+    public static function base(): string
+    {
         $url = getenv('APP_URL');
         if ($url === false || $url === '') {
             $file = dirname(__DIR__, 2) . '/.env';
@@ -56,6 +65,6 @@ final class AssetUrl
             throw new RuntimeException('APP_URL invalida ou nao configurada.');
         }
 
-        return rtrim($url, '/') . self::asset($relativePath);
+        return rtrim($url, '/');
     }
 }

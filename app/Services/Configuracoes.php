@@ -19,6 +19,12 @@ final class Configuracoes
         'nome_sistema',
         'descricao_padrao',
         'texto_rodape',
+        // Google e redes sociais (Configuracoes > Google e redes sociais).
+        'seo_titulo',
+        'seo_descricao',
+        'frase_compartilhamento',
+        'imagem_compartilhamento',
+        'google_verificacao',
     ];
 
     public const LOGO_KEYS = ['logo_colorida', 'logo_branca', 'logo_preta', 'icone', 'icone_app'];

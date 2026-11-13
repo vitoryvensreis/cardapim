@@ -68,6 +68,9 @@ return static function (Router $router): void {
     $router->post('/painel/configuracoes/textos', [ConfiguracoesController::class, 'textos']);
     $router->post('/painel/configuracoes/logo', [ConfiguracoesController::class, 'logo']);
     $router->post('/painel/configuracoes/logo/padrao', [ConfiguracoesController::class, 'logoPadrao']);
+    $router->post('/painel/configuracoes/seo', [ConfiguracoesController::class, 'seo']);
+    $router->post('/painel/configuracoes/compartilhamento', [ConfiguracoesController::class, 'compartilhamento']);
+    $router->post('/painel/configuracoes/compartilhamento/padrao', [ConfiguracoesController::class, 'compartilhamentoPadrao']);
 
     // Suporte: chamados dos restaurantes.
     $router->get('/painel/suporte', [SuporteController::class, 'lista']);

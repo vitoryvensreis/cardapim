@@ -76,6 +76,22 @@ final class RestauranteRepository
     }
 
     /** @return array{id:int,nome:string,slug:string,logo_path:?string}|null */
+    /**
+     * Restaurantes ativos para o mapa do site (/sitemap.xml), no maximo 50 mil (limite de um sitemap).
+     * @return list<array{slug:string, atualizado:?string}> atualizado no formato AAAA-MM-DD
+     */
+    public function listarParaMapa(): array
+    {
+        $query = $this->db->prepare('SELECT slug, updated_at FROM restaurantes WHERE status_rest = ? AND slug IS NOT NULL ORDER BY id ASC LIMIT 50000');
+        $query->execute([self::STATUS_PUBLICO]);
+        $lista = [];
+        foreach ($query->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $data = is_string($row['updated_at'] ?? null) && preg_match('/\A\d{4}-\d{2}-\d{2}/', $row['updated_at']) === 1 ? substr($row['updated_at'], 0, 10) : null;
+            $lista[] = ['slug' => (string) $row['slug'], 'atualizado' => $data];
+        }
+        return $lista;
+    }
+
     public function buscarPublicoPorSlug(string $slug): ?array
     {
         $query = $this->db->prepare(

@@ -11,6 +11,7 @@ use Cardapim\Controllers\MidiaController;
 use Cardapim\Controllers\PwaController;
 use Cardapim\Controllers\RecuperarSenhaController;
 use Cardapim\Controllers\RestauranteController;
+use Cardapim\Controllers\SeoController;
 use Cardapim\Controllers\StatusController;
 use Cardapim\Controllers\WebhookController;
 use Cardapim\Core\Router;
@@ -53,6 +54,11 @@ $router->get('/tratamento-de-dados', Guard::paginaPublica([LegalController::clas
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
 $router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
 $router->get('/midia/marca/{arquivo}', [MidiaController::class, 'marca']);
+// Google e redes sociais: mapa do site, regras para buscadores e a imagem dos links compartilhados.
+$router->get('/robots.txt', [SeoController::class, 'robots']);
+$router->get('/sitemap.xml', [SeoController::class, 'sitemap']);
+$router->get('/midia/cartao', [SeoController::class, 'cartao']);
+$router->get('/midia/cartao/{slug}', [SeoController::class, 'cartaoRestaurante']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 (require __DIR__ . '/gerencia.php')($router);
 (require __DIR__ . '/caixa.php')($router);
