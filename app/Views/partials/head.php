@@ -3,6 +3,7 @@
  * Cabecalho HTML comum. Espera: $title, $description (ja escapados), $favicon,
  * $styles (lista de arquivos em assets/css), $scripts (lista em assets/js), $noIndex.
  * $scriptsCedo: scripts pequenos que rodam ANTES de desenhar a pagina (sem defer), ex.: tirar a landing do app instalado.
+ * Fontes do Google so com o aceite de cookies; o aviso fica em partials/consentimento.php (incluido no fim do body).
  * $pwa = true liga o app instalavel (manifesto, icones do celular e service worker): login, cadastro e areas da equipe.
  */
 use Cardapim\Core\AssetUrl;
@@ -32,14 +33,17 @@ use Cardapim\Core\AssetUrl;
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="<?= AssetUrl::asset('js/pwa.js') ?>" defer></script>
 <?php endif; ?>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<?php if (\Cardapim\Shared\Consentimento::aceitouTodos()): // Fontes do Google: so com o aceite de cookies (LGPD). ?>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" data-fontes-externas>
+<?php endif; ?>
 <link rel="stylesheet" href="<?= AssetUrl::asset('css/core.css') ?>">
+<link rel="stylesheet" href="<?= AssetUrl::asset('css/consentimento.css') ?>">
 <?php foreach ($styles ?? [] as $style): ?>
 <link rel="stylesheet" href="<?= AssetUrl::asset($style) ?>">
 <?php endforeach; ?>
 <script src="<?= AssetUrl::asset('js/core.js') ?>" defer></script>
+<script src="<?= AssetUrl::asset('js/consentimento.js') ?>" defer></script>
 <?php foreach ($scripts ?? [] as $script): ?>
 <script src="<?= AssetUrl::asset($script) ?>" defer></script>
 <?php endforeach; ?>

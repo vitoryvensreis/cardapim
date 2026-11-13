@@ -158,5 +158,6 @@ if ($alertaPedido !== null) {
             </div>
         </form>
     </dialog>
+<?php require __DIR__ . '/../partials/consentimento.php'; ?>
 </body>
 </html>

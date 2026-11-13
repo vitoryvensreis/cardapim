@@ -502,6 +502,9 @@
 .integracao-icone { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: .2rem; background: var(--c-blush); color: var(--c-wine); }
 .integracao-cartao.is-ifood .integracao-icone { background: #fdecec; color: #b3261e; }
 .integracao-cartao.is-whatsapp .integracao-icone { background: var(--c-success-bg); color: var(--c-success); }
+.integracao-cartao.is-99food .integracao-icone { background: #fff6d6; color: #8a5a00; }
+.integracao-cartao.is-em-breve { border-style: dashed; }
+.integracao-cartao.is-em-breve .btn[disabled] { --btn-bg: var(--c-blush); --btn-fg: var(--c-muted); border-color: var(--c-line); opacity: 1; }
 .integracao-cartao.is-asaas .integracao-icone { background: #e8f0fe; color: #1a56db; }
 .integracao-detalhe { color: var(--c-ink) !important; font-weight: 700; }
 .chave-curta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

@@ -1,28 +1,43 @@
-# Cardapim — revisão de documentos legais
+# Cardapim — documentos legais e consentimento de cookies
 
-As páginas da área institucional foram criadas com base no arquivo de diretrizes de segurança, privacidade e conformidade do projeto. **São textos informativos iniciais, não uma declaração de conformidade completa.** Antes de liberar cadastro, contratação ou processamento real de dados de consumidores, realizar a revisão jurídica dos textos e dos fluxos.
+Atualizado em 12/11/2026. Os textos descrevem o que o sistema **realmente faz** hoje (dados, cookies, serviços de
+terceiros, prazos). **Recomenda-se revisão por advogado** antes de considerar os textos definitivos.
 
-## Páginas entregues
+## Páginas
 
-- Privacidade: \`/privacidade\`
-- Termos de Uso: \`/termos-de-uso\`
-- Cookies: \`/cookies\`
-- Exclusão de Dados: \`/exclusao-de-dados\`
-- Tratamento de Dados: \`/tratamento-de-dados\`
-- Compatibilidade: \`/politica-de-privacidade\` redireciona para \`/privacidade\`.
+| Rota | View | Conteúdo |
+| --- | --- | --- |
+| `/privacidade` | `legal/privacidade.php` | Controlador, dados por perfil, finalidades e bases legais, compartilhamentos, retenção, segurança, direitos |
+| `/termos-de-uso` | `legal/termos.php` | Serviço, contas, planos e cobrança (Asaas, tolerância), cancelamento pelo painel, responsabilidades, uso proibido |
+| `/cookies` | `legal/cookies.php` | Lista real de cookies e armazenamento local, item opcional (Google Fonts), botão "Alterar minhas preferências" |
+| `/exclusao-de-dados` | `legal/exclusao.php` | Como pedir, o que acontece com cada tipo de conta, o que a lei manda guardar, prazos |
+| `/tratamento-de-dados` | `legal/tratamento.php` | Controlador x operador, compromissos de cada parte, suboperadores, segurança, incidentes |
 
-## Pendências antes de ativar cadastro/assinaturas
+- Topo comum em `legal/_header.php` (título, resumo, data, menu entre as políticas) e caixa "Em poucas palavras" em
+  `legal/_resumo.php`. Sem selo "em revisão" e sem rótulo acima do título.
+- Canal do titular: `PRIVACIDADE_EMAIL` no `.env`; vazio usa `privacidade@<domínio do APP_URL>`.
+  **Criar essa caixa ou alias no mailcow** (ex.: `privacidade@deliveryzim.com.br` encaminhando para quem atende).
+- Abertas pelo cardápio (`?r=slug`), os links entre as políticas continuam presos ao cardápio (LegalController).
 
-1. Confirmar razão social do responsável legal, CNPJ exibido no site, endereço físico, e-mail de atendimento e canal do encarregado de dados. Não criar endereço/e-mail fictício.
-2. Contratar/revisar DPA ou anexo de tratamento de dados com restaurantes, definir controladores e operadores por fluxo, prestadores e suboperadores.
-3. Inventariar os dados realmente tratados, as bases legais, retenção por finalidade, procedimentos de exclusão e de resposta aos titulares.
-4. Revisar condições contratuais e comerciais: planos definitivos, renovação, cancelamento, reembolsos, arrependimento quando aplicável, suporte e meios de pagamento.
-5. Auditar tecnologias de cookies e terceiros. Se houver analytics/marketing não essenciais, implementar mecanismo verdadeiro de consentimento e gerenciamento (aceitar, recusar e personalizar), com versionamento e registro.
-6. Implementar autenticação segura, sessões, CSRF, rate limits, controle de permissões e auditoria antes de habilitar os formulários. O HTML desta entrega **não envia dados nem cria contas**.
-7. Criar canal efetivo para solicitações de titular e exclusão de dados, com identificação segura, acompanhamento e atendimento conforme LGPD.
-8. Validar que todas as informações divulgadas sobre segurança, integrações, retenção e direitos refletem a operação real e as normas vigentes.
-9. Aprovar textos com profissional jurídico e publicar data/versão efetiva. Notificar mudanças materiais, e recolher aceites quando juridicamente necessários.
+## Aviso de cookies (LGPD)
 
-## Testes técnicos
+- `partials/consentimento.php` (no fim do `body` dos layouts app, painel, garçom, entregador, cardápio, público e
+  marketing), `public/assets/js/consentimento.js` e `public/assets/css/consentimento.css`.
+- Botões "Só os necessários" e "Aceitar todos". A escolha fica no cookie `cardapim_consentimento`
+  (`todos.AAAAMMDD` ou `necessarios.AAAAMMDD`, 12 meses, `SameSite=Lax`, `Secure` em HTTPS).
+- **Google Fonts só carrega com "Aceitar todos"** (`Cardapim\Shared\Consentimento::aceitouTodos()` em
+  `partials/head.php`; sem aceite o site usa as fontes do aparelho). Ao aceitar, o JS adiciona as fontes na hora.
+- Reabrir: qualquer elemento com `data-consentimento-abrir` (rodapé do site "Preferências de cookies", rodapé do
+  cardápio "Cookies" e o botão da página `/cookies`).
+- Cookies necessários (sessão, lembrar, cliente, consentimento) e armazenamento local (sacola, último endereço, som dos
+  alertas) não dependem de consentimento. Não há analytics nem marketing. Se algum dia entrar, precisa de nova categoria
+  no aviso antes de carregar.
 
-O CI verifica códigos HTTP, rotas, view 404, página de planos no cadastro, ausência de rotas POST de login/cadastro, recursos CSS e links do rodapé. Testes visuais e de acessibilidade em 360, 390, 768, 1024, 1280, 1920 e 2560 px, além de zoom 200%, continuam recomendados antes da liberação de autenticação real.
+## Pendências fora do código
+
+1. Revisão jurídica dos cinco textos.
+2. Criar o e-mail `privacidade@` no mailcow e definir quem responde (prazo informado: 15 dias).
+3. Rotina de backup diário do banco (hoje há cópia antes de cada mudança de schema no deploy). Os Termos não prometem
+   backup diário.
+4. Quando a 99Food for integrada, incluí-la na lista de compartilhamentos da Privacidade e de suboperadores do
+   Tratamento de Dados.

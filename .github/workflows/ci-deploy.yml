@@ -252,8 +252,9 @@ jobs:
           [[ "$escaped" != *'<script>alert(1)</script>'* ]]
           for path in /privacidade /termos-de-uso /cookies /exclusao-de-dados /tratamento-de-dados; do
             html="$(curl --fail --silent --show-error "http://127.0.0.1:18080$path")"
-            [[ "$html" == *'CENTRAL DE INFORMAÇÕES LEGAIS'* ]]
-            [[ "$html" == *'Documento em revisão'* ]]
+            [[ "$html" != *'CENTRAL DE INFORMAÇÕES LEGAIS'* ]]
+            [[ "$html" != *'Documento em revisão'* ]]
+            [[ "$html" == *'Em poucas palavras'* ]]
             [[ "$html" == *'/assets/css/pages.css'* ]]
           done
           [[ "$page" == *'href="/privacidade"'* ]]
@@ -290,6 +291,7 @@ jobs:
           bash tests/http/suporte.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/recuperar-senha.sh http://127.0.0.1:18080
           bash tests/http/painel-adm.sh http://127.0.0.1:18080
+          bash tests/http/legal-cookies.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-alerta-ci.php
           IFOOD_BASE_URL=http://127.0.0.1:18099/ifood IFOOD_CLIENT_ID=ifood-ci IFOOD_CLIENT_SECRET=ifood-segredo-ci APP_URL=https://cardapim.test \
             bash tests/http/ifood.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099

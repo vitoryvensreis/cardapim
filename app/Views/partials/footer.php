@@ -15,7 +15,6 @@ $footerColumns = [
     'Acesso' => [
         ['/login', 'Entrar', 'log-in'],
         ['/cadastro', 'Criar conta', 'user-plus'],
-        ['/status', 'Status do sistema', 'activity'],
     ],
     'Legal' => [
         ['/privacidade', 'Privacidade', 'shield-check'],
@@ -57,6 +56,7 @@ $footerColumns = [
             <div class="footer-company">
                 <p>© <?= date('Y') ?> <?= marca_html() ?>. Todos os direitos reservados.</p>
                 <p>Um produto da Escotilha Produtora · CNPJ 64.069.224/0001-32</p>
+                <button class="botao-link footer-cookies" type="button" data-consentimento-abrir><?= Icon::svg('cookie') ?>Preferências de cookies</button>
             </div>
             <button class="back-to-top" type="button" data-back-to-top>
                 <?= Icon::svg('arrow-up') ?>Voltar ao topo

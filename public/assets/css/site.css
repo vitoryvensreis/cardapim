@@ -219,6 +219,7 @@
 .channel.is-planned .channel-icon { background: var(--c-blush); color: var(--c-wine); }
 .channel-text { display: flex; flex-direction: column; align-items: flex-start; gap: .25rem; min-width: 0; }
 .channel-name { min-width: 0; }
+.channels-list > .channel:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .channel-tag { padding: .2rem .45rem; border-radius: var(--r-pill); background: var(--c-orange-100); color: var(--c-orange-700); font-size: .6rem; white-space: nowrap; }
 
 /* ---------- Recursos ---------- */
@@ -348,7 +349,8 @@
 
 /* ---------- Responsivo ---------- */
 @media (min-width: 40rem) {
-  .channels-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .channels-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .channels-list > .channel:last-child:nth-child(odd) { grid-column: auto; }
   .features-grid, .audience-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .plans-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -357,7 +359,7 @@
   .hero-layout { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 4rem; }
   .hero-scroll { display: inline-flex; }
   .channels-inner { grid-template-columns: 13rem minmax(0, 1fr); gap: 2.5rem; }
-  .channels-list { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .channels-list { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .channel { flex-direction: column; align-items: flex-start; gap: .7rem; padding: 1rem; }
   .features-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .feature-card { min-height: 17rem; }

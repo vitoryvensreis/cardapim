@@ -6,14 +6,28 @@ namespace Cardapim\Controllers;
 
 use Cardapim\Core\Database;
 use Cardapim\Core\Response;
+use Cardapim\Core\Router;
 use Cardapim\Core\View;
+use Cardapim\Services\Auth\Autenticacao;
+use Cardapim\Services\Auth\Autorizacao;
 use Cardapim\Services\Configuracoes;
 use Throwable;
 
 final class StatusController
 {
+    /**
+     * /status: o painel completo (pagina e detalhes em JSON) e exclusivo do adm_master.
+     * Para qualquer outra pessoa: JSON minimo (so "status", usado no healthcheck do deploy) e 404 na pagina.
+     */
     public function index(): Response
     {
+        $usuario = Autenticacao::usuario();
+        $master = $usuario !== null && Autorizacao::podeAcessarPainel($usuario);
+        $querJson = str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
+        if (!$master && !$querJson) {
+            return Router::naoEncontrada();
+        }
+
         $databaseReady = false;
 
         try {
@@ -44,7 +58,15 @@ final class StatusController
             'X-Robots-Tag' => 'noindex, nofollow',
         ];
 
-        if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+        if ($querJson && !$master) {
+            return new Response(
+                json_encode(['status' => $overallStatus], JSON_THROW_ON_ERROR),
+                $httpStatus,
+                [...$headers, 'Content-Type' => 'application/json; charset=UTF-8'],
+            );
+        }
+
+        if ($querJson) {
             $body = json_encode([
                 'status' => $overallStatus,
                 'servicos' => [

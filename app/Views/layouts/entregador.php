@@ -70,5 +70,6 @@ $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->
             </div>
         </form>
     </dialog>
+<?php require __DIR__ . '/../partials/consentimento.php'; ?>
 </body>
 </html>

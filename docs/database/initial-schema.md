@@ -2,8 +2,8 @@
 
 ## Rota pública de saúde
 
-- **GET /status**: página responsiva com estado do PHP e da conexão MySQL.
-- **GET /status** com cabeçalho Accept: application/json: JSON para monitoramento.
+- **GET /status**: página responsiva com estado do PHP e da conexão MySQL (só adm master; demais recebem 404).
+- **GET /status** com cabeçalho Accept: application/json: JSON para monitoramento (público só com o campo `status`; detalhes para o adm master).
 - Com conexão MySQL operacional, retorna HTTP **200**. Caso falhe, HTTP **503**.
 - Não expõe credenciais, host do banco, exceções, mensagens SQL nem versão detalhada do MySQL. Em produção, o PHP exibe somente versão principal/secundária.
 - A rota apenas executa SELECT 1; **não confirma a existência das tabelas**. Use migrations para verificar o schema.

@@ -206,7 +206,7 @@ Os links levam ao cadastro com o plano ja marcado. Caso nao haja planos elegivei
 
 ## Primeiras tabelas e monitoramento de saúde
 
-- **/status**: página de status de PHP 8.4 e da conexão MySQL (HTTP 200 quando conectado; 503 quando indisponível). Resposta JSON com cabeçalho `Accept: application/json`.
+- **/status**: exclusivo do adm master (sem link no rodapé). Logado como adm master: página com PHP 8.4, MySQL e tempo real, ou JSON completo com `Accept: application/json`. Para qualquer outra pessoa: a página responde 404 e o JSON traz só `{"status":"operacional"}` (HTTP 200) ou `indisponivel` (503), usado pelo healthcheck do deploy.
 - **planos**: nome, descrição, valor `DECIMAL(10,2)`, período mensal/semestral/anual, ativo, visibilidade (`1` por padrão) e timestamps.
 - **restaurantes**: nome, telefone, e-mail, CNPJ, slug, logo, status, último pagamento, timestamps e chave estrangeira `plano_id` para planos.
 - **log_user**: tabela de auditoria (`id`, `titulo`, `descricao`, `id_user`, `data_hora`, `ip`), com FK para `user.id`.

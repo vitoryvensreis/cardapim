@@ -90,8 +90,12 @@ cliente --ticket="$(ticket "$gj")" --mensagem='{"acao":"ping"}' --esperar=sistem
 cliente --ticket="$(ticket "$gj")" --mensagem='nao e json' --esperar=sistema.erro --tempo=4 >/dev/null && ok "mensagem invalida respondida com erro" || falha "mensagem invalida sem resposta"
 
 echo "Status"
-curl -s -H 'Accept: application/json' "$base/status" > "$tmp/s.json"
-contem "status mostra o tempo real operando" "$tmp/s.json" '"tempo_real":{"situacao":"operacional"'
+aj="$tmp/a"
+esperar "adm master entra" "$(login "$aj" ci_master)" "303"
+curl -s -b "$aj" -H 'Accept: application/json' "$base/status" > "$tmp/s.json"
+contem "status (adm master) mostra o tempo real operando" "$tmp/s.json" '"tempo_real":{"situacao":"operacional"'
+curl -s -H 'Accept: application/json' "$base/status" > "$tmp/s2.json"
+nao_contem "status publico nao mostra detalhes" "$tmp/s2.json" 'tempo_real'
 
 # Limpeza: remove a categoria do teste (gera outro evento, sem problema).
 idc="$(curl -s -b "$gj" "$g/estoque/categorias" | grep -B30 -- "$nome" | grep -o 'categorias/[0-9]*/excluir' | tail -1 | grep -o '[0-9]*' || true)"

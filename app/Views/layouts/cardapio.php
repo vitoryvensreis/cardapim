@@ -44,9 +44,11 @@ $scripts = ['js/cliente.js', 'js/meus-pedidos.js', ...($pageScripts ?? ['js/card
         <nav aria-label="Links legais">
             <a href="/privacidade?r=<?= $e(rawurlencode((string) $restaurante['slug'])) ?>">Privacidade</a>
             <a href="/termos-de-uso?r=<?= $e(rawurlencode((string) $restaurante['slug'])) ?>">Termos de Uso</a>
+            <button class="botao-link" type="button" data-consentimento-abrir>Cookies</button>
         </nav>
     </footer>
 
     <?php require __DIR__ . '/../restaurante/_dialogos.php'; ?>
+<?php require __DIR__ . '/../partials/consentimento.php'; ?>
 </body>
 </html>

@@ -42,7 +42,8 @@ $router->get('/restaurantes', static fn (): \Cardapim\Core\Response => \Cardapim
 $router->get('/privacidade', Guard::paginaPublica([LegalController::class, 'privacidade']));
 $router->get('/politica-de-privacidade', static fn (): \Cardapim\Core\Response => \Cardapim\Core\Response::redirect('/privacidade', 301));
 $router->get('/termos-de-uso', Guard::paginaPublica([LegalController::class, 'termos']));
-$router->get('/cookies', Guard::paginaPublica([LegalController::class, 'cookies']));
+// /cookies abre tambem para a equipe logada: o aviso de cookies dos paineis aponta para ela.
+$router->get('/cookies', [LegalController::class, 'cookies']);
 $router->get('/exclusao-de-dados', Guard::paginaPublica([LegalController::class, 'exclusao']));
 $router->get('/tratamento-de-dados', Guard::paginaPublica([LegalController::class, 'tratamento']));
 

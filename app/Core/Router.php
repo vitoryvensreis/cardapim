@@ -60,6 +60,12 @@ final class Router
                 'Allow' => implode(', ', array_unique($allowed)),
             ]);
         }
+        return self::naoEncontrada();
+    }
+
+    /** Pagina 404 padrao (tambem usada por rotas que se escondem de quem nao tem acesso). */
+    public static function naoEncontrada(): Response
+    {
         return Response::html(View::render('errors/404', [
             'pageTitle' => 'Página não encontrada | ' . marca(),
             'pageDescription' => 'O endereço solicitado não foi encontrado.',

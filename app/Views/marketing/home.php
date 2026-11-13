@@ -10,6 +10,7 @@ $canais = [
     ['message-circle', 'WhatsApp', false],
     ['shopping-bag', 'iFood', false],
     ['qr-code', 'Pix Asaas', false],
+    ['utensils', '99Food', true],
 ];
 
 $recursos = [

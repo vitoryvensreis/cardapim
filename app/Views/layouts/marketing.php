@@ -46,5 +46,6 @@ $scriptsCedo = ['js/so-no-navegador.js'];
     </header>
     <main id="conteudo"><?= $content ?></main>
 <?php require __DIR__ . '/../partials/footer.php'; ?>
+<?php require __DIR__ . '/../partials/consentimento.php'; ?>
 </body>
 </html>

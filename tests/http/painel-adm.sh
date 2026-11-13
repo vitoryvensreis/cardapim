@@ -105,6 +105,17 @@ esperar "gerente nao abre a minha conta do adm (403)" "$(pagina "$gj" "$p/minha-
 pagina "$aj" "$p/logs?busca=Minha+conta" >/dev/null
 contem "alteracao da conta foi para os logs" "$tmp/pagina.html" 'Minha conta: dados alterados'
 
+echo "Status do sistema (so o adm master)"
+esperar "adm master abre o status" "$(pagina "$aj" "$base/status")" "200"
+contem "status mostra o banco" "$tmp/pagina.html" 'MySQL'
+esperar "visitante nao ve o status (404)" "$(curl -s -o /dev/null -w '%{http_code}' "$base/status")" "404"
+esperar "gerente nao ve o status (404)" "$(pagina "$gj" "$base/status")" "404"
+curl -s -H 'Accept: application/json' "$base/status" > "$tmp/s.json"
+contem "healthcheck publico continua respondendo" "$tmp/s.json" '{"status":"operacional"}'
+nao_contem "healthcheck publico sem detalhes" "$tmp/s.json" 'versao'
+curl -s "$base/" > "$tmp/home.html"
+nao_contem "rodape sem link do status" "$tmp/home.html" 'href="/status"'
+
 echo
 if [[ "$falhas" -gt 0 ]]; then echo "FALHOU: $falhas verificacao(oes) do painel da plataforma."; exit 1; fi
 echo "OK: dashboard, logs de auditoria e minha conta do administrador."

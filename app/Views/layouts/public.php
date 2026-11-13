@@ -35,6 +35,7 @@ $scripts = $pageScripts ?? [];
     <main id="conteudo" class="public-main"><?= $content ?></main>
     <footer class="rodape-cardapio">
         <p>Cardápio de <?= $escape((string) $cardapioNome) ?> · Pedidos com <?= marca_html() ?></p>
+        <button class="botao-link" type="button" data-consentimento-abrir>Preferências de cookies</button>
     </footer>
 <?php else: ?>
     <header class="site-header site-header--light">
@@ -53,5 +54,6 @@ $scripts = $pageScripts ?? [];
     <main id="conteudo" class="public-main"><?= $content ?></main>
 <?php require __DIR__ . '/../partials/footer.php'; ?>
 <?php endif; ?>
+<?php require __DIR__ . '/../partials/consentimento.php'; ?>
 </body>
 </html>

@@ -81,7 +81,8 @@ grep -q '^WS_ATIVO=' "$ENV" && sed -i 's/^WS_ATIVO=.*/WS_ATIVO=1/' "$ENV" || pri
 curl -s -H 'Accept: application/json' https://deliveryzim.com.br/status
 ```
 
-O status deve mostrar `"tempo_real":{"situacao":"operacional","redis":"conectado"}`. No painel do gerente
+O `curl` sem login mostra só `{"status":"operacional"}`. Os detalhes ficam em `/status`, aberto no navegador logado
+como adm master (ou no Dashboard da plataforma): deve mostrar tempo real operando e Redis conectado. No painel do gerente
 aparece **Ao vivo** no topo. Teste: abra o Estoque em duas abas, reponha um insumo numa delas; a outra
 mostra "O estoque mudou em outra tela".
 
@@ -93,7 +94,7 @@ Para desligar sem desinstalar: `WS_ATIVO=` (vazio) no `.env`. As telas voltam a 
 | --- | --- |
 | Logs ao vivo | `journalctl -u cardapim-tempo-real -f` |
 | Reiniciar | `systemctl restart cardapim-tempo-real` |
-| Situação | `systemctl status cardapim-tempo-real` ou `/status` (JSON) |
+| Situação | `systemctl status cardapim-tempo-real` ou `/status` logado como adm master |
 | Redis | `cd /opt/redis-cardapim && docker compose ps` / `docker compose logs --tail=50` |
 
 Deploy novo não precisa de nada: o servidor percebe a release nova, avisa os navegadores (código 1012),

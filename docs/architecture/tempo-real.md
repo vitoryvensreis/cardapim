@@ -126,7 +126,7 @@ removida ou restaurante suspenso: conferido ao conectar e a cada 60 s), `1008` m
 
 ## Operação
 
-- `GET /status` (JSON) mostra `tempo_real.situacao`: `operacional`, `parado` ou `nao_iniciado` (não altera o HTTP 200/503).
+- `GET /status` (JSON, logado como adm master) mostra `tempo_real.situacao`: `operacional`, `parado` ou `nao_iniciado` (não altera o HTTP 200/503).
 - Logs: `journalctl -u cardapim-tempo-real -f`.
 - Deploy: o servidor percebe a troca do link `current`, fecha com `1012` e sai; o systemd sobe a versão nova.
 - Instalação na VPS: `docs/deploy/tempo-real.md`.

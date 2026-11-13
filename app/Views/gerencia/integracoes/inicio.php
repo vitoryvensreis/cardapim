@@ -51,6 +51,16 @@ $detalhe = static function (string $provedor, array $i) use ($e): string {
                 </a>
             </article>
         <?php endforeach; ?>
+        <article class="integracao-cartao is-99food is-em-breve">
+            <div class="integracao-topo">
+                <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('utensils') ?></span>
+                <span class="etiqueta etiqueta-neutra"><?= Icon::svg('clock') ?>Em breve</span>
+            </div>
+            <h2>99Food</h2>
+            <p>Receba os pedidos da 99Food direto no <?= marca_html() ?>, junto com os pedidos do cardápio e do iFood.</p>
+            <p>Estamos preparando esta conexão. Avisaremos aqui quando estiver liberada.</p>
+            <button class="btn btn-outline btn-sm btn-block" type="button" disabled><?= Icon::svg('clock', 'icon-sm') ?>Disponível em breve</button>
+        </article>
     </div>
 
     <section class="bloco">

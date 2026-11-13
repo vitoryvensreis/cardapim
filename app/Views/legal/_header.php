@@ -1,16 +1,19 @@
-<?php use Cardapim\Core\Icon; ?>
+<?php
+/**
+ * Topo comum das paginas legais. Espera: $legalTitle e $legalLead. Define $emailPrivacidade (canal do titular) para o texto das paginas.
+ */
+use Cardapim\Core\Config;
+use Cardapim\Core\Icon;
+
+$escLegal = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$hostLegal = (string) (parse_url(Config::get('APP_URL', 'https://deliveryzim.com.br'), PHP_URL_HOST) ?: 'deliveryzim.com.br');
+$emailPrivacidade = Config::get('PRIVACIDADE_EMAIL', 'privacidade@' . preg_replace('/^www\./', '', $hostLegal));
+$emailPrivacidadeHtml = '<a href="mailto:' . $escLegal($emailPrivacidade) . '">' . $escLegal($emailPrivacidade) . '</a>';
+?>
 <header class="legal-hero" data-reveal>
-    <p class="legal-eyebrow"><?= Icon::svg('scale', 'icon-sm') ?>CENTRAL DE INFORMAÇÕES LEGAIS</p>
-    <h1><?= htmlspecialchars($legalTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h1>
-    <p class="legal-lead"><?= htmlspecialchars($legalLead, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
-    <p class="legal-date"><?= Icon::svg('file-text', 'icon-sm') ?>Versão inicial · Atualizada em 09/11/2026</p>
-    <div class="legal-review-notice" role="note">
-        <?= Icon::svg('info') ?>
-        <div>
-            <strong>Documento em revisão</strong>
-            <span>Texto informativo inicial. Dados de contato, endereço e revisão jurídica serão concluídos antes da liberação dos cadastros.</span>
-        </div>
-    </div>
+    <h1><?= $escLegal($legalTitle) ?></h1>
+    <p class="legal-lead"><?= $escLegal($legalLead) ?></p>
+    <p class="legal-date"><?= Icon::svg('calendar', 'icon-sm') ?>Atualizada em 12 de novembro de 2026</p>
 </header>
 <div class="legal-layout">
 <nav class="legal-nav" aria-label="Outras políticas e documentos">
