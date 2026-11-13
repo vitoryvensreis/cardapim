@@ -190,8 +190,9 @@ jobs:
           done
           code="$(curl --silent --show-error -o /tmp/cardapim-status.json -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:18080/status)"
           test "$code" = "200"
-          php -r '$d=json_decode(file_get_contents("/tmp/cardapim-status.json"), true, 512, JSON_THROW_ON_ERROR); exit(($d["servicos"]["php"]["situacao"] === "operacional" && $d["servicos"]["mysql"]["situacao"] === "conectado") ? 0 : 1);'
-          curl --fail --silent --show-error http://127.0.0.1:18080/status | grep -q 'Banco de dados'
+          # Publico: so o campo "status" (healthcheck do deploy). Pagina e detalhes sao do adm master (tests/http/painel-adm.sh).
+          php -r '$d=json_decode(file_get_contents("/tmp/cardapim-status.json"), true, 512, JSON_THROW_ON_ERROR); exit(($d["status"] === "operacional" && !isset($d["servicos"])) ? 0 : 1);'
+          test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/status)" = "404"
           page="$(curl --fail --silent --show-error http://127.0.0.1:18080/)"
           [[ "$page" == *'/assets/img/logo-colorida.svg'* ]]
           [[ "$page" == *'Seu restaurante cresce'* ]]
