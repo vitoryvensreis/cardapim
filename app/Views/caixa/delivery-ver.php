@@ -191,7 +191,7 @@ $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em']
             </ul>
             <dl class="conta-totais">
                 <div><dt>Itens</dt><dd><?= $e(Numero::reais((string) $p['subtotal'])) ?></dd></div>
-                <?php if (Numero::centavos((string) $p['desconto']) > 0): ?><div><dt>Descontos e cupons</dt><dd>- <?= $e(Numero::reais((string) $p['desconto'])) ?></dd></div><?php endif; ?>
+                <?php if (Numero::centavos((string) $p['desconto']) > 0): ?><div><dt><?= ($p['desconto_origem'] ?? null) === 'cupom' ? 'Cupom ' . $e((string) $p['cupom_codigo']) : (($p['desconto_origem'] ?? null) === 'fidelidade' ? 'Desconto fidelidade' : 'Descontos e cupons') ?></dt><dd>- <?= $e(Numero::reais((string) $p['desconto'])) ?></dd></div><?php endif; ?>
                 <?php if ($entrega || Numero::centavos((string) $p['taxa_entrega']) > 0): ?><div><dt><?= $doIfood ? 'Entrega e taxas' : 'Taxa de entrega' ?></dt><dd><?= Numero::centavos((string) $p['taxa_entrega']) === 0 ? 'Grátis' : $e(Numero::reais((string) $p['taxa_entrega'])) ?></dd></div><?php endif; ?>
                 <div class="conta-total"><dt>Total</dt><dd><?= $e(Numero::reais((string) $p['total'])) ?></dd></div>
             </dl>

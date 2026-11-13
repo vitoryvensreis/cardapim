@@ -74,6 +74,7 @@ $whats = strlen((string) $tel) >= 10 ? 'https://wa.me/55' . $tel : '';
             <dl class="ck-totais">
                 <div><dt>Subtotal</dt><dd data-ap-subtotal></dd></div>
                 <div data-ap-linha-taxa><dt>Taxa de entrega</dt><dd data-ap-taxa></dd></div>
+                <div class="ck-desconto" data-ap-linha-desconto hidden><dt data-ap-desconto-rotulo>Desconto</dt><dd data-ap-desconto></dd></div>
                 <div class="ck-total"><dt>Total</dt><dd data-ap-total></dd></div>
             </dl>
             <dl class="ck-info">

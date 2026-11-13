@@ -26,6 +26,7 @@ use Throwable;
  * GET  /api/v1/cep/{cep}                          endereco do CEP (BrasilAPI/ViaCEP, com cache)
  * GET  /api/v1/cliente/endereco                   ultimo endereco usado pelo cliente conectado
  * POST /api/v1/restaurantes/{slug}/entrega        entrega neste endereco? taxa e pedido minimo
+ * POST /api/v1/restaurantes/{slug}/desconto       cupom e fidelidade: quanto de desconto este pedido teria
  * POST /api/v1/restaurantes/{slug}/pedidos        cria o pedido (cliente conectado)
  * GET  /api/v1/pedidos/{id}                       acompanhamento (so o dono do pedido)
  * GET  /api/v1/cliente/pedidos?restaurante=&antes= meus pedidos (historico + em andamento no restaurante)
@@ -89,6 +90,54 @@ final class PedidoClienteController
                 'pedido_minimo_centavos' => $r['pedido_minimo'] !== null ? Numero::centavos($r['pedido_minimo']) : null,
                 'distancia_km' => $r['distancia_km'],
             ]);
+        });
+    }
+
+    /**
+     * Previa do desconto na tela de finalizar: {itens:[{id,quantidade}], cupom?}. Precos de agora (servidor).
+     * Sem login: so confere o cupom (o "uma vez por cliente" e conferido de novo no pedido); com login, mostra a fidelidade.
+     */
+    public function desconto(string $slug): Response
+    {
+        return $this->comRestaurante($slug, 8192, function (array $restaurante, array $dados, string $ip): Response {
+            $cupom = is_string($dados['cupom'] ?? null) ? mb_substr($dados['cupom'], 0, 40) : '';
+            // Limite para ninguem ficar testando codigos de cupom em sequencia.
+            if ($cupom !== '' && !RateLimiter::padrao(30, 600)->permitir('cupom|' . $ip)) {
+                return Response::json(['ok' => false, 'mensagem' => 'Muitas tentativas de cupom. Aguarde alguns minutos.', 'campo' => 'cupom'], 429);
+            }
+            $db = Database::connect();
+            $idRest = (int) $restaurante['id'];
+            $ids = [];
+            $qtds = [];
+            foreach (array_slice(is_array($dados['itens'] ?? null) ? $dados['itens'] : [], 0, 50) as $item) {
+                $id = is_array($item) ? ($item['id'] ?? null) : null;
+                $qtd = is_array($item) ? ($item['quantidade'] ?? null) : null;
+                if (is_int($id) && $id > 0 && is_int($qtd) && $qtd >= 1 && $qtd <= 99) {
+                    $ids[] = $id;
+                    $qtds[$id] = ($qtds[$id] ?? 0) + $qtd;
+                }
+            }
+            $subtotal = 0;
+            if ($ids !== []) {
+                $ids = array_values(array_unique($ids));
+                $q = $db->prepare('SELECT id, preco FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
+                $q->execute([$idRest, ...$ids]);
+                foreach ($q->fetchAll(\PDO::FETCH_ASSOC) as $p) {
+                    $subtotal += Numero::centavos((string) $p['preco']) * $qtds[(int) $p['id']];
+                }
+            }
+            $cliente = ClienteSessao::atual();
+            $r = (new \Cardapim\Services\Descontos\DescontoPedido($db))->calcular($idRest, $cliente !== null ? (int) $cliente['id'] : null, $subtotal, $cupom);
+            return Response::json([
+                'ok' => $r['ok'],
+                'mensagem' => $r['mensagem'] ?? '',
+                'campo' => $r['ok'] ? null : 'cupom',
+                'desconto_centavos' => $r['centavos'],
+                'origem' => $r['origem'],
+                'rotulo' => $r['rotulo'],
+                'cupom' => $r['codigo'],
+                'fidelidade' => $r['fidelidade'],
+            ], $r['ok'] ? 200 : 422)->comCabecalhos(['Cache-Control' => 'no-store']);
         });
     }
 

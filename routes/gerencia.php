@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Cardapim\Controllers\Gerencia\AssinaturaController;
+use Cardapim\Controllers\Gerencia\CuponsController;
 use Cardapim\Controllers\Gerencia\EntregaPagamentoController;
+use Cardapim\Controllers\Gerencia\FidelidadeController;
 use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
 use Cardapim\Controllers\Gerencia\FinanceiroController;
@@ -77,6 +79,17 @@ return static function (Router $router): void {
     $router->post($g . '/perfil/horarios', [PerfilController::class, 'horarios']);
 
     // Entrega e pagamento (cardapio online)
+    // Clientes: cupons de desconto e programa de fidelidade (cardapio online)
+    $router->get($g . '/cupons', [CuponsController::class, 'lista']);
+    $router->get($g . '/cupons/novo', [CuponsController::class, 'novo']);
+    $router->post($g . '/cupons', [CuponsController::class, 'criar']);
+    $router->get($g . '/cupons/{id}', [CuponsController::class, 'editar']);
+    $router->post($g . '/cupons/{id}', [CuponsController::class, 'atualizar']);
+    $router->post($g . '/cupons/{id}/pausar', [CuponsController::class, 'pausar']);
+    $router->post($g . '/cupons/{id}/excluir', [CuponsController::class, 'excluir']);
+    $router->get($g . '/fidelidade', [FidelidadeController::class, 'mostrar']);
+    $router->post($g . '/fidelidade', [FidelidadeController::class, 'salvar']);
+
     $router->get($g . '/entrega-pagamento', [EntregaPagamentoController::class, 'mostrar']);
     $router->post($g . '/entrega-pagamento', [EntregaPagamentoController::class, 'salvar']);
     $router->get($g . '/entrega-pagamento/testar', [EntregaPagamentoController::class, 'testar']);

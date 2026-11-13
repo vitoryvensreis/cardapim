@@ -13,6 +13,7 @@ use Cardapim\Realtime\TempoReal;
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Cardapio\CardapioPublico;
+use Cardapim\Services\Descontos\DescontoPedido;
 use Cardapim\Shared\Numero;
 use Cardapim\Shared\Validation\Documento;
 use PDO;
@@ -20,7 +21,7 @@ use Throwable;
 
 /**
  * Pedido feito pelo cliente no cardapio online. O navegador manda so ids, quantidades e escolhas:
- * precos, taxa de entrega, total e disponibilidade sao calculados AQUI, de novo.
+ * precos, taxa de entrega, desconto (cupom ou fidelidade), total e disponibilidade sao calculados AQUI, de novo.
  */
 final class CriarPedido
 {
@@ -128,7 +129,14 @@ final class CriarPedido
                 return self::erro(422, 'O pedido mínimo para entrega neste endereço é ' . Numero::reais($entrega['pedido_minimo']) . '.');
             }
         }
-        $total = $subtotal + $taxa;
+        // Desconto: cupom digitado OU recompensa da fidelidade (nao somam). Conferido de novo dentro da transacao.
+        $cupomTexto = is_string($e['cupom'] ?? null) ? mb_substr($e['cupom'], 0, 40) : '';
+        $descontos = new DescontoPedido($this->db);
+        $desconto = $descontos->calcular($idRest, $idCliente, $subtotal, $cupomTexto);
+        if (!$desconto['ok']) {
+            return self::erro(422, (string) $desconto['mensagem'], 'cupom');
+        }
+        $total = $subtotal + $taxa - $desconto['centavos'];
 
         $troco = null;
         if ($forma === 'dinheiro' && is_string($e['troco_para'] ?? null) && trim($e['troco_para']) !== '') {
@@ -157,19 +165,28 @@ final class CriarPedido
             if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
                 $this->db->prepare('SELECT id FROM restaurantes WHERE id = ? FOR UPDATE')->execute([$idRest]);
             }
+            // Com o restaurante travado, ninguem mais grava pedido agora: o limite do cupom e a fidelidade nao estouram.
+            if ($desconto['origem'] !== null) {
+                $agoraDesconto = $descontos->calcular($idRest, $idCliente, $subtotal, $cupomTexto);
+                if (!$agoraDesconto['ok'] || $agoraDesconto['origem'] !== $desconto['origem'] || $agoraDesconto['centavos'] !== $desconto['centavos']) {
+                    $this->db->rollBack();
+                    return self::erro(409, $agoraDesconto['ok'] ? 'O desconto mudou. Confira o total e tente de novo.' : (string) $agoraDesconto['mensagem'], 'cupom');
+                }
+            }
             $n = $this->db->prepare('SELECT COALESCE(MAX(numero), 0) + 1 FROM pedidos WHERE id_restaurante = ?');
             $n->execute([$idRest]);
             $numero = (int) $n->fetchColumn();
             $tempoMin = $tipo === 'entrega' ? $config['entrega_minutos_min'] : $config['retirada_minutos'];
             $tempoMax = $tipo === 'entrega' ? $config['entrega_minutos_max'] : $config['retirada_minutos'];
             $this->db->prepare('INSERT INTO pedidos (id_restaurante, numero, id_cliente, id_user, origem, tipo, status, forma_pagamento, pagamento_status, troco_para,
-                subtotal, taxa_entrega, desconto, total, observacao, cliente_nome, cliente_whatsapp, entrega_cep, entrega_logradouro, entrega_numero,
+                subtotal, taxa_entrega, desconto, desconto_origem, id_cupom, cupom_codigo, motivo_desconto, total, observacao, cliente_nome, cliente_whatsapp, entrega_cep, entrega_logradouro, entrega_numero,
                 entrega_complemento, entrega_bairro, entrega_cidade, entrega_estado, entrega_referencia, entrega_latitude, entrega_longitude,
                 entrega_distancia_km, id_area_entrega, area_descricao, previsao_minutos_min, previsao_minutos_max, chave_idempotencia, criado_em, atualizado_em)
-                VALUES (?, ?, ?, NULL, \'cardapio\', ?, ?, ?, \'pendente\', ?, ?, ?, \'0.00\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                VALUES (?, ?, ?, NULL, \'cardapio\', ?, ?, ?, \'pendente\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                 ->execute([
                     $idRest, $numero, $idCliente, $tipo, $status, $forma, $troco,
-                    self::dec($subtotal), self::dec($taxa), self::dec($total), $obsPedido !== '' ? $obsPedido : null,
+                    self::dec($subtotal), self::dec($taxa), self::dec($desconto['centavos']), $desconto['origem'], $desconto['id_cupom'], $desconto['codigo'], $desconto['motivo'],
+                    self::dec($total), $obsPedido !== '' ? $obsPedido : null,
                     mb_substr((string) $cliente['nome'], 0, 80), (string) $cliente['whatsapp'],
                     $endereco !== null && $endereco['cep'] !== '' ? $endereco['cep'] : null,
                     $endereco['logradouro'] ?? null, $endereco['numero'] ?? null, self::vazioNulo($endereco['complemento'] ?? null),

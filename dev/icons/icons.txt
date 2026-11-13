@@ -166,3 +166,4 @@ radio
 database
 shield-exclamation-point
 cpu
+circle-play

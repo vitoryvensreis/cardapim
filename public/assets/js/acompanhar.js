@@ -150,6 +150,12 @@
     $("[data-ap-subtotal]").textContent = reais(p.subtotal_centavos);
     $("[data-ap-linha-taxa]").hidden = p.tipo !== "entrega";
     $("[data-ap-taxa]").textContent = p.taxa_centavos === 0 ? "Grátis" : reais(p.taxa_centavos);
+    const linhaDesconto = $("[data-ap-linha-desconto]");
+    if (linhaDesconto) {
+      linhaDesconto.hidden = !(p.desconto_centavos > 0);
+      $("[data-ap-desconto-rotulo]").textContent = p.desconto_rotulo || "Desconto";
+      $("[data-ap-desconto]").textContent = `− ${reais(p.desconto_centavos || 0)}`;
+    }
     $("[data-ap-total]").textContent = reais(p.total_centavos);
     let pag = p.forma_pagamento;
     if (p.pagamento_status === "pago") pag += " · pago";

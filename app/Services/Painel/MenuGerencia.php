@@ -51,6 +51,20 @@ final class MenuGerencia
             'descricao' => 'Dinheiro que entra e que sai, sempre claro.',
             'planejado' => ['Entradas e saídas', 'Fechamentos de caixa', 'Contas a pagar e a receber', 'Relatórios por período'],
         ],
+        'cupons' => [
+            'titulo' => 'Cupons',
+            'rotulo' => 'Cupons',
+            'icone' => 'ticket-percent',
+            'descricao' => 'Códigos de desconto para os clientes usarem no cardápio online.',
+            'planejado' => ['Criar, editar, pausar e excluir cupons', 'Desconto em % ou valor fixo', 'Limite de usos e validade'],
+        ],
+        'fidelidade' => [
+            'titulo' => 'Fidelidade',
+            'rotulo' => 'Fidelidade',
+            'icone' => 'gift',
+            'descricao' => 'Cliente que volta ganha desconto.',
+            'planejado' => ['Ligar e desligar o programa', 'Quantos pedidos para ganhar', 'Desconto em % ou valor fixo'],
+        ],
         'perfil' => [
             'titulo' => 'Perfil do restaurante',
             'rotulo' => 'Perfil',
@@ -100,6 +114,7 @@ final class MenuGerencia
         '' => ['visao-geral'],
         'Operação' => ['@caixa'],
         'Gestão' => ['estoque', 'equipe', 'financeiro'],
+        'Clientes' => ['cupons', 'fidelidade'],
         'Restaurante' => ['perfil', 'entrega-pagamento', 'integracoes', 'assinatura'],
         'Conta' => ['minha-conta', 'suporte'],
     ];

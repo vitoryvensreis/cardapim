@@ -250,3 +250,43 @@
   .ap-marcador-moto::after { animation: none; }
   .leaflet-marker-icon.ap-marcador-moto { transition: none; }
 }
+
+/* ---------- Desconto: fidelidade e cupom ---------- */
+.ck-desconto dt, .ck-desconto dd { color: var(--c-success) !important; font-weight: 700; }
+.ck-fidelidade {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .65rem; align-items: start; margin-top: .75rem;
+  padding: .75rem .8rem; border: 1px solid #f3d9cf; border-radius: var(--r-md); background: var(--c-cream);
+}
+.ck-fidelidade.is-ganhou { border-color: rgb(31 122 77 / 30%); background: var(--c-success-bg); }
+.ck-fidelidade-icone { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: var(--r-md); background: var(--c-orange-100); color: var(--c-orange-700); }
+.ck-fidelidade.is-ganhou .ck-fidelidade-icone { background: var(--c-white); color: var(--c-success); }
+.ck-fidelidade-texto { display: grid; gap: .2rem; min-width: 0; }
+.ck-fidelidade-texto strong { color: var(--c-ink); font: 700 .92rem/1.3 var(--f-head); }
+.ck-fidelidade-texto small { color: var(--c-muted); font-size: .84rem; line-height: 1.4; }
+.ck-fidelidade-pontos { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .2rem; }
+.ck-fidelidade-pontos:empty { display: none; }
+.ck-ponto { width: .8rem; height: .8rem; border: 1.5px solid var(--c-orange); border-radius: 50%; background: var(--c-white); }
+.ck-ponto.is-feito { background: var(--c-orange); }
+
+.ck-cupom { margin-top: .75rem; }
+.ck-cupom details > summary {
+  display: inline-flex; align-items: center; gap: .4rem; min-height: 2.5rem; color: var(--c-wine);
+  font: 700 .9rem/1.3 var(--f-head); cursor: pointer; list-style: none; text-decoration: underline; text-underline-offset: 3px;
+}
+.ck-cupom details > summary::-webkit-details-marker { display: none; }
+.ck-cupom details > summary:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.ck-cupom-linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; margin-top: .35rem; }
+.ck-cupom-linha input {
+  min-height: 2.75rem; padding: .55rem .75rem; border: 1px solid var(--cd-borda); border-radius: var(--r-md);
+  font: 700 .95rem/1.2 var(--f-head); letter-spacing: .04em; text-transform: uppercase;
+}
+.ck-cupom-linha input:focus-visible { outline: 3px solid rgb(255 88 37 / 35%); border-color: var(--c-orange); }
+.ck-cupom-linha .btn { min-height: 2.75rem; }
+.ck-cupom-ok {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; padding: .6rem .75rem; border-radius: var(--r-md);
+  background: var(--c-success-bg); color: var(--c-success); font-size: .9rem; font-weight: 700;
+}
+.ck-cupom-ok span { flex: 1 1 10rem; min-width: 0; }
+.ck-cupom-ok .ck-link { margin-left: auto; }
+.ck-cupom-msg { display: block; margin-top: .4rem; color: var(--c-danger); font-size: .85rem; font-weight: 600; }
+.ck-cupom-msg.is-info { color: var(--c-muted); font-weight: 500; }

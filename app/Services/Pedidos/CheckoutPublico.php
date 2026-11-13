@@ -83,6 +83,8 @@ final class CheckoutPublico
             'troco_para_centavos' => $p['troco_para'] !== null ? Numero::centavos((string) $p['troco_para']) : null,
             'subtotal_centavos' => Numero::centavos((string) $p['subtotal']),
             'taxa_centavos' => Numero::centavos((string) $p['taxa_entrega']),
+            'desconto_centavos' => Numero::centavos((string) ($p['desconto'] ?? '0')),
+            'desconto_rotulo' => ($p['desconto_origem'] ?? null) === 'cupom' ? 'Cupom ' . (string) $p['cupom_codigo'] : (($p['desconto_origem'] ?? null) === 'fidelidade' ? 'Desconto fidelidade' : 'Desconto'),
             'total_centavos' => Numero::centavos((string) $p['total']),
             'observacao' => (string) ($p['observacao'] ?? ''),
             'endereco' => $endereco,

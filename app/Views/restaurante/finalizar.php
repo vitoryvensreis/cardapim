@@ -189,9 +189,37 @@ $json = json_encode([
                     <a class="ck-link" href="/<?= $e((string) $restaurante['slug']) ?>">Editar</a>
                 </div>
                 <ul class="ck-itens" data-ck-itens></ul>
+
+                <div class="ck-fidelidade" data-ck-fidelidade role="status" aria-live="polite" hidden>
+                    <span class="ck-fidelidade-icone" aria-hidden="true"><?= Icon::svg('gift') ?></span>
+                    <div class="ck-fidelidade-texto">
+                        <strong data-ck-fid-titulo>Cartão fidelidade</strong>
+                        <small data-ck-fid-texto></small>
+                        <span class="ck-fidelidade-pontos" data-ck-fid-pontos aria-hidden="true"></span>
+                    </div>
+                </div>
+
+                <div class="ck-cupom" data-ck-cupom>
+                    <details data-ck-cupom-detalhes>
+                        <summary><?= Icon::svg('ticket-percent', 'icon-sm') ?>Tenho um cupom de desconto</summary>
+                        <div class="ck-cupom-linha">
+                            <label class="sr-only" for="ck-cupom">Código do cupom</label>
+                            <input id="ck-cupom" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Digite o código" data-ck-cupom-campo>
+                            <button class="btn btn-outline btn-sm" type="button" data-ck-cupom-aplicar>Aplicar</button>
+                        </div>
+                    </details>
+                    <div class="ck-cupom-ok" data-ck-cupom-ok hidden>
+                        <?= Icon::svg('circle-check', 'icon-sm') ?>
+                        <span data-ck-cupom-ok-texto></span>
+                        <button class="ck-link" type="button" data-ck-cupom-remover>Remover</button>
+                    </div>
+                    <small class="ck-cupom-msg" data-ck-cupom-msg role="status" aria-live="polite" hidden></small>
+                </div>
+
                 <dl class="ck-totais">
                     <div><dt>Subtotal</dt><dd data-ck-subtotal>R$ 0,00</dd></div>
                     <div data-ck-linha-taxa><dt>Taxa de entrega</dt><dd data-ck-taxa>—</dd></div>
+                    <div class="ck-desconto" data-ck-linha-desconto hidden><dt data-ck-desconto-rotulo>Desconto</dt><dd data-ck-desconto>− R$ 0,00</dd></div>
                     <div class="ck-total"><dt>Total</dt><dd data-ck-total>R$ 0,00</dd></div>
                 </dl>
                 <p class="ck-aviso-min" data-ck-minimo hidden></p>

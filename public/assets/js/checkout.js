@@ -2,6 +2,7 @@
  * Cardapim - finalizar pedido (/{slug}/finalizar).
  * Uma tela so, de cima para baixo: como receber -> endereco (CEP preenche o resto e a entrega e conferida
  * ao terminar de digitar) -> pagamento -> resumo com o total sempre visivel. O servidor recalcula tudo.
+ * Desconto: cupom digitado ou recompensa do cartao fidelidade (nao somam), conferidos em /desconto.
  */
 (() => {
   "use strict";
@@ -71,6 +72,8 @@
     temCpf: false,
     gps: null,
     enviando: false,
+    desconto: { centavos: 0, origem: null, rotulo: "" },
+    cupom: "",
   };
   const escolhas = lerJson(CHAVE_ESCOLHAS) || {};
 
@@ -79,7 +82,8 @@
   const subtotal = () => sacola.reduce((t, i) => t + (i.indisponivel ? 0 : i.qtd * i.centavos), 0);
   const taxa = () => (estado.tipo === "entrega" && estado.entrega?.entrega ? estado.entrega.taxa_centavos : 0);
   const temItens = () => sacola.some((i) => !i.indisponivel);
-  const total = () => (temItens() ? subtotal() + taxa() : 0);
+  const descontoAtual = () => (temItens() ? Math.min(estado.desconto.centavos || 0, subtotal()) : 0);
+  const total = () => (temItens() ? Math.max(0, subtotal() + taxa() - descontoAtual()) : 0);
 
   const desenharItens = () => {
     elItens.replaceChildren();
@@ -130,6 +134,10 @@
     else if (estado.entrega?.entrega) ddTaxa.textContent = estado.entrega.taxa_centavos === 0 ? "Grátis" : reais(estado.entrega.taxa_centavos);
     else ddTaxa.textContent = "Informe o endereço";
     ddTaxa.classList.toggle("is-gratis", estado.tipo === "entrega" && estado.entrega?.entrega && estado.entrega.taxa_centavos === 0);
+    const linhaDesconto = $("[data-ck-linha-desconto]");
+    linhaDesconto.hidden = descontoAtual() <= 0;
+    $("[data-ck-desconto-rotulo]").textContent = estado.desconto.rotulo || "Desconto";
+    $("[data-ck-desconto]").textContent = `− ${reais(descontoAtual())}`;
     const t = reais(total());
     // Sem nenhum item disponivel nao ha o que pedir: o botao avisa em vez de enviar.
     $$("[data-ck-enviar]").forEach((b) => {
@@ -149,6 +157,88 @@
       min.hidden = true;
     }
   };
+
+  /* ---------- Desconto: cartao fidelidade e cupom ---------- */
+  const caixaFid = $("[data-ck-fidelidade]");
+  const cupomDetalhes = $("[data-ck-cupom-detalhes]");
+  const cupomCampo = $("[data-ck-cupom-campo]");
+  const cupomOk = $("[data-ck-cupom-ok]");
+  const cupomMsg = $("[data-ck-cupom-msg]");
+  const avisoCupom = (texto, info) => {
+    cupomMsg.hidden = !texto;
+    cupomMsg.textContent = texto || "";
+    cupomMsg.classList.toggle("is-info", !!info);
+  };
+  const desenharFidelidade = (f) => {
+    if (!f) { caixaFid.hidden = true; return; }
+    caixaFid.hidden = false;
+    const ganhou = f.ganhou;
+    const usandoCupom = estado.desconto.origem === "cupom";
+    caixaFid.classList.toggle("is-ganhou", ganhou && !usandoCupom);
+    $("[data-ck-fid-titulo]").textContent = ganhou
+      ? (usandoCupom ? "Seu prêmio do cartão fidelidade fica guardado" : `Você ganhou ${f.recompensa} de desconto!`)
+      : "Cartão fidelidade";
+    $("[data-ck-fid-texto]").textContent = ganhou
+      ? (usandoCupom ? "Cupom e fidelidade não se somam. Tire o cupom para usar o prêmio agora, ou use no próximo pedido." : "Prêmio do cartão fidelidade, já descontado neste pedido.")
+      : `${f.compras} de ${f.necessarias} ${f.necessarias === 1 ? "pedido" : "pedidos"}. Faltam ${f.faltam} para ganhar ${f.recompensa} de desconto${f.minimo ? ` (contam pedidos a partir de ${f.minimo})` : ""}.`;
+    const pontos = $("[data-ck-fid-pontos]");
+    pontos.replaceChildren();
+    if (!ganhou && f.necessarias <= 20) {
+      for (let i = 0; i < f.necessarias; i++) {
+        const p = document.createElement("span");
+        p.className = `ck-ponto${i < f.compras ? " is-feito" : ""}`;
+        pontos.append(p);
+      }
+    }
+  };
+  const mostrarCupom = () => {
+    const ativo = estado.desconto.origem === "cupom" && estado.cupom !== "";
+    cupomOk.hidden = !ativo;
+    cupomDetalhes.hidden = ativo;
+    if (ativo) $("[data-ck-cupom-ok-texto]").textContent = `${estado.desconto.rotulo}: − ${reais(descontoAtual())}`;
+  };
+  let pedidoDesconto = 0;
+  const atualizarDesconto = async (tentativa) => {
+    const codigo = tentativa !== undefined ? tentativa : estado.cupom;
+    const meu = ++pedidoDesconto;
+    const r = await Cliente.api(`/api/v1/restaurantes/${encodeURIComponent(slug)}/desconto`, {
+      itens: sacola.filter((i) => !i.indisponivel).map((i) => ({ id: i.id, quantidade: i.qtd })),
+      ...(codigo ? { cupom: codigo } : {}),
+    });
+    if (meu !== pedidoDesconto) return false;
+    if (r.ok) {
+      estado.cupom = r.origem === "cupom" ? (r.cupom || codigo) : "";
+      estado.desconto = { centavos: r.desconto_centavos || 0, origem: r.origem || null, rotulo: r.rotulo || "" };
+      if (tentativa) avisoCupom("");
+    } else if (codigo) {
+      // Cupom recusado: tira o cupom e confere de novo sem ele (pode valer a fidelidade).
+      estado.cupom = "";
+      avisoCupom(r.mensagem || "Não deu para usar este cupom.");
+      if (r.http !== 429) await atualizarDesconto("");
+      else { estado.desconto = { centavos: 0, origem: null, rotulo: "" }; }
+      return false;
+    }
+    desenharFidelidade(r.ok ? r.fidelidade : null);
+    mostrarCupom();
+    desenharTotais();
+    return r.ok;
+  };
+  $("[data-ck-cupom-aplicar]").addEventListener("click", async () => {
+    const codigo = cupomCampo.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+    if (codigo.length < 3) { avisoCupom("Digite o código do cupom."); cupomCampo.focus(); return; }
+    avisoCupom("Conferindo o cupom...", true);
+    if (await atualizarDesconto(codigo)) window.CardapimToast("Cupom aplicado.");
+  });
+  cupomCampo.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") { ev.preventDefault(); $("[data-ck-cupom-aplicar]").click(); }
+  });
+  $("[data-ck-cupom-remover]").addEventListener("click", async () => {
+    estado.cupom = "";
+    cupomCampo.value = "";
+    avisoCupom("");
+    await atualizarDesconto("");
+    cupomDetalhes.open = false;
+  });
 
   /* ---------- Como receber ---------- */
   const blocoEndereco = $("[data-ck-endereco]");
@@ -437,6 +527,7 @@
       ...(estado.tipo === "entrega" ? { endereco: endereco() } : {}),
       ...(estado.forma === "dinheiro" && precisaTroco.checked ? { troco_para: campoTroco.value } : {}),
       ...(estado.forma === "pix_online" && !estado.temCpf ? { cpf: campoCpf.value } : {}),
+      ...(estado.cupom ? { cupom: estado.cupom } : {}),
     };
     const r = await Cliente.api(`/api/v1/restaurantes/${encodeURIComponent(slug)}/pedidos`, corpo);
     if (r.ok && r.pedido) {
@@ -461,6 +552,13 @@
     }
     if (r.http !== 409 && r.http !== 422 && r.http !== 502) {
       try { sessionStorage.removeItem(CHAVE_PEDIDO); } catch (e) { /* ok */ }
+    }
+    if (r.campo === "cupom") {
+      estado.cupom = "";
+      await atualizarDesconto("");
+      avisoCupom(r.mensagem || "Não deu para usar este cupom.");
+      mostrarErro(r.mensagem || "Confira o desconto e tente de novo.", cupomMsg);
+      return;
     }
     const alvos = { endereco: status, tipo: $("[data-ck-tipo]"), forma_pagamento: $("[data-ck-forma]"), troco_para: campoTroco, cpf: campoCpf };
     if (r.campo === "endereco" && r.erros) {
@@ -488,6 +586,7 @@
     }
     desenharItens();
     desenharTotais();
+    atualizarDesconto();
     if (!sacola.some((i) => i.indisponivel)) mostrarErro("");
     window.CardapimToast("Item removido do pedido.");
   });
@@ -520,6 +619,7 @@
     if (sacola.length === 0) { window.location.assign(`/${encodeURIComponent(slug)}`); return; }
     desenharItens();
     desenharTotais();
+    atualizarDesconto();
   });
 
   // Endereco salvo e CPF (depois de entrar).
@@ -529,6 +629,7 @@
     if (!atual || contaDe === atual.whatsapp) return;
     contaDe = atual.whatsapp;
     const r = await Cliente.api("/api/v1/cliente/endereco");
+    atualizarDesconto();
     estado.temCpf = r.tem_cpf === true;
     if (estado.forma) escolherForma(estado.forma);
     if (r.endereco && endereco().logradouro === "") {
