@@ -317,7 +317,7 @@ final class ComandaService
         }
         Auditoria::registrar($this->autor, 'Item cancelado', sprintf('%s: %dx %s (%s). Motivo: %s. Estoque devolvido.',
             $this->rotulo($comanda), (int) $item['quantidade'], $item['nome'], Numero::reais((string) $item['total']), $motivo));
-        return Resultado::sucesso($item['quantidade'] . 'x ' . $item['nome'] . ' cancelado. O estoque foi devolvido.');
+        return Resultado::sucesso((int) $item['quantidade'] . 'x ' . $item['nome'] . ' cancelado. O estoque foi devolvido.');
     }
 
     /** Taxa de servico (liga/desliga), desconto com motivo e quantas pessoas vao dividir. */
