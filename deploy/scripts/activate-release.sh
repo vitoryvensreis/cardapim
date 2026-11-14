@@ -30,6 +30,13 @@ fi
 ln -sfn "$shared/storage" "$release/storage"
 ln -sfn "$shared/.env" "$release/.env"
 
+# Mapa proprio (deploy/scripts/mapa-instalar.sh): link fisico na pasta public da nova release, se ja existir.
+if [[ -f "$shared/mapas/ceara.pmtiles" ]]; then
+  mkdir -p "$release/public/mapas"
+  chmod 755 "$release/public/mapas"
+  ln -f "$shared/mapas/ceara.pmtiles" "$release/public/mapas/ceara.pmtiles"
+fi
+
 php_bin="$(command -v php8.4 || command -v php || true)"
 [[ -n "$php_bin" ]] || { echo "PHP CLI nao encontrado"; exit 1; }
 "$php_bin" -v | head -n 1
@@ -79,6 +86,7 @@ check_health() {
   curl -fsS --max-time 20 "$site_url/assets/css/site.css" >/dev/null || return 1
   # Bibliotecas de terceiros em public/assets/vendor (mapa do cliente e QR Code do 2FA) precisam estar publicadas.
   curl -fsS --max-time 20 "$site_url/assets/vendor/leaflet/leaflet.js" >/dev/null || return 1
+  curl -fsS --max-time 20 "$site_url/assets/vendor/protomaps-leaflet/protomaps-leaflet.js" >/dev/null || return 1
   curl -fsS --max-time 20 "$site_url/assets/vendor/qrcode-generator/qrcode.js" >/dev/null || return 1
   # /status so retorna HTTP 200 quando o PHP acessa o MySQL.
   curl -fsS --max-time 20 -H 'Accept: application/json' "$site_url/status" >/dev/null || return 1

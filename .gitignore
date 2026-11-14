@@ -20,3 +20,7 @@
 /.idea/
 .DS_Store
 *.log
+
+# Mapa proprio (PMTiles): fica em shared/mapas na VPS (docs/architecture/mapa.md)
+/public/mapas/
+*.pmtiles

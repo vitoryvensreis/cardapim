@@ -8,6 +8,7 @@ require dirname(__DIR__, 2) . '/bootstrap/app.php';
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Modules\Entrega\Distancia;
 use Cardapim\Modules\Entrega\TextoLocal;
+use Cardapim\Services\Geo\MapaBase;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\HistoricoCliente;
 use Cardapim\Services\Pedidos\StatusPedido;
@@ -101,8 +102,21 @@ $ok(str_contains($m, "foi cancelado.\nMotivo: Acabou o gás") && !str_contains($
 $ok(!str_contains(AvisosWhatsApp::mensagem(['cliente_nome' => ''] + $ped, 'recebido', $link), 'Olá'), 'sem nome, sem saudacao');
 $ok(str_contains(AvisosWhatsApp::mensagem($ped, 'concluido', $link), 'Pedido *#42* entregue.'), 'concluido entregue');
 
+// Mapa proprio: so aparece com um PMTiles de verdade em public/mapas; senao a tela usa o OpenStreetMap.
+$pub = sys_get_temp_dir() . '/cardapim-mapa-' . bin2hex(random_bytes(4));
+mkdir($pub . '/mapas', 0700, true);
+$ok(MapaBase::url($pub) === null, 'sem arquivo: sem mapa proprio');
+file_put_contents($pub . '/mapas/ceara.pmtiles', 'PMTiles');
+$ok(MapaBase::url($pub) === null, 'arquivo menor que o cabecalho: ignorado');
+file_put_contents($pub . '/mapas/ceara.pmtiles', 'PMTiles' . chr(3) . str_repeat("\0", 200));
+touch($pub . '/mapas/ceara.pmtiles', 1763000000);
+$ok(MapaBase::url($pub) === '/mapas/ceara.pmtiles?v=' . base_convert('1763000000', 10, 36), 'com arquivo: URL com versao pela data');
+unlink($pub . '/mapas/ceara.pmtiles');
+rmdir($pub . '/mapas');
+rmdir($pub);
+
 if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s).\n");
     exit(1);
 }
-echo "OK: regras de entrega (distancia, bairro, faixas de km).\n";
+echo "OK: regras de entrega (distancia, bairro, faixas de km, mapa proprio).\n";

@@ -145,6 +145,9 @@ contem "caixa ve a localizacao ao vivo" "$tmp/d.html" 'Localização ao vivo'
 esperar "pagina do pedido carrega o mapa" "$(curl -s -o "$tmp/pp.html" -w '%{http_code}' "$base/$slug/pedido/$pedido")" "200"
 contem "pagina do pedido tem o bloco do mapa" "$tmp/pp.html" 'data-ap-mapa'
 contem "pagina do pedido carrega o Leaflet" "$tmp/pp.html" '/assets/vendor/leaflet/leaflet.js'
+contem "pagina do pedido carrega o mapa proprio" "$tmp/pp.html" '/assets/vendor/protomaps-leaflet/protomaps-leaflet.js'
+contem "pagina do pedido escolhe a camada do mapa" "$tmp/pp.html" '/assets/js/mapa-base.js'
+nao_contem "sem arquivo do mapa, nao aponta para ele (usa o OpenStreetMap)" "$tmp/pp.html" 'data-mapa-arquivo'
 
 echo "Confirmar entrega"
 enviar "$mj" "$e/999999/entregue" "$e" >/dev/null

@@ -9,6 +9,7 @@ use Cardapim\Core\Response;
 use Cardapim\Core\View;
 use Cardapim\Repositories\RestauranteRepository;
 use Cardapim\Services\Cardapio\CardapioPublico;
+use Cardapim\Services\Geo\MapaBase;
 use Cardapim\Shared\RestauranteLogo;
 use Cardapim\Services\Seo\Seo;
 use Cardapim\Shared\Slug;
@@ -126,7 +127,8 @@ final class RestauranteController
             'telefone' => $telefone,
             'voltar' => ['/' . $restaurante['slug'], 'Voltar ao cardápio'],
             'topoFixo' => true,
-            'pageScripts' => ['vendor/qrcode-generator/qrcode.js', 'vendor/leaflet/leaflet.js', 'js/acompanhar.js'],
+            'mapaArquivo' => MapaBase::url(),
+            'pageScripts' => ['vendor/qrcode-generator/qrcode.js', 'vendor/leaflet/leaflet.js', 'vendor/protomaps-leaflet/protomaps-leaflet.js', 'js/mapa-base.js', 'js/acompanhar.js'],
             'pageStyles' => ['vendor/leaflet/leaflet.css', 'css/checkout.css'],
         ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-store']);
     }

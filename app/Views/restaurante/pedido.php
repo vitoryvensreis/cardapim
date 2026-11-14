@@ -46,7 +46,7 @@ $whats = strlen((string) $tel) >= 10 ? 'https://wa.me/55' . $tel : '';
                     <p data-ap-mapa-texto>Procurando o entregador no mapa...</p>
                 </div>
             </div>
-            <div class="ap-mapa" data-ap-mapa-area role="img" aria-label="Mapa com o entregador e o endereço de entrega" hidden></div>
+            <div class="ap-mapa" data-ap-mapa-area<?php if (!empty($mapaArquivo)): ?> data-mapa-arquivo="<?= $e((string) $mapaArquivo) ?>"<?php endif; ?> role="img" aria-label="Mapa com o entregador e o endereço de entrega" hidden></div>
             <p class="ap-mapa-atualizado" data-ap-mapa-atualizado></p>
         </section>
 

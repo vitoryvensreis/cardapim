@@ -1,7 +1,8 @@
 # Painel do entregador e rastreio ao vivo
 
 Tela `/{slug}/entregas` para o motoqueiro (feita para o celular) e mapa ao vivo na pagina do pedido do cliente,
-no estilo dos apps de corrida. Sem API paga: mapa OpenStreetMap com Leaflet (BSD-2, em `public/assets/vendor/leaflet/`).
+no estilo dos apps de corrida. Sem API paga: Leaflet (BSD-2, em `public/assets/vendor/leaflet/`) com o mapa proprio do
+Cardapim (PMTiles na VPS, ver `docs/architecture/mapa.md`) e o OpenStreetMap publico como reserva.
 
 ## Rotas
 
@@ -57,8 +58,9 @@ Rastreio: 401 sem login, 404 pedido de outro cliente.
   ja aparece com a casa e o restaurante.
 - Pedido sem coordenada (area por bairro): `DestinoEntrega::garantir` busca a casa uma vez no despacho (Nominatim pela
   rua ou centro do CEP pela BrasilAPI, com cache) e grava no pedido; o rastreio tenta de novo se faltou.
-- Tiles de `tile.openstreetmap.org` com atribuicao "© OpenStreetMap" (politica de uso do OSM: uso moderado, sem
-  pre-carregar areas). Com muito volume, trocar por um provedor de tiles proprio ou pago sem mudar o codigo.
+- Ruas: mapa proprio (`public/mapas/ceara.pmtiles`, desenhado no aparelho) quando cobre os pontos; senao tiles de
+  `tile.openstreetmap.org` com "© OpenStreetMap" (uso moderado; ja bloquearam o site por volume). Escolha em
+  `public/assets/js/mapa-base.js`; detalhes em `docs/architecture/mapa.md`.
 
 ## Etapas para o cliente
 

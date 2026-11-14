@@ -36,7 +36,7 @@
 ## Painel do entregador e rastreio ao vivo
 
 - `/{slug}/entregas` (motoqueiro, no celular): entregas **com você agora** (cliente, endereço, quanto receber e troco, itens, rota no Google Maps ou Waze, ligar, WhatsApp e botão **Entreguei**), **feitas hoje** e resumo de hoje e 7 dias com as taxas.
-- **Compartilhar localização** com um toque: o cliente vê o entregador chegando no mapa (OpenStreetMap + Leaflet, sem API paga), com distância e tempo estimado; o caixa também vê no pedido.
+- **Compartilhar localização** com um toque: o cliente vê o entregador chegando no mapa (mapa próprio do Ceará servido pela VPS, com OpenStreetMap de reserva; sem API paga, ver [mapa](docs/architecture/mapa.md)), com distância e tempo estimado; o caixa também vê no pedido.
 - Privacidade: só a última posição é guardada, só o cliente daquele pedido vê, só enquanto está "Saiu para entrega", e a posição é apagada quando para de compartilhar ou termina as entregas.
 - O cliente também vê a etapa **Pronto** na linha do tempo do pedido.
 - [Arquitetura, regras e rotas](docs/architecture/entregas.md).

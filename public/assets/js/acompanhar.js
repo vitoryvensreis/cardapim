@@ -200,7 +200,7 @@
     proxima = window.setTimeout(carregar, 8000);
   };
 
-  /* ---------- Entregador no mapa (Leaflet + OpenStreetMap), so enquanto o pedido saiu para entrega ---------- */
+  /* ---------- Entregador no mapa (Leaflet + mapa-base.js), so enquanto o pedido saiu para entrega ---------- */
   let rastreioTempo = 0;
   let mapa = null;
   const marcadores = {};
@@ -220,15 +220,13 @@
       marcadores[chave] = window.L.marker(ll, { icon: marcador(classe, nome), title: titulo, keyboard: false }).addTo(mapa);
     }
   };
-  const garantirMapa = (area) => {
-    if (!window.L) return false; // sem a biblioteca do mapa: fica so o texto
+  // Ruas: mapa proprio do Cardapim quando cobre esses pontos; senao OpenStreetMap (mapa-base.js).
+  const garantirMapa = (area, pontos) => {
+    if (!window.L || !window.CardapimMapa) return false; // sem a biblioteca do mapa: fica so o texto
     area.hidden = false;
     if (!mapa) {
       mapa = window.L.map(area, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
-      window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(mapa);
+      window.CardapimMapa.base(mapa, area.dataset.mapaArquivo || "", pontos);
     }
     return true;
   };
@@ -250,7 +248,7 @@
       atualizado.textContent = "";
       atualizado.classList.remove("is-antiga");
       const fixos = [r.destino, r.restaurante].filter(Boolean);
-      if (fixos.length === 0 || !garantirMapa(area)) {
+      if (fixos.length === 0 || !garantirMapa(area, fixos)) {
         area.hidden = true;
         return;
       }
@@ -270,7 +268,7 @@
       ? "Localização ao vivo"
       : `Última localização há ${minutos(ent.atualizado_ha)} min. O sinal do entregador pode ter caído; a moto se move quando voltar.`;
     atualizado.classList.toggle("is-antiga", !aoVivo);
-    if (!garantirMapa(area)) return;
+    if (!garantirMapa(area, [r.restaurante, r.destino, ent])) return;
     colocar("restaurante", r.restaurante, "ap-marcador-loja", "store", "Restaurante");
     colocar("destino", r.destino, "ap-marcador-casa", "house", "Seu endereço");
     colocar("moto", ent, "ap-marcador-moto", "bike", ent.nome);
