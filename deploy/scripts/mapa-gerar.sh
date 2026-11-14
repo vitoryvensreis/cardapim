@@ -11,7 +11,10 @@ bbox="-41.75,-8.20,-36.90,-2.45"
 zoom_max=15
 arquivo="$saida/ceara.pmtiles"
 
-command -v pmtiles >/dev/null || { echo "pmtiles nao instalado"; exit 1; }
+# O release oficial chama o programa de "pmtiles"; o go install, de "go-pmtiles".
+pmtiles="$(command -v pmtiles || command -v go-pmtiles || true)"
+[[ -n "$pmtiles" ]] || { echo "pmtiles nao instalado"; exit 1; }
+"$pmtiles" version || true
 mkdir -p "$saida"
 
 # Build mais recente disponivel (sai um por dia; procura ate 14 dias para tras).
@@ -26,9 +29,9 @@ done
 [[ -n "$origem" ]] || { echo "Nenhum build do Protomaps encontrado nos ultimos 14 dias"; exit 1; }
 echo "Origem: $origem"
 
-pmtiles extract "$origem" "$arquivo" --bbox="$bbox" --maxzoom="$zoom_max" --download-threads=4
-pmtiles verify "$arquivo"
-pmtiles show "$arquivo" | tee "$saida/ceara.txt"
+"$pmtiles" extract "$origem" "$arquivo" --bbox="$bbox" --maxzoom="$zoom_max" --download-threads=4
+"$pmtiles" verify "$arquivo"
+"$pmtiles" show "$arquivo" | tee "$saida/ceara.txt"
 grep -qi 'tile type: *mvt\|tile type: *vector' "$saida/ceara.txt" || { echo "Arquivo nao e de vetores (MVT)"; exit 1; }
 
 tamanho="$(stat -c %s "$arquivo")"
