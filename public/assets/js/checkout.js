@@ -36,11 +36,20 @@
     toastTempo = window.setTimeout(() => { toast.classList.add("is-saindo"); window.setTimeout(() => { toast.hidden = true; }, 200); }, 2800);
   });
 
+  /* Venda por peso: linha com porcao em milesimos (500 = 500 g); mesma conta do servidor. */
+  const textoPeso = (m, unidade) => (m < 1000
+    ? `${m} ${unidade === "l" ? "ml" : "g"}`
+    : `${Math.floor(m / 1000)},${String(m % 1000).padStart(3, "0")} ${unidade === "l" ? "L" : "kg"}`);
+  const valorLinha = (i) => (i.porcao ? Math.floor((i.centavos * i.qtd * i.porcao + 500) / 1000) : i.centavos * i.qtd);
+  const textoLinha = (i) => (i.porcao ? textoPeso(i.qtd * i.porcao, i.unidade) : `${i.qtd}x`);
+  const paraApi = (i) => ({ id: i.id, quantidade: i.qtd, porcao: i.porcao || null });
+
   /* ---------- Sacola (do aparelho) ---------- */
   const lerSacola = () => {
     const d = lerJson(CHAVE_SACOLA);
     if (!d || !Array.isArray(d.itens) || Date.now() - (d.salvo || 0) > 2 * 24 * 3600 * 1000) return [];
-    return d.itens.filter((i) => Number.isInteger(i.id) && Number.isInteger(i.qtd) && i.qtd > 0).slice(0, 50);
+    return d.itens.filter((i) => Number.isInteger(i.id) && Number.isInteger(i.qtd) && i.qtd > 0
+      && (i.porcao === undefined || i.porcao === null || (Number.isInteger(i.porcao) && i.porcao > 0))).slice(0, 50);
   };
   let sacola = lerSacola();
   const mostrarVazio = () => {
@@ -79,7 +88,7 @@
 
   /* ---------- Resumo ---------- */
   const elItens = $("[data-ck-itens]");
-  const subtotal = () => sacola.reduce((t, i) => t + (i.indisponivel ? 0 : i.qtd * i.centavos), 0);
+  const subtotal = () => sacola.reduce((t, i) => t + (i.indisponivel ? 0 : valorLinha(i)), 0);
   const taxa = () => (estado.tipo === "entrega" && estado.entrega?.entrega ? estado.entrega.taxa_centavos : 0);
   const temItens = () => sacola.some((i) => !i.indisponivel);
   const descontoAtual = () => (temItens() ? Math.min(estado.desconto.centavos || 0, subtotal()) : 0);
@@ -92,7 +101,7 @@
       if (i.indisponivel) li.className = "is-indisponivel";
       const qtd = document.createElement("span");
       qtd.className = "ck-item-qtd";
-      qtd.textContent = `${i.qtd}x`;
+      qtd.textContent = textoLinha(i);
       const nome = document.createElement("span");
       nome.className = "ck-item-nome";
       nome.textContent = i.nome;
@@ -103,7 +112,7 @@
       }
       const preco = document.createElement("span");
       preco.className = "ck-item-preco";
-      preco.textContent = reais(i.qtd * i.centavos);
+      preco.textContent = reais(valorLinha(i));
       li.append(qtd, nome, preco);
       if (i.indisponivel) {
         const alerta = document.createElement("small");
@@ -202,7 +211,7 @@
     const codigo = tentativa !== undefined ? tentativa : estado.cupom;
     const meu = ++pedidoDesconto;
     const r = await Cliente.api(`/api/v1/restaurantes/${encodeURIComponent(slug)}/desconto`, {
-      itens: sacola.filter((i) => !i.indisponivel).map((i) => ({ id: i.id, quantidade: i.qtd })),
+      itens: sacola.filter((i) => !i.indisponivel).map(paraApi),
       ...(codigo ? { cupom: codigo } : {}),
     });
     if (meu !== pedidoDesconto) return false;
@@ -522,7 +531,7 @@
       chave: chaveIdempotencia(),
       tipo: estado.tipo,
       forma_pagamento: estado.forma,
-      itens: sacola.map((i) => ({ id: i.id, quantidade: i.qtd, observacao: i.obs || "" })),
+      itens: sacola.map((i) => ({ ...paraApi(i), observacao: i.obs || "" })),
       observacao: $("#ck-obs").value.trim(),
       ...(estado.tipo === "entrega" ? { endereco: endereco() } : {}),
       ...(estado.forma === "dinheiro" && precisaTroco.checked ? { troco_para: campoTroco.value } : {}),
@@ -602,15 +611,18 @@
   else if (formas.includes(escolhas.forma)) escolherForma(escolhas.forma);
 
   // Precos e disponibilidade de agora.
-  Cliente.api(`/api/v1/restaurantes/${encodeURIComponent(slug)}/sacola`, { itens: sacola.map((i) => ({ id: i.id, quantidade: i.qtd })) }).then((r) => {
+  Cliente.api(`/api/v1/restaurantes/${encodeURIComponent(slug)}/sacola`, { itens: sacola.map(paraApi) }).then((r) => {
     if (!Array.isArray(r.itens)) return;
     const porId = new Map(r.itens.map((i) => [i.id, i]));
     let mudou = false;
     sacola = sacola.filter((i) => {
       const s = porId.get(i.id);
       if (!s) { mudou = true; return false; }
+      const porcoes = Array.isArray(s.porcoes) ? s.porcoes : [];
+      if ((i.porcao && !porcoes.includes(i.porcao)) || (!i.porcao && s.unidade && s.unidade !== "un")) { mudou = true; return false; }
       if (s.centavos !== i.centavos) mudou = true;
       i.centavos = s.centavos;
+      i.unidade = s.unidade || "un";
       i.nome = s.nome;
       i.indisponivel = !s.disponivel;
       return true;

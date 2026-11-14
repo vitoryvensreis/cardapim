@@ -315,3 +315,11 @@ output.passo-num { display: grid; place-items: center; }
 @media (prefers-reduced-motion: reduce) {
   .gc-folha-caixa, .gc-paga-icone, .pix-girando, .passo-btn, .garcom-vazio-acao { animation: none !important; transition: none !important; }
 }
+
+/* Venda por peso: campo do peso no cardapio da comanda */
+.passo-peso { display: inline-flex; align-items: center; gap: .35rem; flex: 0 0 auto; }
+.passo-peso input { width: 6.5rem; min-height: 44px; padding: 0 .6rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); color: var(--c-ink); font: inherit; font-size: 1.1rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.passo-peso input:focus { outline: 3px solid var(--c-orange); outline-offset: 1px; }
+.passo-peso input[aria-invalid="true"] { border-color: var(--c-danger); }
+.passo-peso span { color: var(--c-muted); font-weight: 700; }
+.comanda-item-qtd { padding: 0 .4rem; white-space: nowrap; }

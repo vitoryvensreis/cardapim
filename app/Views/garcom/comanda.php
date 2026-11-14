@@ -6,13 +6,14 @@
  */
 use Cardapim\Controllers\GarcomController;
 use Cardapim\Core\Icon;
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Shared\Numero;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $p = $c['pedido'];
 $url = $base . '/comandas/' . (int) $p['id'];
 $itens = array_values(array_filter($c['itens'], static fn (array $i): bool => $i['cancelado_em'] === null));
-$qtd = array_sum(array_map(static fn (array $i): int => (int) $i['quantidade'], $itens));
+$qtd = array_sum(array_map(static fn (array $i): int => QuantidadeVenda::contaItens(QuantidadeVenda::doBanco($i['quantidade']), (string) ($i['unidade'] ?? 'un')), $itens));
 $min = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em'])) / 60));
 $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) ($min % 60), 2, '0', STR_PAD_LEFT);
 ?>
@@ -41,7 +42,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
         <ul class="comanda-itens">
             <?php foreach ($itens as $i): ?>
                 <li class="comanda-item">
-                    <span class="comanda-item-qtd"><?= (int) $i['quantidade'] ?>x</span>
+                    <span class="comanda-item-qtd"><?= $e(QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?></span>
                     <div class="comanda-item-texto">
                         <strong><?= $e((string) $i['nome']) ?></strong>
                         <?php if ($i['observacao']): ?><span class="comanda-item-obs"><?= Icon::svg('sticky-note', 'icon-sm') ?><?= $e((string) $i['observacao']) ?></span><?php endif; ?>
@@ -120,13 +121,26 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                     <h3><?= $e($cat['nome']) ?></h3>
                     <ul class="produtos-lista">
                         <?php foreach ($cat['produtos'] as $p): ?>
-                            <li class="produto-linha<?= $p['disponivel'] ? '' : ' is-indisponivel' ?>" data-produto data-nome="<?= $e($p['nome']) ?>" data-preco="<?= (int) $p['centavos'] ?>">
+                            <?php $porPeso = QuantidadeVenda::porPeso((string) ($p['unidade'] ?? 'un')); ?>
+                            <li class="produto-linha<?= $p['disponivel'] ? '' : ' is-indisponivel' ?><?= $porPeso ? ' is-peso' : '' ?>" data-produto data-nome="<?= $e($p['nome']) ?>" data-preco="<?= (int) $p['centavos'] ?>" data-minimo="<?= (int) ($p['minimo'] ?? 0) ?>">
                                 <div class="produto-linha-texto">
                                     <strong><?= $e($p['nome']) ?></strong>
                                     <span class="produto-linha-preco"><?= $e($p['preco']) ?></span>
                                     <?php require __DIR__ . '/_estado-produto.php'; ?>
                                 </div>
-                                <?php if ($p['disponivel']): ?>
+                                <?php if ($p['disponivel'] && $porPeso): ?>
+                                    <?php // Por quilo/litro: digita os numeros da balanca (8 4 6 -> 0,846). Vazio = nao lanca. ?>
+                                    <label class="passo-peso">
+                                        <span class="sr-only"><?= $p['unidade'] === 'l' ? 'Volume em litros' : 'Peso em quilos' ?> de <?= $e($p['nome']) ?></span>
+                                        <input type="text" name="qtd[<?= (int) $p['id'] ?>]" inputmode="numeric" autocomplete="off" placeholder="0,000" data-mask="peso" data-peso>
+                                        <span aria-hidden="true"><?= $p['unidade'] === 'l' ? 'L' : 'kg' ?></span>
+                                    </label>
+                                    <div class="produto-obs" data-obs hidden>
+                                        <label><?= Icon::svg('sticky-note', 'icon-sm') ?><span class="sr-only">Observação para <?= $e($p['nome']) ?></span>
+                                            <input type="text" name="obs[<?= (int) $p['id'] ?>]" maxlength="140" placeholder="Observação (ex.: ao ponto)" autocomplete="off">
+                                        </label>
+                                    </div>
+                                <?php elseif ($p['disponivel']): ?>
                                     <div class="passo" data-passo>
                                         <button type="button" class="passo-btn" data-menos aria-label="Tirar um <?= $e($p['nome']) ?>" hidden><?= Icon::svg('minus') ?></button>
                                         <input class="passo-num" type="number" name="qtd[<?= (int) $p['id'] ?>]" value="0" min="0" max="<?= $p['porcoes'] !== null ? min(99, (int) $p['porcoes']) : 99 ?>" inputmode="numeric" aria-label="Quantidade de <?= $e($p['nome']) ?>" data-qtd>

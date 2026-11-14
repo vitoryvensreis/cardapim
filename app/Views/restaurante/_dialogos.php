@@ -15,6 +15,10 @@ use Cardapim\Core\Icon;
             <h2 id="produto-nome" data-produto-nome></h2>
             <p class="cd-folha-desc" data-produto-desc></p>
             <p class="cd-folha-preco" data-produto-preco></p>
+            <fieldset class="cd-porcoes" data-produto-porcoes hidden>
+                <legend>Escolha a porção</legend>
+                <div class="cd-porcoes-opcoes" data-porcoes-opcoes></div>
+            </fieldset>
             <label class="cd-obs">
                 <span><?= Icon::svg('pencil', 'icon-sm') ?>Alguma observação? <small>(opcional)</small></span>
                 <textarea name="obs" rows="2" maxlength="140" placeholder="Ex.: sem cebola, ponto da carne, pouco gelo" data-produto-obs></textarea>

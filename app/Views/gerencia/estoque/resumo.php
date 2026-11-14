@@ -144,7 +144,7 @@ $vazio = $analise['totalInsumos'] === 0 && $analise['totalProdutos'] === 0;
                                     <strong><?= $e((string) $p['nome']) ?></strong>
                                     <small><?= $e((string) ($p['categoria'] ?? 'Sem categoria')) ?></small>
                                 </span>
-                                <span class="etiqueta etiqueta-atencao">Dá para vender mais <?= (int) $p['porcoes'] ?></span>
+                                <span class="etiqueta etiqueta-atencao">Dá para vender mais <?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::quanto((int) ($p['restante'] ?? (int) $p['porcoes'] * 1000), (string) ($p['unidade'] ?? 'un'))) ?></span>
                             </li>
                         <?php endforeach; ?>
                     </ul>

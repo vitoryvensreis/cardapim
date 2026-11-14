@@ -64,7 +64,7 @@ $filtros = ['todos' => 'Todos', 'a-venda' => 'À venda', 'indisponiveis' => 'For
                                 <small><?= $e($categoria) ?><?= $p['codigo'] ? ' · Cód. ' . $e((string) $p['codigo']) : '' ?></small>
                             </span>
                         </div>
-                        <span class="lista-dado" data-rotulo="Preço"><?= $e(Numero::reais((string) $p['preco'])) ?></span>
+                        <span class="lista-dado" data-rotulo="Preço"><?= $e(Numero::reais((string) $p['preco']) . \Cardapim\Modules\Inventory\QuantidadeVenda::sufixoPreco((string) ($p['unidade_venda'] ?? 'un'))) ?></span>
                         <span class="lista-dado" data-rotulo="Situação">
                             <?php if ($d['disponivel']): ?>
                                 <span class="etiqueta etiqueta-ok"><?= Icon::svg('check') ?>À venda</span>
@@ -78,7 +78,7 @@ $filtros = ['todos' => 'Todos', 'a-venda' => 'À venda', 'indisponiveis' => 'For
                             <?php elseif (!$d['disponivel'] && !$pausado): ?>
                                 <span class="texto-alerta"><?= $e(AnaliseEstoque::motivoTexto($d)) ?></span>
                             <?php else: ?>
-                                Dá para vender <?= (int) $d['porcoes'] ?>
+                                Dá para vender <?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::quanto((int) ($d['restante'] ?? (int) $d['porcoes'] * 1000), (string) ($d['unidade'] ?? 'un'))) ?>
                             <?php endif; ?>
                         </span>
                         <div class="lista-acoes">

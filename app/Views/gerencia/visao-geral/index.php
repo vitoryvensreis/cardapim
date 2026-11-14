@@ -193,7 +193,7 @@ $semVendasSemana = array_sum(array_column($vg['semana'], 'total')) === 0;
                     <?php foreach ($vg['maisVendidos'] as $pos => $mv): ?>
                         <li>
                             <span class="vg-posicao" aria-hidden="true"><?= $pos + 1 ?></span>
-                            <span class="vg-ranking-nome"><?= $e($mv['nome']) ?><small><?= (int) $mv['quantidade'] ?> vendido<?= $mv['quantidade'] === 1 ? '' : 's' ?> · <?= $e($reais($mv['total'])) ?></small></span>
+                            <span class="vg-ranking-nome"><?= $e($mv['nome']) ?><small><?= $e($mv['texto']) ?> · <?= $e($reais($mv['total'])) ?></small></span>
                             <progress max="<?= $maiorQtd ?>" value="<?= (int) $mv['quantidade'] ?>" aria-hidden="true"></progress>
                         </li>
                     <?php endforeach; ?>

@@ -92,7 +92,7 @@ $minutos = static function (?string $desde): string {
                         <?php if (!empty($p['observacao'])): ?><p class="entrega-obs"><?= Icon::svg('pencil', 'icon-sm') ?><?= $e((string) $p['observacao']) ?></p><?php endif; ?>
                         <details class="entrega-itens">
                             <summary><?= count($p['itens']) ?> <?= count($p['itens']) === 1 ? 'item' : 'itens' ?> no pedido</summary>
-                            <ul><?php foreach ($p['itens'] as $i): ?><li><?= (int) $i['quantidade'] ?>x <?= $e((string) $i['nome']) ?><?= $i['observacao'] ? ' (' . $e((string) $i['observacao']) . ')' : '' ?></li><?php endforeach; ?></ul>
+                            <ul><?php foreach ($p['itens'] as $i): ?><li><?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?> <?= $e((string) $i['nome']) ?><?= $i['observacao'] ? ' (' . $e((string) $i['observacao']) . ')' : '' ?></li><?php endforeach; ?></ul>
                         </details>
 
                         <div class="entrega-acoes">

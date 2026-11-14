@@ -7,6 +7,7 @@ namespace Cardapim\Services\Pedidos;
 use Cardapim\Core\RateLimiter;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Inventory\BaixaEstoque;
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
 use Cardapim\Modules\Inventory\EstoqueInsuficiente;
 use Cardapim\Realtime\TempoReal;
@@ -74,41 +75,31 @@ final class CriarPedido
             return self::erro(409, 'O restaurante está fechado agora. Confira o horário de funcionamento.');
         }
 
-        // Itens: precos e disponibilidade de agora.
-        $linhas = [];
-        foreach (array_slice(is_array($e['itens'] ?? null) ? $e['itens'] : [], 0, self::MAX_LINHAS + 1) as $item) {
-            $id = is_array($item) ? ($item['id'] ?? null) : null;
-            $qtd = is_array($item) ? ($item['quantidade'] ?? null) : null;
-            if (!is_int($id) || $id <= 0 || !is_int($qtd) || $qtd < 1 || $qtd > 99) {
-                return self::erro(422, 'Confira os itens da sacola.');
-            }
-            $obs = is_string($item['observacao'] ?? null) ? mb_substr(trim((string) preg_replace('/\s+/u', ' ', $item['observacao'])), 0, 140) : '';
-            $linhas[] = ['id' => $id, 'quantidade' => $qtd, 'observacao' => $obs];
+        // Itens: precos, porcoes e disponibilidade de agora.
+        $formato = LinhasSacola::formato($e['itens'] ?? null, self::MAX_LINHAS);
+        if ($formato === null) {
+            return self::erro(422, 'Confira os itens da sacola.');
         }
-        if ($linhas === [] || count($linhas) > self::MAX_LINHAS) {
-            return self::erro(422, $linhas === [] ? 'Sua sacola está vazia.' : 'Pedido grande demais. Fale com o restaurante.');
+        if ($formato === [] || count($formato) > self::MAX_LINHAS) {
+            return self::erro(422, $formato === [] ? 'Sua sacola está vazia.' : 'Pedido grande demais. Fale com o restaurante.');
         }
-        $ids = array_values(array_unique(array_column($linhas, 'id')));
-        $q = $this->db->prepare('SELECT id, nome, preco FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
-        $q->execute([$idRest, ...$ids]);
-        $produtos = [];
-        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
-            $produtos[(int) $p['id']] = $p;
+        $ids = array_values(array_unique(array_column($formato, 'id')));
+        $completas = LinhasSacola::completar($this->db, $idRest, $formato);
+        if ($completas['invalida']) {
+            return self::erro(409, 'O restaurante mudou as porções de algum item. Confira a sacola.');
         }
         $disp = (new DisponibilidadeProdutos($this->db))->verificar($idRest, $ids);
-        $indisponiveis = array_values(array_filter($ids, static fn (int $id): bool => !isset($produtos[$id]) || !($disp[$id]['disponivel'] ?? false)));
+        $indisponiveis = array_values(array_filter($ids, static fn (int $id): bool => in_array($id, $completas['ausentes'], true) || !($disp[$id]['disponivel'] ?? false)));
         if ($indisponiveis !== []) {
             return self::erro(409, 'Alguns itens acabaram. Confira a sacola.') + ['indisponiveis' => $indisponiveis];
         }
+        $linhas = $completas['linhas'];
         $subtotal = 0;
         $quantidades = [];
-        foreach ($linhas as &$l) {
-            $l['nome'] = (string) $produtos[$l['id']]['nome'];
-            $l['centavos'] = Numero::centavos((string) $produtos[$l['id']]['preco']);
-            $subtotal += $l['centavos'] * $l['quantidade'];
-            $quantidades[$l['id']] = ($quantidades[$l['id']] ?? 0) + $l['quantidade'];
+        foreach ($linhas as $l) {
+            $subtotal += $l['total'];
+            $quantidades[$l['id']] = ($quantidades[$l['id']] ?? 0) + $l['milesimos'];
         }
-        unset($l);
 
         // Entrega: endereco, area e taxa (sempre recalculados aqui).
         $endereco = null;
@@ -201,13 +192,13 @@ final class CriarPedido
                 throw new \RuntimeException('Pedido nao gravado.');
             }
             $idPedido = (int) $pedido['id'];
-            $insItem = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, observacao, total, criado_em)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $insItem = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             foreach ($linhas as $l) {
-                $insItem->execute([$idPedido, $idRest, $l['id'], $l['nome'], self::dec($l['centavos']), $l['quantidade'], $l['observacao'] !== '' ? $l['observacao'] : null,
-                    self::dec($l['centavos'] * $l['quantidade']), $agora]);
+                $insItem->execute([$idPedido, $idRest, $l['id'], $l['nome'], self::dec($l['centavos']), QuantidadeVenda::paraBanco($l['milesimos']), $l['unidade'],
+                    $l['observacao'] !== '' ? $l['observacao'] : null, self::dec($l['total']), $agora]);
             }
-            $consumo = (new BaixaEstoque($this->db))->baixar($idRest, $quantidades);
+            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($idRest, $quantidades);
             if ($consumo !== []) {
                 $this->db->prepare('UPDATE pedidos SET consumo_estoque = ? WHERE id = ? AND id_restaurante = ?')
                     ->execute([json_encode($consumo, JSON_THROW_ON_ERROR), $idPedido, $idRest]);

@@ -18,6 +18,11 @@ foreach ($categorias as $c) {
 }
 $opcoesCategoria[ProdutoService::CATEGORIA_NOVA] = '+ Criar nova categoria';
 $controle = $v('controle') === 'livre' ? 'livre' : 'estoque';
+$unidadeVenda = in_array($v('unidade_venda'), ['kg', 'l'], true) ? $v('unidade_venda') : 'un';
+$porPeso = $unidadeVenda !== 'un';
+$porcoesValores = array_values(array_filter(is_array($valores['porcoes'] ?? null) ? $valores['porcoes'] : [], 'is_string'));
+$porcoesValores = array_pad(array_slice($porcoesValores, 0, ProdutoService::MAX_PORCOES), ProdutoService::MAX_PORCOES, '');
+$nomeUnidade = ['un' => '1 unidade', 'kg' => '1 kg vendido', 'l' => '1 litro vendido'][$unidadeVenda];
 $fichaInsumos = is_array($valores['ficha_insumo'] ?? null) ? $valores['ficha_insumo'] : [];
 $fichaQtds = is_array($valores['ficha_quantidade'] ?? null) ? $valores['ficha_quantidade'] : [];
 if ($fichaInsumos === []) {
@@ -61,8 +66,18 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
             <div class="form-grade">
                 <?= Campo::texto(['nome' => 'nome', 'rotulo' => 'Nome do produto', 'valor' => $v('nome'), 'icone' => 'utensils-crossed', 'erro' => $erros['nome'] ?? null, 'classe' => 'col-inteira',
                     'dica' => 'Como aparece no cardápio. Exemplo: X-Burger', 'attrs' => ['maxlength' => 150, 'data-validate' => 'required', 'autocomplete' => 'off']]) ?>
-                <?= Campo::texto(['nome' => 'preco', 'rotulo' => 'Preço de venda', 'valor' => $v('preco'), 'icone' => 'banknote', 'erro' => $erros['preco'] ?? null,
-                    'dica' => 'Exemplo: 24,90', 'attrs' => ['inputmode' => 'numeric', 'data-mask' => 'money', 'data-validate' => 'required', 'autocomplete' => 'off', 'placeholder' => '0,00', 'data-preco']]) ?>
+                <fieldset class="opcoes-modo opcoes-unidade col-inteira" id="campo-unidade_venda">
+                    <legend>Como você vende</legend>
+                    <?php foreach (ProdutoService::UNIDADES_VENDA as $valorUnidade => $rotuloUnidade): ?>
+                        <label class="opcao-modo">
+                            <input type="radio" name="unidade_venda" value="<?= $e($valorUnidade) ?>"<?= $unidadeVenda === $valorUnidade ? ' checked' : '' ?> data-unidade-venda>
+                            <span><strong><?= $e($rotuloUnidade) ?></strong><small><?= $e(['un' => 'Cada venda é 1, 2, 3... (lanche, lata, porção).', 'kg' => 'O preço é o do quilo; no caixa digita o peso (ex.: 0,846 kg).', 'l' => 'O preço é o do litro; no caixa digita o volume (ex.: 0,350 L).'][$valorUnidade]) ?></small></span>
+                        </label>
+                    <?php endforeach; ?>
+                </fieldset>
+                <?= Campo::texto(['nome' => 'preco', 'rotulo' => ['un' => 'Preço de venda', 'kg' => 'Preço do quilo', 'l' => 'Preço do litro'][$unidadeVenda], 'valor' => $v('preco'), 'icone' => 'banknote', 'erro' => $erros['preco'] ?? null,
+                    'dica' => $porPeso ? 'Exemplo: 59,90 o ' . ($unidadeVenda === 'kg' ? 'quilo' : 'litro') : 'Exemplo: 24,90', 'id' => 'campo-preco',
+                    'attrs' => ['inputmode' => 'numeric', 'data-mask' => 'money', 'data-validate' => 'required', 'autocomplete' => 'off', 'placeholder' => '0,00', 'data-preco']]) ?>
                 <?= Campo::selecao(['nome' => 'categoria', 'rotulo' => 'Categoria', 'valor' => $v('categoria'), 'icone' => 'tags', 'erro' => $erros['categoria'] ?? null, 'opcional' => true,
                     'vazio' => 'Sem categoria', 'dica' => 'Agrupa os produtos no cardápio (Lanches, Bebidas...).', 'attrs' => ['data-categoria']], $opcoesCategoria) ?>
                 <div class="col-inteira" data-nova-categoria<?= $v('categoria') === ProdutoService::CATEGORIA_NOVA ? '' : ' hidden' ?>>
@@ -75,6 +90,32 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                     'dica' => 'Para achar rápido no caixa. Exemplo: 101', 'attrs' => ['maxlength' => 40, 'autocomplete' => 'off']]) ?>
             </div>
             <?= Campo::alternador('disponivel', 'Disponível para venda', 'Desligue para pausar o produto sem apagar nada.', $v('disponivel') === '1') ?>
+        </section>
+
+        <section class="bloco" aria-labelledby="titulo-peso" data-bloco-peso<?= $porPeso ? '' : ' hidden' ?>>
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-peso"><?= Icon::svg('scale') ?><span>Venda por <span data-nome-unidade><?= $unidadeVenda === 'l' ? 'litro' : 'quilo' ?></span></span></h2>
+                <p>No caixa e no garçom a equipe digita o peso da balança. No cardápio online o cliente escolhe uma das porções abaixo.</p>
+            </div>
+            <div class="form-grade">
+                <?= Campo::texto(['nome' => 'venda_minima', 'rotulo' => 'Quantidade mínima por venda', 'valor' => $v('venda_minima'), 'icone' => 'scale', 'erro' => $erros['venda_minima'] ?? null, 'opcional' => true,
+                    'dica' => 'Evita lançar um peso pequeno por engano. Exemplo: 0,100 (100 gramas).', 'attrs' => ['inputmode' => 'numeric', 'data-mask' => 'peso', 'autocomplete' => 'off', 'placeholder' => '0,000']]) ?>
+            </div>
+            <fieldset class="porcoes" id="campo-porcoes">
+                <legend>Porções do cardápio online <span class="field-optional">(opcional)</span></legend>
+                <p class="ficha-ajuda">Sem porção, o produto só é vendido no caixa e no garçom. Exemplo: 0,250 · 0,500 · 1,000. O preço de cada uma sai do preço do <span data-nome-unidade><?= $unidadeVenda === 'l' ? 'litro' : 'quilo' ?></span>.</p>
+                <?php if (isset($erros['porcoes'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['porcoes']) ?></p><?php endif; ?>
+                <div class="porcoes-grade">
+                    <?php foreach ($porcoesValores as $i => $porcao): ?>
+                        <label class="porcao-campo">
+                            <span class="sr-only">Porção <?= $i + 1 ?></span>
+                            <input name="porcoes[]" value="<?= $e($porcao) ?>" inputmode="numeric" autocomplete="off" placeholder="0,000" data-mask="peso" data-porcao>
+                            <span class="porcao-sigla" data-sigla-unidade><?= $unidadeVenda === 'l' ? 'L' : 'kg' ?></span>
+                            <small class="porcao-preco" data-porcao-preco aria-live="polite"></small>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </fieldset>
         </section>
 
         <section class="bloco" aria-labelledby="titulo-estoque">
@@ -95,7 +136,7 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
             </fieldset>
 
             <div class="ficha-area" data-ficha-area<?= $controle === 'livre' ? ' hidden' : '' ?>>
-                <h3 class="ficha-titulo" id="campo-ficha">Ficha técnica: o que vai em <strong>1 unidade</strong> do produto</h3>
+                <h3 class="ficha-titulo" id="campo-ficha">Ficha técnica: o que vai em <strong data-ficha-unidade-venda><?= $e($nomeUnidade) ?></strong> do produto</h3>
                 <?php if ($insumos === []): ?>
                     <div class="notice notice-info">
                         <?= Icon::svg('info') ?>

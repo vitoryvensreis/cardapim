@@ -290,3 +290,4 @@
 .ck-cupom-ok .ck-link { margin-left: auto; }
 .ck-cupom-msg { display: block; margin-top: .4rem; color: var(--c-danger); font-size: .85rem; font-weight: 600; }
 .ck-cupom-msg.is-info { color: var(--c-muted); font-weight: 500; }
+.ck-item-qtd { white-space: nowrap; }

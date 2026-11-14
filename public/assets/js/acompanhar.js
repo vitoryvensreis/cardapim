@@ -132,7 +132,7 @@
       const li = document.createElement("li");
       const q = document.createElement("span");
       q.className = "ck-item-qtd";
-      q.textContent = `${i.quantidade}x`;
+      q.textContent = i.quantidade_texto || `${i.quantidade}x`;
       const n = document.createElement("span");
       n.className = "ck-item-nome";
       n.textContent = i.nome;

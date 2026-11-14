@@ -92,7 +92,7 @@ final class AnaliseEstoque
             if (!$d['disponivel']) {
                 $indisponiveis[] = $produto + ['motivoTexto' => self::motivoTexto($d), 'motivo' => $d['motivo']];
             } elseif ($d['porcoes'] !== null && $d['porcoes'] <= self::PORCOES_ALERTA) {
-                $acabando[] = $produto + ['porcoes' => $d['porcoes']];
+                $acabando[] = $produto + ['porcoes' => $d['porcoes'], 'restante' => $d['restante'] ?? null, 'unidade' => $d['unidade'] ?? 'un'];
             }
         }
         usort($acabando, static fn (array $a, array $b): int => $a['porcoes'] <=> $b['porcoes']);

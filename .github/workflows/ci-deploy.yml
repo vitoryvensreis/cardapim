@@ -97,6 +97,7 @@ jobs:
           php tests/unit/ifood.php
           php tests/unit/smtp.php
           php tests/unit/recuperar-senha.php
+          php tests/unit/peso.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -166,6 +167,7 @@ jobs:
           grep -q 'Criados agora: 0 categorias, 0 insumos, 0 produtos, 0 linhas' /tmp/cardapim-cardapio-2.txt
           php database/seed-cardapio-exemplo.php --verify
           php tests/integration/gerencia.php
+          php tests/integration/peso.php
           php -r '$d=new PDO("mysql:host=127.0.0.1;port=3306;dbname=cardapim_ci;charset=utf8mb4", "cardapim_ci", "cardapim_ci_only"); $n=$d->query("SELECT COUNT(*) FROM planos WHERE nome LIKE \"Demonstração %\"")->fetchColumn(); exit((int)$n===3 ? 0 : 1);'
 
       - name: Smoke test HTTP local
@@ -298,6 +300,7 @@ jobs:
           bash tests/http/legal-cookies.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/cupons.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/seo.sh http://127.0.0.1:18080
+          bash tests/http/peso.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           php tests/http/verificar-alerta-ci.php
           IFOOD_BASE_URL=http://127.0.0.1:18099/ifood IFOOD_CLIENT_ID=ifood-ci IFOOD_CLIENT_SECRET=ifood-segredo-ci APP_URL=https://cardapim.test \
             bash tests/http/ifood.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
@@ -347,7 +350,6 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
-          APPLY_PESO: ${{ contains(github.event.head_commit.message, '[cardapim-peso]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -375,6 +377,3 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
-          if [[ "$APPLY_PESO" == "true" ]]; then
-            ssh "${ssh_args[@]}" "$host" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-peso.sh'"
-          fi

@@ -669,3 +669,16 @@
   .fatura-item { grid-template-columns: 1fr auto auto; }
   .fatura-item .btn { grid-column: auto; }
 }
+
+/* Produto: como vende (unidade / quilo / litro) e porcoes do cardapio online */
+.opcoes-unidade { border: 0; padding: 0; margin: 0 0 .5rem; }
+.opcoes-unidade legend { margin-bottom: .5rem; color: var(--c-ink); font-weight: 700; font-size: .95rem; }
+@media (min-width: 48rem) { .opcoes-unidade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.porcoes { border: 0; padding: 0; margin: .5rem 0 0; }
+.porcoes legend { color: var(--c-ink); font-weight: 700; font-size: .95rem; }
+.porcoes-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: .75rem; margin-top: .75rem; }
+.porcao-campo { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .25rem .4rem; }
+.porcao-campo input { min-height: 44px; padding: 0 .7rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); font: inherit; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.porcao-campo input:focus { outline: 3px solid var(--c-orange); outline-offset: 1px; }
+.porcao-sigla { color: var(--c-muted); font-weight: 700; }
+.porcao-preco { grid-column: 1 / -1; min-height: 1.1em; color: var(--c-muted); font-size: .82rem; }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Services\Ifood;
 
 use Cardapim\Modules\Inventory\BaixaEstoque;
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\EstoqueInsuficiente;
 use Cardapim\Modules\Inventory\Quantidade;
 use Cardapim\Realtime\TempoReal;
@@ -99,14 +100,29 @@ final class ImportarPedidoIfood
             if ($idPedido < 1) {
                 throw new \RuntimeException('Pedido do iFood nao gravado.');
             }
-            $ins = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, observacao, total, criado_em)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $ins = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $baixar = [];
+            $unidades = $this->unidadesVenda(array_values(array_filter(array_column($p['itens'], 'id_produto'))));
             foreach ($p['itens'] as $i) {
-                $ins->execute([$idPedido, $this->idRestaurante, $i['id_produto'], $i['nome'], PedidoIfood::decimal($i['preco_unitario']), $i['quantidade'],
-                    $i['observacao'], PedidoIfood::decimal($i['preco_unitario'] * $i['quantidade']), $agora]);
+                [$quantidade, $unidade, $preco, $nome] = [QuantidadeVenda::paraBanco($i['quantidade'] * 1000), 'un', $i['preco_unitario'], $i['nome']];
+                $baixa = $i['baixa'] * 1000;
+                // Peso do iFood num produto vendido por quilo/litro aqui: grava o peso real (quando o valor fecha ao centavo).
+                $peso = $i['peso'] ?? null;
+                if ($i['id_produto'] !== null && $peso !== null && $peso > 0 && $peso <= QuantidadeVenda::MAX_FRACAO
+                    && ($i['unidade_peso'] ?? null) === ($unidades[$i['id_produto']] ?? 'un')) {
+                    $precoPeso = self::precoPorUnidade((int) $i['total'], $peso);
+                    if ($precoPeso !== null) {
+                        [$quantidade, $unidade, $preco] = [QuantidadeVenda::paraBanco($peso), (string) $i['unidade_peso'], $precoPeso];
+                        $nome = ($i['nome_ifood'] ?? '') !== '' ? (string) $i['nome_ifood'] : $nome; // o peso ja aparece na quantidade
+                        $baixa = $peso;
+                    }
+                }
+                $totalItem = $unidade === 'un' ? $i['preco_unitario'] * $i['quantidade'] : (int) $i['total'];
+                $ins->execute([$idPedido, $this->idRestaurante, $i['id_produto'], $nome, PedidoIfood::decimal($preco), $quantidade, $unidade,
+                    $i['observacao'], PedidoIfood::decimal($totalItem), $agora]);
                 if ($i['id_produto'] !== null) {
-                    $baixar[$i['id_produto']] = ($baixar[$i['id_produto']] ?? 0) + $i['baixa'];
+                    $baixar[$i['id_produto']] = ($baixar[$i['id_produto']] ?? 0) + $baixa;
                 }
             }
             $semLigacao = array_values(array_unique(array_map(static fn (array $i): string => $i['nome_ifood'] ?: $i['nome'],
@@ -139,7 +155,7 @@ final class ImportarPedidoIfood
 
     /**
      * Baixa tudo de uma vez; se faltar algo, baixa produto por produto e anota o que faltou.
-     * @param array<int,int> $itens id_produto => quantidade
+     * @param array<int,int> $itens id_produto => quantidade em milesimos (2 un = 2000; 0,846 kg = 846)
      * @return array{0:array<int,string>, 1:list<string>} consumo e nomes dos produtos sem estoque
      */
     private function baixarEstoque(array $itens): array
@@ -149,7 +165,7 @@ final class ImportarPedidoIfood
         }
         $baixa = new BaixaEstoque($this->db);
         try {
-            return [$baixa->baixar($this->idRestaurante, $itens), []];
+            return [$baixa->baixarMilesimos($this->idRestaurante, $itens), []];
         } catch (EstoqueInsuficiente | InvalidArgumentException) {
             // segue produto por produto
         }
@@ -157,7 +173,7 @@ final class ImportarPedidoIfood
         $faltou = [];
         foreach ($itens as $idProduto => $quantidade) {
             try {
-                foreach ($baixa->baixar($this->idRestaurante, [$idProduto => $quantidade]) as $idInsumo => $qtd) {
+                foreach ($baixa->baixarMilesimos($this->idRestaurante, [$idProduto => $quantidade]) as $idInsumo => $qtd) {
                     $milesimos[$idInsumo] = ($milesimos[$idInsumo] ?? 0) + Quantidade::paraMilesimos($qtd);
                 }
             } catch (EstoqueInsuficiente | InvalidArgumentException) {
@@ -166,6 +182,38 @@ final class ImportarPedidoIfood
         }
         ksort($milesimos);
         return [array_map(static fn (int $m): string => Quantidade::paraDecimal($m), $milesimos), $faltou];
+    }
+
+    /** @param list<int> $ids @return array<int,string> id_produto => unidade de venda */
+    private function unidadesVenda(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $q = $this->db->prepare('SELECT id, unidade_venda FROM produtos WHERE id_restaurante = ? AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
+        $q->execute([$this->idRestaurante, ...$ids]);
+        $u = [];
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $u[(int) $r['id']] = QuantidadeVenda::unidade($r['unidade_venda'] ?? 'un');
+        }
+        return $u;
+    }
+
+    /** Preco do quilo/litro (centavos) que, vezes o peso, da exatamente o total do iFood; null se nao fechar. */
+    public static function precoPorUnidade(int $totalCentavos, int $milesimos): ?int
+    {
+        if ($milesimos <= 0 || $totalCentavos < 0) {
+            return null;
+        }
+        $base = intdiv($totalCentavos * 1000 + intdiv($milesimos, 2), $milesimos);
+        foreach ([0, -1, 1, -2, 2] as $ajuste) {
+            $preco = $base + $ajuste;
+            if ($preco >= 0 && QuantidadeVenda::totalCentavos($preco, $milesimos) === $totalCentavos) {
+                return $preco;
+            }
+        }
+        return null;
     }
 
     private function nomeProduto(int $id): string

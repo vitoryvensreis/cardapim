@@ -54,6 +54,15 @@
     if (value !== input.value) input.value = value;
   };
 
+  /* Peso/volume (venda por quilo ou litro): digita so os numeros do visor da balanca e as 3 ultimas viram
+     as casas decimais, como no dinheiro: 8 4 6 -> "0,846"; 1 2 5 0 -> "1,250". Maximo 99,999. */
+  const maskPeso = (input) => {
+    const digits = onlyDigits(input.value).replace(/^0+(?=\d)/, "").slice(0, 5);
+    if (digits === "") { input.value = ""; return; }
+    const m = digits.padStart(4, "0");
+    input.value = `${parseInt(m.slice(0, -3), 10)},${m.slice(-3)}`;
+  };
+
   const sanitizeUsername = (input) => {
     const cleaned = input.value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9._-]/g, "");
     if (cleaned !== input.value) input.value = cleaned;
@@ -63,7 +72,7 @@
   const ligarMascaras = (raiz) => {
     raiz.querySelectorAll("[data-mask]:not([data-mask-ligada])").forEach((input) => {
       const type = input.dataset.mask;
-      const special = { username: sanitizeUsername, money: maskMoney, quantity: maskQuantity };
+      const special = { username: sanitizeUsername, money: maskMoney, quantity: maskQuantity, peso: maskPeso };
       const handler = special[type] ? () => special[type](input) : () => applyMask(input, type);
       input.dataset.maskLigada = "1";
       input.addEventListener("input", handler);

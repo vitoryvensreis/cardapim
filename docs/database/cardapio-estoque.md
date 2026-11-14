@@ -22,7 +22,9 @@ Migrations `20261110040000` a `20261110040300`. Toda linha pertence a um restaur
 | --- | --- | --- |
 | `id_categoria` | FK opcional | sempre do mesmo restaurante (FK composta) |
 | `nome` | VARCHAR(150) | unico no restaurante |
-| `preco` | DECIMAL(10,2) | >= 0 |
+| `preco` | DECIMAL(10,2) | >= 0; no produto por peso e o preco do quilo/litro |
+| `unidade_venda` | ENUM(`un`, `kg`, `l`) | como e vendido (padrao `un`); ver `docs/architecture/venda-por-peso.md` |
+| `venda_minima` | DECIMAL(10,3) NULL | menor quantidade por venda (so por quilo/litro) |
 | `codigo` | VARCHAR(40) NULL | codigo interno, unico no restaurante |
 | `imagem_path` | VARCHAR(500) NULL | foto |
 | `controla_estoque` | TINYINT | 1 = baixa pela ficha tecnica; 0 = sem controle (sempre disponivel se ativo) |
@@ -30,7 +32,12 @@ Migrations `20261110040000` a `20261110040300`. Toda linha pertence a um restaur
 | `ativo` | TINYINT | arquivar; produtos nao devem ser apagados |
 | `ordem` | SMALLINT | ordem no cardapio |
 
+### `produto_porcoes` (venda por peso)
+Porcoes fixas do cardapio online (`quantidade` DECIMAL(10,3), ate 6 por produto, FK composta com o restaurante).
+
 ### `produto_insumos` (ficha tecnica)
+A quantidade da ficha vale para 1 unidade de venda: 1 un, 1 kg ou 1 L do produto (baixa proporcional no produto por peso).
+
 `id_restaurante`, `id_produto`, `id_insumo`, `quantidade DECIMAL(12,3) > 0` = quanto do insumo vai em **1** unidade do produto. Um insumo aparece uma vez por produto.
 
 ## Isolamento entre restaurantes no banco

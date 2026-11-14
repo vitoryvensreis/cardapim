@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Services\Caixa;
 
 use Cardapim\Modules\Inventory\BaixaEstoque;
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\EstoqueInsuficiente;
 use Cardapim\Realtime\TempoReal;
 use Cardapim\Repositories\Caixa\CaixaRepository;
@@ -183,7 +184,7 @@ final class ComandaService
             return null;
         }
         $q = $this->db->prepare(
-            "SELECT i.id, i.id_produto, i.nome, i.preco_unitario, i.quantidade, i.observacao, i.total, i.criado_em, i.cancelado_em, i.motivo_cancelamento,
+            "SELECT i.id, i.id_produto, i.nome, i.preco_unitario, i.quantidade, i.unidade, i.observacao, i.total, i.criado_em, i.cancelado_em, i.motivo_cancelamento,
                     u.nome AS autor
              FROM pedido_itens i LEFT JOIN `user` u ON u.id = i.id_user
              WHERE i.id_pedido = ? AND i.id_restaurante = ? ORDER BY i.id"
@@ -231,20 +232,21 @@ final class ComandaService
         return $q->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function lancar(int $id, int $idProduto, int $quantidade, string $observacao): Resultado
+    /**
+     * Lanca um produto na comanda. $quantidade: unidades (1 a 99) ou, no produto vendido por quilo/litro,
+     * o peso/volume digitado ("0,846").
+     */
+    public function lancar(int $id, int $idProduto, string|int $quantidade, string $observacao): Resultado
     {
         $comanda = $this->aberta($id);
         if ($comanda instanceof Resultado) {
             return $comanda;
         }
-        if ($quantidade < 1 || $quantidade > 99) {
-            return Resultado::falha('Quantidade de 1 a 99.');
-        }
         $observacao = trim((string) preg_replace('/\s+/u', ' ', $observacao));
         if (mb_strlen($observacao) > 140) {
             return Resultado::falha('Observação com até 140 caracteres.');
         }
-        $q = $this->db->prepare('SELECT id, nome, preco, disponivel FROM produtos WHERE id = ? AND id_restaurante = ? AND ativo = 1');
+        $q = $this->db->prepare('SELECT id, nome, preco, disponivel, unidade_venda, venda_minima FROM produtos WHERE id = ? AND id_restaurante = ? AND ativo = 1');
         $q->execute([$idProduto, $this->idRestaurante]);
         $produto = $q->fetch(PDO::FETCH_ASSOC);
         if ($produto === false) {
@@ -253,16 +255,23 @@ final class ComandaService
         if ((int) $produto['disponivel'] !== 1) {
             return Resultado::falha('"' . $produto['nome'] . '" está pausado no cardápio.');
         }
+        $unidade = QuantidadeVenda::unidade($produto['unidade_venda'] ?? 'un');
+        $minimo = $produto['venda_minima'] !== null ? QuantidadeVenda::doBanco($produto['venda_minima']) : null;
+        try {
+            $milesimos = QuantidadeVenda::ler($quantidade, $unidade, $minimo);
+        } catch (\InvalidArgumentException $erro) {
+            return Resultado::falha(QuantidadeVenda::porPeso($unidade) ? '"' . $produto['nome'] . '": ' . $erro->getMessage() : $erro->getMessage());
+        }
         $preco = Numero::centavos((string) $produto['preco']);
         $agora = date('Y-m-d H:i:s');
         $this->db->beginTransaction();
         try {
             // Baixa primeiro: se faltar insumo, nada e gravado.
-            $consumo = (new BaixaEstoque($this->db))->baixar($this->idRestaurante, [$idProduto => $quantidade]);
-            $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, observacao, total, id_user, consumo_estoque, criado_em)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                ->execute([$id, $this->idRestaurante, $idProduto, mb_substr((string) $produto['nome'], 0, 180), CaixaService::dec($preco), $quantidade,
-                    $observacao !== '' ? $observacao : null, CaixaService::dec($preco * $quantidade), $this->autor->id,
+            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($this->idRestaurante, [$idProduto => $milesimos]);
+            $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, id_user, consumo_estoque, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                ->execute([$id, $this->idRestaurante, $idProduto, mb_substr((string) $produto['nome'], 0, 180), CaixaService::dec($preco), QuantidadeVenda::paraBanco($milesimos), $unidade,
+                    $observacao !== '' ? $observacao : null, CaixaService::dec(QuantidadeVenda::totalCentavos($preco, $milesimos)), $this->autor->id,
                     $consumo !== [] ? json_encode($consumo, JSON_THROW_ON_ERROR) : null, $agora]);
             $this->recalcular($id);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
@@ -275,7 +284,7 @@ final class ComandaService
             $this->db->rollBack();
             throw $erro;
         }
-        return Resultado::sucesso($quantidade . 'x ' . $produto['nome'] . ' lançado.');
+        return Resultado::sucesso(QuantidadeVenda::comNome($milesimos, $unidade, (string) $produto['nome']) . ' lançado.');
     }
 
     public function cancelarItem(int $id, int $idItem, string $motivo): Resultado
@@ -290,7 +299,7 @@ final class ComandaService
         }
         $this->db->beginTransaction();
         try {
-            $q = $this->db->prepare('SELECT id, nome, quantidade, total, consumo_estoque FROM pedido_itens WHERE id = ? AND id_pedido = ? AND id_restaurante = ? AND cancelado_em IS NULL');
+            $q = $this->db->prepare('SELECT id, nome, quantidade, unidade, total, consumo_estoque FROM pedido_itens WHERE id = ? AND id_pedido = ? AND id_restaurante = ? AND cancelado_em IS NULL');
             $q->execute([$idItem, $id, $this->idRestaurante]);
             $item = $q->fetch(PDO::FETCH_ASSOC);
             if ($item === false) {
@@ -315,9 +324,10 @@ final class ComandaService
             $this->db->rollBack();
             throw $erro;
         }
-        Auditoria::registrar($this->autor, 'Item cancelado', sprintf('%s: %dx %s (%s). Motivo: %s. Estoque devolvido.',
-            $this->rotulo($comanda), (int) $item['quantidade'], $item['nome'], Numero::reais((string) $item['total']), $motivo));
-        return Resultado::sucesso((int) $item['quantidade'] . 'x ' . $item['nome'] . ' cancelado. O estoque foi devolvido.');
+        $itemTexto = QuantidadeVenda::comNome(QuantidadeVenda::doBanco($item['quantidade']), (string) ($item['unidade'] ?? 'un'), (string) $item['nome']);
+        Auditoria::registrar($this->autor, 'Item cancelado', sprintf('%s: %s (%s). Motivo: %s. Estoque devolvido.',
+            $this->rotulo($comanda), $itemTexto, Numero::reais((string) $item['total']), $motivo));
+        return Resultado::sucesso($itemTexto . ' cancelado. O estoque foi devolvido.');
     }
 
     /** Taxa de servico (liga/desliga), desconto com motivo e quantas pessoas vao dividir. */

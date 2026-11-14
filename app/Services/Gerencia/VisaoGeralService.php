@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Gerencia;
 
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\AnaliseEstoque;
 use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
 use Cardapim\Repositories\Caixa\CaixaRepository;
@@ -136,17 +137,27 @@ final class VisaoGeralService
         return $horas;
     }
 
-    /** Produtos mais vendidos (pedidos concluidos, itens nao cancelados). @return list<array{nome:string,quantidade:int,total:int}> */
+    /**
+     * Produtos mais vendidos (pedidos concluidos, itens nao cancelados). Por unidade conta as unidades; por quilo/litro
+     * conta as vendas e soma o peso (texto "12,400 kg"). @return list<array{nome:string,quantidade:int,total:int,texto:string}>
+     */
     private function maisVendidos(string $de, string $ate): array
     {
         $q = $this->db->prepare(
-            "SELECT i.nome, SUM(i.quantidade) AS quantidade, SUM(i.total) AS total
+            "SELECT i.nome, i.unidade, SUM(CASE WHEN i.unidade = 'un' THEN i.quantidade ELSE 1 END) AS vendas, SUM(i.quantidade) AS quantidade, SUM(i.total) AS total
              FROM pedido_itens i JOIN pedidos p ON p.id = i.id_pedido AND p.id_restaurante = i.id_restaurante
              WHERE i.id_restaurante = ? AND i.cancelado_em IS NULL AND p.status = 'concluido' AND p.concluido_em >= ? AND p.concluido_em < ?
-             GROUP BY i.nome ORDER BY SUM(i.quantidade) DESC, SUM(i.total) DESC LIMIT 5"
+             GROUP BY i.nome, i.unidade ORDER BY SUM(CASE WHEN i.unidade = 'un' THEN i.quantidade ELSE 1 END) DESC, SUM(i.total) DESC LIMIT 5"
         );
         $q->execute([$this->idRestaurante, $de, $ate]);
-        return array_map(static fn (array $r): array => ['nome' => (string) $r['nome'], 'quantidade' => (int) $r['quantidade'], 'total' => Numero::centavos((string) $r['total'])], $q->fetchAll(PDO::FETCH_ASSOC));
+        return array_map(static function (array $r): array {
+            $unidade = QuantidadeVenda::unidade($r['unidade'] ?? 'un');
+            $vendas = (int) $r['vendas'];
+            $texto = $unidade === 'un'
+                ? $vendas . ' vendido' . ($vendas === 1 ? '' : 's')
+                : QuantidadeVenda::texto(QuantidadeVenda::doBanco(number_format((float) $r['quantidade'], 3, '.', '')), $unidade) . ' em ' . $vendas . ' venda' . ($vendas === 1 ? '' : 's');
+            return ['nome' => (string) $r['nome'], 'quantidade' => $vendas, 'total' => Numero::centavos((string) $r['total']), 'texto' => $texto];
+        }, $q->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /** @return array{emFalta:list<array<string,mixed>>, baixos:list<array<string,mixed>>, indisponiveis:int, totalInsumos:int, totalProdutos:int} */

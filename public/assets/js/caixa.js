@@ -194,28 +194,65 @@
   const dlgProduto = $("[data-dialogo-produto]");
   if (dlgProduto) {
     const campoQtd = $("[data-qtd-campo]", dlgProduto);
+    const blocoQtd = $("[data-qtd-bloco]", dlgProduto);
+    const blocoPeso = $("[data-peso-bloco]", dlgProduto);
+    const campoPeso = $("[data-peso-campo]", dlgProduto);
+    const ajudaPeso = $("[data-peso-ajuda]", dlgProduto);
     const botaoLancar = $("[data-produto-lancar]", dlgProduto);
     let preco = 0;
+    let unidade = "un";
+    let minimo = 0;
     const qtd = () => Math.min(99, Math.max(1, parseInt(campoQtd.value, 10) || 1));
-    const desenhar = () => { botaoLancar.textContent = `Lançar ${qtd()}x · ${reais(preco * qtd())}`; };
+    // "0,846" -> 846 (milesimos); vazio -> 0.
+    const milesimos = () => {
+      const [i = "0", d = ""] = (campoPeso.value || "").split(",");
+      return (parseInt(i, 10) || 0) * 1000 + (parseInt((d + "000").slice(0, 3), 10) || 0);
+    };
+    const textoPeso = (m) => {
+      if (m < 1000) return `${m} ${unidade === "kg" ? "g" : "ml"}`;
+      return `${Math.floor(m / 1000)},${String(m % 1000).padStart(3, "0")} ${unidade === "kg" ? "kg" : "L"}`;
+    };
+    const desenhar = () => {
+      if (unidade === "un") {
+        botaoLancar.textContent = `Lançar ${qtd()}x · ${reais(preco * qtd())}`;
+        botaoLancar.disabled = false;
+        return;
+      }
+      const m = milesimos();
+      const valido = m > 0 && m <= 99999 && m >= minimo;
+      botaoLancar.disabled = !valido;
+      botaoLancar.textContent = m > 0 ? `Lançar ${textoPeso(m)} · ${reais(Math.floor((preco * m + 500) / 1000))}` : "Digite o peso";
+      ajudaPeso.textContent = m > 0 && m < minimo ? `O mínimo para este produto é ${textoPeso(minimo)}.` : "Digite só os números da balança: 8 4 6 vira 0,846.";
+    };
     document.addEventListener("click", (ev) => {
       const b = ev.target.closest("[data-produto-abrir]");
       if (!b || b.disabled) return;
       ev.preventDefault();
       preco = parseInt(b.dataset.produtoCentavos, 10) || 0;
+      unidade = b.dataset.produtoUnidade || "un";
+      minimo = parseInt(b.dataset.produtoMinimo, 10) || 0;
+      const porPeso = unidade === "kg" || unidade === "l";
       $("[data-produto-titulo]", dlgProduto).textContent = b.dataset.produtoNome || "Produto";
       $("[data-produto-campo]", dlgProduto).value = b.dataset.produtoId;
       $("[name=observacao]", dlgProduto).value = "";
+      // So um dos dois campos "quantidade" vai no envio (o outro fica desativado).
+      blocoQtd.hidden = porPeso;
+      campoQtd.disabled = porPeso;
+      blocoPeso.hidden = !porPeso;
+      campoPeso.disabled = !porPeso;
+      $("[data-peso-rotulo]", dlgProduto).textContent = unidade === "l" ? "Volume (L)" : "Peso (kg)";
       campoQtd.value = "1";
+      campoPeso.value = "";
       desenhar();
       abrirDialogo(dlgProduto);
-      window.setTimeout(() => botaoLancar.focus(), 50);
+      window.setTimeout(() => (porPeso ? campoPeso : botaoLancar).focus(), 50);
     });
     $$("[data-qtd]", dlgProduto).forEach((b) => b.addEventListener("click", () => {
       campoQtd.value = String(Math.min(99, Math.max(1, qtd() + parseInt(b.dataset.qtd, 10))));
       desenhar();
     }));
     campoQtd.addEventListener("input", desenhar);
+    campoPeso.addEventListener("input", () => window.setTimeout(desenhar, 0));
   }
 
   const dlgCancelar = $("[data-dialogo-cancelar]");

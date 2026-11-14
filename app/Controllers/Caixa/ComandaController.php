@@ -56,7 +56,8 @@ final class ComandaController extends BaseCaixa
             return $r;
         }
         $produto = self::id($this->post('produto'));
-        $qtd = ctype_digit($this->post('quantidade')) ? (int) $this->post('quantidade') : 1;
+        // Unidades ("2") ou peso/volume do produto por quilo/litro ("0,846"); o servico confere.
+        $qtd = $this->post('quantidade') !== '' ? mb_substr($this->post('quantidade'), 0, 12) : '1';
         $res = self::id($id) !== null && $produto !== null
             ? $this->servico()->lancar((int) $id, $produto, $qtd, $this->post('observacao'))
             : Resultado::falha('Escolha um produto.');

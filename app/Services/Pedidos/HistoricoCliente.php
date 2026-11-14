@@ -83,7 +83,7 @@ final class HistoricoCliente
     /** "2x Cerveja lata, 1x X-Burger e mais 2". @param list<array{nome:string,quantidade:int}> $itens */
     public static function resumo(array $itens): string
     {
-        $partes = array_map(static fn (array $i): string => $i['quantidade'] . 'x ' . $i['nome'], array_slice($itens, 0, 2));
+        $partes = array_map(static fn (array $i): string => \Cardapim\Modules\Inventory\QuantidadeVenda::comNome((int) ($i['milesimos'] ?? $i['quantidade'] * 1000), (string) ($i['unidade'] ?? 'un'), (string) $i['nome']), array_slice($itens, 0, 2));
         $resto = count($itens) - 2;
         return implode(', ', $partes) . ($resto > 0 ? ' e mais ' . $resto : '');
     }

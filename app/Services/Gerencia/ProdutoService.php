@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Services\Gerencia;
 
 use Cardapim\Modules\Inventory\Quantidade;
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\UnidadeMedida;
 use Cardapim\Repositories\Estoque\CategoriaRepository;
 use Cardapim\Repositories\Estoque\InsumoRepository;
@@ -25,7 +26,12 @@ final class ProdutoService
     private const ROTULOS = [
         'nome' => 'Nome', 'categoria' => 'Categoria', 'preco' => 'Preço', 'codigo' => 'Código', 'descricao' => 'Descrição',
         'controla_estoque' => 'Controla estoque', 'disponivel' => 'Disponível', 'ficha' => 'Ficha técnica',
+        'unidade_venda' => 'Como vende', 'venda_minima' => 'Venda mínima', 'porcoes' => 'Porções do cardápio online',
     ];
+
+    /** Rotulos de "Como vende" (produtos.unidade_venda). */
+    public const UNIDADES_VENDA = ['un' => 'Por unidade', 'kg' => 'Por quilo (kg)', 'l' => 'Por litro (L)'];
+    public const MAX_PORCOES = 6;
 
     private readonly ProdutoRepository $produtos;
     private readonly CategoriaRepository $categorias;
@@ -41,14 +47,20 @@ final class ProdutoService
     {
         $antes = null;
         $fichaAntes = [];
+        $porcoesAntes = [];
         if ($id !== null) {
             $antes = $this->produtos->buscar($this->idRestaurante, $id);
             if ($antes === null) {
                 return Resultado::falha('Produto não encontrado. Ele pode ter sido excluído.');
             }
             $fichaAntes = $this->produtos->ficha($this->idRestaurante, $id);
+            $porcoesAntes = $this->produtos->porcoes($this->idRestaurante, $id);
         }
         [$dados, $ficha, $novaCategoria, $erros] = $this->validar($entrada, $id);
+        [$porcoes, $erroPorcoes] = $this->validarPorcoes($dados['unidade_venda'], $entrada['porcoes'] ?? []);
+        if ($erroPorcoes !== null) {
+            $erros['porcoes'] = $erroPorcoes;
+        }
         if ($erros !== []) {
             return Resultado::falha('Confira os campos destacados.', $erros);
         }
@@ -64,6 +76,7 @@ final class ProdutoService
                 $this->produtos->atualizar($this->idRestaurante, $id, $dados);
             }
             $this->produtos->salvarFicha($this->idRestaurante, $id, array_map(static fn (array $i): string => $i['quantidade'], $ficha));
+            $this->produtos->salvarPorcoes($this->idRestaurante, $id, $porcoes);
             $this->db->commit();
         } catch (PDOException $exception) {
             $this->db->rollBack();
@@ -81,12 +94,12 @@ final class ProdutoService
         if ($novaCategoria !== null) {
             Auditoria::registrar($this->autor, 'Categoria cadastrada', $novaCategoria . ' (criada no cadastro do produto ' . $dados['nome'] . ').');
         }
-        $depoisLog = $this->paraLog($dados, $novaCategoria ?? $this->nomeCategoria($dados['id_categoria']), $ficha);
+        $depoisLog = $this->paraLog($dados, $novaCategoria ?? $this->nomeCategoria($dados['id_categoria']), $ficha, $porcoes);
         if ($antes === null) {
             Auditoria::registrar($this->autor, 'Produto cadastrado', sprintf(
                 '%s - preço %s; categoria %s; %s.',
                 $dados['nome'],
-                Numero::reais($dados['preco']),
+                Numero::reais($dados['preco']) . QuantidadeVenda::sufixoPreco($dados['unidade_venda']),
                 $depoisLog['categoria'] ?? 'nenhuma',
                 $depoisLog['ficha'] !== '' ? 'ficha: ' . $depoisLog['ficha'] : 'sem ficha técnica',
             ));
@@ -96,7 +109,7 @@ final class ProdutoService
             ...$antes,
             'controla_estoque' => (int) $antes['controla_estoque'],
             'disponivel' => (int) $antes['disponivel'],
-        ], $antes['categoria'], array_map(static fn (array $i): array => $i + ['quantidade' => $i['quantidade']], $fichaAntes));
+        ], $antes['categoria'], array_map(static fn (array $i): array => $i + ['quantidade' => $i['quantidade']], $fichaAntes), $porcoesAntes);
         Auditoria::registrar($this->autor, 'Produto editado', $antes['nome'] . ' - ' . Auditoria::diferencas($antesLog, $depoisLog, self::ROTULOS));
         return Resultado::sucesso('Produto "' . $dados['nome'] . '" atualizado.', $id);
     }
@@ -152,9 +165,25 @@ final class ProdutoService
             $erros['nome'] = 'Já existe um produto com este nome.';
         }
 
+        $unidade = QuantidadeVenda::unidade(is_string($e['unidade_venda'] ?? null) ? $e['unidade_venda'] : 'un');
         $preco = Numero::dinheiroParaDecimal((string) ($e['preco'] ?? ''));
         if ($preco === null) {
-            $erros['preco'] = 'Digite o preço de venda. Exemplo: 24,90';
+            $erros['preco'] = $unidade === 'un' ? 'Digite o preço de venda. Exemplo: 24,90' : 'Digite o preço do ' . ($unidade === 'kg' ? 'quilo' : 'litro') . '. Exemplo: 59,90';
+        }
+        // Venda minima (so por quilo/litro): opcional, ex.: 0,100 kg.
+        $minimo = null;
+        $minimoTexto = is_string($e['venda_minima'] ?? null) ? trim($e['venda_minima']) : '';
+        if ($unidade !== 'un' && $minimoTexto !== '') {
+            try {
+                $m = Quantidade::paraMilesimos($minimoTexto);
+            } catch (InvalidArgumentException) {
+                $m = 0;
+            }
+            if ($m <= 0 || $m > QuantidadeVenda::MAX_FRACAO) {
+                $erros['venda_minima'] = 'Digite a quantidade mínima com até 3 casas (ex.: 0,100) ou deixe vazio.';
+            } else {
+                $minimo = QuantidadeVenda::paraBanco($m);
+            }
         }
 
         $descricao = is_string($e['descricao'] ?? null) ? trim($e['descricao']) : '';
@@ -199,6 +228,8 @@ final class ProdutoService
             'nome' => $nome,
             'descricao' => $descricao === '' ? null : $descricao,
             'preco' => $preco ?? '0.00',
+            'unidade_venda' => $unidade,
+            'venda_minima' => $minimo,
             'codigo' => $codigo === '' ? null : $codigo,
             'id_categoria' => $idCategoria,
             'controla_estoque' => $controla ? 1 : 0,
@@ -245,6 +276,40 @@ final class ProdutoService
         return [$ficha, null];
     }
 
+    /**
+     * Porcoes fixas do cardapio online (so produto por quilo/litro): ate 6, cada uma de 0,001 a 99,999, sem repetir.
+     * Nenhuma porcao = o produto vende so no caixa e no garcom.
+     * @return array{0:list<string>, 1:?string} decimais em ordem crescente e o erro
+     */
+    private function validarPorcoes(string $unidade, mixed $entrada): array
+    {
+        if ($unidade === 'un' || !is_array($entrada)) {
+            return [[], null];
+        }
+        $lista = [];
+        foreach ($entrada as $texto) {
+            $texto = is_string($texto) ? trim($texto) : '';
+            if ($texto === '') {
+                continue;
+            }
+            try {
+                $m = Quantidade::paraMilesimos($texto);
+            } catch (InvalidArgumentException) {
+                $m = 0;
+            }
+            if ($m <= 0 || $m > QuantidadeVenda::MAX_FRACAO) {
+                return [[], 'Digite cada porção com até 3 casas (ex.: 0,500 para meio quilo).'];
+            }
+            $lista[$m] = true;
+        }
+        if (count($lista) > self::MAX_PORCOES) {
+            return [[], 'Cadastre no máximo ' . self::MAX_PORCOES . ' porções.'];
+        }
+        $milesimos = array_keys($lista);
+        sort($milesimos);
+        return [array_map([QuantidadeVenda::class, 'paraBanco'], $milesimos), null];
+    }
+
     private function nomeCategoria(?int $id): ?string
     {
         return $id === null ? null : ($this->categorias->buscar($this->idRestaurante, $id)['nome'] ?? null);
@@ -255,8 +320,9 @@ final class ProdutoService
      * @param iterable<array{nome:string,unidade:string,quantidade:string}> $ficha
      * @return array<string,mixed>
      */
-    private function paraLog(array $dados, ?string $categoria, iterable $ficha): array
+    private function paraLog(array $dados, ?string $categoria, iterable $ficha, array $porcoes = []): array
     {
+        $unidade = QuantidadeVenda::unidade($dados['unidade_venda'] ?? 'un');
         $itens = [];
         foreach ($ficha as $item) {
             $itens[] = $item['nome'] . ' ' . UnidadeMedida::from($item['unidade'])->formatar(Quantidade::paraMilesimos($item['quantidade']));
@@ -271,6 +337,9 @@ final class ProdutoService
             'controla_estoque' => (int) $dados['controla_estoque'] === 1,
             'disponivel' => (int) $dados['disponivel'] === 1,
             'ficha' => implode(', ', $itens),
+            'unidade_venda' => self::UNIDADES_VENDA[$unidade],
+            'venda_minima' => ($dados['venda_minima'] ?? null) !== null ? QuantidadeVenda::textoDoBanco($dados['venda_minima'], $unidade) : null,
+            'porcoes' => implode(', ', array_map(static fn (string $p): string => QuantidadeVenda::textoDoBanco($p, $unidade), $porcoes)),
         ];
     }
 }

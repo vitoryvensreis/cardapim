@@ -444,3 +444,11 @@
   .mesa, .produto-botao, .caixa-atalho, .fila-item, .mesa-nova-mais { transition: none; }
   .mesa:hover, .produto-botao:hover:not(:disabled), .caixa-atalho:hover, .fila-item:hover { transform: none; }
 }
+
+/* Venda por peso: campo do peso (kg/L) na folha do produto da comanda */
+.folha [data-qtd-bloco][hidden], .campo-peso[hidden] { display: none !important; }
+.campo-peso { display: grid; gap: .25rem; }
+.campo-peso .campo-caixa { margin-bottom: 0; }
+.campo-peso input { font-size: 1.6rem; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.campo-peso-ajuda { margin: 0 0 .85rem; color: var(--c-muted); font-size: .85rem; }
+.conta-qtd { white-space: nowrap; }

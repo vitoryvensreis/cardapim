@@ -17,7 +17,7 @@ final class ProdutoRepository
     public function listar(int $idRestaurante): array
     {
         $query = $this->db->prepare(
-            'SELECT p.id, p.nome, p.preco, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
+            'SELECT p.id, p.nome, p.preco, p.unidade_venda, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
              WHERE p.id_restaurante = ? AND p.ativo = 1
@@ -31,7 +31,7 @@ final class ProdutoRepository
     public function buscar(int $idRestaurante, int $id): ?array
     {
         $query = $this->db->prepare(
-            'SELECT p.id, p.nome, p.descricao, p.preco, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
+            'SELECT p.id, p.nome, p.descricao, p.preco, p.unidade_venda, p.venda_minima, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
              WHERE p.id = ? AND p.id_restaurante = ?'
@@ -67,25 +67,48 @@ final class ProdutoRepository
         return $this->emUso('codigo = ?', $idRestaurante, $codigo, $ignorarId);
     }
 
-    /** @param array{nome:string,descricao:?string,preco:string,codigo:?string,id_categoria:?int,controla_estoque:int,disponivel:int} $d */
+    /** @param array{nome:string,descricao:?string,preco:string,unidade_venda?:string,venda_minima?:?string,codigo:?string,id_categoria:?int,controla_estoque:int,disponivel:int} $d */
     public function criar(int $idRestaurante, array $d): int
     {
         $this->db->prepare(
-            'INSERT INTO produtos (id_restaurante, id_categoria, nome, descricao, preco, codigo, controla_estoque, disponivel)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-        )->execute([$idRestaurante, $d['id_categoria'], $d['nome'], $d['descricao'], $d['preco'], $d['codigo'], $d['controla_estoque'], $d['disponivel']]);
+            'INSERT INTO produtos (id_restaurante, id_categoria, nome, descricao, preco, unidade_venda, venda_minima, codigo, controla_estoque, disponivel)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$idRestaurante, $d['id_categoria'], $d['nome'], $d['descricao'], $d['preco'], $d['unidade_venda'] ?? 'un', $d['venda_minima'] ?? null,
+            $d['codigo'], $d['controla_estoque'], $d['disponivel']]);
         $id = $this->db->prepare('SELECT id FROM produtos WHERE id_restaurante = ? AND nome = ?');
         $id->execute([$idRestaurante, $d['nome']]);
         return (int) $id->fetchColumn();
     }
 
-    /** @param array{nome:string,descricao:?string,preco:string,codigo:?string,id_categoria:?int,controla_estoque:int,disponivel:int} $d */
+    /** @param array{nome:string,descricao:?string,preco:string,unidade_venda?:string,venda_minima?:?string,codigo:?string,id_categoria:?int,controla_estoque:int,disponivel:int} $d */
     public function atualizar(int $idRestaurante, int $id, array $d): void
     {
         $this->db->prepare(
-            'UPDATE produtos SET id_categoria = ?, nome = ?, descricao = ?, preco = ?, codigo = ?, controla_estoque = ?, disponivel = ?
+            'UPDATE produtos SET id_categoria = ?, nome = ?, descricao = ?, preco = ?, unidade_venda = ?, venda_minima = ?, codigo = ?, controla_estoque = ?, disponivel = ?
              WHERE id = ? AND id_restaurante = ?'
-        )->execute([$d['id_categoria'], $d['nome'], $d['descricao'], $d['preco'], $d['codigo'], $d['controla_estoque'], $d['disponivel'], $id, $idRestaurante]);
+        )->execute([$d['id_categoria'], $d['nome'], $d['descricao'], $d['preco'], $d['unidade_venda'] ?? 'un', $d['venda_minima'] ?? null,
+            $d['codigo'], $d['controla_estoque'], $d['disponivel'], $id, $idRestaurante]);
+    }
+
+    /** Porcoes do cardapio online (produto por quilo/litro), em ordem. @return list<string> decimais ("0.500") */
+    public function porcoes(int $idRestaurante, int $idProduto): array
+    {
+        $q = $this->db->prepare('SELECT quantidade FROM produto_porcoes WHERE id_produto = ? AND id_restaurante = ? ORDER BY ordem, quantidade');
+        $q->execute([$idProduto, $idRestaurante]);
+        return array_map('strval', $q->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Substitui as porcoes do cardapio online. Chamar dentro de transacao.
+     * @param list<string> $porcoes decimais ("0.250"), ja validados e em ordem
+     */
+    public function salvarPorcoes(int $idRestaurante, int $idProduto, array $porcoes): void
+    {
+        $this->db->prepare('DELETE FROM produto_porcoes WHERE id_produto = ? AND id_restaurante = ?')->execute([$idProduto, $idRestaurante]);
+        $insert = $this->db->prepare('INSERT INTO produto_porcoes (id_restaurante, id_produto, quantidade, ordem) VALUES (?, ?, ?, ?)');
+        foreach (array_values($porcoes) as $ordem => $quantidade) {
+            $insert->execute([$idRestaurante, $idProduto, $quantidade, $ordem]);
+        }
     }
 
     public function definirDisponivel(int $idRestaurante, int $id, bool $disponivel): void
@@ -126,6 +149,7 @@ final class ProdutoRepository
     public function excluir(int $idRestaurante, int $id): void
     {
         $this->db->prepare('DELETE FROM produto_insumos WHERE id_produto = ? AND id_restaurante = ?')->execute([$id, $idRestaurante]);
+        $this->db->prepare('DELETE FROM produto_porcoes WHERE id_produto = ? AND id_restaurante = ?')->execute([$id, $idRestaurante]);
         $this->db->prepare('DELETE FROM produtos WHERE id = ? AND id_restaurante = ?')->execute([$id, $idRestaurante]);
     }
 

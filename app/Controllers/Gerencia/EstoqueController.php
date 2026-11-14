@@ -72,7 +72,7 @@ final class EstoqueController extends BaseGerencia
         if ($r = $this->entrar($slug)) {
             return $r;
         }
-        return $this->formProduto(null, ['disponivel' => '1', 'controle' => 'estoque', 'categoria' => (string) ($_GET['categoria'] ?? '')], []);
+        return $this->formProduto(null, ['disponivel' => '1', 'controle' => 'estoque', 'unidade_venda' => 'un', 'categoria' => (string) ($_GET['categoria'] ?? '')], []);
     }
 
     public function editarProduto(string $slug, string $idTexto): Response
@@ -96,6 +96,10 @@ final class EstoqueController extends BaseGerencia
             'disponivel' => (int) $produto['disponivel'] === 1 ? '1' : '',
             'ficha_insumo' => array_map(static fn (array $i): string => (string) $i['id_insumo'], $ficha),
             'ficha_quantidade' => array_map(static fn (array $i): string => Numero::decimalCampo($i['quantidade']), $ficha),
+            'unidade_venda' => (string) ($produto['unidade_venda'] ?? 'un'),
+            'venda_minima' => $produto['venda_minima'] !== null ? \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($produto['venda_minima'])) : '',
+            'porcoes' => array_map(static fn (string $p): string => \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($p)),
+                (new ProdutoRepository($this->db))->porcoes($this->restaurante['id'], $id)),
         ], []);
     }
 

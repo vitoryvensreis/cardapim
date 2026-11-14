@@ -380,3 +380,16 @@ html.cd-sem-rolagem { overflow: hidden; }
   .cd-folha[open] .cd-folha-caixa, .cd-folha.is-saindo .cd-folha-caixa, .cd-barra, .cd-toast, .cd-folha::backdrop { animation: none !important; }
   .cd-topo-nome, .cd-aba, .cd-produto { transition: none; }
 }
+
+/* Venda por peso: porcoes que o cliente escolhe na janela do produto */
+.cd-porcoes { border: 0; padding: 0; margin: .75rem 0 0; }
+.cd-porcoes legend { margin-bottom: .5rem; color: var(--c-ink); font-weight: 700; font-size: .95rem; }
+.cd-porcoes-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: .5rem; }
+.cd-porcao { position: relative; display: block; cursor: pointer; }
+.cd-porcao input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.cd-porcao span { display: grid; gap: .1rem; min-height: 44px; padding: .55rem .7rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); text-align: center; }
+.cd-porcao strong { color: var(--c-ink); font-size: 1rem; }
+.cd-porcao small { color: var(--c-muted); font-size: .85rem; }
+.cd-porcao input:checked + span { border-color: var(--c-wine); background: var(--c-blush); }
+.cd-porcao input:checked + span strong { color: var(--c-wine); }
+.cd-porcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }

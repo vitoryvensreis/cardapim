@@ -99,7 +99,9 @@ final class CheckoutPublico
             ] : null,
             'itens' => array_map(static fn (array $i): array => [
                 'nome' => (string) $i['nome'],
-                'quantidade' => (int) $i['quantidade'],
+                'quantidade' => \Cardapim\Modules\Inventory\QuantidadeVenda::contaItens(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($i['quantidade']), (string) ($i['unidade'] ?? 'un')),
+                // "2x" ou "846 g": a tela mostra este texto antes do nome.
+                'quantidade_texto' => \Cardapim\Modules\Inventory\QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un')),
                 'observacao' => (string) ($i['observacao'] ?? ''),
                 'total_centavos' => Numero::centavos((string) $i['total']),
             ], $itens),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Services\Cardapio;
 
 use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
 use Cardapim\Repositories\Gerencia\PerfilRepository;
 use Cardapim\Shared\Numero;
@@ -23,12 +24,15 @@ final class CardapioPublico
     }
 
     /**
+     * Produtos por categoria. Cada produto traz a unidade de venda ('un' | 'kg' | 'l'), o minimo (milesimos) e as
+     * porcoes do cardapio online ('opcoes'). $online = true (cardapio do cliente): produto por peso SEM porcao
+     * cadastrada fica de fora (vende so no caixa e no garcom).
      * @return array{categorias: list<array{id:string,nome:string,produtos:list<array<string,mixed>>}>, total:int}
      */
-    public function categorias(int $idRestaurante): array
+    public function categorias(int $idRestaurante, bool $online = false): array
     {
         $q = $this->db->prepare(
-            'SELECT p.id, p.nome, p.descricao, p.preco, p.id_categoria, c.nome AS categoria
+            'SELECT p.id, p.nome, p.descricao, p.preco, p.unidade_venda, p.venda_minima, p.id_categoria, c.nome AS categoria
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
              WHERE p.id_restaurante = ? AND p.ativo = 1 AND (c.id IS NULL OR c.ativo = 1)
@@ -37,9 +41,18 @@ final class CardapioPublico
         $q->execute([$idRestaurante]);
         $linhas = $q->fetchAll(PDO::FETCH_ASSOC);
         $disponibilidade = (new DisponibilidadeProdutos($this->db))->verificar($idRestaurante);
+        $porcoes = $this->porcoes($idRestaurante);
 
         $categorias = [];
+        $total = 0;
         foreach ($linhas as $p) {
+            $unidade = QuantidadeVenda::unidade($p['unidade_venda'] ?? 'un');
+            $centavos = self::centavos((string) $p['preco']);
+            $opcoes = QuantidadeVenda::porPeso($unidade) ? self::opcoes($centavos, $unidade, $porcoes[(int) $p['id']] ?? []) : [];
+            if ($online && QuantidadeVenda::porPeso($unidade) && $opcoes === []) {
+                continue;
+            }
+            $total++;
             $chave = $p['id_categoria'] !== null ? 'c' . (int) $p['id_categoria'] : 'outros';
             $categorias[$chave] ??= ['id' => $chave, 'nome' => $p['categoria'] !== null ? (string) $p['categoria'] : 'Outros', 'produtos' => []];
             $d = $disponibilidade[(int) $p['id']] ?? ['disponivel' => false];
@@ -47,9 +60,12 @@ final class CardapioPublico
                 'id' => (int) $p['id'],
                 'nome' => (string) $p['nome'],
                 'descricao' => trim((string) ($p['descricao'] ?? '')),
-                'centavos' => self::centavos((string) $p['preco']),
-                'preco' => Numero::reais((string) $p['preco']),
+                'centavos' => $centavos,
+                'preco' => Numero::reais((string) $p['preco']) . QuantidadeVenda::sufixoPreco($unidade),
                 'disponivel' => (bool) $d['disponivel'],
+                'unidade' => $unidade,
+                'minimo' => $p['venda_minima'] !== null ? QuantidadeVenda::doBanco($p['venda_minima']) : null,
+                'opcoes' => $opcoes,
             ];
         }
         // Disponiveis primeiro dentro de cada categoria (os indisponiveis continuam visiveis, no fim).
@@ -57,7 +73,42 @@ final class CardapioPublico
             usort($c['produtos'], static fn (array $a, array $b): int => (int) $b['disponivel'] <=> (int) $a['disponivel']);
         }
         unset($c);
-        return ['categorias' => array_values($categorias), 'total' => count($linhas)];
+        return ['categorias' => array_values($categorias), 'total' => $total];
+    }
+
+    /**
+     * Porcoes do cardapio online por produto (milesimos, em ordem).
+     * @param list<int> $ids vazio = todos os produtos do restaurante
+     * @return array<int, list<int>>
+     */
+    public function porcoes(int $idRestaurante, array $ids = []): array
+    {
+        $sql = 'SELECT id_produto, quantidade FROM produto_porcoes WHERE id_restaurante = ?';
+        $params = [$idRestaurante];
+        if ($ids !== []) {
+            $sql .= ' AND id_produto IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+            array_push($params, ...$ids);
+        }
+        $q = $this->db->prepare($sql . ' ORDER BY id_produto, ordem, quantidade');
+        $q->execute($params);
+        $por = [];
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $por[(int) $r['id_produto']][] = QuantidadeVenda::doBanco($r['quantidade']);
+        }
+        return $por;
+    }
+
+    /**
+     * Porcoes prontas para a tela: [{milesimos, texto "500 g", centavos, preco "R$ 29,95"}].
+     * @param list<int> $porcoes
+     * @return list<array{milesimos:int, texto:string, centavos:int, preco:string}>
+     */
+    public static function opcoes(int $centavosPorUnidade, string $unidade, array $porcoes): array
+    {
+        return array_map(static function (int $m) use ($centavosPorUnidade, $unidade): array {
+            $c = QuantidadeVenda::totalCentavos($centavosPorUnidade, $m);
+            return ['milesimos' => $m, 'texto' => QuantidadeVenda::texto($m, $unidade), 'centavos' => $c, 'preco' => Numero::reais(sprintf('%d.%02d', intdiv($c, 100), $c % 100))];
+        }, $porcoes);
     }
 
     /**
@@ -78,17 +129,22 @@ final class CardapioPublico
             return ['itens' => [], 'removidos' => []];
         }
         $lista = array_keys($ids);
-        $q = $this->db->prepare('SELECT id, nome, preco FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN ('
+        $q = $this->db->prepare('SELECT id, nome, preco, unidade_venda FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN ('
             . implode(',', array_fill(0, count($lista), '?')) . ')');
         $q->execute([$idRestaurante, ...$lista]);
         $disponibilidade = (new DisponibilidadeProdutos($this->db))->verificar($idRestaurante, $lista);
+        $porcoes = $this->porcoes($idRestaurante, $lista);
         $saida = [];
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
+            $unidade = QuantidadeVenda::unidade($p['unidade_venda'] ?? 'un');
             $saida[(int) $p['id']] = [
                 'id' => (int) $p['id'],
                 'nome' => (string) $p['nome'],
                 'centavos' => self::centavos((string) $p['preco']),
                 'disponivel' => (bool) ($disponibilidade[(int) $p['id']]['disponivel'] ?? false),
+                // Produto por peso: preco do quilo/litro + porcoes validas (a sacola tira a porcao que sumiu).
+                'unidade' => $unidade,
+                'porcoes' => QuantidadeVenda::porPeso($unidade) ? ($porcoes[(int) $p['id']] ?? []) : [],
             ];
         }
         return ['itens' => array_values($saida), 'removidos' => array_values(array_diff($lista, array_keys($saida)))];

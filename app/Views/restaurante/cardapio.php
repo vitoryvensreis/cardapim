@@ -91,11 +91,12 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
                         <li data-produto-item data-busca-texto="<?= $e(mb_strtolower($p['nome'] . ' ' . $p['descricao'])) ?>">
                             <button type="button" class="cd-produto<?= $p['disponivel'] ? '' : ' is-indisponivel' ?>" data-produto="<?= (int) $p['id'] ?>"
                                     data-nome="<?= $e($p['nome']) ?>" data-descricao="<?= $e($p['descricao']) ?>" data-centavos="<?= (int) $p['centavos'] ?>"
+                                    data-unidade="<?= $e($p['unidade']) ?>" data-preco-texto="<?= $e($p['preco']) ?>"<?php if ($p['opcoes'] !== []): ?> data-porcoes="<?= $e(implode(',', array_column($p['opcoes'], 'milesimos'))) ?>"<?php endif; ?>
                                     <?= $p['disponivel'] ? '' : 'disabled aria-disabled="true"' ?>>
                                 <span class="cd-produto-texto">
                                     <strong><?= $e($p['nome']) ?></strong>
                                     <?php if ($p['descricao'] !== ''): ?><span class="cd-produto-desc"><?= $e($p['descricao']) ?></span><?php endif; ?>
-                                    <span class="cd-produto-preco"><?= $p['disponivel'] ? $e($p['preco']) : 'Indisponível no momento' ?></span>
+                                    <span class="cd-produto-preco"><?= $p['disponivel'] ? $e($p['opcoes'] !== [] ? $p['opcoes'][0]['texto'] . ' por ' . $p['opcoes'][0]['preco'] . (count($p['opcoes']) > 1 ? ' · ' . count($p['opcoes']) . ' porções' : '') : $p['preco']) : 'Indisponível no momento' ?></span>
                                 </span>
                                 <span class="cd-produto-acao" aria-hidden="true">
                                     <span class="cd-na-sacola" data-na-sacola hidden></span>

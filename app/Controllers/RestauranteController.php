@@ -40,7 +40,7 @@ final class RestauranteController
 
         try {
             $cardapio = new CardapioPublico(Database::connect());
-            $menu = $cardapio->categorias($restaurante['id']);
+            $menu = $cardapio->categorias($restaurante['id'], true);
             $info = $cardapio->informacoes($restaurante['id']);
         } catch (\Throwable $exception) {
             error_log('[Cardapim] Cardapio indisponivel: ' . get_class($exception));

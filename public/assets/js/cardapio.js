@@ -19,6 +19,13 @@
   const MAX_QTD = 99;
   const dinheiro = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   const reais = (centavos) => dinheiro.format(centavos / 100).replace(/ /g, " ");
+  /* Venda por peso: a linha guarda a porcao em milesimos (500 = 500 g). Valor = preco do quilo x quantidade x
+     porcao, arredondado ao centavo (a mesma conta do servidor). */
+  const textoPeso = (m, unidade) => (m < 1000
+    ? `${m} ${unidade === "l" ? "ml" : "g"}`
+    : `${Math.floor(m / 1000)},${String(m % 1000).padStart(3, "0")} ${unidade === "l" ? "L" : "kg"}`);
+  const valorLinha = (i) => (i.porcao ? Math.floor((i.centavos * i.qtd * i.porcao + 500) / 1000) : i.centavos * i.qtd);
+  const textoLinha = (i) => (i.porcao ? textoPeso(i.qtd * i.porcao, i.unidade) : `${i.qtd}x`);
   const el = (tag, classe, texto) => {
     const n = document.createElement(tag);
     if (classe) n.className = classe;
@@ -68,6 +75,9 @@
       nome: b.dataset.nome,
       descricao: b.dataset.descricao || "",
       centavos: Number(b.dataset.centavos) || 0,
+      unidade: b.dataset.unidade || "un",
+      precoTexto: b.dataset.precoTexto || "",
+      porcoes: (b.dataset.porcoes || "").split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0),
       disponivel: !b.disabled,
       botao: b,
     });
@@ -79,7 +89,8 @@
     try {
       const dados = JSON.parse(window.localStorage.getItem(CHAVE) || "null");
       if (!dados || !Array.isArray(dados.itens) || Date.now() - (dados.salvo || 0) > VALIDADE) return [];
-      return dados.itens.filter((i) => Number.isInteger(i.id) && Number.isInteger(i.qtd) && i.qtd > 0).slice(0, 50);
+      return dados.itens.filter((i) => Number.isInteger(i.id) && Number.isInteger(i.qtd) && i.qtd > 0
+        && (i.porcao === undefined || i.porcao === null || (Number.isInteger(i.porcao) && i.porcao > 0))).slice(0, 50);
     } catch (e) {
       return [];
     }
@@ -92,21 +103,21 @@
       /* navegacao privada sem armazenamento: a sacola vale so enquanto a pagina estiver aberta */
     }
   };
-  const chaveLinha = (id, obs) => `${id}|${obs.trim().toLowerCase()}`;
+  const chaveLinha = (id, obs, porcao) => `${id}|${porcao || ""}|${obs.trim().toLowerCase()}`;
   const totais = () => sacola.reduce((t, i) => {
     if (i.indisponivel) return t;
     t.qtd += i.qtd;
-    t.centavos += i.qtd * i.centavos;
+    t.centavos += valorLinha(i);
     return t;
   }, { qtd: 0, centavos: 0 });
 
-  const adicionar = (produto, qtd, obs, linhaEditada) => {
+  const adicionar = (produto, qtd, obs, linhaEditada, porcao = null) => {
     obs = obs.trim().slice(0, 140);
     if (linhaEditada) sacola = sacola.filter((i) => i.chave !== linhaEditada);
-    const chave = chaveLinha(produto.id, obs);
+    const chave = chaveLinha(produto.id, obs, porcao);
     const existente = sacola.find((i) => i.chave === chave);
     if (existente) existente.qtd = Math.min(MAX_QTD, existente.qtd + qtd);
-    else sacola.push({ chave, id: produto.id, nome: produto.nome, centavos: produto.centavos, qtd, obs });
+    else sacola.push({ chave, id: produto.id, nome: produto.nome, centavos: produto.centavos, qtd, obs, porcao: porcao || null, unidade: produto.unidade });
     atualizar();
   };
 
@@ -144,9 +155,10 @@
       editar.setAttribute("aria-label", `Editar ${linha.nome}`);
       editar.addEventListener("click", () => abrirProduto(produtos.get(linha.id), linha));
       texto.append(editar);
+      if (linha.porcao) texto.append(el("span", "cd-sacola-obs", linha.qtd > 1 ? `${linha.qtd} porções de ${textoPeso(linha.porcao, linha.unidade)}` : `Porção de ${textoPeso(linha.porcao, linha.unidade)}`));
       if (linha.obs) texto.append(el("span", "cd-sacola-obs", linha.obs));
       if (linha.indisponivel) texto.append(el("span", "cd-sacola-alerta", "Indisponível agora. Remova para continuar."));
-      else texto.append(el("span", "cd-sacola-preco", reais(linha.centavos * linha.qtd)));
+      else texto.append(el("span", "cd-sacola-preco", reais(valorLinha(linha))));
       const passo = el("div", "cd-stepper cd-stepper-sm");
       passo.setAttribute("role", "group");
       passo.setAttribute("aria-label", `Quantidade de ${linha.nome}`);
@@ -239,15 +251,37 @@
   const totalAdicionar = dProduto.querySelector("[data-adicionar-total]");
   const textoAdicionar = dProduto.querySelector("[data-adicionar-texto]");
   const contaObs = dProduto.querySelector("[data-obs-conta]");
+  const campoPorcoes = dProduto.querySelector("[data-produto-porcoes]");
+  const opcoesPorcoes = dProduto.querySelector("[data-porcoes-opcoes]");
   let atual = null;
   let qtdAtual = 1;
+  let porcaoAtual = null;
   let linhaEmEdicao = null;
 
   const pintarQtd = () => {
     saidaQtd.textContent = String(qtdAtual);
     btnMenos.disabled = qtdAtual <= 1;
     btnMais.disabled = qtdAtual >= MAX_QTD;
-    totalAdicionar.textContent = reais(atual.centavos * qtdAtual);
+    totalAdicionar.textContent = reais(valorLinha({ centavos: atual.centavos, qtd: qtdAtual, porcao: porcaoAtual }));
+  };
+
+  // Produto por peso: o cliente escolhe uma das porcoes cadastradas pelo restaurante.
+  const desenharPorcoes = (produto) => {
+    opcoesPorcoes.replaceChildren();
+    campoPorcoes.hidden = produto.porcoes.length === 0;
+    produto.porcoes.forEach((m) => {
+      const rotulo = el("label", "cd-porcao");
+      const radio = el("input");
+      radio.type = "radio";
+      radio.name = "porcao";
+      radio.value = String(m);
+      radio.checked = m === porcaoAtual;
+      radio.addEventListener("change", () => { porcaoAtual = m; pintarQtd(); });
+      const texto = el("span");
+      texto.append(el("strong", "", textoPeso(m, produto.unidade)), el("small", "", reais(Math.floor((produto.centavos * m + 500) / 1000))));
+      rotulo.append(radio, texto);
+      opcoesPorcoes.append(rotulo);
+    });
   };
 
   const abrirProduto = (produto, linha = null) => {
@@ -255,11 +289,13 @@
     atual = produto;
     linhaEmEdicao = linha ? linha.chave : null;
     qtdAtual = linha ? linha.qtd : 1;
+    porcaoAtual = produto.porcoes.length ? (linha && produto.porcoes.includes(linha.porcao) ? linha.porcao : produto.porcoes[0]) : null;
+    desenharPorcoes(produto);
     dProduto.querySelector("[data-produto-nome]").textContent = produto.nome;
     const desc = dProduto.querySelector("[data-produto-desc]");
     desc.textContent = produto.descricao;
     desc.hidden = produto.descricao === "";
-    dProduto.querySelector("[data-produto-preco]").textContent = reais(produto.centavos);
+    dProduto.querySelector("[data-produto-preco]").textContent = produto.porcoes.length ? produto.precoTexto : reais(produto.centavos);
     campoObs.value = linha ? linha.obs : "";
     contaObs.textContent = `${campoObs.value.length}/140`;
     textoAdicionar.textContent = linha ? "Atualizar" : "Adicionar";
@@ -274,9 +310,9 @@
     ev.preventDefault();
     if (!atual) return;
     const editando = Boolean(linhaEmEdicao);
-    adicionar(atual, qtdAtual, campoObs.value, linhaEmEdicao);
+    adicionar(atual, qtdAtual, campoObs.value, linhaEmEdicao, porcaoAtual);
     UI.fechar(dProduto);
-    window.CardapimToast(editando ? "Item atualizado na sacola." : `${qtdAtual}x ${atual.nome} na sacola.`);
+    window.CardapimToast(editando ? "Item atualizado na sacola." : `${textoLinha({ qtd: qtdAtual, porcao: porcaoAtual, unidade: atual.unidade })} ${atual.nome} na sacola.`);
     avisoContinuar = "";
   });
 
@@ -359,7 +395,7 @@
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ itens: sacola.map((i) => ({ id: i.id, quantidade: i.qtd })) }),
+      body: JSON.stringify({ itens: sacola.map((i) => ({ id: i.id, quantidade: i.qtd, porcao: i.porcao || null })) }),
     }).then((r) => (r.ok ? r.json() : null)).then((dados) => {
       if (!dados || !Array.isArray(dados.itens)) return;
       const atuais = new Map(dados.itens.map((i) => [i.id, i]));
@@ -367,9 +403,13 @@
       sacola = sacola.filter((linha) => {
         const p = atuais.get(linha.id);
         if (!p) { mudou = true; return false; }
+        // Porcao que o restaurante tirou (ou produto que mudou de unidade): a linha sai da sacola.
+        const porcoes = Array.isArray(p.porcoes) ? p.porcoes : [];
+        if ((linha.porcao && !porcoes.includes(linha.porcao)) || (!linha.porcao && p.unidade && p.unidade !== "un")) { mudou = true; return false; }
         if (p.centavos !== linha.centavos || p.nome !== linha.nome) mudou = true;
         linha.centavos = p.centavos;
         linha.nome = p.nome;
+        linha.unidade = p.unidade || "un";
         linha.indisponivel = !p.disponivel;
         return true;
       });

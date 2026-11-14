@@ -186,7 +186,7 @@ $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em']
             <h3 class="pedido-subtitulo"><?= Icon::svg('receipt', 'icon-sm') ?>Itens</h3>
             <ul class="conta-itens">
                 <?php foreach ($d['itens'] as $i): ?>
-                    <li><span class="conta-qtd"><?= (int) $i['quantidade'] ?>x</span><span class="conta-nome"><?= $e((string) $i['nome']) ?><?php if ($i['observacao']): ?><small><?= $e((string) $i['observacao']) ?></small><?php endif; ?></span><span class="conta-preco"><?= $e(Numero::reais((string) $i['total'])) ?></span></li>
+                    <li><span class="conta-qtd"><?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?></span><span class="conta-nome"><?= $e((string) $i['nome']) ?><?php if ($i['observacao']): ?><small><?= $e((string) $i['observacao']) ?></small><?php endif; ?></span><span class="conta-preco"><?= $e(Numero::reais((string) $i['total'])) ?></span></li>
                 <?php endforeach; ?>
             </ul>
             <dl class="conta-totais">
@@ -211,7 +211,7 @@ $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em']
         <p><?= $e((string) ($p['cliente_nome'] ?? '')) ?><?= $p['cliente_whatsapp'] ? ' · ' . $e(Documento::formatarTelefone((string) $p['cliente_whatsapp'])) : '' ?></p>
         <?php if ($entrega): ?><p><?= $e($endereco) ?><?= $p['entrega_referencia'] ? ' (' . $e((string) $p['entrega_referencia']) . ')' : '' ?></p><?php endif; ?>
         <table>
-            <?php foreach ($d['itens'] as $i): ?><tr><td><?= (int) $i['quantidade'] ?>x <?= $e((string) $i['nome']) ?><?= $i['observacao'] ? ' (' . $e((string) $i['observacao']) . ')' : '' ?></td><td><?= $e(Numero::reais((string) $i['total'])) ?></td></tr><?php endforeach; ?>
+            <?php foreach ($d['itens'] as $i): ?><tr><td><?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?> <?= $e((string) $i['nome']) ?><?= $i['observacao'] ? ' (' . $e((string) $i['observacao']) . ')' : '' ?></td><td><?= $e(Numero::reais((string) $i['total'])) ?></td></tr><?php endforeach; ?>
             <?php if ($entrega): ?><tr><td>Entrega</td><td><?= $e(Numero::reais((string) $p['taxa_entrega'])) ?></td></tr><?php endif; ?>
             <tr class="impressao-total"><td>Total</td><td><?= $e(Numero::reais((string) $p['total'])) ?></td></tr>
         </table>

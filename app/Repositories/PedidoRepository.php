@@ -52,7 +52,7 @@ final class PedidoRepository
     /** @return list<array<string,mixed>> */
     public function itens(int $idRestaurante, int $idPedido): array
     {
-        $q = $this->db->prepare('SELECT id_produto, nome, preco_unitario, quantidade, observacao, total FROM pedido_itens WHERE id_pedido = ? AND id_restaurante = ? ORDER BY id');
+        $q = $this->db->prepare('SELECT id_produto, nome, preco_unitario, quantidade, unidade, observacao, total FROM pedido_itens WHERE id_pedido = ? AND id_restaurante = ? ORDER BY id');
         $q->execute([$idPedido, $idRestaurante]);
         return $q->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -105,18 +105,20 @@ final class PedidoRepository
         return $q->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** Itens (nao cancelados) de varios pedidos, agrupados por pedido. @param list<int> $ids @return array<int,list<array{nome:string,quantidade:int}>> */
+    /** Itens (nao cancelados) de varios pedidos, agrupados por pedido. @param list<int> $ids @return array<int,list<array{nome:string,quantidade:int,unidade:string,milesimos:int}>> quantidade = itens que a linha conta */
     public function itensResumo(array $ids): array
     {
         $ids = array_values(array_unique(array_map('intval', $ids)));
         if ($ids === []) {
             return [];
         }
-        $q = $this->db->prepare('SELECT id_pedido, nome, quantidade FROM pedido_itens WHERE id_pedido IN (' . implode(',', array_fill(0, count($ids), '?')) . ') AND cancelado_em IS NULL ORDER BY id');
+        $q = $this->db->prepare('SELECT id_pedido, nome, quantidade, unidade FROM pedido_itens WHERE id_pedido IN (' . implode(',', array_fill(0, count($ids), '?')) . ') AND cancelado_em IS NULL ORDER BY id');
         $q->execute($ids);
         $por = [];
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $i) {
-            $por[(int) $i['id_pedido']][] = ['nome' => (string) $i['nome'], 'quantidade' => (int) $i['quantidade']];
+            $m = \Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($i['quantidade']);
+            $u = \Cardapim\Modules\Inventory\QuantidadeVenda::unidade($i['unidade'] ?? 'un');
+            $por[(int) $i['id_pedido']][] = ['nome' => (string) $i['nome'], 'quantidade' => \Cardapim\Modules\Inventory\QuantidadeVenda::contaItens($m, $u), 'unidade' => $u, 'milesimos' => $m];
         }
         return $por;
     }

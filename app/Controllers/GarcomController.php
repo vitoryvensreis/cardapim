@@ -98,9 +98,10 @@ final class GarcomController
         $pedidos = [];
         foreach ($qtds as $produto => $q) {
             $idProduto = self::id((string) $produto);
-            $quantidade = is_string($q) && ctype_digit($q) ? (int) $q : 0;
-            if ($idProduto !== null && $quantidade > 0) {
-                $pedidos[$idProduto] = [min(99, $quantidade), is_string($obs[$produto] ?? null) ? (string) $obs[$produto] : ''];
+            // Unidades ("2") ou, no produto por quilo/litro, o peso ("0,846"). Vazio ou zero = nao lancar.
+            $quantidade = is_string($q) ? trim($q) : '';
+            if ($idProduto !== null && $quantidade !== '' && preg_match('/\A0*(?:[.,]0*)?\z/', $quantidade) !== 1) {
+                $pedidos[$idProduto] = [mb_substr($quantidade, 0, 12), is_string($obs[$produto] ?? null) ? (string) $obs[$produto] : ''];
             }
         }
         if ($idComanda === null || $pedidos === []) {
@@ -115,7 +116,7 @@ final class GarcomController
         foreach ($pedidos as $idProduto => [$quantidade, $observacao]) {
             $res = $servico->lancar($idComanda, $idProduto, $quantidade, $observacao);
             if ($res->ok) {
-                $lancados += $quantidade;
+                $lancados += ctype_digit($quantidade) ? (int) $quantidade : 1;
             } else {
                 $falhas[] = $res->mensagem;
             }
@@ -411,6 +412,7 @@ final class GarcomController
             foreach ($cat['produtos'] as &$p) {
                 $d = $estoque[$p['id']] ?? null;
                 $p['porcoes'] = $d['porcoes'] ?? null;
+                $p['restante'] = $d['restante'] ?? null;
                 $p['motivo'] = $d['motivo'] ?? null;
             }
             unset($p);

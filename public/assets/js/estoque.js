@@ -32,6 +32,37 @@
     const resumo = formProduto.querySelector("[data-ficha-resumo]");
     const preco = formProduto.querySelector("[data-preco]");
 
+    /* Como vende: por unidade, por quilo ou por litro (rotulo do preco, porcoes e titulo da ficha mudam juntos). */
+    const blocoPeso = formProduto.querySelector("[data-bloco-peso]");
+    const rotuloPreco = formProduto.querySelector("label[for='campo-preco']");
+    const milesimos = (texto) => {
+      const [i = "0", d = ""] = String(texto || "").split(",");
+      return (Number.parseInt(i, 10) || 0) * 1000 + (Number.parseInt((d + "000").slice(0, 3), 10) || 0);
+    };
+    const atualizarPorcoes = () => {
+      const centavos = Math.round(paraNumero(preco?.value) * 100);
+      formProduto.querySelectorAll("[data-porcao]").forEach((campo) => {
+        const alvo = campo.closest("label")?.querySelector("[data-porcao-preco]");
+        const m = milesimos(campo.value);
+        if (alvo) alvo.textContent = m > 0 && centavos > 0 ? reais(Math.floor((centavos * m + 500) / 1000) / 100) : "";
+      });
+    };
+    const atualizarComoVende = () => {
+      const unidade = formProduto.querySelector("[data-unidade-venda]:checked")?.value || "un";
+      const peso = unidade !== "un";
+      if (blocoPeso) blocoPeso.hidden = !peso;
+      if (rotuloPreco) rotuloPreco.textContent = { un: "Preço de venda", kg: "Preço do quilo", l: "Preço do litro" }[unidade];
+      formProduto.querySelectorAll("[data-nome-unidade]").forEach((el) => { el.textContent = unidade === "l" ? "litro" : "quilo"; });
+      formProduto.querySelectorAll("[data-sigla-unidade]").forEach((el) => { el.textContent = unidade === "l" ? "L" : "kg"; });
+      const tituloFicha = formProduto.querySelector("[data-ficha-unidade-venda]");
+      if (tituloFicha) tituloFicha.textContent = { un: "1 unidade", kg: "1 kg vendido", l: "1 litro vendido" }[unidade];
+      atualizarPorcoes();
+    };
+    formProduto.querySelectorAll("[data-unidade-venda]").forEach((r) => r.addEventListener("change", atualizarComoVende));
+    formProduto.querySelectorAll("[data-porcao]").forEach((c) => c.addEventListener("input", () => window.setTimeout(atualizarPorcoes, 0)));
+    preco?.addEventListener("input", () => window.setTimeout(atualizarPorcoes, 0));
+    atualizarPorcoes();
+
     categoria?.addEventListener("change", () => {
       const nova = categoria.value === "nova";
       if (!novaCategoria) return;

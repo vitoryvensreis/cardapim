@@ -24,11 +24,29 @@ final class BaixaEstoque
     }
 
     /**
-     * @param array<int,int> $itens id_produto => quantidade vendida (inteiro > 0)
+     * @param array<int,int> $itens id_produto => quantidade vendida em UNIDADES inteiras (> 0)
      * @return array<int,string> consumo por insumo: id_insumo => quantidade baixada ("0.240")
      * @throws EstoqueInsuficiente|InvalidArgumentException
      */
     public function baixar(int $idRestaurante, array $itens): array
+    {
+        foreach ($itens as $idProduto => $quantidade) {
+            if (!is_int($quantidade) || $quantidade < 1 || $quantidade > 10000) {
+                throw new InvalidArgumentException('Itens do pedido invalidos.');
+            }
+            $itens[$idProduto] = $quantidade * 1000;
+        }
+        return $this->baixarMilesimos($idRestaurante, $itens);
+    }
+
+    /**
+     * Venda por peso: quantidade em milesimos (2 un = 2000; 0,846 kg = 846). A ficha tecnica vale para
+     * 1 unidade de venda (1 un, 1 kg ou 1 L): o consumo e proporcional, arredondado ao milesimo.
+     * @param array<int,int> $itens id_produto => milesimos vendidos
+     * @return array<int,string> consumo por insumo
+     * @throws EstoqueInsuficiente|InvalidArgumentException
+     */
+    public function baixarMilesimos(int $idRestaurante, array $itens): array
     {
         $itens = $this->validarItens($itens);
         return $this->emTransacao(function () use ($idRestaurante, $itens): array {
@@ -108,7 +126,7 @@ final class BaixaEstoque
     {
         $validos = [];
         foreach ($itens as $idProduto => $quantidade) {
-            if (!is_int($idProduto) || $idProduto < 1 || !is_int($quantidade) || $quantidade < 1 || $quantidade > 10000) {
+            if (!is_int($idProduto) || $idProduto < 1 || !is_int($quantidade) || $quantidade < 1 || $quantidade > 10000000) {
                 throw new InvalidArgumentException('Itens do pedido invalidos.');
             }
             $validos[$idProduto] = $quantidade;
@@ -158,8 +176,11 @@ final class BaixaEstoque
         foreach ($ficha->fetchAll(PDO::FETCH_ASSOC) as $linha) {
             $idInsumo = (int) $linha['id_insumo'];
             $porUnidade = Quantidade::paraMilesimos((string) $linha['quantidade']);
-            $necessidade[$idInsumo] = ($necessidade[$idInsumo] ?? 0) + $porUnidade * $itens[(int) $linha['id_produto']];
+            // milesimos do insumo por unidade de venda x milesimos vendidos / 1000 (meio milesimo para cima).
+            $necessidade[$idInsumo] = ($necessidade[$idInsumo] ?? 0) + intdiv($porUnidade * $itens[(int) $linha['id_produto']] + 500, 1000);
         }
+        // Consumo que arredondou para zero (ex.: 1 g de tempero por kg x 0,2 kg) nao baixa nada.
+        $necessidade = array_filter($necessidade, static fn (int $m): bool => $m > 0);
         ksort($necessidade); // mesma ordem de travamento em todas as vendas: evita deadlock
         return $necessidade;
     }

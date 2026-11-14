@@ -94,7 +94,7 @@ final class PedidoClienteController
     }
 
     /**
-     * Previa do desconto na tela de finalizar: {itens:[{id,quantidade}], cupom?}. Precos de agora (servidor).
+     * Previa do desconto na tela de finalizar: {itens:[{id,quantidade,porcao?}], cupom?}. Precos de agora (servidor).
      * Sem login: so confere o cupom (o "uma vez por cliente" e conferido de novo no pedido); com login, mostra a fidelidade.
      */
     public function desconto(string $slug): Response
@@ -107,24 +107,11 @@ final class PedidoClienteController
             }
             $db = Database::connect();
             $idRest = (int) $restaurante['id'];
-            $ids = [];
-            $qtds = [];
-            foreach (array_slice(is_array($dados['itens'] ?? null) ? $dados['itens'] : [], 0, 50) as $item) {
-                $id = is_array($item) ? ($item['id'] ?? null) : null;
-                $qtd = is_array($item) ? ($item['quantidade'] ?? null) : null;
-                if (is_int($id) && $id > 0 && is_int($qtd) && $qtd >= 1 && $qtd <= 99) {
-                    $ids[] = $id;
-                    $qtds[$id] = ($qtds[$id] ?? 0) + $qtd;
-                }
-            }
+            // Subtotal com os precos e porcoes de agora (linhas invalidas sao ignoradas so na previa).
             $subtotal = 0;
-            if ($ids !== []) {
-                $ids = array_values(array_unique($ids));
-                $q = $db->prepare('SELECT id, preco FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
-                $q->execute([$idRest, ...$ids]);
-                foreach ($q->fetchAll(\PDO::FETCH_ASSOC) as $p) {
-                    $subtotal += Numero::centavos((string) $p['preco']) * $qtds[(int) $p['id']];
-                }
+            $formato = \Cardapim\Services\Pedidos\LinhasSacola::formato($dados['itens'] ?? null, 50) ?? [];
+            foreach (\Cardapim\Services\Pedidos\LinhasSacola::completar($db, $idRest, array_slice($formato, 0, 50))['linhas'] as $l) {
+                $subtotal += $l['total'];
             }
             $cliente = ClienteSessao::atual();
             $r = (new \Cardapim\Services\Descontos\DescontoPedido($db))->calcular($idRest, $cliente !== null ? (int) $cliente['id'] : null, $subtotal, $cupom);

@@ -5,6 +5,7 @@
  * Espera: $c (ComandaService::detalhes), $cardapio, $livres, $caixaAberto, $base, $csrf, $erros, $enviado.
  */
 use Cardapim\Core\Icon;
+use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Services\Caixa\CaixaService;
 use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Shared\Numero;
@@ -14,7 +15,8 @@ $r = static fn (int $c): string => Numero::reais(CaixaService::dec($c));
 $p = $c['pedido'];
 $url = $base . '/comandas/' . (int) $p['id'];
 $ativos = array_values(array_filter($c['itens'], static fn (array $i): bool => $i['cancelado_em'] === null));
-$qtdItens = array_sum(array_map(static fn (array $i): int => (int) $i['quantidade'], $ativos));
+$qtdItens = array_sum(array_map(static fn (array $i): int => QuantidadeVenda::contaItens(QuantidadeVenda::doBanco($i['quantidade']), (string) ($i['unidade'] ?? 'un')), $ativos));
+$qtdTexto = static fn (array $i): string => QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'));
 $servicoLigado = Numero::centavos((string) $p['servico_percentual']) > 0;
 $pessoas = (int) ($p['pessoas'] ?? 0);
 $desde = (int) strtotime((string) $p['criado_em']);
@@ -83,7 +85,8 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                                     <input type="hidden" name="produto" value="<?= (int) $prod['id'] ?>">
                                     <input type="hidden" name="quantidade" value="1">
                                     <button class="produto-botao" type="submit"<?= $prod['disponivel'] ? '' : ' disabled' ?>
-                                            data-produto-abrir data-produto-id="<?= (int) $prod['id'] ?>" data-produto-nome="<?= $e($prod['nome']) ?>" data-produto-centavos="<?= (int) $prod['centavos'] ?>">
+                                            data-produto-abrir data-produto-id="<?= (int) $prod['id'] ?>" data-produto-nome="<?= $e($prod['nome']) ?>" data-produto-centavos="<?= (int) $prod['centavos'] ?>"
+                                            data-produto-unidade="<?= $e($prod['unidade']) ?>" data-produto-minimo="<?= (int) ($prod['minimo'] ?? 0) ?>">
                                         <span class="produto-nome"><?= $e($prod['nome']) ?></span>
                                         <span class="produto-preco"><?= $prod['disponivel'] ? $e($prod['preco']) : 'Acabou' ?></span>
                                         <?php if ($prod['disponivel']): ?><span class="produto-mais" aria-hidden="true"><?= Icon::svg('plus', 'icon-sm') ?></span><?php endif; ?>
@@ -112,14 +115,14 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                     <ul class="conta-itens">
                         <?php foreach ($c['itens'] as $i): $cancelado = $i['cancelado_em'] !== null; ?>
                             <li class="<?= $cancelado ? 'is-cancelado' : '' ?>">
-                                <span class="conta-qtd"><?= (int) $i['quantidade'] ?>x</span>
+                                <span class="conta-qtd"><?= $e($qtdTexto($i)) ?></span>
                                 <span class="conta-nome"><?= $e((string) $i['nome']) ?>
                                     <?php if ($i['observacao']): ?><small><?= $e((string) $i['observacao']) ?></small><?php endif; ?>
-                                    <small class="conta-meta"><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?><?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small>
+                                    <small class="conta-meta"><?php if (QuantidadeVenda::porPeso((string) ($i['unidade'] ?? 'un'))): ?><?= $e(Numero::reais((string) $i['preco_unitario']) . QuantidadeVenda::sufixoPreco((string) $i['unidade'])) ?> · <?php endif; ?><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?><?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small>
                                 </span>
                                 <span class="conta-preco"><?= $e(Numero::reais((string) $i['total'])) ?></span>
                                 <?php if ($c['aberta'] && !$cancelado): ?>
-                                    <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" data-item-nome="<?= $e((int) $i['quantidade'] . 'x ' . $i['nome']) ?>" aria-label="Cancelar <?= $e((string) $i['nome']) ?>">
+                                    <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" data-item-nome="<?= $e($qtdTexto($i) . ' ' . $i['nome']) ?>" aria-label="Cancelar <?= $e((string) $i['nome']) ?>">
                                         <?= Icon::svg('x', 'icon-sm') ?>
                                     </button>
                                 <?php endif; ?>
@@ -219,10 +222,17 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                     <h2 id="produto-titulo" data-produto-titulo>Produto</h2>
                     <button class="folha-fechar" type="button" aria-label="Fechar" data-fechar-dialogo><?= Icon::svg('x') ?></button>
                 </div>
-                <div class="qtd" role="group" aria-label="Quantidade">
+                <div class="qtd" role="group" aria-label="Quantidade" data-qtd-bloco>
                     <button type="button" class="qtd-botao" data-qtd="-1" aria-label="Menos um"><?= Icon::svg('minus') ?></button>
                     <input class="qtd-valor" name="quantidade" value="1" inputmode="numeric" maxlength="2" aria-label="Quantidade" data-qtd-campo>
                     <button type="button" class="qtd-botao" data-qtd="1" aria-label="Mais um"><?= Icon::svg('plus') ?></button>
+                </div>
+                <?php // Produto vendido por quilo/litro: digita os numeros do visor da balanca (8 4 6 -> 0,846). ?>
+                <div class="campo-peso" data-peso-bloco hidden>
+                    <label class="campo-caixa"><span data-peso-rotulo>Peso (kg)</span>
+                        <input name="quantidade" inputmode="numeric" autocomplete="off" placeholder="0,000" data-mask="peso" data-peso-campo disabled aria-describedby="peso-ajuda">
+                    </label>
+                    <p class="campo-peso-ajuda" id="peso-ajuda" data-peso-ajuda>Digite só os números da balança: 8 4 6 vira 0,846.</p>
                 </div>
                 <label class="campo-caixa"><span>Observação (opcional)</span><input name="observacao" maxlength="140" placeholder="Ex.: sem cebola, bem passado" autocomplete="off"></label>
                 <button class="btn btn-primary btn-lg btn-block" type="submit" data-produto-lancar>Lançar</button>
@@ -252,7 +262,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
         <p class="impressao-titulo"><?= $e((string) $restaurante['nome']) ?></p>
         <p><?= $e($c['rotulo']) ?> · Pedido #<?= (int) $p['numero'] ?> · <?= $e(date('d/m/Y H:i')) ?></p>
         <table>
-            <?php foreach ($ativos as $i): ?><tr><td><?= (int) $i['quantidade'] ?>x <?= $e((string) $i['nome']) ?></td><td><?= $e(Numero::reais((string) $i['total'])) ?></td></tr><?php endforeach; ?>
+            <?php foreach ($ativos as $i): ?><tr><td><?= $e($qtdTexto($i)) ?> <?= $e((string) $i['nome']) ?><?php if (QuantidadeVenda::porPeso((string) ($i['unidade'] ?? 'un'))): ?> (<?= $e(Numero::reais((string) $i['preco_unitario']) . QuantidadeVenda::sufixoPreco((string) $i['unidade'])) ?>)<?php endif; ?></td><td><?= $e(Numero::reais((string) $i['total'])) ?></td></tr><?php endforeach; ?>
             <tr class="impressao-linha"><td>Itens</td><td><?= $e($r($c['subtotal'])) ?></td></tr>
             <?php if ($c['servico'] > 0): ?><tr><td>Serviço</td><td><?= $e($r($c['servico'])) ?></td></tr><?php endif; ?>
             <?php if ($c['desconto'] > 0): ?><tr><td>Desconto</td><td>−<?= $e($r($c['desconto'])) ?></td></tr><?php endif; ?>

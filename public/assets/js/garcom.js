@@ -121,6 +121,20 @@
       let itens = 0;
       let soma = 0;
       $$("[data-produto]", folha).forEach((li) => {
+        const peso = $("[data-peso]", li);
+        if (peso) {
+          // Produto por quilo/litro: "0,846" -> 846 milesimos; conta como 1 item.
+          const [i = "0", d = ""] = (peso.value || "").split(",");
+          const m = (parseInt(i, 10) || 0) * 1000 + (parseInt((d + "000").slice(0, 3), 10) || 0);
+          const minimo = Number(li.dataset.minimo || 0);
+          const ok = m > 0 && m >= minimo;
+          if (ok) { itens += 1; soma += Math.floor((m * Number(li.dataset.preco || 0) + 500) / 1000); }
+          li.classList.toggle("is-escolhido", ok);
+          peso.setAttribute("aria-invalid", m > 0 && !ok ? "true" : "false");
+          const obsPeso = $("[data-obs]", li);
+          if (obsPeso) obsPeso.hidden = m === 0;
+          return;
+        }
         const inp = $("[data-qtd]", li);
         if (!inp) return;
         const q = Math.max(0, Math.min(Number(inp.max || 99), parseInt(inp.value || "0", 10) || 0));
@@ -151,9 +165,19 @@
       if (navigator.vibrate) navigator.vibrate(8);
       atualizarTotal();
     });
-    lista.addEventListener("input", (ev) => { if (ev.target.matches("[data-qtd]")) atualizarTotal(); });
+    lista.addEventListener("input", (ev) => {
+      if (ev.target.matches("[data-qtd]")) atualizarTotal();
+      if (ev.target.matches("[data-peso]")) window.setTimeout(atualizarTotal, 0); // depois da mascara
+    });
     form.addEventListener("submit", () => {
       // Nao manda os produtos com zero (formulario menor).
+      $$("[data-peso]", folha).forEach((inp) => {
+        if (!/[1-9]/.test(inp.value || "")) {
+          inp.disabled = true;
+          const obs = $("[data-obs] input", inp.closest("[data-produto]"));
+          if (obs) obs.disabled = true;
+        }
+      });
       $$("[data-qtd]", folha).forEach((inp) => {
         if ((parseInt(inp.value || "0", 10) || 0) === 0) {
           inp.disabled = true;

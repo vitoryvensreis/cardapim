@@ -182,6 +182,18 @@ final class PedidoIfood
                 'codigo_externo' => is_scalar($item['externalCode'] ?? null) && trim((string) $item['externalCode']) !== '' ? mb_substr(trim((string) $item['externalCode']), 0, 80) : null,
                 'nome_ifood' => mb_substr(trim((string) ($item['name'] ?? '')), 0, 180),
                 'baixa' => $porUnidade && $inteiro ? max(1, (int) round($qtdIfood)) : 1,
+                // Item vendido por peso no iFood (KG/G/L/ML): peso em milesimos (gramas/ml). Ligado a um produto por
+                // quilo/litro, entra com o peso real e baixa o estoque proporcional (ImportarPedidoIfood).
+                'peso' => match ($unidade) {
+                    'KG', 'L' => (int) round($qtdIfood * 1000),
+                    'G', 'GR', 'ML' => (int) round($qtdIfood),
+                    default => null,
+                },
+                'unidade_peso' => match ($unidade) {
+                    'KG', 'G', 'GR' => 'kg',
+                    'L', 'ML' => 'l',
+                    default => null,
+                },
             ];
             $subtotal += $totalItem;
         }

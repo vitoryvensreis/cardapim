@@ -151,6 +151,8 @@ final class IfoodCatalogo
             $d = $i['id_produto'] !== null ? ($disp[(int) $i['id_produto']] ?? null) : null;
             $i['desejado'] = $d === null ? null : (self::vende($d) ? 'AVAILABLE' : 'UNAVAILABLE');
             $i['porcoes'] = $d['porcoes'] ?? null;
+            $i['restante'] = $d['restante'] ?? null;
+            $i['unidade'] = $d['unidade'] ?? 'un';
         }
         unset($i);
         return $itens;
@@ -190,7 +192,8 @@ final class IfoodCatalogo
         foreach ($itens as $item) {
             $d = $disp[(int) $item['id_produto']] ?? ['disponivel' => false, 'porcoes' => 0];
             $status = self::vende($d) ? 'AVAILABLE' : 'UNAVAILABLE';
-            $quantidade = $d['porcoes'] !== null && $item['ifood_produto_id'] !== null ? min((int) $d['porcoes'], 9999) : null;
+            // Produto por peso: so liga/desliga (o estoque do iFood conta unidades).
+            $quantidade = $d['porcoes'] !== null && $item['ifood_produto_id'] !== null && ($d['unidade'] ?? 'un') === 'un' ? min((int) $d['porcoes'], 9999) : null;
             $mudouStatus = $forcar || $item['enviado_status'] !== $status;
             $mudouQtd = $quantidade !== null && ($forcar || $item['enviado_estoque'] === null || (int) $item['enviado_estoque'] !== $quantidade);
             if (!$mudouStatus && !$mudouQtd) {
