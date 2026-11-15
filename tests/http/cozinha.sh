@@ -57,7 +57,7 @@ nao_tem '<form'
 igual "$(status "$tmp/outro" "$g/cozinha/conteudo")" 403 'fragmento isolado'
 
 # A landing permanece com o selo informativo, mas sem alegacao visual de "ao vivo".
-igual "$(status "$tmp/gerente" "$base/")" 200 'landing publica'
+igual "$(curl -s -o "$tmp/pagina.html" -w '%{http_code}' "$base/")" 200 'landing publica sem login'
 tem 'Tudo conectado'
 nao_tem '<small>ao vivo</small>'
 nao_tem 'class="live-dot"'
