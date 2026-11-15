@@ -9,7 +9,6 @@ $footerColumns = [
         ['/#recursos', 'Recursos', 'layout-dashboard'],
         ['/#como-funciona', 'Como funciona', 'zap'],
         ['/#planos', 'Planos', 'wallet'],
-        ['/#para-quem', 'Para quem é', 'chef-hat'],
         ['/catalogo', 'Restaurantes', 'store'],
     ],
     'Acesso' => [
