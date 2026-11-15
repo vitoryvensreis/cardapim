@@ -55,6 +55,12 @@ igual "$(status "$tmp/gerente" "$g/cozinha/conteudo")" 200 'fragmento'
 nao_tem '<html'
 nao_tem '<form'
 igual "$(status "$tmp/outro" "$g/cozinha/conteudo")" 403 'fragmento isolado'
+
+# A landing permanece com o selo informativo, mas sem alegacao visual de "ao vivo".
+igual "$(status "$tmp/gerente" "$base/")" 200 'landing publica'
+tem 'Tudo conectado'
+nao_tem '<small>ao vivo</small>'
+nao_tem 'class="live-dot"'
 igual "$(curl -s -o /dev/null -b "$tmp/gerente" -w '%{http_code}' -X POST "$g/cozinha")" 405 'cozinha sem escrita'
 
 echo 'Cozinha: HTTP, permissoes, fullscreen e silencio OK.'
