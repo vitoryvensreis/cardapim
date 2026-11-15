@@ -47,6 +47,13 @@ $footerColumns = [
                                     <?= Icon::svg($icon) ?><span><?= $e($label) ?></span>
                                 </a>
                             </li>
+                            <?php if ($heading === 'Legal' && $href === '/cookies'): ?>
+                                <li>
+                                    <button class="footer-link footer-cookie-preferences" type="button" data-consentimento-abrir>
+                                        <?= Icon::svg('settings') ?><span>Preferências de cookies</span>
+                                    </button>
+                                </li>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </ul>
                 </nav>
@@ -56,7 +63,6 @@ $footerColumns = [
             <div class="footer-company">
                 <p>© <?= date('Y') ?> <?= marca_html() ?>. Todos os direitos reservados.</p>
                 <p>Um produto da Escotilha Produtora · CNPJ 64.069.224/0001-32</p>
-                <button class="botao-link footer-cookies" type="button" data-consentimento-abrir><?= Icon::svg('cookie') ?>Preferências de cookies</button>
             </div>
             <button class="back-to-top" type="button" data-back-to-top>
                 <?= Icon::svg('arrow-up') ?>Voltar ao topo
