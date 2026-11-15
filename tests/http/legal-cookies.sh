@@ -40,6 +40,32 @@ contem "aviso aparece sem escolha" "$tmp/h.html" 'data-consentimento aria-labell
 nao_contem "sem escolha nao carrega Google Fonts" "$tmp/h.html" 'fonts.googleapis.com'
 contem "script do aviso carregado" "$tmp/h.html" '/assets/js/consentimento.js'
 contem "rodape reabre as preferencias" "$tmp/h.html" 'Preferências de cookies'
+# A opcao deve ficar logo abaixo de Cookies no bloco Legal (nao na faixa de copyright).
+if php -r '
+    $html = file_get_contents($argv[1]);
+    $footer = strstr($html, "<footer class=\"site-footer\"");
+    if ($footer === false) exit(1);
+    $legal = strstr($footer, "aria-label=\"Legal\"");
+    if ($legal === false) exit(1);
+    $fim = strpos($legal, "</nav>");
+    $legal = substr($legal, 0, $fim === false ? 0 : $fim);
+    $posCookies = strpos($legal, ">Cookies</span>");
+    $posPreferencias = strpos($legal, "data-consentimento-abrir");
+    $posProximo = strpos($legal, ">Exclusão de Dados</span>");
+    $rodapeInferior = strstr($footer, "class=\"footer-bottom\"");
+    exit(
+        $posCookies !== false && $posPreferencias !== false &&
+        $posProximo !== false && $posCookies < $posPreferencias &&
+        $posPreferencias < $posProximo &&
+        substr_count($legal, "data-consentimento-abrir") === 1 &&
+        $rodapeInferior !== false && !str_contains($rodapeInferior, "data-consentimento-abrir")
+        ? 0 : 1
+    );
+' "$tmp/h.html"; then
+  ok "preferencias ficam sob Cookies na coluna Legal e fora do copyright"
+else
+  falha "preferencias de cookies fora da coluna Legal ou duplicadas"
+fi
 curl -s -b 'cardapim_consentimento=todos.20261112' "$base/" > "$tmp/h2.html"
 contem "aceitou: carrega Google Fonts" "$tmp/h2.html" 'fonts.googleapis.com'
 contem "aceitou: aviso escondido" "$tmp/h2.html" 'aria-labelledby="consentimento-titulo" hidden'
