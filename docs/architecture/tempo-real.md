@@ -23,7 +23,7 @@ Navegador (public/assets/js/tempo-real.js) ──> CustomEvent "cardapim:tempo-r
 | Ticket | `app/Realtime/Ticket.php` + `GET /api/v1/tempo-real/ticket?restaurante={slug}` | HMAC-SHA256 (chave derivada da APP_KEY), 60 s, uso único. |
 | Servidor | `bin/tempo-real.php` + `app/Realtime/Servidor.php` | Processo PHP próprio (systemd), `stream_select`, RFC 6455, sem dependências. |
 | Redis | `app/Realtime/RedisConexao.php` | Cliente RESP mínimo (AUTH, PUBLISH, SUBSCRIBE). Opcional. |
-| Navegador | `public/assets/js/tempo-real.js` | Ticket, conexão, reconexão, deduplicação, indicador "Ao vivo" e aviso "Atualizar agora". |
+| Navegador | `public/assets/js/tempo-real.js` | Ticket, conexão, reconexão, deduplicação, estado interno disponível aos demais scripts e aviso "Atualizar agora" (sem selo permanente). |
 
 ## Canais
 

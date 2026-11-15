@@ -95,7 +95,7 @@
 - **Servidor WebSocket em PHP** (`bin/tempo-real.php`, systemd), sem dependencias, so em 127.0.0.1 atras do Nginx (`wss://.../ws`).
 - **Transactional Outbox**: todo evento e gravado em `outbox_eventos` antes de ser transmitido; o **Redis** so avisa "tem evento novo" (sem Redis, busca a cada 1 s).
 - **Seguranca**: ticket assinado de 60 s e uso unico (`GET /api/v1/tempo-real/ticket`), origem conferida, cada restaurante so recebe os proprios eventos e cada cargo so os canais permitidos; conta bloqueada sai em ate 1 minuto.
-- **Navegador**: indicador "Ao vivo", reconexao automatica recebendo o que perdeu, aviso "Atualizar agora" quando algo muda em outra tela.
+- **Navegador**: reconexao automatica recebendo o que perdeu, aviso "Atualizar agora" quando algo muda em outra tela, sem indicador permanente no topo.
 - Ja publica: estoque alterado, aviso do Asaas recebido e WhatsApp conectado/desconectado. Pedidos, cozinha, caixa e chats usam a mesma base quando forem criados.
 - [Arquitetura e como publicar eventos](docs/architecture/tempo-real.md) · [Instalacao na VPS](docs/deploy/tempo-real.md).
 

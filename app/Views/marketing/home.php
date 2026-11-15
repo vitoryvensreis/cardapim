@@ -122,8 +122,8 @@ $pedidosMock = [
                     <span><small>Pedido novo</small><strong><span data-toast-number>#1043</span> chegou na cozinha</strong></span>
                     <span class="float-check"><?= Icon::svg('check', 'icon-sm') ?></span>
                 </div>
-                <div class="float-card float-live" aria-hidden="true">
-                    <span class="live-dot"></span><strong>Tudo conectado</strong><small>ao vivo</small>
+                <div class="float-card float-connected" aria-hidden="true">
+                    <strong>Tudo conectado</strong>
                 </div>
             </div>
         </div>

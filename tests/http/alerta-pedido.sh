@@ -36,6 +36,9 @@ contem "botao de som no topo" "$tmp/pagina.html" 'data-alerta-som'
 contem "luz em volta da tela" "$tmp/pagina.html" 'data-alerta-luz'
 contem "faixa com ver pedido" "$tmp/pagina.html" 'data-alerta-ver'
 contem "faixa escondida ate chegar pedido" "$tmp/pagina.html" 'data-alerta-aviso hidden'
+nao_contem "gerencia sem indicador permanente de conexao" "$tmp/pagina.html" 'data-tempo-real-status'
+contem "gerencia preserva conexao WebSocket" "$tmp/pagina.html" 'data-tempo-real='
+contem "gerencia carrega cliente WebSocket" "$tmp/pagina.html" '/assets/js/tempo-real.js'
 nao_contem "faixa sem aviso de tocar na tela (nao muda ao clicar)" "$tmp/pagina.html" 'Toque em qualquer lugar da tela'
 
 echo "Modo caixa avisa"
@@ -45,6 +48,7 @@ for tela in "" /delivery /mesas; do
 done
 pagina "$gj" "$base/$slug/caixa"
 contem "gerente no modo caixa tambem" "$tmp/pagina.html" '/assets/js/alerta-pedido.js'
+nao_contem "caixa sem indicador permanente de conexao" "$tmp/pagina.html" 'data-tempo-real-status'
 esperado="$(grep -c 'alerta-pedido.js' "$tmp/pagina.html")"
 [[ "$esperado" == "1" ]] && ok "script carregado uma vez so" || falha "script carregado $esperado vezes"
 

@@ -95,13 +95,6 @@ if ($alertaPedido !== null) {
                     <?= Icon::svg('chevron-right', 'icon-sm') ?>
                     <strong><?= $e($painel['titulo_atual']) ?></strong>
                 </p>
-                <?php if ($tempoReal !== null): ?>
-                    <p class="tempo-real" data-tempo-real-status data-estado="conectando" title="Quando algo muda, o <?= marca_html() ?> avisa nesta tela sem precisar recarregar.">
-                        <span class="tempo-real-icone tempo-real-icone-on"><?= Icon::svg('wifi', 'icon-sm') ?></span>
-                        <span class="tempo-real-icone tempo-real-icone-off"><?= Icon::svg('wifi-off', 'icon-sm') ?></span>
-                        <span data-tempo-real-texto>Conectando</span>
-                    </p>
-                <?php endif; ?>
                 <?php if ($alertaPedido !== null): ?>
                     <button class="alerta-som" type="button" aria-pressed="true" data-alerta-som title="Som de pedido novo">
                         <span class="alerta-som-on"><?= Icon::svg('bell-ring', 'icon-sm') ?></span>

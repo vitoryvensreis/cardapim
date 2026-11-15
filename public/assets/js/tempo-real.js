@@ -10,32 +10,14 @@
  */
 (() => {
   "use strict";
-  // Nome da marca vem do servidor (configuracoes.nome_sistema), via <meta name="application-name">.
-  const marca = () => document.querySelector('meta[name="application-name"]')?.content || "Deliveryzim";
-
   const corpo = document.body;
   const urlTicket = corpo.dataset.tempoReal;
   if (!urlTicket || !("WebSocket" in window) || !window.fetch) return;
 
   const canaisTela = (corpo.dataset.tempoRealCanais || "").split(",").map((c) => c.trim()).filter(Boolean);
   const extras = new Set();
-  const status = document.querySelector("[data-tempo-real-status]");
-  const textoStatus = status ? status.querySelector("[data-tempo-real-texto]") : null;
   const aviso = document.querySelector("[data-tempo-real-aviso]");
   const textoAviso = aviso ? aviso.querySelector("[data-tempo-real-aviso-texto]") : null;
-
-  const ROTULOS = {
-    conectando: "Conectando",
-    "ao-vivo": "Ao vivo",
-    reconectando: "Reconectando",
-    offline: "Sem atualização ao vivo",
-  };
-  const DICAS = {
-    conectando: "Conectando às atualizações ao vivo.",
-    "ao-vivo": `Quando algo muda, o ${marca()} avisa nesta tela sem precisar recarregar.`,
-    reconectando: "A conexão caiu. Tentando de novo sozinho.",
-    offline: "Sem atualização ao vivo agora. A tela funciona normalmente; recarregue para ver novidades.",
-  };
 
   let socket = null;
   let tentativas = 0;
@@ -45,13 +27,12 @@
   let parado = false;
   let caiuEm = 0;
   let ultimoId = 0;
+  let estadoAtual = "conectando";
   const vistos = new Set();
 
+  // Estado interno continua disponivel para scripts sem renderizar badge no topo.
   function mostrarEstado(estado) {
-    if (!status) return;
-    status.dataset.estado = estado;
-    status.title = DICAS[estado] || "";
-    if (textoStatus) textoStatus.textContent = ROTULOS[estado] || "";
+    estadoAtual = estado;
   }
 
   function mostrarAviso(texto) {
@@ -245,7 +226,7 @@
       }
     },
     estado() {
-      return status ? status.dataset.estado : socket ? "ao-vivo" : "offline";
+      return estadoAtual;
     },
   };
 
