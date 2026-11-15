@@ -18,8 +18,9 @@ final class CozinhaRepository
     /** @return list<array<string,mixed>> */
     public function pedidos(int $idRestaurante): array
     {
-        // "aberto" inclui comandas de mesa e balcão com itens lançados.
-        // "pronto" sai da cozinha: não existe ação de status nesta tela.
+        // Somente pedidos aceitos para preparo entram no KDS.
+        // Recebidos e comandas abertas ficam fora até mudarem para em_preparo;
+        // pedidos prontos também saem da fila, sem ação nesta tela.
         $consulta = $this->db->prepare(
             "SELECT p.id, p.numero, p.origem, p.tipo, p.status, p.criado_em,
                     p.cliente_nome, p.comanda_nome, p.observacao, p.ifood_display_id,
@@ -27,7 +28,7 @@ final class CozinhaRepository
              FROM pedidos p
              LEFT JOIN mesas m ON m.id = p.id_mesa AND m.id_restaurante = p.id_restaurante
              WHERE p.id_restaurante = ?
-               AND p.status IN ('aberto', 'recebido', 'em_preparo')
+               AND p.status = 'em_preparo'
                AND EXISTS (
                    SELECT 1 FROM pedido_itens i
                    WHERE i.id_pedido = p.id AND i.id_restaurante = p.id_restaurante

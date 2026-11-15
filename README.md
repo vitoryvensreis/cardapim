@@ -11,7 +11,7 @@
 - **Gerência > Operação > Cozinha** abre `/{slug}/gerencia/cozinha` em um layout próprio que ocupa toda a tela, sem menu lateral e sem controles de alteração.
 - Pedidos com itens para preparar aparecem em **cards do mais antigo ao mais novo**: número, mesa/comanda ou entrega/retirada, etapa e horário. **Nomes, quantidades e observações dos itens** ficam em destaque.
 - Atualização automática e silenciosa por WebSocket com consulta periódica de reserva. **Não toca campainha, não vibra e não exibe notificações de pedido** enquanto esta tela estiver aberta.
-- Mostra pedidos recebidos, em preparo e comandas abertas com itens; exclui itens cancelados, pedidos ainda não pagos e pedidos que já saíram da cozinha.
+- Mostra **apenas pedidos em preparo**: no delivery, o card só entra depois que o caixa clica em **Aceitar e preparar**. Pedidos apenas recebidos e comandas abertas ainda não entram; itens cancelados são ocultos, e pedidos prontos saem da fila.
 - Somente gerente do restaurante e administrador master podem acessar; respeita isolamento por restaurante. Não requer migration.
 - [Arquitetura e testes do modo cozinha](docs/architecture/cozinha.md).
 
