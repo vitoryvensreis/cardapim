@@ -15,12 +15,9 @@ O gerente abre **Gerência > Operação > Cozinha**, em `/{slug}/gerencia/cozinh
 
 ## Quais pedidos aparecem
 
-São mostrados pedidos **com pelo menos um item não cancelado** e status:
-- `recebido`: chegou e aguarda preparo;
-- `em_preparo`: já aceito no caixa;
-- `aberto`: comanda aberta de mesa ou balcão com itens.
+São mostrados **somente** pedidos com status `em_preparo` e pelo menos um item não cancelado. No fluxo de delivery, o pedido entra quando o operador clica em **Aceitar e preparar** no caixa (transição `recebido` → `em_preparo`).
 
-Pedidos `aguardando_pagamento` não aparecem antes da confirmação Pix. Pedidos `pronto`, `saiu_entrega`, `concluido` e `cancelado` não ocupam a fila de preparo. Uma comanda aberta permanece visível até ser fechada no caixa, pois não há controle de preparo por item nesta versão.
+Pedidos ainda em `recebido`, `aguardando_pagamento` ou comandas `aberto` **não aparecem**. Um pedido só aparece se o sistema registrar seu estado como `em_preparo`; não basta chegar, ser pago ou ter itens adicionados. Ao passar a `pronto`, `saiu_entrega`, `concluido` ou `cancelado`, deixa a fila. A cozinha permanece estritamente de leitura.
 
 A tela **não altera status**. O recebimento, preparo, conclusão, cancelamento e pagamentos continuam nas telas existentes de caixa/garçom.
 
@@ -42,7 +39,7 @@ Nenhum evento cria notificação, toca áudio, vibra ou muda o título da aba. A
 
 ## Testes
 
-- `php tests/unit/cozinha.php` (SQLite em memória): isolamento entre restaurantes, ordenação, status, notas e exclusão de itens cancelados.
+- `php tests/unit/cozinha.php` (SQLite em memória): isolamento entre restaurantes, ordenação, entrada após aceite, saída quando pronto, notas e exclusão de itens cancelados.
 - `bash tests/http/cozinha.sh <base> <slug>`: 302 sem login, 403 por cargo e tenant, 200 gerente/master, fragmento sem layout, HTML de tela cheia, ausência de alarmes e POST 405.
 - CI valida sintaxe PHP, JS, views sem estilos inline/emojis, testes e deploy automático da `main` após merge.
 
