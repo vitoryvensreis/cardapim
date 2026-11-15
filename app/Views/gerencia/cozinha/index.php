@@ -8,7 +8,7 @@ $e = static fn (string $valor): string => htmlspecialchars($valor, ENT_QUOTES | 
             <span class="kds-icone" aria-hidden="true"><?= Icon::svg('chef-hat', 'icon-lg') ?></span>
             <div>
                 <h1>Cozinha</h1>
-                <p><?= $e((string) $restaurante['nome']) ?> <span aria-hidden="true">·</span> Somente visualização</p>
+                <p><?= $e((string) $restaurante['nome']) ?></p>
             </div>
         </div>
         <div class="kds-acoes">
