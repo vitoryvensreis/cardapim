@@ -23,6 +23,13 @@ final class MenuGerencia
             'descricao' => 'O resumo do seu restaurante em uma tela.',
             'planejado' => ['Vendas e pedidos do dia', 'Gráficos de vendas por hora e por canal', 'Produtos mais vendidos', 'Insumos com estoque baixo', 'Pedidos em andamento'],
         ],
+        'cozinha' => [
+            'titulo' => 'Cozinha',
+            'rotulo' => 'Cozinha',
+            'icone' => 'chef-hat',
+            'descricao' => 'Acompanhe os pedidos para preparo, em tela cheia e sem notificações.',
+            'planejado' => [],
+        ],
         'mesas' => [
             'titulo' => 'Mesas',
             'rotulo' => 'Mesas',
@@ -112,7 +119,7 @@ final class MenuGerencia
     /** Agrupamento do menu lateral (ordem de exibicao). */
     public const GRUPOS = [
         '' => ['visao-geral'],
-        'Operação' => ['@caixa'],
+        'Operação' => ['@caixa', 'cozinha'],
         'Gestão' => ['estoque', 'equipe', 'financeiro'],
         'Clientes' => ['cupons', 'fidelidade'],
         'Restaurante' => ['perfil', 'entrega-pagamento', 'integracoes', 'assinatura'],
