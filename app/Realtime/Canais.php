@@ -37,6 +37,7 @@ final class Canais
     /** Canais que cada secao do painel do gerente acompanha (para avisar "algo mudou"). */
     private const POR_SECAO = [
         'visao-geral' => ['pedidos', 'caixa', 'mesas', 'estoque'],
+        'cozinha' => ['pedidos', 'cozinha', 'mesas'],
         'estoque' => ['estoque'],
         'integracoes' => ['integracoes', 'whatsapp'],
         'equipe' => ['equipe'],
