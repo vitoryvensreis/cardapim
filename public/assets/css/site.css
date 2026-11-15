@@ -216,7 +216,6 @@
 /* ---------- Recursos ---------- */
 .features-grid { display: grid; gap: 1rem; margin-top: 3.5rem; }
 .feature-card,
-.audience-card,
 .plan-card {
   --spot-x: 50%; --spot-y: 0%;
   position: relative; isolation: isolate; overflow: hidden;
@@ -224,17 +223,14 @@
   transition: transform var(--t-med) var(--ease-out), box-shadow var(--t-med) var(--ease-out), border-color var(--t-med);
 }
 .feature-card::before,
-.audience-card::before,
 .plan-card::before {
   content: ""; position: absolute; inset: 0; z-index: -1;
   background: radial-gradient(420px circle at var(--spot-x) var(--spot-y), rgb(255 88 37 / 10%), transparent 45%);
   opacity: 0; transition: opacity var(--t-med);
 }
 .feature-card:hover,
-.audience-card:hover,
 .plan-card:hover { transform: translateY(-6px); border-color: rgb(255 88 37 / 35%); box-shadow: var(--sh-md); }
 .feature-card:hover::before,
-.audience-card:hover::before,
 .plan-card:hover::before { opacity: 1; }
 
 .feature-card { display: flex; flex-direction: column; padding: 1.75rem; }
@@ -275,22 +271,6 @@
 .step-number { color: var(--c-orange-700); font: 800 .7rem/1 var(--f-head); letter-spacing: .14em; text-transform: uppercase; }
 .step h3 { margin-top: .45rem; font-size: 1.35rem; font-weight: 800; }
 .step p { margin-top: .5rem; color: var(--c-muted); line-height: 1.65; }
-
-/* ---------- Para quem ---------- */
-.audience-layout { display: grid; gap: 3rem; align-items: center; }
-.audience-grid { display: grid; gap: 1rem; }
-.audience-card { padding: 1.75rem; }
-.audience-card:nth-child(1) { background: var(--c-cream); }
-.audience-card:nth-child(2) { background: var(--c-blush); }
-.audience-card:nth-child(3) { background: #fff1eb; }
-.audience-icon {
-  display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: .2rem;
-  background: var(--c-white); color: var(--c-wine); box-shadow: var(--sh-sm);
-  transition: transform var(--t-med) var(--ease-spring), color var(--t-med);
-}
-.audience-card:hover .audience-icon { transform: translateY(-4px) rotate(6deg); color: var(--c-orange); }
-.audience-card h3 { margin-top: 2rem; font-size: 1.2rem; font-weight: 800; }
-.audience-card p { margin-top: .45rem; color: var(--c-muted); font-size: .92rem; line-height: 1.6; }
 
 /* ---------- Planos ---------- */
 .plans { background: linear-gradient(180deg, #fff 0%, var(--c-cream) 100%); }
@@ -342,7 +322,7 @@
 @media (min-width: 40rem) {
   .channels-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .channels-list > .channel:last-child:nth-child(odd) { grid-column: auto; }
-  .features-grid, .audience-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .features-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .plans-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 64rem) {
@@ -357,9 +337,6 @@
   .cta-spark-a { display: block; }
   .how-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 5rem; align-items: start; }
   .how-intro { position: sticky; top: 7rem; }
-  .audience-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .audience-card { padding: 2rem; }
-  .audience-card h3 { margin-top: 3.5rem; font-size: 1.35rem; }
   .plans-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 120rem) {

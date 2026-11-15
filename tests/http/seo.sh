@@ -42,6 +42,12 @@ enviar "$aj" "$p/configuracoes/compartilhamento/padrao" >/dev/null
 
 echo "Pagina inicial"
 curl -s "$base/" > "$tmp/home.html"
+# A antiga secao "Para quem e" foi removida de forma completa.
+nao_contem "home sem secao de publicos" "$tmp/home.html" 'id="para-quem"'
+nao_contem "home sem cards da secao removida" "$tmp/home.html" 'class="audience-card"'
+nao_contem "home sem menu para secao removida" "$tmp/home.html" 'href="/#para-quem"'
+contem "home preserva planos" "$tmp/home.html" 'id="planos"'
+contem "home preserva como funciona" "$tmp/home.html" 'id="como-funciona"'
 contem "titulo padrao da pagina inicial" "$tmp/home.html" '<title>[^<]*Sistema para restaurantes, bares e delivery</title>'
 contem "descricao padrao" "$tmp/home.html" 'name="description" content="Organize pedidos, mesas, comandas'
 contem "og:locale pt_BR" "$tmp/home.html" 'property="og:locale" content="pt_BR"'

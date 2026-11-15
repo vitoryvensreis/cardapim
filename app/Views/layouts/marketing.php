@@ -30,7 +30,6 @@ $scriptsCedo = ['js/so-no-navegador.js'];
             <nav class="nav-links" id="main-navigation" aria-label="Navegação principal">
                 <a href="/#recursos" data-nav-link>Recursos</a>
                 <a href="/#como-funciona" data-nav-link>Como funciona</a>
-                <a href="/#para-quem" data-nav-link>Para quem é</a>
                 <a href="/#planos" data-nav-link>Planos</a>
                 <a href="/catalogo">Restaurantes</a>
                 <a class="nav-links-mobile-only" href="/login">Entrar <?= Icon::svg('log-in') ?></a>
