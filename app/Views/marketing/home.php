@@ -28,12 +28,6 @@ $passos = [
     ['chart-line', 'Você acompanha tudo', 'Caixa, entregas, produtos e resultados reunidos em um painel simples.'],
 ];
 
-$publicos = [
-    ['utensils-crossed', 'Restaurantes', 'Mesas, comandas, cozinha e o movimento de todo dia.'],
-    ['hamburger', 'Hamburguerias', 'Adicionais, combos, retirada e delivery sem perder o fio.'],
-    ['coffee', 'Cafés e bares', 'Atendimento ágil, produtos organizados e caixa na mão.'],
-];
-
 $pedidosMock = [
     ['#1042', 'Mesa 06', '2 itens · Salão', 'utensils-crossed', 'preparing', 'Preparando'],
     ['#1041', 'Delivery', '4 itens · Entrega', 'bike', 'ready', 'Pronto'],
@@ -189,23 +183,6 @@ $pedidosMock = [
                 </li>
             <?php endforeach; ?>
             </ol>
-        </div>
-    </div>
-</section>
-
-<section class="section audience" id="para-quem" aria-labelledby="audience-title">
-    <div class="shell audience-layout">
-        <header class="section-head" data-reveal>
-            <h2 id="audience-title">Se tem pedido saindo, <em>tem lugar para o <?= marca_html() ?>.</em></h2>
-        </header>
-        <div class="audience-grid">
-            <?php foreach ($publicos as [$icone, $titulo, $texto]): ?>
-                <article class="audience-card" data-reveal data-spotlight>
-                    <span class="audience-icon"><?= Icon::svg($icone, 'icon-lg') ?></span>
-                    <h3><?= $e($titulo) ?></h3>
-                    <p><?= $e($texto) ?></p>
-                </article>
-            <?php endforeach; ?>
         </div>
     </div>
 </section>
