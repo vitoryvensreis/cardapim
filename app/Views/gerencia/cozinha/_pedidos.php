@@ -50,7 +50,7 @@ $e = static fn (string $valor): string => htmlspecialchars($valor, ENT_QUOTES | 
                         <div class="kds-item-descricao">
                             <strong class="kds-item-nome"><?= $e((string) $item['nome']) ?></strong>
                             <?php if (trim((string) ($item['observacao'] ?? '')) !== ''): ?>
-                                <p class="kds-observacao"><?= Icon::svg('message-square-text', 'icon-sm') ?><span><?= $e((string) $item['observacao']) ?></span></p>
+                                <p class="kds-observacao"><?= Icon::svg('message-circle', 'icon-sm') ?><span><?= $e((string) $item['observacao']) ?></span></p>
                             <?php endif; ?>
                         </div>
                     </li>
@@ -58,7 +58,7 @@ $e = static fn (string $valor): string => htmlspecialchars($valor, ENT_QUOTES | 
                 </ul>
                 <?php if (trim((string) ($pedido['observacao'] ?? '')) !== ''): ?>
                 <div class="kds-nota-geral">
-                    <?= Icon::svg('message-square-text', 'icon-sm') ?>
+                    <?= Icon::svg('message-circle', 'icon-sm') ?>
                     <p><strong>Observação do pedido</strong><span><?= $e((string) $pedido['observacao']) ?></span></p>
                 </div>
                 <?php endif; ?>
