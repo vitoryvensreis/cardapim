@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Cardapim\Controllers\Gerencia\AssinaturaController;
+use Cardapim\Controllers\Gerencia\CozinhaController;
 use Cardapim\Controllers\Gerencia\CuponsController;
 use Cardapim\Controllers\Gerencia\EntregaPagamentoController;
 use Cardapim\Controllers\Gerencia\FidelidadeController;
@@ -25,6 +26,10 @@ return static function (Router $router): void {
 
     // Visao geral (primeira tela)
     $router->get($g, [VisaoGeralController::class, 'mostrar']);
+
+    // Cozinha: apenas leitura, em layout de tela cheia.
+    $router->get($g . '/cozinha', [CozinhaController::class, 'mostrar']);
+    $router->get($g . '/cozinha/conteudo', [CozinhaController::class, 'conteudo']);
 
     // Estoque
     $router->get($g . '/estoque', [EstoqueController::class, 'resumo']);

@@ -1,0 +1,106 @@
+/* Cozinha / KDS: tela imersiva de leitura. Usa a mesma paleta e tipografia do sistema. */
+.page-cozinha {
+  min-height: 100dvh;
+  background: var(--c-wine-950);
+  color: var(--c-white);
+}
+.kds-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+.kds-cabecalho {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  padding: 1rem clamp(1rem, 2.3vw, 2rem);
+  background: var(--c-wine-900); border-bottom: 2px solid var(--c-orange);
+}
+.kds-identidade { display: flex; align-items: center; gap: .85rem; min-width: 0; }
+.kds-icone {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 3.25rem; height: 3.25rem; background: var(--c-orange); border-radius: var(--r-md);
+}
+.kds-identidade h1 { font-size: clamp(1.5rem, 2vw + .9rem, 2.4rem); line-height: 1.12; }
+.kds-identidade p { margin-top: .24rem; color: rgb(255 255 255 / 78%); font-size: .9rem; }
+.kds-acoes { display: flex; align-items: center; gap: clamp(.7rem, 2vw, 1.5rem); }
+.kds-contador { display: flex; align-items: baseline; gap: .45rem; font-family: var(--f-head); }
+.kds-contador strong { color: var(--c-orange); font-size: clamp(1.5rem, 2.5vw, 2.4rem); font-weight: 800; line-height: 1; }
+.kds-contador span { font-size: .92rem; font-weight: 600; }
+.kds-voltar {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 2.75rem; padding: .65rem .9rem; border-radius: var(--r-md);
+  border: 1px solid rgb(255 255 255 / 32%); font-weight: 700; font-size: .9rem;
+  transition: background-color var(--t-fast), border-color var(--t-fast);
+}
+.kds-voltar:hover { background: rgb(255 255 255 / 12%); border-color: var(--c-white); }
+.kds-conteudo { flex: 1; padding: clamp(1rem, 2vw, 2rem); }
+.kds-faixa { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: .45rem 1rem; margin-bottom: 1.15rem; }
+.kds-faixa h2 { font-size: clamp(1.08rem, 1.45vw, 1.35rem); }
+.kds-faixa p { color: rgb(255 255 255 / 73%); font-size: .92rem; }
+.kds-grade {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: clamp(.85rem, 1.5vw, 1.4rem); align-items: start;
+  list-style: none; padding: 0; margin: 0;
+}
+.kds-card {
+  min-width: 0; background: var(--c-white); color: var(--c-ink);
+  border-radius: var(--r-lg); border: 1px solid var(--c-line);
+  border-top: .32rem solid var(--c-orange);
+  box-shadow: 0 .75rem 2.4rem rgb(0 0 0 / 12%); overflow: hidden;
+}
+.kds-card article { min-width: 0; }
+.kds-card-topo { padding: 1rem 1.1rem .75rem; display: flex; justify-content: space-between; align-items: flex-start; gap: .65rem; }
+.kds-numero { font: 800 clamp(1.7rem, 1.5vw + 1.25rem, 2.5rem)/1.08 var(--f-head); color: var(--c-wine); }
+.kds-local { margin-top: .32rem; font: 700 clamp(1rem, 1.1vw, 1.2rem)/1.35 var(--f-head); overflow-wrap: anywhere; }
+.kds-etapa {
+  flex: 0 0 auto; padding: .32rem .55rem; background: var(--c-blush);
+  color: var(--c-wine); border-radius: var(--r-sm); font: 800 .75rem/1.25 var(--f-head);
+}
+.kds-etapa.is-novo { background: var(--c-orange-100); color: var(--c-orange-700); }
+.kds-meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .7rem;
+  padding: 0 1.1rem 1rem; font-size: .86rem; font-weight: 700; color: var(--c-muted);
+  border-bottom: 1px solid var(--c-line);
+}
+.kds-meta span:first-child { display: inline-flex; align-items: center; gap: .35rem; }
+.kds-meta .kds-origem { padding: .18rem .35rem; background: var(--c-cream); color: var(--c-wine); }
+.kds-itens { display: grid; list-style: none; padding: 0 1.1rem; margin: 0; }
+.kds-itens > li { display: grid; grid-template-columns: minmax(3.3rem, auto) minmax(0, 1fr); gap: .7rem; padding: 1rem 0; border-bottom: 1px solid var(--c-line); }
+.kds-itens > li:last-child { border-bottom: 0; }
+.kds-quantidade { font: 800 clamp(1.14rem, 1.2vw, 1.55rem)/1.35 var(--f-head); color: var(--c-orange-700); white-space: nowrap; }
+.kds-item-descricao { min-width: 0; }
+.kds-item-nome { display: block; font: 800 clamp(1.12rem, 1.35vw, 1.55rem)/1.3 var(--f-head); overflow-wrap: anywhere; }
+.kds-observacao {
+  display: flex; align-items: flex-start; gap: .4rem; margin-top: .55rem;
+  padding: .65rem .7rem; background: var(--c-orange-100);
+  color: var(--c-wine-900); border-left: 3px solid var(--c-orange);
+  border-radius: var(--r-sm); font-size: clamp(.96rem, 1vw, 1.15rem);
+  font-weight: 700; line-height: 1.4; overflow-wrap: anywhere;
+}
+.kds-observacao .icon { margin-top: .2rem; flex: 0 0 auto; color: var(--c-orange-700); }
+.kds-nota-geral {
+  display: flex; align-items: flex-start; gap: .55rem;
+  margin: .2rem 1.1rem 1.1rem; padding: .85rem;
+  background: var(--c-blush); border-radius: var(--r-sm); border-left: 3px solid var(--c-wine);
+}
+.kds-nota-geral > .icon { margin-top: .2rem; color: var(--c-wine); }
+.kds-nota-geral p { display: grid; gap: .2rem; min-width: 0; font-size: 1rem; line-height: 1.4; overflow-wrap: anywhere; }
+.kds-nota-geral strong { font-family: var(--f-head); font-weight: 800; color: var(--c-wine); }
+.kds-vazio {
+  min-height: min(56dvh, 33rem); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: .85rem; text-align: center;
+  color: var(--c-white); padding: 2rem 1rem; border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: var(--r-lg); background: rgb(255 255 255 / 5%);
+}
+.kds-vazio > .icon { color: var(--c-orange); width: 3rem; height: 3rem; }
+.kds-vazio h3 { font-size: clamp(1.3rem, 2.5vw, 1.9rem); }
+.kds-vazio p { max-width: 33rem; color: rgb(255 255 255 / 78%); font-size: 1rem; }
+@media (min-width: 100rem) {
+  .kds-grade { grid-template-columns: repeat(auto-fill, minmax(23rem, 1fr)); }
+  .kds-itens > li { padding-block: 1.15rem; }
+}
+@media (max-width: 35rem) {
+  .kds-cabecalho { align-items: flex-start; }
+  .kds-acoes { justify-content: space-between; width: 100%; }
+  .kds-identidade p { font-size: .83rem; }
+  .kds-grade { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kds-voltar { transition: none; }
+}

@@ -1,5 +1,8 @@
 # Painel do gerente
 
+**Modo cozinha (KDS):** a opção **Cozinha** no grupo Operação abre uma tela exclusiva de leitura, sem menu lateral e sem notificações. Veja [cozinha.md](cozinha.md).
+
+
 Menu lateral fixo no computador e em gaveta no celular/tablet (`layouts/gerencia.php`, `css/painel.css`, `js/painel.js`).
 Configuracao unica das secoes: `app/Services/Painel/MenuGerencia.php` (rotulo, icone e rota de cada secao).
 
