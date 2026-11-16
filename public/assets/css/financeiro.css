@@ -4,7 +4,7 @@
 .fin-periodo { display: grid; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); }
 .fin-periodo .filtros { margin: 0; }
 .fin-datas { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem; }
-.fin-datas label { display: grid; gap: .25rem; flex: 1 1 9rem; color: var(--c-muted); font-size: .8rem; font-weight: 700; }
+.fin-datas label { display: grid; gap: .25rem; flex: 1 1 9rem; color: var(--c-muted); font-size: .8rem; font-weight: 900; }
 .fin-datas input {
   min-height: 2.9rem; padding: .5rem .75rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md);
   background: var(--c-white); color: var(--c-ink); font: inherit; font-size: .95rem;
@@ -27,8 +27,8 @@
 /* Barras (progress nativo, sem estilo inline) */
 .fin-barras { display: grid; gap: .9rem; margin: 0; padding: 0; list-style: none; }
 .fin-barras li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .35rem .75rem; align-items: baseline; }
-.fin-barras-nome { min-width: 0; color: var(--c-ink); font-weight: 700; overflow-wrap: anywhere; }
-.fin-barras-nome small { display: block; color: var(--c-muted); font-size: .76rem; font-weight: 500; }
+.fin-barras-nome { min-width: 0; color: var(--c-ink); font-weight: 900; overflow-wrap: anywhere; }
+.fin-barras-nome small { display: block; color: var(--c-muted); font-size: .76rem; font-weight: 400; }
 .fin-barras strong { color: var(--c-ink); font-family: var(--f-head); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fin-barras progress {
   grid-column: 1 / -1; width: 100%; height: .5rem; border: 0; border-radius: var(--r-pill); overflow: hidden;
@@ -52,23 +52,23 @@
 .fin-tabela-rolagem:focus-visible { outline: 2px solid var(--c-wine); outline-offset: 2px; }
 .fin-tabela { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
 .fin-tabela th, .fin-tabela td { padding: .55rem .3rem; border-top: 1px solid var(--c-line); text-align: right; white-space: nowrap; }
-.fin-tabela thead th { border-top: 0; color: var(--c-muted); font: 800 .72rem/1 var(--f-head); letter-spacing: .06em; text-transform: uppercase; }
+.fin-tabela thead th { border-top: 0; color: var(--c-muted); font: 900 .72rem/1 var(--f-head); letter-spacing: .06em; text-transform: uppercase; }
 .fin-tabela th:first-child { text-align: left; }
-.fin-tabela tbody th a { color: var(--c-wine); font-family: var(--f-head); font-weight: 800; }
-.fin-tabela tbody th small { display: block; color: var(--c-muted); font-size: .74rem; font-weight: 500; }
-.fin-positivo { color: var(--c-success); font-weight: 700; }
-.fin-negativo { color: var(--c-danger); font-weight: 700; }
+.fin-tabela tbody th a { color: var(--c-wine); font-family: var(--f-head); font-weight: 900; }
+.fin-tabela tbody th small { display: block; color: var(--c-muted); font-size: .74rem; font-weight: 400; }
+.fin-positivo { color: var(--c-success); font-weight: 900; }
+.fin-negativo { color: var(--c-danger); font-weight: 900; }
 
 /* Extrato */
 .fin-dia {
   display: flex; align-items: center; gap: .4rem; padding: .55rem 1rem; border-top: 1px solid var(--c-line); background: #fbf6f7;
-  color: var(--c-muted); font: 800 .78rem/1.2 var(--f-head);
+  color: var(--c-muted); font: 900 .78rem/1.2 var(--f-head);
 }
 .lista > .fin-dia:first-child, .lista-cabecalho + .fin-dia { border-top: 0; }
 .fin-sentido.is-entrada { background: var(--c-success-bg); color: var(--c-success); }
 .fin-sentido.is-saida { background: var(--c-orange-100); color: var(--c-orange-700); }
 .fin-sentido.is-transferencia { background: #f1ecee; color: var(--c-muted); }
-.fin-valor { font-family: var(--f-head); font-weight: 800; }
+.fin-valor { font-family: var(--f-head); font-weight: 900; }
 
 /* Contas */
 .lista-contas .lista-item.is-baixada .lista-titulo strong { color: var(--c-muted); }
