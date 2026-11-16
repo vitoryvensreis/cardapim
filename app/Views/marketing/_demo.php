@@ -40,12 +40,16 @@ use Cardapim\Core\Icon;
             </div>
             <div class="hero-demo-screen" data-demo-screen="orders" hidden>
                 <div class="hero-demo-heading"><div><span class="hero-demo-eyebrow">Atendimento</span><h2>Pedidos</h2></div><span class="hero-demo-subtitle">Acompanhe cada etapa</span></div>
-                <div class="hero-demo-card hero-demo-detail">
+                <div class="hero-demo-order-empty" data-demo-orders-empty>
+                    <p>Nenhum pedido novo por enquanto.</p>
+                    <button type="button" class="hero-demo-primary" data-demo-action="new"><?= Icon::svg('plus') ?> Simular chegada de pedido</button>
+                </div>
+                <div class="hero-demo-card hero-demo-detail" data-demo-orders-detail hidden>
                     <div class="hero-demo-card-head"><h3>Pedido #1043</h3><span class="hero-demo-status" data-demo-order-status>Novo</span></div>
                     <p class="hero-demo-detail-sub">Entrega · Gabriella</p>
                     <div class="hero-demo-product"><span>1 × X-Burguer</span><strong>R$ 24,90</strong></div>
                     <div class="hero-demo-product"><span>Taxa de entrega</span><strong>R$ 7,00</strong></div>
-                    <button type="button" class="hero-demo-primary" data-demo-action="receive"><?= Icon::svg('check') ?> Aceitar e preparar</button>
+                    <button type="button" class="hero-demo-primary" data-demo-action="receive"><?= Icon::svg('check') ?> <span data-demo-receive-text>Aceitar e preparar</span></button>
                     <p class="hero-demo-done" data-demo-accepted hidden>Pedido aceito, em preparo.</p>
                 </div>
             </div>
@@ -56,7 +60,7 @@ use Cardapim\Core\Icon;
                         <div><span>Vendas neste caixa</span><strong data-demo-cash-total>R$ 0,00</strong></div>
                         <div><span>Produtos adicionados</span><strong data-demo-items>0</strong></div>
                     </div>
-                    <button type="button" class="hero-demo-primary" data-demo-action="open"><?= Icon::svg('wallet') ?> Abrir caixa</button>
+                    <button type="button" class="hero-demo-primary" data-demo-action="open"><?= Icon::svg('wallet') ?> <span data-demo-open-text>Abrir caixa</span></button>
                     <div class="hero-demo-add" data-demo-add-box hidden>
                         <p>Adicionar produto ao balcão</p>
                         <div class="hero-demo-product"><span>Refrigerante lata 350 ml</span><strong>R$ 6,00</strong></div>
