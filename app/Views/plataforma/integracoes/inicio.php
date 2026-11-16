@@ -1,5 +1,5 @@
 <?php
-/** Integracoes da plataforma: visao geral. Espera: $asaas, $whatsapp (integracoes), $whatsappDisponivel, $base. */
+/** Integracoes da plataforma: visao geral. Espera: $asaas, $whatsapp (integracoes), $whatsappDisponivel, $aplicativos (resumos), $base. */
 use Cardapim\Core\Icon;
 use Cardapim\Shared\Validation\Documento;
 
@@ -43,6 +43,39 @@ $cartoes = [
             </article>
         <?php endforeach; ?>
     </div>
+
+    <section class="bloco" aria-labelledby="titulo-aplicativos">
+        <div class="bloco-cabecalho">
+            <h2 id="titulo-aplicativos"><?= Icon::svg('store') ?>Aplicativos nos marketplaces</h2>
+            <p>O Client ID e o Client Secret do aplicativo que o <?= marca_html() ?> tem em cada marketplace. Os restaurantes só autorizam esse aplicativo no portal deles.</p>
+        </div>
+        <div class="integracoes-grade">
+            <?php foreach ($aplicativos as $app):
+                $configurado = $app['origem'] !== '';
+            ?>
+                <article class="integracao-cartao is-<?= $e($app['provedor']) ?>">
+                    <div class="integracao-topo">
+                        <span class="integracao-icone" aria-hidden="true"><?= Icon::svg($app['provedor'] === 'ifood' ? 'utensils' : 'bike') ?></span>
+                        <?php if ($configurado): ?>
+                            <span class="etiqueta etiqueta-ok"><?= Icon::svg('circle-check') ?>Configurado</span>
+                        <?php else: ?>
+                            <span class="etiqueta etiqueta-neutra"><?= Icon::svg('clock') ?>Não configurado</span>
+                        <?php endif; ?>
+                    </div>
+                    <h2><?= $e($app['nome']) ?></h2>
+                    <p><?= $app['pronta'] ? 'Recebe os pedidos e sincroniza o cardápio e o estoque das lojas vinculadas.' : 'Integração em construção: as credenciais já podem ser guardadas.' ?></p>
+                    <?php if ($app['origem'] === 'painel'): ?>
+                        <p class="integracao-detalhe"><?= $e($app['rotulo_id']) ?>: <?= $e($app['client_id']) ?></p>
+                    <?php elseif ($app['origem'] === 'env'): ?>
+                        <p class="integracao-detalhe">Usando o arquivo de configuração do servidor.</p>
+                    <?php endif; ?>
+                    <a class="btn <?= $configurado ? 'btn-outline' : 'btn-primary' ?> btn-sm btn-block" href="<?= $e($base . '/integracoes/aplicativos/' . $app['provedor']) ?>">
+                        <?= Icon::svg($configurado ? 'settings' : 'key-round', 'icon-sm') ?><?= $configurado ? 'Gerenciar' : 'Cadastrar credenciais' ?>
+                    </a>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
     <section class="bloco">
         <div class="bloco-cabecalho"><h2><?= Icon::svg('shield-check') ?>Chaves protegidas</h2></div>

@@ -11,7 +11,8 @@ use Cardapim\Shared\Http\RespostaHttp;
 
 /**
  * API do iFood (Merchant API) no fluxo de APLICATIVO DISTRIBUIDO:
- * o Cardapim tem um app no Portal do Desenvolvedor (IFOOD_CLIENT_ID/SECRET no shared/.env) e cada
+ * o Cardapim tem um app no Portal do Desenvolvedor (Client ID/Secret cadastrados no painel da plataforma ou,
+ * no modo antigo, IFOOD_CLIENT_ID/SECRET no shared/.env: ver AplicativosParceiros) e cada
  * restaurante autoriza esse app no Portal do Parceiro com um codigo de vinculo.
  */
 class IfoodApi
@@ -22,7 +23,7 @@ class IfoodApi
 
     public static function disponivel(): bool
     {
-        return Config::get('IFOOD_CLIENT_ID') !== '' && Config::get('IFOOD_CLIENT_SECRET') !== '';
+        return AplicativosParceiros::disponivel('ifood');
     }
 
     public static function urlBase(): string
@@ -33,7 +34,7 @@ class IfoodApi
     /** @return array{codigo:string, verificador:string, url:string, expira:int} */
     public function codigoVinculo(): array
     {
-        $r = $this->post('/authentication/v1.0/oauth/userCode', ['clientId' => Config::get('IFOOD_CLIENT_ID')]);
+        $r = $this->post('/authentication/v1.0/oauth/userCode', ['clientId' => AplicativosParceiros::clientId('ifood')]);
         $d = $this->exigirOk($r, 'gerar o código de vínculo');
         $codigo = (string) ($d['userCode'] ?? '');
         $verificador = (string) ($d['authorizationCodeVerifier'] ?? '');
@@ -54,8 +55,8 @@ class IfoodApi
     {
         return $this->tokens($this->post('/authentication/v1.0/oauth/token', [
             'grantType' => 'authorization_code',
-            'clientId' => Config::get('IFOOD_CLIENT_ID'),
-            'clientSecret' => Config::get('IFOOD_CLIENT_SECRET'),
+            'clientId' => AplicativosParceiros::clientId('ifood'),
+            'clientSecret' => AplicativosParceiros::clientSecret('ifood'),
             'authorizationCode' => $codigoAutorizacao,
             'authorizationCodeVerifier' => $verificador,
         ]), 'confirmar o código de autorização');
@@ -66,8 +67,8 @@ class IfoodApi
     {
         return $this->tokens($this->post('/authentication/v1.0/oauth/token', [
             'grantType' => 'refresh_token',
-            'clientId' => Config::get('IFOOD_CLIENT_ID'),
-            'clientSecret' => Config::get('IFOOD_CLIENT_SECRET'),
+            'clientId' => AplicativosParceiros::clientId('ifood'),
+            'clientSecret' => AplicativosParceiros::clientSecret('ifood'),
             'refreshToken' => $tokenRenovacao,
         ]), 'renovar o acesso');
     }

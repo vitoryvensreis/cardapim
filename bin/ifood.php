@@ -19,7 +19,7 @@ use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Ifood\RotinaIfood;
 
 if (!IfoodApi::disponivel()) {
-    exit(0); // IFOOD_CLIENT_ID/SECRET ainda nao configurados: nada a fazer
+    exit(0); // app do iFood ainda nao configurado (painel da plataforma ou shared/.env): nada a fazer
 }
 
 // Uma rotina por vez: se a anterior ainda estiver rodando, esta sai sem fazer nada.

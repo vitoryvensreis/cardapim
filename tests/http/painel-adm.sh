@@ -105,6 +105,35 @@ esperar "gerente nao abre a minha conta do adm (403)" "$(pagina "$gj" "$p/minha-
 pagina "$aj" "$p/logs?busca=Minha+conta" >/dev/null
 contem "alteracao da conta foi para os logs" "$tmp/pagina.html" 'Minha conta: dados alterados'
 
+echo "Aplicativos nos marketplaces (Client ID / Client Secret)"
+esperar "integracoes abrem" "$(pagina "$aj" "$p/integracoes")" "200"
+contem "secao dos aplicativos" "$tmp/pagina.html" 'Aplicativos nos marketplaces'
+contem "link do iFood" "$tmp/pagina.html" 'href="/painel/integracoes/aplicativos/ifood"'
+contem "link da 99Food" "$tmp/pagina.html" 'href="/painel/integracoes/aplicativos/99food"'
+esperar "aplicativo do iFood abre" "$(pagina "$aj" "$p/integracoes/aplicativos/ifood")" "200"
+contem "iFood do CI vem do arquivo do servidor" "$tmp/pagina.html" 'Usando o arquivo de configuração do servidor'
+nao_contem "segredo do .env nunca aparece" "$tmp/pagina.html" 'ifood-segredo-ci'
+esperar "aplicativo desconhecido volta" "$(pagina "$aj" "$p/integracoes/aplicativos/xpto")" "303"
+esperar "gerente nao abre o aplicativo (403)" "$(pagina "$gj" "$p/integracoes/aplicativos/99food")" "403"
+esperar "sem segredo recusa" "$(enviar "$aj" "$p/integracoes/aplicativos/99food" client_id=app-99-ci client_secret= | cut -d' ' -f1)" "422"
+contem "explica o campo do segredo" "$tmp/resp.html" 'Cole o Client Secret'
+esperar "id com espaco recusa" "$(enviar "$aj" "$p/integracoes/aplicativos/99food" 'client_id=app 99' client_secret=segredo-99-ci-1234 | cut -d' ' -f1)" "422"
+esperar "salva as credenciais" "$(enviar "$aj" "$p/integracoes/aplicativos/99food" client_id=app-99-ci client_secret=segredo-99-ci-1234 | cut -d' ' -f1)" "303"
+pagina "$aj" "$p/integracoes/aplicativos/99food" >/dev/null
+contem "mostra o client id salvo" "$tmp/pagina.html" 'app-99-ci'
+contem "mostra so o final do segredo" "$tmp/pagina.html" '1234'
+nao_contem "segredo inteiro nunca aparece" "$tmp/pagina.html" 'segredo-99-ci-1234'
+esperar "segredo em branco mantem o salvo" "$(enviar "$aj" "$p/integracoes/aplicativos/99food" client_id=app-99-ci-2 client_secret= | cut -d' ' -f1)" "303"
+pagina "$aj" "$p/integracoes/aplicativos/99food" >/dev/null
+contem "client id trocado" "$tmp/pagina.html" 'app-99-ci-2'
+contem "segredo mantido" "$tmp/pagina.html" '1234'
+pagina "$aj" "$p/logs?busca=Aplicativo+99Food" >/dev/null
+contem "cadastro foi para os logs" "$tmp/pagina.html" 'Aplicativo 99Food configurado'
+nao_contem "logs sem o segredo" "$tmp/pagina.html" 'segredo-99-ci'
+esperar "apaga as credenciais" "$(enviar "$aj" "$p/integracoes/aplicativos/99food/remover" | cut -d' ' -f1)" "303"
+pagina "$aj" "$p/integracoes/aplicativos/99food" >/dev/null
+contem "volta a nao configurado" "$tmp/pagina.html" 'Não configurado'
+
 echo "Status do sistema (so o adm master)"
 esperar "adm master abre o status" "$(pagina "$aj" "$base/status")" "200"
 contem "status mostra o banco" "$tmp/pagina.html" 'MySQL'
@@ -118,4 +147,4 @@ nao_contem "rodape sem link do status" "$tmp/home.html" 'href="/status"'
 
 echo
 if [[ "$falhas" -gt 0 ]]; then echo "FALHOU: $falhas verificacao(oes) do painel da plataforma."; exit 1; fi
-echo "OK: dashboard, logs de auditoria e minha conta do administrador."
+echo "OK: dashboard, logs de auditoria, aplicativos dos marketplaces e minha conta do administrador."

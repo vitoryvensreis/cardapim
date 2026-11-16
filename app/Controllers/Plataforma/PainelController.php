@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Cardapim\Controllers\Plataforma;
 
 use Cardapim\Controllers\StatusController;
-use Cardapim\Core\Config;
 use Cardapim\Core\Response;
 use Cardapim\Core\View;
+use Cardapim\Modules\Integracoes\AplicativosParceiros;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Repositories\Plataforma\DashboardRepository;
 use Cardapim\Repositories\Plataforma\FaturaAdminRepository;
@@ -70,7 +70,7 @@ final class PainelController extends BasePlataforma
                 'tempo_real' => StatusController::tempoReal(),
                 'asaas' => $integracoes->buscar(null, 'asaas')['status'],
                 'whatsapp' => $integracoes->buscar(null, 'whatsapp')['status'],
-                'ifood' => $repo->ifood() + ['liberado' => Config::get('IFOOD_CLIENT_ID') !== '' && Config::get('IFOOD_CLIENT_SECRET') !== ''],
+                'ifood' => $repo->ifood() + ['liberado' => AplicativosParceiros::disponivel('ifood')],
                 'email' => Mailer::configuracao()['driver'],
             ],
             'pageStyles' => ['css/plataforma-gestao.css', 'css/visao-geral.css', 'css/dashboard-plataforma.css'],
@@ -102,7 +102,7 @@ final class PainelController extends BasePlataforma
             'atalhos' => $secao === 'dashboard' ? [
                 ['/painel/restaurantes', 'Restaurantes', 'store', 'Cadastrar, editar, suspender e excluir restaurantes'],
                 ['/painel/usuarios', 'Usuários', 'users', 'Contas da equipe e administradores'],
-                ['/painel/integracoes', 'Integrações da plataforma', 'plug-zap', 'Asaas das assinaturas e WhatsApp da plataforma'],
+                ['/painel/integracoes', 'Integrações da plataforma', 'plug-zap', 'Asaas, WhatsApp e aplicativos do iFood e da 99Food'],
                 ['/status', 'Status do sistema', 'activity', 'PHP, banco de dados e tempo real'],
             ] : [],
         ]);

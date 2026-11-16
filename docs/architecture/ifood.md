@@ -104,7 +104,9 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 
 1. No [Portal do Desenvolvedor iFood](https://developer.ifood.com.br/pt-BR), criar o aplicativo **distribuído** do
    Cardapim com os módulos de **pedidos (order + events)**, **merchant** e **catálogo**, e homologar com o iFood.
-2. No servidor, em `shared/.env`: `IFOOD_CLIENT_ID=` e `IFOOD_CLIENT_SECRET=` (nunca no GitHub).
+2. No painel da plataforma, em `Integrações > Aplicativos nos marketplaces > iFood`, colar o Client ID e o Client Secret
+   (guardados cifrados no banco). O modo antigo, `IFOOD_CLIENT_ID=` e `IFOOD_CLIENT_SECRET=` no `shared/.env`, continua valendo
+   quando nada foi salvo no painel. Nunca no GitHub.
 3. Cron do usuário do site (CloudPanel > Cron Jobs), a cada minuto:
    `php8.4 /home/<usuario>/apps/cardapim/current/bin/ifood.php >> /home/<usuario>/apps/cardapim/shared/storage/logs/ifood.log 2>&1`
 4. Cada gerente: `Integrações > iFood > Gerar código de vínculo`, autorizar no Portal do Parceiro, colar o código,

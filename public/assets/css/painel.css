@@ -487,8 +487,8 @@
 .integracao-cartao.is-em-breve { border-style: dashed; }
 .integracao-cartao.is-em-breve .btn[disabled] { --btn-bg: var(--c-blush); --btn-fg: var(--c-muted); border-color: var(--c-line); opacity: 1; }
 .integracao-cartao.is-asaas .integracao-icone { background: #e8f0fe; color: #1a56db; }
-.integracao-detalhe { color: var(--c-ink) !important; font-weight: 700; }
-.chave-curta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.integracao-detalhe { color: var(--c-ink) !important; font-weight: 700; overflow-wrap: anywhere; }
+.chave-curta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .manual { margin-top: 1rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: #fdfafb; }
 .manual summary { color: var(--c-wine); font-weight: 700; cursor: pointer; }
 .manual[open] summary { margin-bottom: .6rem; }

@@ -41,8 +41,9 @@ assinatura do webhook, regras de homologação, campos de pagamento e de entrega
 
 1. **Conta de desenvolvedor**: pedir acesso ao portal de desenvolvedor da 99Food como empresa de software
    (Escotilha Produtora, CNPJ 64.069.224/0001-32), pelo canal de parceiros/integradores da 99Food.
-2. **Criar o aplicativo** no portal e anotar App ID e ClientSecret. Guardar como `NOVENOVEFOOD_APP_ID` e
-   `NOVENOVEFOOD_CLIENT_SECRET` no `shared/.env` (digitados com `read -rsp`, nunca no chat nem no GitHub).
+2. **Criar o aplicativo** no portal e anotar App ID e ClientSecret. Cadastrar em `Painel > Integrações > Aplicativos nos
+   marketplaces > 99Food` (guardados cifrados; já disponível desde 16/11/2026). Alternativa: `NOVENOVEFOOD_APP_ID` e
+   `NOVENOVEFOOD_CLIENT_SECRET` no `shared/.env`. O cliente HTTP deve ler por `AplicativosParceiros::credenciais('99food')`.
 3. **Loja de testes**: conseguir uma loja de testes (ou de um restaurante parceiro) para homologar.
 4. **Checklist de homologação** da 99Food: ler e copiar para este documento os cenários exigidos (aceitar, pronto,
    despachar, cancelar, cancelamento pelo cliente, polling contínuo, idempotência).
