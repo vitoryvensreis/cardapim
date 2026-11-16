@@ -66,7 +66,7 @@ $seoIconeApp = \Cardapim\Controllers\PwaController::icones()[0]['src'];
 <?php endif; ?>
 <?php if (\Cardapim\Shared\Consentimento::aceitouTodos()): // Fontes do Google: so com o aceite de cookies (LGPD). ?>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Londrina+Solid:wght@100;300;400;900&display=swap" data-fontes-externas>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&display=swap" data-fontes-externas>
 <?php endif; ?>
 <link rel="stylesheet" href="<?= AssetUrl::asset('css/core.css') ?>">
 <link rel="stylesheet" href="<?= AssetUrl::asset('css/consentimento.css') ?>">
