@@ -28,11 +28,6 @@ $passos = [
     ['chart-line', 'Você acompanha tudo', 'Caixa, entregas, produtos e resultados reunidos em um painel simples.'],
 ];
 
-$pedidosMock = [
-    ['#1042', 'Mesa 06', '2 itens · Salão', 'utensils-crossed', 'preparing', 'Preparando'],
-    ['#1041', 'Delivery', '4 itens · Entrega', 'bike', 'ready', 'Pronto'],
-    ['#1040', 'Balcão', '1 item · Retirada', 'store', 'new', 'Novo'],
-];
 ?>
 <section class="hero" aria-labelledby="hero-title">
     <div class="hero-bg" aria-hidden="true">
@@ -59,67 +54,8 @@ $pedidosMock = [
             </ul>
         </div>
 
-        <div class="hero-visual" data-tilt>
-            <div class="hero-visual-inner" data-tilt-inner>
-                <div class="dashboard" role="img" aria-label="Prévia ilustrativa do painel do <?= marca_html() ?> com pedidos do dia, vendas e pedidos em andamento">
-                    <aside class="dash-side" aria-hidden="true">
-                        <span class="dash-logo"><?= Icon::svg('chef-hat') ?></span>
-                        <span class="dash-nav is-active"><?= Icon::svg('layout-dashboard') ?></span>
-                        <span class="dash-nav"><?= Icon::svg('receipt') ?></span>
-                        <span class="dash-nav"><?= Icon::svg('clipboard-list') ?></span>
-                        <span class="dash-nav"><?= Icon::svg('chart-no-axes-column') ?></span>
-                        <span class="dash-nav dash-nav-bottom"><?= Icon::svg('settings') ?></span>
-                    </aside>
-                    <div class="dash-main" aria-hidden="true">
-                        <div class="dash-top">
-                            <div>
-                                <span class="dash-overline">Visão geral</span>
-                                <strong class="dash-hello">Bom dia, chef!</strong>
-                            </div>
-                            <span class="dash-bell"><?= Icon::svg('bell') ?><i></i></span>
-                        </div>
-                        <div class="dash-metrics">
-                            <div class="dash-metric">
-                                <span><?= Icon::svg('receipt', 'icon-sm') ?>Pedidos hoje</span>
-                                <strong><span data-count-to="42">42</span><small class="trend"><?= Icon::svg('trending-up', 'icon-sm') ?>12%</small></strong>
-                            </div>
-                            <div class="dash-metric">
-                                <span><?= Icon::svg('wallet', 'icon-sm') ?>Vendas hoje</span>
-                                <strong>R$ <span data-count-to="2.8" data-decimals="1">2,8</span> mil</strong>
-                            </div>
-                        </div>
-                        <div class="dash-orders">
-                            <div class="dash-orders-head"><strong>Pedidos em andamento</strong><span>Ver todos <?= Icon::svg('arrow-right', 'icon-sm') ?></span></div>
-                            <ul data-live-orders>
-                                <?php foreach ($pedidosMock as [$numero, $local, $detalhe, $icone, $status, $rotulo]): ?>
-                                    <li class="dash-order">
-                                        <span class="dash-order-icon"><?= Icon::svg($icone, 'icon-sm') ?></span>
-                                        <span class="dash-order-info"><strong><?= $numero ?> · <?= $local ?></strong><small><?= $detalhe ?></small></span>
-                                        <b class="status status-<?= $status ?>" data-status><?= $rotulo ?></b>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                        <div class="dash-chart">
-                            <div class="dash-chart-head"><strong>Movimento da semana</strong><span>Ilustrativo</span></div>
-                            <div class="dash-bars">
-                                <?php foreach (['S', 'T', 'Q', 'Q', 'S', 'S', 'D'] as $i => $dia): ?>
-                                    <span class="dash-bar dash-bar-<?= $i + 1 ?>"><i></i><small><?= $dia ?></small></span>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="float-card float-order" data-toast aria-hidden="true">
-                    <span class="float-icon"><?= Icon::svg('bell') ?></span>
-                    <span><small>Pedido novo</small><strong><span data-toast-number>#1043</span> chegou na cozinha</strong></span>
-                    <span class="float-check"><?= Icon::svg('check', 'icon-sm') ?></span>
-                </div>
-                <div class="float-card float-connected" aria-hidden="true">
-                    <strong>Tudo conectado</strong>
-                </div>
-            </div>
+        <div class="hero-visual">
+            <?php require __DIR__ . '/_demo.php'; ?>
         </div>
     </div>
 
