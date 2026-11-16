@@ -25,6 +25,22 @@ Os SVGs originais usam internamente `#651423` e `#FE5826` em alguns caminhos,
 enquanto os hexadecimais oficiais informados sao `#651424` e `#FF5825`.
 Os assets originais foram preservados; os tokens e estilos CSS utilizam os valores oficiais exatos.
 
+## Tipografia oficial
+
+A interface utiliza **Londrina Solid**, de Marcelo Magalhães (licença SIL Open Font License), em todos os módulos: landing, catálogo, cardápio, gerência, caixa, cozinha e demais áreas. A definição central fica em `public/assets/css/core.css`, nos tokens `--f-head` e `--f-body`.
+
+| Peso disponível | Utilização recomendada |
+| --- | --- |
+| 100 (Thin) | Composições decorativas pontuais |
+| 300 (Light) | Textos auxiliares grandes, quando legíveis |
+| 400 (Regular) | Corpo, formulários, descrições e rótulos secundários |
+| 900 (Black) | Títulos, botões e dados em destaque |
+
+A família **não possui 500, 600, 700 ou 800**. Declarações antigas foram mapeadas para os pesos reais 400/900; `font-synthesis: none` impede negrito ou itálico artificiais. Campos de código podem manter fonte monoespaçada por precisão.
+
+Como no projeto original, as fontes do Google são carregadas apenas quando o visitante aceita os cookies opcionais. O carregamento inicial é em `app/Views/partials/head.php` e o aceite sem recarregar usa `public/assets/js/consentimento.js`. Quem não consente usa a fonte de fallback instalada no dispositivo. Não inserir imports externos que ignorem essa escolha.
+
+Os arquivos das logomarcas oficiais não foram alterados.
 ## Regras de implementacao
 
 - Nao recriar o logotipo com texto ou fonte.
