@@ -57,8 +57,11 @@ contem "botões de ação preservados" "$tmp/home.html" 'class="hero-actions"'
 # Garante ordem semântica e a configuração responsiva no CSS externo.
 if php -r '
   $html = file_get_contents($argv[1]);
-  $hero = substr($html, strpos($html, '<section class="hero"'), strpos($html, '<section class="channels"') - strpos($html, '<section class="hero"'));
-  $tokens = ['class="hero-title"', 'class="hero-lead"', 'class="hero-actions"', 'class="hero-points"', 'class="hero-visual"'];
+  $start = strpos($html, "<section class=\"hero\"");
+  $finish = strpos($html, "<section class=\"channels\"");
+  if ($start === false || $finish === false || $finish <= $start) exit(1);
+  $hero = substr($html, $start, $finish - $start);
+  $tokens = ["class=\"hero-title\"", "class=\"hero-lead\"", "class=\"hero-actions\"", "class=\"hero-points\"", "class=\"hero-visual\""];
   $previous = -1;
   foreach ($tokens as $token) {
     $current = strpos($hero, $token);
