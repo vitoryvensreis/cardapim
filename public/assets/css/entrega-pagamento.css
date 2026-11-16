@@ -7,17 +7,17 @@
 .tempos-grade { margin-top: .5rem; }
 .tempo-par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .tempos-grade [data-tempo][hidden] { display: none; }
-.rotulo-grupo { margin: 1.1rem 0 .55rem; color: var(--c-muted); font: 900 .74rem/1.2 var(--f-head); letter-spacing: .06em; text-transform: uppercase; }
+.rotulo-grupo { margin: 1.1rem 0 .55rem; color: var(--c-muted); font: 700 .74rem/1.2 var(--f-head); letter-spacing: .06em; text-transform: uppercase; }
 
 .area-grupo { padding-top: 1.1rem; margin-top: 1.1rem; border-top: 1px dashed var(--c-line); }
 .area-grupo:first-of-type { margin-top: .5rem; }
-.area-grupo-titulo { display: flex; align-items: center; gap: .45rem; margin: 0 0 .75rem; color: var(--c-ink); font: 900 1rem/1.2 var(--f-head); }
+.area-grupo-titulo { display: flex; align-items: center; gap: .45rem; margin: 0 0 .75rem; color: var(--c-ink); font: 700 1rem/1.2 var(--f-head); }
 .area-grupo-titulo .icon { color: var(--c-wine); }
 .lista-areas { margin-bottom: .85rem; }
 .lista-item-pausado .lista-titulo strong, .lista-item-pausado .lista-dado { opacity: .6; }
 .area-editar { grid-column: 1 / -1; }
 .area-editar > summary {
-  display: inline-flex; align-items: center; gap: .35rem; min-height: 2.6rem; color: var(--c-wine); font: 900 .86rem/1 var(--f-head);
+  display: inline-flex; align-items: center; gap: .35rem; min-height: 2.6rem; color: var(--c-wine); font: 700 .86rem/1 var(--f-head);
   cursor: pointer; list-style: none;
 }
 .area-editar > summary::-webkit-details-marker, .area-nova > summary::-webkit-details-marker { display: none; }
