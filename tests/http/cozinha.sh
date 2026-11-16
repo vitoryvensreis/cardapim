@@ -56,9 +56,10 @@ nao_tem '<html'
 nao_tem '<form'
 igual "$(status "$tmp/outro" "$g/cozinha/conteudo")" 403 'fragmento isolado'
 
-# A landing permanece com o selo informativo, mas sem alegacao visual de "ao vivo".
+# A landing continua publica, sem o balão removido da hero.
 igual "$(curl -s -o "$tmp/pagina.html" -w '%{http_code}' "$base/")" 200 'landing publica sem login'
-tem 'Tudo conectado'
+tem 'data-hero-demo'
+nao_tem 'class="float-connected"'
 nao_tem '<small>ao vivo</small>'
 nao_tem 'class="live-dot"'
 igual "$(curl -s -o /dev/null -b "$tmp/gerente" -w '%{http_code}' -X POST "$g/cozinha")" 405 'cozinha sem escrita'
