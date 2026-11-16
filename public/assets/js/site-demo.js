@@ -93,6 +93,13 @@
   });
 
   // Mouse suspende o roteiro; teclado e toque não perdem o controle após clicar.
+  root.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "touch") {
+      state.manual = true; // no celular, um toque interrompe o roteiro para sempre evitar cliques acidentais
+      render();
+    }
+  });
+
   root.addEventListener("pointerenter", (event) => {
     if (event.pointerType === "mouse" || event.pointerType === "pen") {
       pointerInside = true;
