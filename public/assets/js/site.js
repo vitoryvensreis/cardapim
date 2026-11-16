@@ -31,27 +31,6 @@
     }, 2400);
   }
 
-  /* Inclinacao 3D do painel acompanhando o cursor */
-  const tilt = document.querySelector("[data-tilt]");
-  const tiltInner = document.querySelector("[data-tilt-inner]");
-  if (tilt && tiltInner && finePointer && !reducedMotion) {
-    let frame = 0;
-    tilt.addEventListener("pointermove", (event) => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const rect = tilt.getBoundingClientRect();
-        const x = (event.clientX - rect.left) / rect.width - 0.5;
-        const y = (event.clientY - rect.top) / rect.height - 0.5;
-        tiltInner.style.setProperty("--ry", `${(x * 14 - 4).toFixed(2)}deg`);
-        tiltInner.style.setProperty("--rx", `${(-y * 10 + 2).toFixed(2)}deg`);
-      });
-    });
-    tilt.addEventListener("pointerleave", () => {
-      tiltInner.style.removeProperty("--ry");
-      tiltInner.style.removeProperty("--rx");
-    });
-  }
-
   /* Contadores animados */
   const counters = [...document.querySelectorAll("[data-count-to]")];
   const formatNumber = (value, decimals) => value.toLocaleString("pt-BR", {
@@ -76,42 +55,6 @@
         requestAnimationFrame(step);
       });
     });
-  }
-
-  /* Pedidos "ao vivo" no painel ilustrativo */
-  const liveOrders = document.querySelector("[data-live-orders]");
-  const toast = document.querySelector("[data-toast]");
-  const toastNumber = document.querySelector("[data-toast-number]");
-  if (liveOrders && !reducedMotion) {
-    const flow = [
-      ["status-new", "Novo"],
-      ["status-preparing", "Preparando"],
-      ["status-ready", "Pronto"],
-    ];
-    const badges = [...liveOrders.querySelectorAll("[data-status]")];
-    let orderNumber = 1043;
-    let cursor = 0;
-    window.setInterval(() => {
-      if (document.hidden || !badges.length) return;
-      const badge = badges[cursor % badges.length];
-      cursor += 1;
-      const currentIndex = flow.findIndex(([css]) => badge.classList.contains(css));
-      const [nextClass, nextLabel] = flow[(currentIndex + 1) % flow.length];
-      flow.forEach(([css]) => badge.classList.remove(css));
-      badge.classList.add(nextClass);
-      badge.textContent = nextLabel;
-      badge.classList.remove("is-changing");
-      void badge.offsetWidth;
-      badge.classList.add("is-changing");
-
-      if (toast && toastNumber && cursor % 3 === 0) {
-        orderNumber += 1;
-        toastNumber.textContent = `#${orderNumber}`;
-        toast.classList.remove("is-new");
-        void toast.offsetWidth;
-        toast.classList.add("is-new");
-      }
-    }, 2600);
   }
 
   /* Luz que acompanha o cursor nos cards */
