@@ -91,14 +91,8 @@
 .hero-points .icon { width: 1.05rem; height: 1.05rem; padding: .15rem; border-radius: 50%; background: rgb(255 88 37 / 22%); color: var(--c-orange); stroke-width: 3; }
 @keyframes rise-in { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
 
-/* Painel ilustrativo */
-/* O painel mantém seus elementos originais, mas é revelado só pela metade. */
-.hero-visual {
-  position: relative; width: min(70%, 54rem); max-width: 100%; min-width: 0;
-  height: clamp(14rem, 26vw, 21rem); margin-top: clamp(2.25rem, 4vw, 3rem);
-  padding: 1.1rem 1rem 0; overflow: hidden; perspective: 1400px;
-  animation: rise-in 1.1s .25s var(--ease-out) both;
-}
+/* Demonstração interativa: composição e responsividade em site-demo.css. */
+.hero-visual { position: relative; animation: rise-in 1.1s .25s var(--ease-out) both; }
 .hero-scroll {
   position: absolute; left: 50%; bottom: 1.5rem; translate: -50% 0;
   display: none; align-items: center; gap: .6rem;
@@ -265,14 +259,11 @@
   .hero-actions { width: 100%; gap: .7rem; }
   .hero-actions .btn { flex: 1 1 100%; }
   .hero-points { gap: .55rem 1rem; font-size: .95rem; }
-  .hero-visual { width: 100%; height: clamp(13rem, 52vw, 17rem); margin-top: 1.65rem; padding-inline: .35rem; }
   .hero-disclaimer { margin-top: 3.25rem; text-align: center; }
 }
 @media (min-width: 40rem) and (max-width: 63.99rem) {
-  .hero-visual { width: min(85%, 52rem); }
 }
 @media (max-width: 24rem) {
-  .hero-visual { height: 12.5rem; }
   .hero-points { justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) {
