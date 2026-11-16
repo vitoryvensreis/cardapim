@@ -68,6 +68,9 @@ else
 fi
 curl -s -b 'cardapim_consentimento=todos.20261112' "$base/" > "$tmp/h2.html"
 contem "aceitou: carrega Google Fonts" "$tmp/h2.html" 'fonts.googleapis.com'
+contem "aceitou: familia Londrina Solid com todos os pesos reais" "$tmp/h2.html" 'family=Londrina+Solid:wght@100;300;400;900'
+nao_contem "fontes antigas nao sao carregadas" "$tmp/h2.html" 'family=DM+Sans'
+contem "fonte principal definida para todos os layouts" "$tmp/h.html" '/assets/css/core.css'
 contem "aceitou: aviso escondido" "$tmp/h2.html" 'aria-labelledby="consentimento-titulo" hidden'
 curl -s -b 'cardapim_consentimento=necessarios.20261112' "$base/" > "$tmp/h3.html"
 nao_contem "so necessarios: sem Google Fonts" "$tmp/h3.html" 'fonts.googleapis.com'
