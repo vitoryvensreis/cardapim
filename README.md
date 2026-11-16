@@ -413,7 +413,7 @@ Permissões granulares previstas: `orders.create`, `orders.cancel`, `orders.disc
 
 ### 4.9 Integração com iFood
 
-**Implementado** ([detalhes](docs/architecture/ifood.md)): pedidos do iFood entram sozinhos no Delivery do caixa (polling a cada 30 s pela rotina `bin/ifood.php`, avisos guardados antes da confirmação de leitura, sem duplicar), entregador do iFood com etapa e código de coleta, aceitar/pronto/despachar/cancelar enviados ao iFood, concluído e cancelado vindos do iFood, venda no iFood baixando o estoque e disponibilidade dos itens enviada ao iFood pelo estoque (tela "Cardápio do iFood" para ligar itens a produtos). Para ligar em produção: app distribuído homologado, `IFOOD_CLIENT_ID/SECRET` no `shared/.env` e o cron da rotina.
+**Implementado** ([detalhes](docs/architecture/ifood.md)): pedidos do iFood entram sozinhos no Delivery do caixa (polling a cada 30 s pela rotina `bin/ifood.php`, avisos guardados antes da confirmação de leitura, sem duplicar), entregador do iFood com etapa e código de coleta, aceitar/pronto/despachar/cancelar enviados ao iFood, concluído e cancelado vindos do iFood, venda no iFood baixando o estoque e disponibilidade dos itens enviada ao iFood pelo estoque (tela "Cardápio do iFood" para ligar itens a produtos). Para ligar em produção: app distribuído homologado, Client ID/Secret cadastrados em `Painel > Integrações > Aplicativos nos marketplaces` (ou `IFOOD_CLIENT_ID/SECRET` no `shared/.env`) e o cron da rotina.
 
 Planejamento original:
 - Conexão e autorização por estabelecimento (`merchantId` ↔ `establishment_id`).

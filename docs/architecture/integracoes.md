@@ -70,8 +70,10 @@ O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de 
 
 ## iFood (aplicativo distribuído)
 
-- O Cardapim precisa de um app do tipo **distribuído** no Portal do Desenvolvedor iFood. `shared/.env`: `IFOOD_CLIENT_ID` e `IFOOD_CLIENT_SECRET`
-  (opcional `IFOOD_BASE_URL`, padrão `https://merchant-api.ifood.com.br`). Sem isso, a tela diz que ainda não foi liberado.
+- O Cardapim precisa de um app do tipo **distribuído** no Portal do Desenvolvedor iFood. O Client ID e o Client Secret desse app são
+  cadastrados em `Painel > Integrações > Aplicativos nos marketplaces` (ver abaixo); no modo antigo continuam valendo
+  `IFOOD_CLIENT_ID` e `IFOOD_CLIENT_SECRET` no `shared/.env` (opcional `IFOOD_BASE_URL`, padrão `https://merchant-api.ifood.com.br`).
+  Sem credenciais, a tela diz que ainda não foi liberado.
 - Fluxo: `POST /authentication/v1.0/oauth/userCode` gera o **código de vínculo** (10 min) → o gerente autoriza no Portal do Parceiro →
   cola o **código de autorização** (5 min) → `POST /authentication/v1.0/oauth/token` (`grantType=authorization_code` + verificador) →
   `GET /merchant/v1.0/merchants` lista as lojas → o gerente escolhe a loja deste restaurante (se houver só uma, é escolhida sozinha).
@@ -91,3 +93,23 @@ O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de 
 Tabelas criadas pela execução GitHub Actions **#65** (commit `d88f54b`, gatilho `[cardapim-integracoes]`), com backup
 `shared/backups/cardapim-before-integracoes-20261110T132914Z.sql.gz` verificado antes e `verify-integracoes.php` confirmando.
 Gatilho removido no commit seguinte. WhatsApp e iFood ficam "aguardando liberação" até as variáveis do `shared/.env` serem preenchidas.
+
+## Aplicativos da plataforma nos marketplaces (iFood, 99Food)
+
+Client ID e Client Secret do **app do Cardapim** em cada marketplace. Não são contas dos restaurantes: cada restaurante só
+autoriza esse app no portal dele. Valem para toda a plataforma.
+
+- Tela: `/painel/integracoes/aplicativos/{provedor}` (só `adm_master`, CSRF nos POST). Provedores na lista fechada
+  `AplicativosParceiros::PROVEDORES` (`ifood`, `99food`); para um marketplace novo basta incluir na lista.
+- Rotas: `GET|POST /painel/integracoes/aplicativos/{provedor}` (ver e salvar) e `POST .../{provedor}/remover` (apagar, com confirmação).
+- Armazenamento: tabela `configuracoes`, chave `app_parceiro_<provedor>`, valor JSON **cifrado inteiro** (`Cripto`, AES-256-GCM,
+  chave fora do banco). Sem migração. `Configuracoes::get` não lê essas chaves (lista fechada de chaves públicas).
+- Leitura (`Modules/Integracoes/AplicativosParceiros`): 1) painel; 2) `shared/.env` (`IFOOD_CLIENT_ID/SECRET`,
+  `NOVENOVEFOOD_APP_ID/CLIENT_SECRET`); 3) não configurado. Cache de 60 s, então a rotina `bin/ifood.php` pega uma troca sem reiniciar.
+- Segurança: o segredo nunca volta para a tela (só os 4 últimos caracteres), nunca vai para os logs; segredo em branco ao salvar
+  mantém o atual. Auditoria registra "Aplicativo X configurado/removido" e se o Client ID ou o segredo mudaram, sem os valores.
+- Trocar o Client ID do iFood invalida os vínculos das lojas (os tokens são do app antigo): a tela avisa quantas lojas
+  precisarão vincular de novo.
+- 99Food: só guarda as credenciais; a integração ainda não existe ([../integrations/99food.md](../integrations/99food.md)).
+- Testes: `tests/unit/integracoes.php` (sem banco), `tests/integration/aplicativos-parceiros.php` (MySQL, cifragem e prioridade)
+  e `tests/http/painel-adm.sh` (tela, validação, segredo mascarado, logs, permissão).

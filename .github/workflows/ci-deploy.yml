@@ -146,6 +146,7 @@ jobs:
           php database/seed-configuracoes-restaurante.php --apply
           php database/seed-configuracoes-restaurante.php --verify
           php tests/integration/configuracoes.php
+          php tests/integration/aplicativos-parceiros.php
           php tests/integration/schema.php
           php tests/integration/planos-publicos.php
           php database/verify-user-schema.php --verify

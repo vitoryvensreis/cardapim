@@ -6,6 +6,7 @@ declare(strict_types=1);
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
 use Cardapim\Services\Plataforma\CobrancaAssinaturas as Cobranca;
+use Cardapim\Modules\Integracoes\AplicativosParceiros;
 use Cardapim\Modules\Integracoes\AsaasApi;
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
@@ -100,6 +101,22 @@ $ok(count($lojas) === 1 && $lojas[0]['nome'] === 'Loja', 'lojas validas (id estr
 $s = (new IfoodApi(new ClienteFalso([new RespostaHttp(200, '[{"state":"CLOSED","available":false,"message":{"title":"Fora do horario"}}]')])))->statusLoja('acc', 'id');
 $ok($s['aberta'] === false && $s['mensagem'] === 'Fora do horario', 'status da loja');
 $ok($erro(fn () => (new IfoodApi(new ClienteFalso([new RespostaHttp(400, '{}')])))->trocarCodigo('X', 'v')) !== null, 'codigo recusado vira erro');
+
+/* ---------- Credenciais dos apps nos marketplaces (sem banco: vale o .env) ---------- */
+AplicativosParceiros::esquecer();
+$c = AplicativosParceiros::credenciais('ifood');
+$ok($c === ['client_id' => 'app-id', 'client_secret' => 'app-segredo', 'origem' => 'env'], 'iFood sem banco usa o .env');
+$ok(AplicativosParceiros::existe('99food') && !AplicativosParceiros::existe('xpto'), 'lista fechada de marketplaces');
+putenv('NOVENOVEFOOD_APP_ID');
+putenv('NOVENOVEFOOD_CLIENT_SECRET');
+$ok(!AplicativosParceiros::disponivel('99food'), '99Food sem credenciais nao fica disponivel');
+$recusou = false;
+try {
+    AplicativosParceiros::credenciais('../x');
+} catch (InvalidArgumentException) {
+    $recusou = true;
+}
+$ok($recusou, 'provedor desconhecido recusado');
 
 /* ---------- Telefone ---------- */
 $ok(Documento::formatarTelefone('5585999990000') === '(85) 99999-0000', 'telefone com 55 formatado');

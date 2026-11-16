@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Controllers\Plataforma;
 
 use Cardapim\Core\Response;
+use Cardapim\Modules\Integracoes\AplicativosParceiros;
 use Cardapim\Modules\Integracoes\WppConnectApi;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Services\Auth\Guard;
@@ -12,6 +13,7 @@ use Cardapim\Services\Gerencia\Integracoes\AsaasService;
 use Cardapim\Services\Gerencia\Integracoes\BaseIntegracao;
 use Cardapim\Services\Gerencia\Integracoes\WhatsAppService;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Plataforma\AplicativosParceirosService;
 use Cardapim\Services\Plataforma\CobrancaAssinaturas;
 use Cardapim\Shared\Seguranca\Cripto;
 
@@ -19,6 +21,7 @@ use Cardapim\Shared\Seguranca\Cripto;
  * Integracoes da PLATAFORMA (/painel/integracoes): contas da propria administracao do Cardapim.
  * - Asaas: recebe o pagamento das assinaturas dos restaurantes.
  * - WhatsApp: numero da plataforma (codigos de verificacao do cliente final), separado dos restaurantes.
+ * - Aplicativos (iFood, 99Food): Client ID / Client Secret do app do Cardapim em cada marketplace.
  * Mesmas regras e servicos das integracoes dos restaurantes, com escopo "plataforma" (idRestaurante null).
  */
 final class IntegracoesController extends BasePlataforma
@@ -33,7 +36,50 @@ final class IntegracoesController extends BasePlataforma
             'asaas' => $repo->buscar(null, 'asaas'),
             'whatsapp' => $repo->buscar(null, 'whatsapp'),
             'whatsappDisponivel' => WppConnectApi::disponivel(),
+            'aplicativos' => array_map(
+                fn (string $provedor): array => $this->aplicativosServico()->resumo($provedor),
+                array_keys(AplicativosParceiros::PROVEDORES),
+            ),
         ]);
+    }
+
+    /* ---------- Aplicativos nos marketplaces (iFood, 99Food) ---------- */
+
+    public function aplicativo(string $provedor): Response
+    {
+        if ($r = $this->entrar()) {
+            return $r;
+        }
+        if (!AplicativosParceiros::existe($provedor)) {
+            return $this->voltar('/painel/integracoes', 'erro', 'Aplicativo não encontrado.');
+        }
+        return $this->telaAplicativo($provedor, [], []);
+    }
+
+    public function aplicativoSalvar(string $provedor): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        if (!AplicativosParceiros::existe($provedor)) {
+            return $this->voltar('/painel/integracoes', 'erro', 'Aplicativo não encontrado.');
+        }
+        if (!Cripto::disponivel()) {
+            return $this->voltar('/painel/integracoes/aplicativos/' . $provedor, 'erro', 'A criptografia do servidor não está disponível.');
+        }
+        $resultado = $this->aplicativosServico()->salvar($provedor, $this->post('client_id'), (string) ($_POST['client_secret'] ?? ''));
+        if ($resultado->ok) {
+            return $this->voltar('/painel/integracoes/aplicativos/' . $provedor, 'sucesso', $resultado->mensagem);
+        }
+        return $this->telaAplicativo($provedor, $resultado->erros + ['_geral' => $resultado->mensagem], ['client_id' => $this->post('client_id')], 422);
+    }
+
+    public function aplicativoRemover(string $provedor): Response
+    {
+        if (!AplicativosParceiros::existe($provedor)) {
+            return $this->voltar('/painel/integracoes', 'erro', 'Aplicativo não encontrado.');
+        }
+        return $this->acao(fn (): Resultado => $this->aplicativosServico()->remover($provedor), '/painel/integracoes/aplicativos/' . $provedor);
     }
 
     /* ---------- Asaas (assinaturas) ---------- */
@@ -184,6 +230,23 @@ final class IntegracoesController extends BasePlataforma
             'valores' => $valores,
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
         ], $status);
+    }
+
+    /** @param array<string,string> $erros @param array<string,string> $valores */
+    private function telaAplicativo(string $provedor, array $erros, array $valores, int $status = 200): Response
+    {
+        $app = $this->aplicativosServico()->resumo($provedor);
+        return $this->tela('plataforma/integracoes/aplicativo', 'integracoes', $app['nome'], [
+            'app' => $app,
+            'erros' => $erros,
+            'valores' => $valores + ['client_id' => $app['client_id']],
+            'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
+        ], $status);
+    }
+
+    private function aplicativosServico(): AplicativosParceirosService
+    {
+        return new AplicativosParceirosService($this->db, $this->usuario);
     }
 
     private function asaasServico(): AsaasService

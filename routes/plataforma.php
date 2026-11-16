@@ -31,6 +31,10 @@ return static function (Router $router): void {
     $router->get('/painel/integracoes/whatsapp/estado', [IntegracoesController::class, 'whatsappEstado']);
     $router->post('/painel/integracoes/whatsapp/teste', [IntegracoesController::class, 'whatsappTeste']);
     $router->post('/painel/integracoes/whatsapp/desconectar', [IntegracoesController::class, 'whatsappDesconectar']);
+    // Client ID / Client Secret do app da plataforma em cada marketplace (iFood, 99Food).
+    $router->get('/painel/integracoes/aplicativos/{provedor}', [IntegracoesController::class, 'aplicativo']);
+    $router->post('/painel/integracoes/aplicativos/{provedor}', [IntegracoesController::class, 'aplicativoSalvar']);
+    $router->post('/painel/integracoes/aplicativos/{provedor}/remover', [IntegracoesController::class, 'aplicativoRemover']);
 
     // Planos: publicos (site) e privados (link de convite), vitalicio gratis.
     $router->get('/painel/planos', [PlanosController::class, 'lista']);

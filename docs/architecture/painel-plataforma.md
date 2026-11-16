@@ -13,7 +13,7 @@ login; qualquer outro cargo recebe 403. Todo POST exige CSRF e toda ação gera 
 | Configurações | `/painel/configuracoes` | **Pronta**: nome, textos, logos, icone do app e teste do e-mail do sistema ([email.md](../deploy/email.md)) |
 | Faturas | `/painel/faturas` | **Pronta**: números do mês, lista com filtros e "Atualizar agora" ([detalhes](#faturas)) |
 | Usuários | `/painel/usuarios` | **Pronto**: todas as contas, criar, editar, senha, bloquear, 2FA e excluir ([detalhes](#usuarios)) |
-| Integrações | `/painel/integracoes` | **Pronta**: Asaas da plataforma e WhatsApp da plataforma |
+| Integrações | `/painel/integracoes` | **Pronta**: Asaas da plataforma, WhatsApp da plataforma e credenciais dos apps no iFood e na 99Food |
 | Logs de auditoria | `/painel/logs` | **Pronto**: filtros por tipo, restaurante, pessoa, texto e datas; planilha ([detalhes](#logs-de-auditoria)) |
 | Suporte | `/painel/suporte` | **Pronto**: chamados dos restaurantes ([suporte.md](suporte.md)) |
 | Minha conta | `/painel/minha-conta` | **Pronta**: dados, senha, verificação em duas etapas, aparelhos e acessos ([detalhes](#minha-conta)) |
@@ -68,6 +68,7 @@ POST /painel/integracoes/asaas/webhook  POST /painel/integracoes/asaas/testar  P
 POST /painel/integracoes/asaas/reativar POST /painel/integracoes/asaas/cobranca (regras das assinaturas)
 GET  /painel/integracoes/whatsapp       POST /painel/integracoes/whatsapp/conectar
 GET  /painel/integracoes/whatsapp/estado (JSON)  POST /painel/integracoes/whatsapp/teste  POST /painel/integracoes/whatsapp/desconectar
+GET  /painel/integracoes/aplicativos/{ifood|99food}  POST (salvar)  POST .../remover
 ```
 
 - **Asaas**: conta da plataforma para receber as assinaturas (base das futuras Faturas). Chave cifrada, webhook automático
