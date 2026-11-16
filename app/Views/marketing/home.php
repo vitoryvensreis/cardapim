@@ -45,7 +45,7 @@ $pedidosMock = [
         <div class="hero-copy">
             <h1 id="hero-title" class="hero-title">
                 <span class="hero-line">Seu restaurante cresce.</span>
-                <em class="hero-line">A bagunça não precisa acompanhar.</em>
+                <em class="hero-line">Deliveryzim acompanha.</em>
             </h1>
             <p class="hero-lead">Pedidos, mesas, caixa, cozinha e delivery no mesmo ritmo. O <?= marca_html() ?> está chegando para deixar a operação mais simples, do primeiro pedido ao último fechamento.</p>
             <div class="hero-actions">
