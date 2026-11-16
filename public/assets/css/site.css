@@ -73,7 +73,7 @@
 .hero-title {
   margin: 0 auto;
   font-size: clamp(2.35rem, 1.5rem + 3.5vw, 4.7rem); font-weight: 700;
-  line-height: 1.09; letter-spacing: .035em; overflow-wrap: normal;
+  line-height: 1.1; letter-spacing: -.018em; overflow-wrap: normal;
 }
 .hero-line { display: block; animation: rise-in 1s var(--ease-out) both; }
 .hero-title em { color: var(--c-orange); font-style: normal; animation-delay: .12s; }
@@ -254,7 +254,7 @@
 }
 @media (max-width: 39.99rem) {
   .hero { padding-top: 6.5rem; }
-  .hero-title { font-size: clamp(2.15rem, 8.5vw, 3rem); letter-spacing: .025em; line-height: 1.11; }
+  .hero-title { font-size: clamp(2.15rem, 8.5vw, 3rem); letter-spacing: -.012em; line-height: 1.13; }
   .hero-lead { font-size: 1.05rem; line-height: 1.55; }
   .hero-actions { width: 100%; gap: .7rem; }
   .hero-actions .btn { flex: 1 1 100%; }
