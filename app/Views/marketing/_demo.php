@@ -33,7 +33,7 @@ use Cardapim\Core\Icon;
                     <p class="hero-demo-empty" data-demo-empty>Os próximos pedidos aparecem aqui.</p>
                     <div class="hero-demo-order-row" data-demo-order-row hidden>
                         <span class="hero-demo-order-number">#1043</span>
-                        <span class="hero-demo-order-detail"><strong>Delivery · Gabriella</strong><small>1 × X-Burguer · Entrega</small></span>
+                        <span class="hero-demo-order-detail"><strong>Delivery · Cliente exemplo</strong><small>1 × X-Burguer · Entrega</small></span>
                         <span class="hero-demo-status" data-demo-overview-status>Novo</span>
                     </div>
                 </div>
@@ -46,7 +46,7 @@ use Cardapim\Core\Icon;
                 </div>
                 <div class="hero-demo-card hero-demo-detail" data-demo-orders-detail hidden>
                     <div class="hero-demo-card-head"><h3>Pedido #1043</h3><span class="hero-demo-status" data-demo-order-status>Novo</span></div>
-                    <p class="hero-demo-detail-sub">Entrega · Gabriella</p>
+                    <p class="hero-demo-detail-sub">Entrega · Cliente exemplo</p>
                     <div class="hero-demo-product"><span>1 × X-Burguer</span><strong>R$ 24,90</strong></div>
                     <div class="hero-demo-product"><span>Taxa de entrega</span><strong>R$ 7,00</strong></div>
                     <button type="button" class="hero-demo-primary" data-demo-action="receive"><?= Icon::svg('check') ?> <span data-demo-receive-text>Aceitar e preparar</span></button>
