@@ -48,6 +48,32 @@ nao_contem "home sem cards da secao removida" "$tmp/home.html" 'class="audience-
 nao_contem "home sem menu para secao removida" "$tmp/home.html" 'href="/#para-quem"'
 contem "home preserva planos" "$tmp/home.html" 'id="planos"'
 contem "home preserva como funciona" "$tmp/home.html" 'id="como-funciona"'
+contem "headline nova e curta" "$tmp/home.html" 'Seu restaurante cresce.'
+contem "headline apresenta a marca" "$tmp/home.html" 'Deliveryzim acompanha.'
+nao_contem "texto anterior removido" "$tmp/home.html" 'A bagunça não precisa acompanhar.'
+contem "mockup existente preservado" "$tmp/home.html" 'class="dashboard"'
+contem "lista de vantagens preservada" "$tmp/home.html" 'class="hero-points"'
+contem "botões de ação preservados" "$tmp/home.html" 'class="hero-actions"'
+# Garante ordem semântica e a configuração responsiva no CSS externo.
+if php -r '
+  $html = file_get_contents($argv[1]);
+  $hero = substr($html, strpos($html, '<section class="hero"'), strpos($html, '<section class="channels"') - strpos($html, '<section class="hero"'));
+  $tokens = ['class="hero-title"', 'class="hero-lead"', 'class="hero-actions"', 'class="hero-points"', 'class="hero-visual"'];
+  $previous = -1;
+  foreach ($tokens as $token) {
+    $current = strpos($hero, $token);
+    if ($current === false || $current <= $previous) exit(1);
+    $previous = $current;
+  }
+' "$tmp/home.html"; then ok "ordem hero: titulo, descricao, acoes, vantagens, painel"; else falha "ordem visual da hero alterada"; fi
+curl -s "$base/assets/css/site.css" > "$tmp/site.css"
+contem "mockup com 70 por cento da largura" "$tmp/site.css" 'width: min(70%, 54rem)'
+contem "recorte vertical do mockup" "$tmp/site.css" 'height: clamp(14rem, 26vw, 21rem)'
+contem "layout de hero centralizado" "$tmp/site.css" 'flex-direction: column; align-items: center; gap: 0'
+contem "titulo com espacamento positivo" "$tmp/site.css" 'letter-spacing: .035em'
+contem "breakpoint celular" "$tmp/site.css" '@media (max-width: 39.99rem)'
+contem "mockup ocupa largura no celular" "$tmp/site.css" 'width: 100%; height: clamp(13rem, 52vw, 17rem)'
+contem "breakpoint tablet" "$tmp/site.css" '@media (min-width: 40rem) and (max-width: 63.99rem)'
 contem "titulo padrao da pagina inicial" "$tmp/home.html" '<title>[^<]*Sistema para restaurantes, bares e delivery</title>'
 contem "descricao padrao" "$tmp/home.html" 'name="description" content="Organize pedidos, mesas, comandas'
 contem "og:locale pt_BR" "$tmp/home.html" 'property="og:locale" content="pt_BR"'
