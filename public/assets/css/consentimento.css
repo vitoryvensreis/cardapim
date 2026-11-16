@@ -28,7 +28,7 @@
 }
 .consentimento h2 .icon { width: 1.15rem; height: 1.15rem; color: var(--c-orange); }
 .consentimento p { margin: 0; font-size: .9rem; line-height: 1.5; color: rgb(255 255 255 / 88%); }
-.consentimento a { color: var(--c-white); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.consentimento a { color: var(--c-white); font-weight: 400; text-decoration: underline; text-underline-offset: 2px; }
 .consentimento a:focus-visible,
 .consentimento button:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
 .consentimento-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }

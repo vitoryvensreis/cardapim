@@ -1,6 +1,6 @@
 /* Logs de auditoria (plataforma). Mobile-first. */
 .logs-filtros { display: grid; gap: .75rem; margin-bottom: 1.25rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); }
-.logs-campo { display: grid; gap: .3rem; min-width: 0; color: var(--c-muted); font-size: .84rem; font-weight: 700; }
+.logs-campo { display: grid; gap: .3rem; min-width: 0; color: var(--c-muted); font-size: .84rem; font-weight: 900; }
 .logs-campo input, .logs-campo select {
   width: 100%; min-height: 2.75rem; padding: .5rem .8rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md);
   background: var(--c-white); color: var(--c-ink); font: inherit; font-size: .92rem; font-weight: 400;
@@ -9,7 +9,7 @@
 .logs-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .logs-acoes .btn { min-height: 2.75rem; }
 
-.logs-dia { position: sticky; top: 0; z-index: 1; margin: 1.25rem 0 .5rem; padding: .35rem 0; background: var(--c-cream); color: var(--c-ink); font: 800 .95rem/1.3 var(--f-head); }
+.logs-dia { position: sticky; top: 0; z-index: 1; margin: 1.25rem 0 .5rem; padding: .35rem 0; background: var(--c-cream); color: var(--c-ink); font: 900 .95rem/1.3 var(--f-head); }
 .logs-lista > .logs-dia:first-child { margin-top: 0; }
 .logs-itens { margin: 0; padding: 0; list-style: none; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); }
 .logs-item { display: flex; gap: .75rem; padding: .85rem 1rem; }

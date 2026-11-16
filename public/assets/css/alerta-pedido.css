@@ -3,7 +3,7 @@
 /* Botao de som no topo */
 .alerta-som {
   display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .65rem; border: 1px solid var(--c-line);
-  border-radius: var(--r-pill); background: var(--c-white); color: var(--c-wine); font: 600 .8rem/1.2 var(--f-body); white-space: nowrap; cursor: pointer;
+  border-radius: var(--r-pill); background: var(--c-white); color: var(--c-wine); font: 400 .8rem/1.2 var(--f-body); white-space: nowrap; cursor: pointer;
 }
 .tempo-real + .alerta-som, .alerta-som + .painel-caixa { margin-left: 0; }
 .alerta-som:hover { border-color: var(--c-wine-400); }
@@ -49,7 +49,7 @@
 }
 .alerta-pedido-icone .icon { width: 1.6rem; height: 1.6rem; animation: alerta-sino 1s ease-in-out 3; transform-origin: 50% 10%; }
 @keyframes alerta-sino { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
-.alerta-pedido-texto strong { display: block; color: var(--c-ink); font: 800 1.15rem/1.2 var(--f-head); }
+.alerta-pedido-texto strong { display: block; color: var(--c-ink); font: 900 1.15rem/1.2 var(--f-head); }
 .alerta-pedido-texto p { margin-top: .15rem; color: var(--c-muted); font-size: .92rem; }
 .alerta-pedido-acoes { display: flex; flex-wrap: wrap; gap: .5rem; grid-column: 1 / -1; }
 .alerta-pedido-acoes .btn { flex: 1 1 9rem; min-height: 2.9rem; }

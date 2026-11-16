@@ -10,12 +10,12 @@
 /* Lista */
 .mp { margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--cd-borda, var(--c-line)); }
 .mp-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .75rem; }
-.mp-topo h3 { display: flex; align-items: center; gap: .45rem; color: var(--c-ink); font: 800 1.05rem/1.2 var(--f-head); }
+.mp-topo h3 { display: flex; align-items: center; gap: .45rem; color: var(--c-ink); font: 900 1.05rem/1.2 var(--f-head); }
 .mp-topo h3 .icon { color: var(--c-orange); }
 .mp-filtro { display: inline-flex; padding: .2rem; border-radius: var(--r-pill); background: #f3ecee; }
 .mp-filtro-btn {
   min-height: 2.25rem; padding: .35rem .85rem; border: 0; border-radius: var(--r-pill);
-  background: transparent; color: var(--c-muted); font: 700 .82rem/1 var(--f-body); cursor: pointer;
+  background: transparent; color: var(--c-muted); font: 900 .82rem/1 var(--f-body); cursor: pointer;
 }
 .mp-filtro-btn[aria-pressed="true"] { background: var(--c-white); color: var(--c-wine); box-shadow: 0 1px 3px rgb(101 20 36 / 14%); }
 .mp-filtro-btn:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 2px; }
@@ -37,19 +37,19 @@
 .mp-item a:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 2px; }
 .mp-item.is-ativo a { border-color: #f3cdbf; background: linear-gradient(160deg, #fff6f2 0%, var(--c-white) 75%); }
 .mp-linha1 { display: flex; align-items: baseline; gap: .5rem; min-width: 0; }
-.mp-numero { color: var(--c-ink); font: 800 1rem/1.2 var(--f-head); white-space: nowrap; }
+.mp-numero { color: var(--c-ink); font: 900 1rem/1.2 var(--f-head); white-space: nowrap; }
 .mp-quando { overflow: hidden; color: var(--c-muted); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
-.mp-total { color: var(--c-ink); font-weight: 800; white-space: nowrap; }
+.mp-total { color: var(--c-ink); font-weight: 900; white-space: nowrap; }
 .mp-resumo { grid-column: 1 / -1; overflow: hidden; color: var(--c-muted); font-size: .86rem; text-overflow: ellipsis; white-space: nowrap; }
-.mp-loja { grid-column: 1 / -1; display: flex; align-items: center; gap: .35rem; color: var(--c-ink); font-size: .84rem; font-weight: 600; }
+.mp-loja { grid-column: 1 / -1; display: flex; align-items: center; gap: .35rem; color: var(--c-ink); font-size: .84rem; font-weight: 400; }
 .mp-rodape { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .2rem; }
-.mp-ver { display: inline-flex; align-items: center; gap: .2rem; color: var(--c-wine); font-size: .84rem; font-weight: 700; }
+.mp-ver { display: inline-flex; align-items: center; gap: .2rem; color: var(--c-wine); font-size: .84rem; font-weight: 900; }
 .mp-item.is-ativo .mp-ver { color: var(--c-orange-700); }
 
 /* Selo de status (sempre com icone + texto) */
 .mp-status {
   display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .6rem; border-radius: var(--r-pill);
-  background: #f3ecee; color: var(--c-ink); font-size: .78rem; font-weight: 700; white-space: nowrap;
+  background: #f3ecee; color: var(--c-ink); font-size: .78rem; font-weight: 900; white-space: nowrap;
 }
 .mp-status .icon { width: .95rem; height: .95rem; }
 .mp-status.is-andamento { background: var(--c-orange-100); color: var(--c-orange-700); }
@@ -77,12 +77,12 @@
 }
 @keyframes cd-ativo-pulso { 0% { opacity: .7; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }
 .cd-ativo-texto { min-width: 0; }
-.cd-ativo-texto small { display: block; color: var(--c-muted); font-size: .8rem; font-weight: 600; }
-.cd-ativo-texto strong { display: block; color: var(--c-ink); font: 800 1rem/1.25 var(--f-head); overflow-wrap: anywhere; }
-.cd-ativo-dica { display: none; color: var(--c-orange-700); font-size: .8rem; font-weight: 700; }
+.cd-ativo-texto small { display: block; color: var(--c-muted); font-size: .8rem; font-weight: 400; }
+.cd-ativo-texto strong { display: block; color: var(--c-ink); font: 900 1rem/1.25 var(--f-head); overflow-wrap: anywhere; }
+.cd-ativo-dica { display: none; color: var(--c-orange-700); font-size: .8rem; font-weight: 900; }
 .cd-ativo-acao {
   display: inline-flex; align-items: center; gap: .2rem; min-height: 2.5rem; padding: .45rem .75rem;
-  border-radius: var(--r-pill); background: var(--c-wine); color: var(--c-white); font-size: .86rem; font-weight: 700; white-space: nowrap;
+  border-radius: var(--r-pill); background: var(--c-wine); color: var(--c-white); font-size: .86rem; font-weight: 900; white-space: nowrap;
 }
 /* Celular: so a seta (o cartao inteiro ja e o link "Acompanhar"), sobrando espaco para o status. */
 @media (max-width: 29.99rem) {

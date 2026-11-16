@@ -1,9 +1,9 @@
 /* Visao geral do gerente. Mobile-first. */
 .painel-page .indicador strong { font-size: clamp(1.15rem, 5.2vw, 1.6rem); white-space: nowrap; }
-.vg-de { color: var(--c-muted); font-size: .9rem; font-weight: 700; }
+.vg-de { color: var(--c-muted); font-size: .9rem; font-weight: 900; }
 .vg-link { color: inherit; text-decoration: none; transition: border-color var(--t-fast), box-shadow var(--t-fast); }
 .vg-link:hover, .vg-link:focus-visible { border-color: var(--c-wine-400); box-shadow: var(--sh-sm); }
-.vg-variacao { display: flex; align-items: flex-start; gap: .3rem; font-weight: 700; }
+.vg-variacao { display: flex; align-items: flex-start; gap: .3rem; font-weight: 900; }
 .vg-variacao .icon { flex: 0 0 auto; margin-top: .05rem; }
 .vg-variacao.is-sobe { color: var(--c-success); }
 .vg-variacao.is-desce { color: var(--c-danger); }
@@ -27,7 +27,7 @@
   display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .15rem .4rem; padding: .6rem .7rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
   background: var(--c-cream); color: var(--c-muted); font-size: .82rem;
 }
-.vg-etapas strong { color: var(--c-ink); font: 800 1.15rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
+.vg-etapas strong { color: var(--c-ink); font: 900 1.15rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
 .vg-etapas span { grid-column: 1 / -1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vg-etapas li.tem { border-color: var(--c-wine-400); background: var(--c-white); color: var(--c-ink); }
 .vg-etapas li.tem.is-novo { border-color: var(--c-orange); background: var(--c-orange-100); }
@@ -38,18 +38,18 @@
   gap: .2rem .75rem; align-items: center; padding: .75rem .25rem; border-bottom: 1px solid var(--c-line); color: inherit; text-decoration: none;
 }
 .vg-pedidos a:hover, .vg-pedidos a:focus-visible { background: var(--c-cream); }
-.vg-pedidos a > strong { grid-area: num; color: var(--c-wine); font: 800 1rem/1 var(--f-head); }
-.vg-pedido-info { grid-area: info; min-width: 0; color: var(--c-ink); font-weight: 700; overflow-wrap: anywhere; }
-.vg-pedido-info small { display: block; color: var(--c-muted); font-size: .78rem; font-weight: 500; }
+.vg-pedidos a > strong { grid-area: num; color: var(--c-wine); font: 900 1rem/1 var(--f-head); }
+.vg-pedido-info { grid-area: info; min-width: 0; color: var(--c-ink); font-weight: 900; overflow-wrap: anywhere; }
+.vg-pedido-info small { display: block; color: var(--c-muted); font-size: .78rem; font-weight: 400; }
 .vg-pedidos .etiqueta { grid-area: etapa; justify-self: start; }
-.vg-pedido-valor { grid-area: valor; font-family: var(--f-head); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vg-pedido-valor { grid-area: valor; font-family: var(--f-head); font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Caixa */
 .vg-caixa { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 0; }
 .vg-caixa div { padding: .75rem; border-radius: var(--r-md); background: var(--c-cream); }
-.vg-caixa dt { color: var(--c-muted); font-size: .78rem; font-weight: 700; }
-.vg-caixa dd { margin: .2rem 0 0; color: var(--c-ink); font: 800 1.05rem/1.2 var(--f-head); font-variant-numeric: tabular-nums; }
-.vg-caixa dd small { display: block; color: var(--c-muted); font: 500 .76rem/1.3 var(--f-body); overflow-wrap: anywhere; }
+.vg-caixa dt { color: var(--c-muted); font-size: .78rem; font-weight: 900; }
+.vg-caixa dd { margin: .2rem 0 0; color: var(--c-ink); font: 900 1.05rem/1.2 var(--f-head); font-variant-numeric: tabular-nums; }
+.vg-caixa dd small { display: block; color: var(--c-muted); font: 400 .76rem/1.3 var(--f-body); overflow-wrap: anywhere; }
 
 /* Grafico de barras (SVG) */
 .grafico { margin: 0; }
@@ -59,9 +59,9 @@
 .grafico-valor { fill: var(--c-wine); transition: fill var(--t-fast); }
 .grafico-barra.is-destaque .grafico-valor { fill: var(--c-orange); }
 .grafico-barra:hover .grafico-fundo { fill: var(--c-blush); }
-.grafico-numero { fill: var(--c-ink); font: 700 15px var(--f-head); }
-.grafico-rotulo { fill: var(--c-muted); font: 600 15px var(--f-body); }
-.grafico-barra.is-destaque .grafico-rotulo { fill: var(--c-ink); font-weight: 800; }
+.grafico-numero { fill: var(--c-ink); font: 900 15px var(--f-head); }
+.grafico-rotulo { fill: var(--c-muted); font: 400 15px var(--f-body); }
+.grafico-barra.is-destaque .grafico-rotulo { fill: var(--c-ink); font-weight: 900; }
 /* Celular: o SVG encolhe, entao o texto precisa ser maior (em unidades do desenho) e, com muitas barras, metade dos rotulos some. */
 @media (max-width: 39.99rem) {
   .grafico-numero { font-size: 24px; }
@@ -72,10 +72,10 @@
 /* Ranking */
 .vg-ranking { display: grid; gap: .85rem; margin: 0; padding: 0; list-style: none; }
 .vg-ranking li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .35rem .75rem; align-items: center; }
-.vg-posicao { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-wine); font: 800 .9rem/1 var(--f-head); }
+.vg-posicao { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-wine); font: 900 .9rem/1 var(--f-head); }
 .vg-ranking li:first-child .vg-posicao { background: var(--c-orange); color: var(--c-white); }
-.vg-ranking-nome { min-width: 0; color: var(--c-ink); font-weight: 700; overflow-wrap: anywhere; }
-.vg-ranking-nome small { display: block; color: var(--c-muted); font-size: .78rem; font-weight: 500; }
+.vg-ranking-nome { min-width: 0; color: var(--c-ink); font-weight: 900; overflow-wrap: anywhere; }
+.vg-ranking-nome small { display: block; color: var(--c-muted); font-size: .78rem; font-weight: 400; }
 .vg-ranking progress {
   grid-column: 2; width: 100%; height: .45rem; border: 0; border-radius: var(--r-pill); overflow: hidden; background: var(--c-blush); appearance: none;
 }
@@ -86,7 +86,7 @@
 /* Estoque */
 .vg-estoque { margin: 0; padding: 0; list-style: none; }
 .vg-estoque li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid var(--c-line); }
-.vg-estoque a { min-width: 0; color: var(--c-ink); font-weight: 700; overflow-wrap: anywhere; }
+.vg-estoque a { min-width: 0; color: var(--c-ink); font-weight: 900; overflow-wrap: anywhere; }
 .vg-nota { display: flex; gap: .5rem; margin-bottom: .75rem; padding: .7rem .85rem; border-radius: var(--r-md); background: var(--c-cream); color: var(--c-muted); font-size: .85rem; }
 .vg-nota .icon { flex: 0 0 auto; color: var(--c-danger); }
 
