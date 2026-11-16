@@ -10,8 +10,8 @@ $favicon = Configuracoes::logoOuPadrao('icone');
 $textoRodape = Configuracoes::textoOuPadrao('texto_rodape', 'Menos complicação. Mais restaurante.');
 $title = $escape($pageTitle ?? Configuracoes::textoOuPadrao('nome_sistema', marca()));
 $description = $escape($pageDescription ?? Configuracoes::textoOuPadrao('descricao_padrao', ''));
-$styles = ['css/site.css'];
-$scripts = ['js/site.js'];
+$styles = ['css/site.css', 'css/site-demo.css'];
+$scripts = ['js/site.js', 'js/site-demo.js'];
 // App instalado (PWA) nao mostra a pagina de vendas: vai direto para o login (e dali para o painel de cada um).
 $scriptsCedo = ['js/so-no-navegador.js'];
 ?>
