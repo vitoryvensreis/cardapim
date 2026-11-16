@@ -41,6 +41,14 @@ A família **não possui 500, 600, 700 ou 800**. Declarações antigas foram map
 Como no projeto original, as fontes do Google são carregadas apenas quando o visitante aceita os cookies opcionais. O carregamento inicial é em `app/Views/partials/head.php` e o aceite sem recarregar usa `public/assets/js/consentimento.js`. Quem não consente usa a fonte de fallback instalada no dispositivo. Não inserir imports externos que ignorem essa escolha.
 
 Os arquivos das logomarcas oficiais não foram alterados.
+## Hero da landing
+
+- Menu continua no topo com os links e a marca oficiais.
+- Conteúdo da hero em coluna centralizada: título **Seu restaurante cresce. Deliveryzim acompanha.**, descrição, botões de ação, três vantagens e painel ilustrativo original.
+- Título em Londrina Solid Black 900, com espaçamento positivo de letras (`.035em` em telas amplas; `.025em` nos celulares) para impedir a sobreposição de caracteres.
+- Painel ilustrativo reduzido para 70% da largura da área da hero em desktop, com recorte vertical intencional na base. No tablet e celular ganha largura adaptativa, sem rolagem horizontal.
+- Componentes internos do mockup, a paleta, o gradiente, os SVGs oficiais e os links foram mantidos; CSS permanece em `public/assets/css/site.css`.
+- Breakpoints em `40rem` (celular/tablet), `64rem` (desktop) e `120rem` (ultrawide), com animações respeitando `prefers-reduced-motion`.
 ## Regras de implementacao
 
 - Nao recriar o logotipo com texto ou fonte.
