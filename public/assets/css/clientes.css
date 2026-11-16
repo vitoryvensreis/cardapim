@@ -4,13 +4,13 @@
   padding: 1rem 1.1rem; border: 1px solid rgb(255 88 37 / 25%); border-radius: var(--r-lg); background: var(--c-cream);
 }
 .cl-destaque-icone { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: var(--r-md); background: var(--c-orange-100); color: var(--c-orange-700); }
-.cl-destaque strong { display: block; color: var(--c-ink); font: 900 1rem/1.35 var(--f-head); }
+.cl-destaque strong { display: block; color: var(--c-ink); font: 700 1rem/1.35 var(--f-head); }
 .cl-destaque small { display: block; margin-top: .25rem; color: var(--c-muted); font-size: .88rem; line-height: 1.45; }
 
 .cl-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; margin: 0 0 1.25rem; padding: 0; list-style: none; }
 .cl-numeros li { display: grid; gap: .2rem; padding: .85rem 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
 .cl-numeros span { color: var(--c-muted); font-size: .82rem; }
-.cl-numeros strong { color: var(--c-ink); font: 900 1.3rem/1.2 var(--f-head); font-variant-numeric: tabular-nums; }
+.cl-numeros strong { color: var(--c-ink); font: 700 1.3rem/1.2 var(--f-head); font-variant-numeric: tabular-nums; }
 
 .cl-opcoes .rotulo-grupo { margin-bottom: .2rem; }
 @media (min-width: 40rem) {
