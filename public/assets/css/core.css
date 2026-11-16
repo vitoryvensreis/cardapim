@@ -29,12 +29,12 @@
   --c-danger-bg: #fdecea;
 
   /* Tipografia */
-  /* Londrina Solid: Thin 100, Light 300, Regular 400 e Black 900. */
-  --f-head: "Londrina Solid", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-body: "Londrina Solid", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Google Sans Flex: familia variável de 100 a 900; titulos 700, corpo 400. */
+  --f-head: "Google Sans Flex", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-body: "Google Sans Flex", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-weight-light: 300;
   --f-weight-normal: 400;
-  --f-weight-strong: 900;
+  --f-weight-strong: 700;
 
   /* Espacos e forma */
   --shell: 77rem;
