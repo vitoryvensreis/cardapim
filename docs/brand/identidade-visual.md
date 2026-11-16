@@ -27,28 +27,30 @@ Os assets originais foram preservados; os tokens e estilos CSS utilizam os valor
 
 ## Tipografia oficial
 
-A interface utiliza **Londrina Solid**, de Marcelo Magalhães (licença SIL Open Font License), em todos os módulos: landing, catálogo, cardápio, gerência, caixa, cozinha e demais áreas. A definição central fica em `public/assets/css/core.css`, nos tokens `--f-head` e `--f-body`.
+Toda a plataforma utiliza **Google Sans Flex** (família variável, peso 100–900), pelos tokens `--f-head` e `--f-body` no `public/assets/css/core.css`.
 
-| Peso disponível | Utilização recomendada |
-| --- | --- |
-| 100 (Thin) | Composições decorativas pontuais |
-| 300 (Light) | Textos auxiliares grandes, quando legíveis |
-| 400 (Regular) | Corpo, formulários, descrições e rótulos secundários |
-| 900 (Black) | Títulos, botões e dados em destaque |
+- **400 Regular:** textos, formulários, notas e conteúdos operacionais
+- **600 Semibold:** destaques e rótulos pontuais quando necessário
+- **700 Bold:** títulos, botões e indicadores prioritários
+- Pesos extremos 100/900 ficam disponíveis, mas não são o padrão de leitura da interface
 
-A família **não possui 500, 600, 700 ou 800**. Declarações antigas foram mapeadas para os pesos reais 400/900; `font-synthesis: none` impede negrito ou itálico artificiais. Campos de código podem manter fonte monoespaçada por precisão.
+Os arquivos CSS antes padronizados em 900 foram ajustados para 700, evitando uma interface excessivamente pesada. O Google Fonts só carrega após aceite opcional de cookies: `app/Views/partials/head.php` e `public/assets/js/consentimento.js`; sem consentimento usa-se a fonte de fallback local.
 
-Como no projeto original, as fontes do Google são carregadas apenas quando o visitante aceita os cookies opcionais. O carregamento inicial é em `app/Views/partials/head.php` e o aceite sem recarregar usa `public/assets/js/consentimento.js`. Quem não consente usa a fonte de fallback instalada no dispositivo. Não inserir imports externos que ignorem essa escolha.
+Os arquivos das logomarcas e ícones oficiais permanecem intactos.
 
-Os arquivos das logomarcas oficiais não foram alterados.
-## Hero da landing
+## Hero e demonstração da landing
 
-- Menu continua no topo com os links e a marca oficiais.
-- Conteúdo da hero em coluna centralizada: título **Seu restaurante cresce. Deliveryzim acompanha.**, descrição, botões de ação, três vantagens e painel ilustrativo original.
-- Título em Londrina Solid Black 900, com espaçamento positivo de letras (`.035em` em telas amplas; `.025em` nos celulares) para impedir a sobreposição de caracteres.
-- Painel ilustrativo reduzido para 70% da largura da área da hero em desktop, com recorte vertical intencional na base. No tablet e celular ganha largura adaptativa, sem rolagem horizontal.
-- Componentes internos do mockup, a paleta, o gradiente, os SVGs oficiais e os links foram mantidos; CSS permanece em `public/assets/css/site.css`.
-- Breakpoints em `40rem` (celular/tablet), `64rem` (desktop) e `120rem` (ultrawide), com animações respeitando `prefers-reduced-motion`.
+A home mantém título, descrição, ações, três vantagens e a demonstração na ordem estabelecida. O mockup **não é screenshot nem sistema real**: é uma demonstração local isolada da API e do banco, baseada na organização visual do painel gerencial e do caixa.
+
+- `app/Views/marketing/_demo.php`: estrutura semântica com botões para Visão geral, Pedidos e Caixa
+- `public/assets/css/site-demo.css`: estilos próprios, rolagem interna, navegação por teclado e alvos de toque confortáveis
+- `public/assets/js/site-demo.js`: roteiro de chegada do pedido, aceite, abertura do caixa e adição de produto ilustrativo; interação manual com os mesmos controles
+- Ao colocar o mouse sobre a demo ou navegar com foco por teclado, o roteiro pausa. Após um clique, mantém controle manual até reiniciar. Sem som, vibração, tilt ou requisições à API
+- Em `prefers-reduced-motion`, a animação automática não inicia, mas os botões permanecem operantes
+- No celular, os três destinos são apresentados como abas superiores e o conteúdo interno pode rolar sem recortar controles. Em tablets e desktops, a navegação lateral se assemelha à interface real
+
+O selo "Tudo conectado" e o efeito 3D ao mover o mouse foram removidos. As demais seções da landing e a identidade vinho, branco e laranja foram mantidas.
+
 ## Regras de implementacao
 
 - Nao recriar o logotipo com texto ou fonte.
