@@ -19,7 +19,7 @@
 .dash-situacoes li + li { border-top: 1px solid var(--c-line); }
 .dash-situacoes a { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.9rem; padding: .35rem 0; color: var(--c-ink); text-decoration: none; }
 .dash-situacoes a:hover strong, .dash-situacoes a:focus-visible strong { color: var(--c-wine); }
-.dash-situacoes strong { font: 800 1.15rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
+.dash-situacoes strong { font: 900 1.15rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
 
 .dash-saude { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
 .dash-saude li {
