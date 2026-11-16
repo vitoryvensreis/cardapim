@@ -40,12 +40,14 @@ Os arquivos das logomarcas e ícones oficiais permanecem intactos.
 
 ## Hero e demonstração da landing
 
-A home mantém título, descrição, ações, três vantagens e a demonstração na ordem estabelecida. O mockup **não é screenshot nem sistema real**: é uma demonstração local isolada da API e do banco, baseada na organização visual do painel gerencial e do caixa.
+A home mantém título, descrição, ações, três vantagens e o painel interativo na ordem estabelecida. A headline usa `letter-spacing: -.018em` em telas amplas e `-.012em` em celulares para legibilidade consistente. O mockup **não é screenshot nem sistema real**: é uma demonstração local isolada da API e do banco, baseada na organização visual do painel gerencial e do caixa.
 
 - `app/Views/marketing/_demo.php`: estrutura semântica com botões para Visão geral, Pedidos e Caixa
 - `public/assets/css/site-demo.css`: estilos próprios, rolagem interna, navegação por teclado e alvos de toque confortáveis
 - `public/assets/js/site-demo.js`: roteiro de chegada do pedido, aceite, abertura do caixa e adição de produto ilustrativo; interação manual com os mesmos controles
-- Ao colocar o mouse sobre a demo ou navegar com foco por teclado, o roteiro pausa. Após um clique, mantém controle manual até reiniciar. Sem som, vibração, tilt ou requisições à API
+- O roteiro é **contínuo e cumulativo**: chega pedido, o status muda, o caixa abre e entram itens, sem zerar números nem exigir reinício. Métricas de exemplo começam em 248 pedidos, R$ 18.475,90 e 12 em preparo
+- Hover não pausa nem reinicia. Ao interagir por mouse, toque ou teclado, a tela escolhida fica estável para não atrapalhar os controles, enquanto os indicadores continuam se atualizando
+- Sem botão Reiniciar, aviso "Demonstração", som, vibração, tilt ou requisições à API
 - Em `prefers-reduced-motion`, a animação automática não inicia, mas os botões permanecem operantes
 - No celular, os três destinos são apresentados como abas superiores e o conteúdo interno pode rolar sem recortar controles. Em tablets e desktops, a navegação lateral se assemelha à interface real
 

@@ -198,21 +198,14 @@
 .hero-demo-cash-summary strong { font-size: 1.3rem; font-weight: 700; }
 .hero-demo-add { border-top: 1px solid var(--c-line); margin-top: 1rem; padding-top: .85rem; }
 .hero-demo-add p { font-weight: 700; margin-bottom: .6rem; }
-.hero-demo-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: .65rem; padding: .45rem 1.1rem;
-  border-top: 1px solid var(--c-line);
-  color: var(--c-muted); font-size: .73rem;
+/* Feedback sutil em cada atualização, sem deslocar controles. */
+.hero-demo .is-updating {
+  animation: hero-demo-value 550ms ease-out;
 }
-.hero-demo-footer > span { min-width: 0; }
-.hero-demo-footer button {
-  display: inline-flex; align-items: center; justify-content: center; gap: .3rem;
-  min-height: 2.6rem; padding: .4rem .5rem;
-  border: 0; border-radius: var(--r-sm);
-  background: transparent; color: var(--c-wine); font-weight: 700;
-  white-space: nowrap;
+@keyframes hero-demo-value {
+  0% { opacity: .58; }
+  100% { opacity: 1; }
 }
-.hero-demo-footer .icon { width: .9rem; height: .9rem; }
 @media (max-width: 63.99rem) {
   .hero-visual { width: 100%; }
   .hero-demo { height: 27rem; }
@@ -242,7 +235,6 @@
   .hero-demo-metric strong { font-size: 1.05rem; }
   .hero-demo-card { padding: .75rem; }
   .hero-demo-heading { margin-bottom: .7rem; }
-  .hero-demo-footer { padding: .3rem .55rem; }
   .hero-demo-primary, .hero-demo-secondary { width: 100%; }
 }
 @media (max-width: 22rem) {

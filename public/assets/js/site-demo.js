@@ -1,134 +1,214 @@
-/* Demonstração local da home: sem APIs, sem persistência e sem pedidos reais. */
+/* Painel ilustrativo e interativo da home. Dados locais; nenhuma requisição ou persistência. */
 (() => {
   "use strict";
+
   const root = document.querySelector("[data-hero-demo]");
   if (!root) return;
 
+  const $ = (selector) => root.querySelector(selector);
   const screens = [...root.querySelectorAll("[data-demo-screen]")];
-  const navButtons = [...root.querySelectorAll("[data-demo-view]")];
-  const output = (selector) => root.querySelector(selector);
-  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-  const state = { view: "overview", order: false, accepted: false, cash: false, items: 0, manual: false };
-  let pointerInside = false;
-  let step = 0;
+  const navigation = [...root.querySelectorAll("[data-demo-view]")];
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const money = (cents) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const integer = (value) => value.toLocaleString("pt-BR");
+  const titles = { overview: "Visão geral", orders: "Pedidos", cash: "Caixa" };
 
-  const labelView = { overview: "Visão geral", orders: "Pedidos", cash: "Caixa" };
-  const money = (value) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const state = {
+    view: "overview",
+    manualView: false,
+    orders: 248,
+    salesCents: 1847590,
+    preparing: 12,
+    orderNumber: 1043,
+    order: true,
+    accepted: false,
+    cashOpen: false,
+    cashCents: 0,
+    items: 0,
+  };
+  let nextStep = 0;
+  const sequence = ["new", "orders", "receive", "cash", "open", "add", "overview"];
+
+  const notify = (message) => {
+    $("[data-demo-announcement]").textContent = message;
+  };
 
   function render() {
-    screens.forEach((screen) => { screen.hidden = screen.dataset.demoScreen !== state.view; });
-    navButtons.forEach((button) => {
+    screens.forEach((screen) => {
+      screen.hidden = screen.dataset.demoScreen !== state.view;
+    });
+    navigation.forEach((button) => {
       const active = button.dataset.demoView === state.view;
       button.classList.toggle("is-active", active);
-      if (button.classList.contains("hero-demo-nav")) button.setAttribute("aria-pressed", String(active));
+      if (button.classList.contains("hero-demo-nav")) {
+        button.setAttribute("aria-pressed", String(active));
+      }
     });
 
-    output("[data-demo-breadcrumb]").textContent = labelView[state.view];
-    output("[data-demo-count]").textContent = state.order ? "1" : "0";
-    output("[data-demo-total]").textContent = money((state.accepted ? 31.9 : 0) + state.items * 6);
-    output("[data-demo-preparing]").textContent = state.accepted ? "1" : "0";
-    output("[data-demo-empty]").hidden = state.order;
-    output("[data-demo-order-row]").hidden = !state.order;
+    $("[data-demo-breadcrumb]").textContent = titles[state.view];
+    $("[data-demo-count]").textContent = integer(state.orders);
+    $("[data-demo-activity]").textContent = integer(state.orders) + " pedidos hoje";
+    $("[data-demo-total]").textContent = money(state.salesCents);
+    $("[data-demo-preparing]").textContent = integer(state.preparing);
+    root.querySelectorAll("[data-demo-order-number]").forEach((element) => {
+      element.textContent = "#" + state.orderNumber;
+    });
 
-    const status = state.accepted ? "Em preparo" : "Novo";
-    for (const element of root.querySelectorAll("[data-demo-overview-status], [data-demo-order-status]")) {
-      element.textContent = status;
+    $("[data-demo-empty]").hidden = state.order;
+    $("[data-demo-order-row]").hidden = !state.order;
+    $("[data-demo-orders-empty]").hidden = state.order;
+    $("[data-demo-orders-detail]").hidden = !state.order;
+
+    const orderLabel = state.accepted ? "Em preparo" : "Novo";
+    root.querySelectorAll("[data-demo-overview-status], [data-demo-order-status]").forEach((element) => {
+      element.textContent = orderLabel;
       element.classList.toggle("is-preparing", state.accepted);
-    }
-    const receive = output('[data-demo-action="receive"]');
-    receive.disabled = state.accepted;
-    output("[data-demo-receive-text]").textContent = state.accepted ? "Pedido em preparo" : "Aceitar e preparar";
-    output("[data-demo-accepted]").hidden = !state.accepted;
-    output("[data-demo-orders-empty]").hidden = state.order;
-    output("[data-demo-orders-detail]").hidden = !state.order;
+    });
+    $('[data-demo-action="receive"]').disabled = state.accepted;
+    $("[data-demo-receive-text]").textContent = state.accepted ? "Pedido em preparo" : "Aceitar e preparar";
+    $("[data-demo-accepted]").hidden = !state.accepted;
 
-    const open = output('[data-demo-action="open"]');
-    open.disabled = state.cash;
-    output("[data-demo-open-text]").textContent = state.cash ? "Caixa aberto" : "Abrir caixa";
-    output("[data-demo-cash-label]").textContent = state.cash ? "Caixa aberto" : "Caixa fechado";
-    output("[data-demo-cash-total]").textContent = money(state.items * 6);
-    output("[data-demo-items]").textContent = String(state.items);
-    output("[data-demo-add-box]").hidden = !state.cash;
-    output("[data-demo-caption]").textContent = state.manual
-      ? "Você está no controle da demonstração."
-      : pointerInside || root.contains(document.activeElement)
-        ? "Animação pausada enquanto você explora."
-        : "Veja a operação funcionar automaticamente.";
+    $('[data-demo-action="open"]').disabled = state.cashOpen;
+    $("[data-demo-open-text]").textContent = state.cashOpen ? "Caixa aberto" : "Abrir caixa";
+    $("[data-demo-cash-label]").textContent = state.cashOpen ? "Caixa aberto" : "Caixa fechado";
+    $("[data-demo-cash-total]").textContent = money(state.cashCents);
+    $("[data-demo-items]").textContent = integer(state.items);
+    $("[data-demo-add-box]").hidden = !state.cashOpen;
   }
 
-  function reset() {
-    state.order = false;
+  function pulse() {
+    // Feedback visual leve, sem mover telas, foco ou a posição dos botões.
+    const targets = root.querySelectorAll("[data-demo-activity], [data-demo-count], [data-demo-total]");
+    targets.forEach((el) => {
+      el.classList.remove("is-updating");
+      void el.offsetWidth;
+      el.classList.add("is-updating");
+    });
+  }
+
+  function receiveNewOrder() {
+    state.orderNumber += 1;
+    state.orders += 1;
+    state.order = true;
     state.accepted = false;
-    state.cash = false;
-    state.items = 0;
-    state.view = "overview";
-    step = 0;
   }
 
-  function act(action) {
-    if (action === "new") { state.order = true; state.view = "orders"; }
-    if (action === "receive") { state.order = true; state.accepted = true; state.view = "orders"; }
-    if (action === "open") { state.cash = true; state.view = "cash"; }
-    if (action === "add" && state.cash) { state.items += 1; state.view = "cash"; }
-    if (action === "restart") reset();
+  function receiveOrder() {
+    if (!state.order || state.accepted) return;
+    state.accepted = true;
+    state.preparing += 1;
+    state.salesCents += 3190;
   }
 
-  function announce(message) {
-    output("[data-demo-announcement]").textContent = message;
+  function openCash() {
+    if (state.cashOpen) return;
+    state.cashOpen = true;
+    state.cashCents = 684250;
+    state.items = 87;
+  }
+
+  function addProduct() {
+    if (!state.cashOpen) return;
+    state.items += 1;
+    state.cashCents += 600;
+    state.salesCents += 600;
   }
 
   root.addEventListener("click", (event) => {
-    const target = event.target instanceof Element ? event.target.closest("button") : null;
-    if (!target || !root.contains(target)) return;
-    state.manual = true;
-    if (target.dataset.demoView) {
-      state.view = target.dataset.demoView;
-      announce("Tela: " + labelView[state.view]);
-    } else if (target.dataset.demoAction) {
-      const action = target.dataset.demoAction;
-      act(action);
-      announce({ new: "Novo pedido de demonstração criado.", receive: "Pedido aceito e em preparo.", open: "Caixa aberto.", add: "Produto adicionado ao caixa.", restart: "Demonstração reiniciada." }[action] || "");
+    const button = event.target instanceof Element ? event.target.closest("button") : null;
+    if (!button || !root.contains(button)) return;
+
+    // O usuário escolhe a tela; o movimento dos números continua, sem tirá-lo dela.
+    state.manualView = true;
+    if (button.dataset.demoView) {
+      state.view = button.dataset.demoView;
+      notify("Tela: " + titles[state.view]);
+    } else {
+      switch (button.dataset.demoAction) {
+        case "new":
+          receiveNewOrder();
+          state.view = "orders";
+          notify("Novo pedido recebido.");
+          break;
+        case "receive":
+          receiveOrder();
+          state.view = "orders";
+          notify("Pedido aceito e em preparo.");
+          break;
+        case "open":
+          openCash();
+          state.view = "cash";
+          notify("Caixa aberto.");
+          break;
+        case "add":
+          addProduct();
+          state.view = "cash";
+          notify("Produto adicionado.");
+          break;
+        default:
+          return;
+      }
     }
     render();
+    pulse();
   });
 
-  // Mouse suspende o roteiro; teclado e toque não perdem o controle após clicar.
+  // Foco de teclado ou toque fixa só a tela escolhida; as métricas seguem mudando.
+  root.addEventListener("focusin", () => { state.manualView = true; });
   root.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "touch") {
-      state.manual = true; // no celular, um toque interrompe o roteiro para sempre evitar cliques acidentais
-      render();
-    }
+    if (event.pointerType === "touch") state.manualView = true;
   });
 
-  root.addEventListener("pointerenter", (event) => {
-    if (event.pointerType === "mouse" || event.pointerType === "pen") {
-      pointerInside = true;
-      render();
-    }
-  });
-  root.addEventListener("pointerleave", () => { pointerInside = false; render(); });
-  root.addEventListener("focusin", render);
-  root.addEventListener("focusout", () => { queueMicrotask(render); });
+  function advance() {
+    const action = sequence[nextStep];
+    nextStep = (nextStep + 1) % sequence.length;
 
-  const storyline = [
-    () => { state.order = true; state.view = "overview"; },
-    () => { state.view = "orders"; },
-    () => { state.accepted = true; },
-    () => { state.view = "cash"; },
-    () => { state.cash = true; },
-    () => { state.items += 1; },
-    () => { state.view = "overview"; },
-    () => reset(),
-  ];
+    if (state.manualView) {
+      // Mantenha controles estáveis enquanto a pessoa utiliza o painel.
+      // O fluxo simulado continua nos números, inclusive com o mouse por cima.
+      if (action === "new") state.orders += 1;
+      if (action === "receive") {
+        state.preparing += 1;
+        state.salesCents += 3190;
+      }
+      if (action === "add" && state.cashOpen) addProduct();
+    } else {
+      switch (action) {
+        case "new":
+          receiveNewOrder();
+          state.view = "overview";
+          break;
+        case "orders":
+          state.view = "orders";
+          break;
+        case "receive":
+          receiveOrder();
+          break;
+        case "cash":
+          state.view = "cash";
+          break;
+        case "open":
+          openCash();
+          break;
+        case "add":
+          addProduct();
+          break;
+        case "overview":
+          state.view = "overview";
+          break;
+      }
+    }
+
+    render();
+    pulse();
+  }
 
   render();
-  if (!reducedMotion) {
+  // Mantém o ciclo contínuo, sem reinício e sem interromper no hover.
+  // Respeita preferências de acessibilidade e evita trabalho com a aba oculta.
+  if (!prefersReducedMotion) {
     window.setInterval(() => {
-      if (document.hidden || pointerInside || root.contains(document.activeElement) || state.manual) return;
-      const index = step % storyline.length;
-      storyline[index]();
-      step = (index + 1) % storyline.length;
-      render();
-    }, 3300);
+      if (!document.hidden) advance();
+    }, 2200);
   }
 })();
