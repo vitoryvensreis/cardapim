@@ -6,7 +6,7 @@
 use Cardapim\Core\Icon;
 ?>
 <div class="hero-demo" data-hero-demo aria-label="Painel interativo do Deliveryzim">
-    <aside class="hero-demo-side" aria-label="Telas da demonstração">
+    <aside class="hero-demo-side" aria-label="Telas do painel">
         <span class="hero-demo-mark" aria-hidden="true"><?= Icon::svg('chef-hat') ?></span>
         <button type="button" class="hero-demo-nav is-active" data-demo-view="overview" aria-label="Ver visão geral" aria-pressed="true"><?= Icon::svg('layout-dashboard') ?><span>Visão geral</span></button>
         <button type="button" class="hero-demo-nav" data-demo-view="orders" aria-label="Ver pedidos" aria-pressed="false"><?= Icon::svg('receipt') ?><span>Pedidos</span></button>
