@@ -23,7 +23,7 @@ a:focus-visible { outline: 3px solid var(--status-orange); outline-offset: 4px; 
 .status-back { font-size: 0.9rem; font-weight: 650; color: var(--status-wine); }
 .status-back:hover { text-decoration: underline; }
 .status-intro { margin-bottom: 28px; }
-.status-kicker { color: var(--status-orange); font-size: 0.76rem; font-weight: 900; letter-spacing: 0.12em; }
+.status-kicker { color: var(--status-orange); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.12em; }
 .status-intro h1 { margin: 8px 0 12px; color: var(--status-wine); font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: -0.04em; }
 .status-intro > p:not(.status-kicker) { max-width: 640px; color: var(--status-muted); line-height: 1.6; }
 .status-overall { display: inline-flex; gap: 12px; align-items: center; border-radius: 2px; padding: 14px 18px; margin-top: 12px; font-size: 0.9rem; font-weight: 650; }

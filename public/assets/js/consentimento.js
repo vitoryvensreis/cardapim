@@ -8,7 +8,7 @@
 
   const COOKIE = 'cardapim_consentimento';
   const UM_ANO = 60 * 60 * 24 * 365;
-  const FONTES = 'https://fonts.googleapis.com/css2?family=Londrina+Solid:wght@100;300;400;900&display=swap';
+  const FONTES = 'https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@100..900&display=swap';
 
   const aviso = document.querySelector('[data-consentimento]');
   if (!aviso) {

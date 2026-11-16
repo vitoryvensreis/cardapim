@@ -40,8 +40,8 @@ contem "aviso aparece sem escolha" "$tmp/h.html" 'data-consentimento aria-labell
 nao_contem "sem escolha nao carrega Google Fonts" "$tmp/h.html" 'fonts.googleapis.com'
 contem "script do aviso carregado" "$tmp/h.html" '/assets/js/consentimento.js'
 curl -s "$base/assets/css/core.css" > "$tmp/core.css"
-contem "Londrina Solid na fonte global de titulos" "$tmp/core.css" '--f-head: "Londrina Solid"'
-contem "Londrina Solid na fonte global de textos" "$tmp/core.css" '--f-body: "Londrina Solid"'
+contem "Google Sans Flex na fonte global de titulos" "$tmp/core.css" '--f-head: "Google Sans Flex"'
+contem "Google Sans Flex na fonte global de textos" "$tmp/core.css" '--f-body: "Google Sans Flex"'
 contem "sem fonte sintetica" "$tmp/core.css" 'font-synthesis: none'
 nao_contem "fontes antigas nao constam da tipografia global" "$tmp/core.css" 'Plus Jakarta Sans'
 contem "rodape reabre as preferencias" "$tmp/h.html" 'Preferências de cookies'
@@ -73,7 +73,7 @@ else
 fi
 curl -s -b 'cardapim_consentimento=todos.20261112' "$base/" > "$tmp/h2.html"
 contem "aceitou: carrega Google Fonts" "$tmp/h2.html" 'fonts.googleapis.com'
-contem "aceitou: familia Londrina Solid com todos os pesos reais" "$tmp/h2.html" 'family=Londrina+Solid:wght@100;300;400;900'
+contem "aceitou: Google Sans Flex variável com os pesos disponíveis" "$tmp/h2.html" 'family=Google+Sans+Flex:wght@100..900'
 nao_contem "fontes antigas nao sao carregadas" "$tmp/h2.html" 'family=DM+Sans'
 contem "fonte principal definida para todos os layouts" "$tmp/h.html" '/assets/css/core.css'
 contem "aceitou: aviso escondido" "$tmp/h2.html" 'aria-labelledby="consentimento-titulo" hidden'
