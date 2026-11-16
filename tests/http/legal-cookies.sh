@@ -39,6 +39,11 @@ curl -s "$base/" > "$tmp/h.html"
 contem "aviso aparece sem escolha" "$tmp/h.html" 'data-consentimento aria-labelledby="consentimento-titulo">'
 nao_contem "sem escolha nao carrega Google Fonts" "$tmp/h.html" 'fonts.googleapis.com'
 contem "script do aviso carregado" "$tmp/h.html" '/assets/js/consentimento.js'
+curl -s "$base/assets/css/core.css" > "$tmp/core.css"
+contem "Londrina Solid na fonte global de titulos" "$tmp/core.css" '--f-head: "Londrina Solid"'
+contem "Londrina Solid na fonte global de textos" "$tmp/core.css" '--f-body: "Londrina Solid"'
+contem "sem fonte sintetica" "$tmp/core.css" 'font-synthesis: none'
+nao_contem "fontes antigas nao constam da tipografia global" "$tmp/core.css" 'Plus Jakarta Sans'
 contem "rodape reabre as preferencias" "$tmp/h.html" 'Preferências de cookies'
 # A opcao deve ficar logo abaixo de Cookies no bloco Legal (nao na faixa de copyright).
 if php -r '
