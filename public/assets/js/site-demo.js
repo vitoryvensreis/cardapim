@@ -118,8 +118,9 @@
   if (!reducedMotion) {
     window.setInterval(() => {
       if (document.hidden || pointerInside || root.contains(document.activeElement) || state.manual) return;
-      storyline[step % storyline.length]();
-      step = (step + 1) % storyline.length;
+      const index = step % storyline.length;
+      storyline[index]();
+      step = (index + 1) % storyline.length;
       render();
     }, 3300);
   }
