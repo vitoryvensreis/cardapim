@@ -9,12 +9,12 @@
 .app-brand img { width: 7.25rem; height: auto; }
 .app-context {
   display: none; align-items: center; gap: .45rem; min-width: 0; padding: .4rem .8rem; border-radius: var(--r-pill);
-  background: rgb(255 255 255 / 8%); color: rgb(255 255 255 / 85%); font: 900 .85rem/1.2 var(--f-head);
+  background: rgb(255 255 255 / 8%); color: rgb(255 255 255 / 85%); font: 700 .85rem/1.2 var(--f-head);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .app-context .icon { color: var(--c-orange); }
 .app-user { display: flex; align-items: center; gap: .65rem; margin-left: auto; min-width: 0; }
-.app-avatar { display: grid; place-items: center; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--c-orange); color: var(--c-white); font: 900 .85rem/1 var(--f-head); }
+.app-avatar { display: grid; place-items: center; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--c-orange); color: var(--c-white); font: 700 .85rem/1 var(--f-head); }
 .app-user-info { display: none; min-width: 0; line-height: 1.2; }
 .app-user-info strong { display: block; overflow: hidden; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
 .app-user-info small { color: rgb(255 255 255 / 65%); font-size: .75rem; }
@@ -22,19 +22,19 @@
 .app-logout-btn {
   display: inline-flex; align-items: center; gap: .4rem; min-height: 2.6rem; padding: .5rem .85rem;
   border: 1px solid rgb(255 255 255 / 22%); border-radius: var(--r-pill); background: transparent; color: var(--c-white);
-  font: 900 .85rem/1 var(--f-head); transition: background-color var(--t-fast), border-color var(--t-fast);
+  font: 700 .85rem/1 var(--f-head); transition: background-color var(--t-fast), border-color var(--t-fast);
 }
 .app-logout-btn:hover { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 45%); }
 .icon-flip { transform: scaleX(-1); }
 .app-back {
   display: inline-flex; align-items: center; gap: .4rem; min-height: 2.5rem; padding: .45rem .85rem;
-  border-radius: var(--r-pill); background: var(--c-orange); color: var(--c-white); font: 900 .85rem/1 var(--f-head);
+  border-radius: var(--r-pill); background: var(--c-orange); color: var(--c-white); font: 700 .85rem/1 var(--f-head);
   transition: background-color var(--t-fast);
 }
 .app-back:hover { background: #ff6a3d; }
 .app-mode {
   display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .75rem; border: 1px solid rgb(255 255 255 / 25%);
-  border-radius: var(--r-pill); color: var(--c-white); font: 900 .78rem/1 var(--f-head); letter-spacing: .04em; text-transform: uppercase;
+  border-radius: var(--r-pill); color: var(--c-white); font: 700 .78rem/1 var(--f-head); letter-spacing: .04em; text-transform: uppercase;
 }
 @media (max-width: 39.99rem) {
   .app-back span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -44,7 +44,7 @@
 .app-tabs { display: flex; gap: .25rem; width: min(100% - var(--gutter) * 2, var(--shell)); margin-inline: auto; overflow-x: auto; scrollbar-width: none; }
 .app-tabs a {
   display: inline-flex; align-items: center; gap: .45rem; flex: 0 0 auto; padding: .8rem 1rem;
-  border-bottom: 3px solid transparent; color: rgb(255 255 255 / 70%); font: 900 .9rem/1 var(--f-head);
+  border-bottom: 3px solid transparent; color: rgb(255 255 255 / 70%); font: 700 .9rem/1 var(--f-head);
   transition: color var(--t-fast), border-color var(--t-fast);
 }
 .app-tabs a:hover { color: var(--c-white); }
@@ -60,9 +60,9 @@
 }
 .app-hero-icon { display: grid; place-items: center; width: 3.75rem; height: 3.75rem; border-radius: .22rem; background: var(--c-orange); color: var(--c-white); }
 .app-hello { color: rgb(255 255 255 / 70%); font-weight: 400; }
-.app-hero h1 { margin-top: .2rem; font-size: clamp(1.7rem, 1.2rem + 2vw, 2.4rem); font-weight: 900; }
+.app-hero h1 { margin-top: .2rem; font-size: clamp(1.7rem, 1.2rem + 2vw, 2.4rem); font-weight: 700; }
 .app-hero p:last-child { margin-top: .4rem; color: rgb(255 255 255 / 80%); }
-.app-section-title { margin: 2rem 0 1rem; color: var(--c-ink); font-size: 1.1rem; font-weight: 900; }
+.app-section-title { margin: 2rem 0 1rem; color: var(--c-ink); font-size: 1.1rem; font-weight: 700; }
 .app-modules { display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
 .app-module, .app-module-link {
   display: flex; align-items: center; gap: .85rem; padding: 1rem 1.1rem; border: 1px solid var(--c-line);
