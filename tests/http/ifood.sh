@@ -208,6 +208,7 @@ curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
 esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
+echo "CI diagnóstico Botao Loja após pausa: $(cat "$tmp/sit.json")"
 contem "gerencia nao inventa fechamento apos POST" "$tmp/sit.json" '"estado":"divergente"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa aguarda confirmacao antes de permitir reabrir" "$tmp/sit.json" '"pode_abrir":false'
@@ -220,6 +221,7 @@ curl -s -o /dev/null -H 'Content-Type: application/json' -X POST \
   --data '{"ativa":true}' "$fake/_teste/ifood-status-forcar-aberta"
 rodar
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao?novo=1"
+echo "CI diagnóstico Botao Loja forcada aberta: $(cat "$tmp/sit.json")"
 contem "gerencia informa que o Merchant ainda esta aberto" "$tmp/sit.json" '"estado":"divergente"'
 contem "nao chama de loja fechada" "$tmp/sit.json" 'iFood: loja aberta'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao?novo=1"
@@ -259,6 +261,7 @@ pausa_remota="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); ech
 if [[ -z "$pausa_remota" ]]; then falha "portal recebeu ID da pausa"; fi
 rodar
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+echo "CI diagnóstico pausa Portal: $(cat "$tmp/estado-publico.json")"
 contem "pausa feita no Portal fecha o Deliveryzim" "$tmp/estado-publico.json" '"fechado_integracao":true'
 curl -s -o /dev/null -X DELETE -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/merchants/$loja/interruptions/$pausa_remota"
 rodar
@@ -369,8 +372,8 @@ contem "cancelado no iFood" "$tmp/pagina.html" 'Cancelado no iFood: Item indispo
 contem "pedido cancelado" "$tmp/pagina.html" 'Pedido cancelado'
 
 echo "Opcoes: aceitar sozinho"
-esperar "salvar opcoes" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/opcoes" aceitar_automatico=1 sincronizar_estoque=1)" "303 $g/integracoes/ifood"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+esperar "salvar opcoes" "$(enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/opcoes" aceitar_automatico=1 sincronizar_estoque=1)" "303 $g/integracoes/ifood/cardapio"
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
 contem "opcao aceitar marcada" "$tmp/pagina.html" 'name="aceitar_automatico" value="1" checked'
 curl -s -o /dev/null -H 'Content-Type: application/json' --data "$(pedido_json ped-ci-3 7800 IFOOD online 1111)" "$fake/_teste/pedido"
 rodar
@@ -378,7 +381,7 @@ id3="$(id_local 7800)"
 pagina "$cx" "$c/delivery/$id3" >/dev/null
 contem "aceito sozinho" "$tmp/pagina.html" 'Aceito automaticamente. Em preparo.'
 no_registro "iFood recebeu o aceite automatico" "acao ped-ci-3 confirm"
-enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/opcoes" sincronizar_estoque=1 >/dev/null
+enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/opcoes" sincronizar_estoque=1 >/dev/null
 
 echo "Item recriado pelo iFood (outro id, mesmo nome) usa a ligacao existente"
 curl -s -o /dev/null -H 'Content-Type: application/json' --data '{"id":"ped-ci-4","displayId":"7811","orderType":"TAKEOUT","merchant":{"id":"'"$loja"'"},"customer":{"name":"Ana iFood CI"},"items":[{"id":"item-ci-1-novo","name":"Lanche iFood CI","externalCode":"PDV-NOVO","unit":"UN","quantity":1,"unitPrice":25.9,"totalPrice":25.9}],"total":{"subTotal":25.9,"orderAmount":25.9},"payments":{"prepaid":25.9,"methods":[{"method":"PIX","type":"ONLINE","prepaid":true,"value":25.9}]}}' "$fake/_teste/pedido"
@@ -393,9 +396,10 @@ nao_contem "item novo ligado sozinho" "$tmp/pagina.html" 'Código PDV PDV-NOVO'
 echo "Disponibilidade e situacao da integracao"
 esperar "enviar disponibilidade agora" "$(enviar "$gj" "$g/integracoes/ifood/cardapio/vinculos" "$g/integracoes/ifood/cardapio/sincronizar" | cut -d' ' -f1)" "303"
 esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio/vinculos")" "2 item(ns) atualizado(s) no iFood."
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "pedidos do iFood hoje no novo status" "$tmp/pagina.html" 'Pedidos do iFood hoje'
 nao_contem "rotina rodando (sem alerta de parada)" "$tmp/pagina.html" 'não estão chegando agora'
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
 contem "itens ligados no resumo" "$tmp/pagina.html" '2 de'
 
 echo "Publicar o cardapio no iFood (Catalog)"
