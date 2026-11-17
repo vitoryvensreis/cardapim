@@ -67,6 +67,8 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 - **Dados da loja** (`GET /merchants/{id}`): nome, razão social, endereço, operações e canais, e a resposta completa do iFood.
 - **Disponibilidade agora** (`GET /merchants/{id}/status`) por operação, com as validações do iFood.
 - **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até 30 dias).
+  Datas enviadas em UTC com "Z"; o iFood devolve em UTC, às vezes sem o fuso: `IfoodApi::data()` lê sem fuso como UTC
+  (também nas datas dos pedidos) e mostra no fuso do sistema.
 - **Horário de funcionamento** (`GET|PUT /merchants/{id}/opening-hours`, turnos `dayOfWeek` + `start` + `duration` em minutos):
   - **Padrão: o iFood segue o horário do Perfil.** Ao salvar o horário no Perfil, o iFood recebe o horário novo na hora
     (`IfoodLojaService::acompanharPerfil`, chamado pelo `PerfilController`; falha vira aviso, o Perfil já fica salvo).

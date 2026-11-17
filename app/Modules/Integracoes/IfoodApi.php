@@ -158,6 +158,24 @@ class IfoodApi
     /** Dias da semana no formato do iFood, na ordem de segunda a domingo. */
     public const DIAS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 
+    /**
+     * Data/hora vinda do iFood, no fuso do sistema. O iFood trabalha em UTC e as vezes devolve sem o fuso
+     * ("2026-11-17T12:49:00"): sem fuso, e UTC (nunca o horario local).
+     */
+    public static function data(string $valor): ?\DateTimeImmutable
+    {
+        $valor = trim($valor);
+        if ($valor === '') {
+            return null;
+        }
+        $temFuso = preg_match('/(Z|[+-]\d{2}:?\d{2})\z/i', $valor) === 1;
+        try {
+            return (new \DateTimeImmutable($valor, $temFuso ? null : new \DateTimeZone('UTC')))->setTimezone(new \DateTimeZone(date_default_timezone_get()));
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
     /** Detalhes completos da loja, como o iFood devolve (nome, razao social, endereco, operacoes e canais). @return array<string,mixed> */
     public function detalhesLoja(string $token, string $idLoja): array
     {
@@ -225,8 +243,9 @@ class IfoodApi
         $r = $this->requisicao('POST', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions', $token, [
             'id' => $id,
             'description' => $descricao,
-            'start' => $inicio->format('Y-m-d\TH:i:sP'),
-            'end' => $fim->format('Y-m-d\TH:i:sP'),
+            // UTC com "Z", como na documentacao do iFood.
+            'start' => $inicio->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+            'end' => $fim->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
         ]);
         $d = $this->exigirOk($r, 'criar a pausa');
         return is_string($d['id'] ?? null) && $d['id'] !== '' ? $d['id'] : $id;

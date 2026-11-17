@@ -316,7 +316,7 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
     }
     if (preg_match('~/merchants/[0-9a-f-]+/status\z~', $caminho)) {
         // Pausa valendo agora fecha a loja (como no iFood).
-        $pausada = array_filter($ler('ifood-pausas.json') ?? [], static fn (array $p): bool => strtotime((string) $p['start']) <= time() && strtotime((string) $p['end']) > time()) !== [];
+        $pausada = array_filter($ler('ifood-pausas.json') ?? [], static fn (array $p): bool => strtotime($p['start'] . 'Z') <= time() && strtotime($p['end'] . 'Z') > time()) !== [];
         $responder(200, [$pausada
             ? ['operation' => 'delivery', 'available' => false, 'state' => 'CLOSED', 'message' => ['title' => 'Loja pausada']]
             : ['operation' => 'delivery', 'available' => true, 'state' => 'OK', 'message' => ['title' => 'Loja aberta no iFood']]]);
@@ -333,7 +333,9 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
             if (trim((string) ($json['description'] ?? '')) === '' || strtotime((string) ($json['end'] ?? '')) <= strtotime((string) ($json['start'] ?? ''))) {
                 $responder(400, ['message' => 'Interrupcao invalida']);
             }
-            $pausas[$json['id']] = ['id' => $json['id'], 'description' => $json['description'], 'start' => $json['start'], 'end' => $json['end']];
+            // Como o iFood: guarda em UTC e devolve sem o fuso.
+            $pausas[$json['id']] = ['id' => $json['id'], 'description' => $json['description'],
+                'start' => gmdate('Y-m-d\TH:i:s', strtotime((string) $json['start'])), 'end' => gmdate('Y-m-d\TH:i:s', strtotime((string) $json['end']))];
             $guardar('ifood-pausas.json', $pausas);
             $responder(201, $pausas[$json['id']]);
         }

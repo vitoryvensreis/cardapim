@@ -286,11 +286,7 @@ final class PedidoIfood
         if (!is_string($iso) || trim($iso) === '') {
             return null;
         }
-        try {
-            return (new DateTimeImmutable($iso))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d H:i:s');
-        } catch (Throwable) {
-            return null;
-        }
+        return \Cardapim\Modules\Integracoes\IfoodApi::data($iso)?->format('Y-m-d H:i:s'); // sem fuso = UTC
     }
 
     public static function centavos(mixed $valor): int

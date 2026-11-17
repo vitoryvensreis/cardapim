@@ -9,13 +9,7 @@ use Cardapim\Core\Icon;
 use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$quandoPausa = static function (string $iso): string {
-    try {
-        return (new DateTimeImmutable($iso))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('d/m/Y \à\s H:i');
-    } catch (Exception) {
-        return $iso;
-    }
-};
+$quandoPausa = static fn (string $iso): string => IfoodLojaService::dataIfood($iso)?->format('d/m/Y \à\s H:i') ?? $iso;
 $erroPausa = static fn (string $campo): string => isset($eP[$campo]) ? '<p class="field-msg ficha-erro" id="erro-pausa-' . $e($campo) . '">' . $e($eP[$campo]) . '</p>' : '';
 $ativas = array_column(IfoodLojaService::pausasAtivas($pausas), 'id');
 $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' => $eP['_geral']] : $nota;
