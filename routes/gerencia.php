@@ -153,7 +153,12 @@ return static function (Router $router): void {
     $router->get($g . '/suporte/{id}', [SuporteController::class, 'ver']);
     $router->post($g . '/suporte/{id}/responder', [SuporteController::class, 'responderChamado']);
     $router->post($g . '/suporte/{id}/resolver', [SuporteController::class, 'resolver']);
+    // Abas independentes: entrada legada redireciona para Status.
     $router->get($g . '/integracoes/ifood', [IntegracoesController::class, 'ifood']);
+    $router->get($g . '/integracoes/ifood/status', [IntegracoesController::class, 'ifoodStatus']);
+    $router->get($g . '/integracoes/ifood/loja', [IntegracoesController::class, 'ifoodAbaLoja']);
+    $router->get($g . '/integracoes/ifood/cardapio', [IntegracoesController::class, 'ifoodAbaCardapio']);
+    $router->get($g . '/integracoes/ifood/dados', [IntegracoesController::class, 'ifoodDados']);
     $router->post($g . '/integracoes/ifood/iniciar', [IntegracoesController::class, 'ifoodIniciar']);
     $router->post($g . '/integracoes/ifood/concluir', [IntegracoesController::class, 'ifoodConcluir']);
     $router->post($g . '/integracoes/ifood/loja', [IntegracoesController::class, 'ifoodLoja']);
@@ -161,7 +166,7 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/ifood/cancelar', [IntegracoesController::class, 'ifoodCancelar']);
     $router->post($g . '/integracoes/ifood/desconectar', [IntegracoesController::class, 'ifoodDesconectar']);
     $router->post($g . '/integracoes/ifood/opcoes', [IntegracoesController::class, 'ifoodOpcoes']);
-    $router->get($g . '/integracoes/ifood/cardapio', [IntegracoesController::class, 'ifoodCardapio']);
+    $router->get($g . '/integracoes/ifood/cardapio/vinculos', [IntegracoesController::class, 'ifoodCardapio']);
     $router->post($g . '/integracoes/ifood/cardapio/buscar', [IntegracoesController::class, 'ifoodCardapioBuscar']);
     $router->post($g . '/integracoes/ifood/cardapio/ligar', [IntegracoesController::class, 'ifoodCardapioLigar']);
     $router->post($g . '/integracoes/ifood/cardapio/sincronizar', [IntegracoesController::class, 'ifoodSincronizar']);
@@ -175,7 +180,6 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/ifood/pausas/remover', [IntegracoesController::class, 'ifoodPausaRemover']);
     $router->get($g . '/integracoes/ifood/pausas/estado', [IntegracoesController::class, 'ifoodPausaEstado']);
     $router->post($g . '/integracoes/ifood/horarios', [IntegracoesController::class, 'ifoodHorarios']);
-    $router->post($g . '/integracoes/ifood/fuso', [IntegracoesController::class, 'ifoodFuso']);
     // Botao "Abrir loja no iFood" do topo (JSON).
     $router->get($g . '/integracoes/ifood/botao-loja/situacao', [IntegracoesController::class, 'ifoodBotaoSituacao']);
     $router->post($g . '/integracoes/ifood/botao-loja/abrir', [IntegracoesController::class, 'ifoodBotaoAbrir']);
