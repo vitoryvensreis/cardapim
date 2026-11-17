@@ -120,7 +120,7 @@ esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/
 contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
 contem "aviso de pausa criada" "$tmp/js.json" 'recebeu a solicitação de pausa'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
-contem "pausa valendo marcada" "$tmp/js.json" 'Valendo agora'
+contem "horario da pausa identificado" "$tmp/js.json" 'Horário vigente'
 esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao=x inicio="$agora_local" fim="$depois_local")" "422"
 contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
 esperar "pausa pela tela sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'descricao=Teste' "$g/integracoes/ifood/pausas")" "419"
@@ -161,13 +161,31 @@ curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
 esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
-contem "gerencia ve a loja pausada" "$tmp/sit.json" '"estado":"pausada"'
+contem "gerencia nao inventa fechamento apos POST" "$tmp/sit.json" '"estado":"divergente"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
-contem "caixa ve a loja pausada" "$tmp/sit.json" '"pode_abrir":true'
+contem "caixa aguarda confirmacao antes de permitir reabrir" "$tmp/sit.json" '"pode_abrir":false'
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
 contem "cardapio publico bloqueia novos pedidos imediatamente" "$tmp/estado-publico.json" '"fechado_integracao":true'
 esperar "cardapio mostra fechamento temporario" "$(pagina "$gj" "$base/$slug")" "200"
 contem "cardapio informa pausa do restaurante" "$tmp/pagina.html" 'Fechado temporariamente'
+# Comportamento observado na loja TEST: interrupcao existe mas status Merchant ainda informa OK.
+curl -s -o /dev/null -H 'Content-Type: application/json' -X POST \
+  --data '{"ativa":true}' "$fake/_teste/ifood-status-forcar-aberta"
+rodar
+curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao?novo=1"
+contem "gerencia informa que o Merchant ainda esta aberto" "$tmp/sit.json" '"estado":"divergente"'
+contem "nao chama de loja fechada" "$tmp/sit.json" 'iFood: loja aberta'
+curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao?novo=1"
+contem "caixa tambem detecta a divergencia" "$tmp/sit.json" '"estado":"divergente"'
+pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+contem "aviso visivel na tela da loja" "$tmp/pagina.html" 'Pausa vigente, mas loja aberta no iFood.'
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "nao abre checkout local com pausa propria vigente" "$tmp/estado-publico.json" '"fechado_integracao":true'
+curl -s -o /dev/null -H 'Content-Type: application/json' -X POST \
+  --data '{"ativa":false}' "$fake/_teste/ifood-status-forcar-aberta"
+rodar
+curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao?novo=1"
+contem "status Merchant fechado restaura botao de remover pausa" "$tmp/sit.json" '"estado":"pausada"'
 esperar "abrir sem token recusado" "$(curl -s -o /dev/null -w '%{http_code}' -b "$cx" -X POST "$c/ifood/abrir")" "419"
 t="$(token "$cx" "$c")"
 esperar "caixa abre a loja" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b "$cx" -c "$cx" -X POST -H "X-CSRF-Token: $t" "$c/ifood/abrir")" "200"

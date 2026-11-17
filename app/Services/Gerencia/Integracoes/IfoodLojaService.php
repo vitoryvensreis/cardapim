@@ -44,7 +44,7 @@ final class IfoodLojaService extends BaseIntegracao
     public function painel(): array
     {
         $conta = $this->conta();
-        $vazio = ['conectada' => false, 'loja' => null, 'lojas' => [], 'detalhes' => null, 'situacao' => [], 'pausas' => [], 'horarios' => [], 'sugestao' => [],
+        $vazio = ['conectada' => false, 'loja' => null, 'lojas' => [], 'detalhes' => null, 'situacao' => [], 'pausas' => [], 'divergencia' => false, 'horarios' => [], 'sugestao' => [],
             'horario_proprio' => false, 'perfil' => ['turnos' => [], 'sempre' => false, 'resumo' => '', 'dias' => []], 'erros' => []];
         if (!$conta->conectada()) {
             return $vazio;
@@ -67,13 +67,18 @@ final class IfoodLojaService extends BaseIntegracao
             }
         };
         $horarios = $buscar('horarios', fn (): array => $this->api->horarios($token, $loja), []);
+        $situacao = $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []);
+        $pausas = $buscar('pausas', fn (): array => $this->api->pausas($token, $loja), []);
+        $divergencia = $situacao !== [] && !isset($erros['pausas'])
+            && EstadoLoja::resumoOperacional($situacao, $pausas)['divergente'];
         return [
             'conectada' => true,
             'loja' => $loja,
             'lojas' => $buscar('lojas', fn (): array => $this->api->lojas($token), []),
             'detalhes' => $buscar('detalhes', fn (): array => $this->api->detalhesLoja($token, $loja), null),
-            'situacao' => $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []),
-            'pausas' => $buscar('pausas', fn (): array => $this->api->pausas($token, $loja), []),
+            'situacao' => $situacao,
+            'pausas' => $pausas,
+            'divergencia' => $divergencia,
             'horarios' => $horarios,
             'sugestao' => self::paraFormulario($horarios !== [] ? $horarios : $vazio['perfil']['turnos']),
             'horario_proprio' => $vazio['horario_proprio'],
@@ -356,7 +361,7 @@ final class IfoodLojaService extends BaseIntegracao
 
     /**
      * Situacao resumida para o botao "Abrir loja no iFood".
-     * estado: aberta | pausada (da para abrir: tem pausa ativa) | fechada (fora do horario ou outro motivo do iFood) | erro | desconectada
+     * estado: aberta | divergente (API aberta com pausa vigente) | pausada | fechada | erro | desconectada
      * @return array{estado:string, texto:string, detalhe:string, pode_abrir:bool}
      */
     public function situacaoAgora(): array
@@ -382,31 +387,45 @@ final class IfoodLojaService extends BaseIntegracao
             }
         }
         $pausa = $estado['pausa'];
+        $remoto = $estado['remoto'];
         $agora = time();
-        if ($pausa !== null && (int) ($pausa['inicio'] ?? 0) <= $agora && (int) ($pausa['fim'] ?? 0) > $agora
-            && ($estado['fechado'] || ($estado['remoto']['pausada'] ?? false) === true)) {
-            return ['estado' => 'pausada', 'texto' => 'Abrir loja', 'pode_abrir' => true,
-                'detalhe' => 'Pausa ativa. Clique para solicitar a reabertura; confirme o estado após a atualização do iFood.'];
-        }
-        if ($estado['remoto'] !== null) {
-            $ultima = (int) ($estado['remoto']['atualizado_em'] ?? 0);
+        $localAtiva = $pausa !== null
+            && (int) ($pausa['inicio'] ?? 0) <= $agora
+            && (int) ($pausa['fim'] ?? 0) > $agora;
+        if ($remoto !== null) {
+            $ultima = (int) ($remoto['atualizado_em'] ?? 0);
             if ($ultima < $agora - 120) {
                 return ['estado' => 'erro', 'texto' => 'Aguardando iFood', 'pode_abrir' => false,
-                    'detalhe' => 'Último estado externo antigo. Verifique a rotina de integração; o fechamento conhecido continua protegido.'];
+                    'detalhe' => 'Último status externo antigo. Verifique a rotina do iFood; a proteção local de pedidos continua ativa.'];
             }
-            if ($estado['fechado']) {
+
+            $fechadaNoIfood = ($remoto['fechado'] ?? false) === true;
+            // O snapshot anterior a uma pausa criada aqui ainda nao confirma o novo comando.
+            if (!$fechadaNoIfood && $localAtiva && $ultima < (int) ($pausa['criada_em'] ?? 0)) {
+                return ['estado' => 'erro', 'texto' => 'Verificando iFood', 'pode_abrir' => false,
+                    'detalhe' => 'Pausa solicitada. Aguardando a proxima verificacao do status operacional do iFood.'];
+            }
+            if (!$fechadaNoIfood && ($localAtiva || ($remoto['divergente'] ?? false) === true)) {
+                return ['estado' => 'divergente', 'texto' => 'iFood: loja aberta', 'pode_abrir' => false,
+                    'detalhe' => $localAtiva
+                        ? 'O iFood informa a loja aberta, apesar da pausa vigente. O Deliveryzim continua bloqueando novos pedidos locais por precaucao. Remova a pausa em Integracoes > iFood.'
+                        : 'O iFood informa a loja aberta, apesar de existir uma pausa vigente cadastrada. Confira a disponibilidade no Portal do Parceiro.'];
+            }
+            if ($fechadaNoIfood) {
+                if ($localAtiva) {
+                    return ['estado' => 'pausada', 'texto' => 'Abrir loja', 'pode_abrir' => true,
+                        'detalhe' => 'O iFood confirma a indisponibilidade. Clique para remover a pausa criada no Deliveryzim.'];
+                }
                 return ['estado' => 'fechada', 'texto' => 'Loja fechada', 'pode_abrir' => false,
-                    'detalhe' => $estado['motivo'] ?: 'Loja indisponível no iFood.'];
+                    'detalhe' => (string) ($remoto['motivo'] ?? '') ?: 'Loja indisponível no iFood.'];
             }
             return ['estado' => 'aberta', 'texto' => 'Loja aberta', 'pode_abrir' => false,
                 'detalhe' => 'Disponibilidade confirmada pela última consulta ao iFood.'];
         }
-        if ($estado['fechado']) {
-            return ['estado' => 'fechada', 'texto' => 'Sincronizando', 'pode_abrir' => false,
-                'detalhe' => $estado['motivo']];
-        }
         return ['estado' => 'erro', 'texto' => 'Verificando iFood', 'pode_abrir' => false,
-            'detalhe' => 'Aguardando a primeira consulta de disponibilidade ao iFood (até 30 segundos).'];
+            'detalhe' => $localAtiva
+                ? 'Pausa solicitada: novos pedidos locais continuam bloqueados, mas ainda nao ha status do iFood.'
+                : 'Aguardando a primeira consulta de disponibilidade ao iFood (até 30 segundos).'];
     }
 
     /** Abre a loja no iFood agora: remove as pausas ativas. Fora do horario de funcionamento nao ha o que abrir. */

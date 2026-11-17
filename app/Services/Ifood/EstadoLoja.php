@@ -80,28 +80,12 @@ final class EstadoLoja
             return; // nunca interpretar lista vazia/erro como loja aberta
         }
         $agora = time();
-        $pausada = false;
-        foreach ($pausas as $p) {
-            $inicio = \Cardapim\Modules\Integracoes\IfoodApi::data((string) ($p['inicio'] ?? ''))?->getTimestamp();
-            $fim = \Cardapim\Modules\Integracoes\IfoodApi::data((string) ($p['fim'] ?? ''))?->getTimestamp();
-            if ($inicio !== null && $inicio <= $agora && ($fim === null || $fim > $agora)) {
-                $pausada = true;
-                break;
-            }
-        }
-        $algumaDisponivel = false;
-        $motivo = '';
-        foreach ($operacoes as $op) {
-            if (($op['disponivel'] ?? false) === true) {
-                $algumaDisponivel = true;
-            } elseif ($motivo === '') {
-                $motivo = trim((string) ($op['mensagem'] ?? ''));
-            }
-        }
-        $fechado = $pausada || !$algumaDisponivel;
-        if ($pausada) {
-            $motivo = 'Loja pausada no iFood.';
-        }
+        $resumo = self::resumoOperacional($operacoes, $pausas, $agora);
+        $pausada = $resumo['pausada'];
+        // O status Merchant e a unica fonte sobre a abertura da loja no iFood.
+        // Interrupcao com horario vigente nao prova que a API aplicou o fechamento.
+        $fechado = $resumo['fechado'];
+        $motivo = $resumo['motivo'];
         $atual = self::consultar($db, $idRestaurante);
         // Fechamento removido diretamente no Portal do Parceiro: só descarta a proteção
         // depois de o Merchant confirmar estado aberto (e dar tempo de propagar a criação).
@@ -124,12 +108,55 @@ final class EstadoLoja
         }
         self::escrever($db, $idRestaurante, 'situacao_sincronizada', [
             'loja_id' => self::lojaId($db, $idRestaurante),
-            'fechado' => $fechado, 'pausada' => $pausada, 'motivo' => $fechado ? ($motivo ?: 'Loja indisponível no iFood.') : '',
+            'fechado' => $fechado, 'pausada' => $pausada, 'divergente' => $resumo['divergente'],
+            'motivo' => $fechado ? ($motivo ?: 'Loja indisponível no iFood.') : '',
             'atualizado_em' => $agora,
         ]);
         if ($atual['fechado'] !== self::consultar($db, $idRestaurante)['fechado']) {
             self::avisar($idRestaurante, $fechado ? 'fechada' : 'aberta');
         }
+    }
+
+    /**
+     * Separa a disponibilidade informada pelo Merchant de uma pausa cadastrada.
+     * Usada pela rotina e pela tela para nao sinalizar fechamento inexistente.
+     * @param list<array<string,mixed>> $operacoes
+     * @param list<array<string,mixed>> $pausas
+     * @return array{fechado:bool, pausada:bool, divergente:bool, motivo:string}
+     */
+    public static function resumoOperacional(array $operacoes, array $pausas, ?int $agora = null): array
+    {
+        $agora ??= time();
+        $pausada = false;
+        foreach ($pausas as $p) {
+            $inicio = \Cardapim\Modules\Integracoes\IfoodApi::data((string) ($p['inicio'] ?? ''))?->getTimestamp();
+            $fim = \Cardapim\Modules\Integracoes\IfoodApi::data((string) ($p['fim'] ?? ''))?->getTimestamp();
+            if ($inicio !== null && $fim !== null && $inicio <= $agora && $fim > $agora) {
+                $pausada = true;
+                break;
+            }
+        }
+        if ($operacoes === []) {
+            // Estado desconhecido nao e um estado aberto.
+            return ['fechado' => false, 'pausada' => $pausada, 'divergente' => false, 'motivo' => ''];
+        }
+        $algumaDisponivel = false;
+        $motivo = '';
+        foreach ($operacoes as $op) {
+            $disponivel = ($op['disponivel'] ?? false) === true
+                && in_array(strtoupper((string) ($op['estado'] ?? '')), ['OK', 'WARNING'], true);
+            if ($disponivel) {
+                $algumaDisponivel = true;
+            } elseif ($motivo === '') {
+                $motivo = trim((string) ($op['mensagem'] ?? ''));
+            }
+        }
+        return [
+            'fechado' => !$algumaDisponivel,
+            'pausada' => $pausada,
+            'divergente' => $pausada && $algumaDisponivel,
+            'motivo' => !$algumaDisponivel ? ($motivo ?: 'Loja indisponível no iFood.') : '',
+        ];
     }
 
     /** Escrita serializada com o INSERT do checkout para evitar pedidos após o fechamento confirmado. */

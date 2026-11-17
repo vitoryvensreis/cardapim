@@ -86,12 +86,15 @@
 .painel-ifood[data-estado="pausada"] .ifood-ic-pausada,
 .painel-ifood[data-estado="aberta"] .ifood-ic-aberta,
 .painel-ifood[data-estado="fechada"] .ifood-ic-fechada,
+.painel-ifood[data-estado="divergente"] .ifood-ic-divergente,
 .painel-ifood[data-estado="erro"] .ifood-ic-erro,
 .painel-ifood[data-estado="carregando"] .ifood-ic-carregando { display: inline-block; }
 .painel-ifood[data-estado="pausada"] { border-color: var(--c-orange); background: var(--c-orange); color: var(--c-white); }
 .painel-ifood[data-estado="pausada"]:hover { background: var(--c-orange-700); border-color: var(--c-orange-700); }
 .painel-ifood[data-estado="pausada"] .painel-ifood-marca { background: var(--c-white); color: var(--c-orange-700); }
 .painel-ifood[data-estado="aberta"] { border-color: #b9e3cb; background: var(--c-success-bg); color: #14532d; }
+.painel-ifood[data-estado="divergente"] { border-color: var(--c-orange); background: var(--c-white); color: var(--c-wine); }
+.painel-ifood[data-estado="divergente"] .ifood-ic-divergente { color: var(--c-orange); }
 .painel-ifood[data-estado="fechada"], .painel-ifood[data-estado="erro"] { color: var(--c-muted); }
 .painel-ifood:disabled { cursor: default; opacity: 1; }
 .painel-ifood:focus-visible { outline: 2px solid var(--c-wine); outline-offset: 2px; }

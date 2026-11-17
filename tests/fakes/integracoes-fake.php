@@ -307,6 +307,11 @@ if ($caminho === '/ifood/authentication/v1.0/oauth/token' && $metodo === 'POST')
     }
     $responder(200, ['accessToken' => 'acc-' . bin2hex(random_bytes(4)), 'refreshToken' => 'ref-' . bin2hex(random_bytes(4)), 'type' => 'bearer', 'expiresIn' => 10800]);
 }
+// Cenario de homologacao: o Merchant lista pausas vigentes, mas continua com state OK.
+if (in_array($caminho, ['/_teste/ifood-status-forcar-aberta', '/ifood/_teste/ifood-status-forcar-aberta'], true) && $metodo === 'POST') {
+    $guardar('ifood-status-forcar-aberta.json', ($json['ativa'] ?? false) === true);
+    $responder(200, ['ok' => true]);
+}
 if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
     if (!str_starts_with($cab('Authorization'), 'Bearer acc-')) {
         $responder(401, ['error' => 'unauthorized']);
@@ -316,7 +321,8 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
     }
     if (preg_match('~/merchants/[0-9a-f-]+/status\z~', $caminho)) {
         // Pausa valendo agora fecha a loja (como no iFood).
-        $pausada = array_filter($ler('ifood-pausas.json') ?? [], static fn (array $p): bool => strtotime($p['start'] . 'Z') <= time() && strtotime($p['end'] . 'Z') > time()) !== [];
+        $pausada = ($ler('ifood-status-forcar-aberta.json') !== true)
+            && array_filter($ler('ifood-pausas.json') ?? [], static fn (array $p): bool => strtotime($p['start'] . 'Z') <= time() && strtotime($p['end'] . 'Z') > time()) !== [];
         $responder(200, [$pausada
             ? ['operation' => 'delivery', 'available' => false, 'state' => 'CLOSED', 'message' => ['title' => 'Loja pausada']]
             : ['operation' => 'delivery', 'available' => true, 'state' => 'OK', 'message' => ['title' => 'Loja aberta no iFood']]]);
