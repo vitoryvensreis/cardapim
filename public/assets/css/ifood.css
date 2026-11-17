@@ -89,3 +89,70 @@
 @media (prefers-reduced-motion: reduce) { .ifood-pausa-aviso { animation: none; } }
 .ifood-lista-item > span:first-child { flex: 1 1 14rem; }
 .ifood-lista-item > .etiqueta { display: inline-flex; }
+
+
+/* Painel iFood: mais area util no desktop sem criar rolagem horizontal. */
+.ifood-dashboard-page { width: 100%; max-width: 88rem; min-width: 0; }
+.ifood-dashboard-page *, .ifood-dashboard-page *::before, .ifood-dashboard-page *::after { box-sizing: border-box; }
+.ifood-dashboard-section { min-width: 0; margin-block: 1.25rem 1.65rem; scroll-margin-top: 5rem; }
+.ifood-dashboard-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: .7rem 1.5rem; margin-bottom: .8rem; }
+.ifood-dashboard-heading h2 { display: flex; align-items: center; gap: .55rem; color: var(--c-ink); font-size: clamp(1.12rem, 1rem + .4vw, 1.4rem); }
+.ifood-dashboard-heading h2 .icon { color: var(--c-orange); }
+.ifood-dashboard-heading p { color: var(--c-muted); font-size: .88rem; }
+.ifood-dashboard-metricas { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ifood-dashboard-metricas > div { display: grid; gap: .15rem; min-width: 8.5rem; padding: .45rem .8rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.ifood-dashboard-metricas small { color: var(--c-muted); font-size: .75rem; }
+.ifood-dashboard-metricas strong { font-size: .92rem; color: var(--c-ink); overflow-wrap: anywhere; }
+.ifood-dashboard-grid, .ifood-painel-operacao { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; min-width: 0; }
+.ifood-dashboard-grid > *, .ifood-painel-operacao > * { min-width: 0; margin: 0; }
+.ifood-dashboard-page .bloco { min-width: 0; overflow-wrap: anywhere; margin-bottom: 0; }
+.ifood-dashboard-page .bloco-rodape { align-items: center; }
+.ifood-dashboard-page .bloco-rodape .btn { white-space: normal; text-align: center; }
+.ifood-dashboard-page .ifood-secao-recolhivel { margin-top: 0; min-width: 0; }
+.ifood-dashboard-page > .ifood-secao-tecnica { margin-block: 1rem 1.75rem; }
+.ifood-dashboard-page input[type="datetime-local"],
+.ifood-dashboard-page input[type="time"],
+.ifood-dashboard-page select { min-width: 0; max-width: 100%; width: 100%; }
+.ifood-dashboard-page .ifood-lista-item { min-width: 0; }
+.ifood-dashboard-page .ifood-lista-item form { flex: 0 1 auto; }
+.ifood-dashboard-page .opcao-modo { min-width: 0; }
+
+@media (min-width: 64rem) {
+  .ifood-painel-operacao { grid-template-columns: minmax(0, .92fr) minmax(0, 1.25fr); }
+  .ifood-dashboard-grid-loja { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+  .ifood-dashboard-grid-cardapio { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 48rem) {
+  .ifood-dashboard-page .bloco { padding: 1rem; }
+  .ifood-dashboard-page .ifood-lista-item { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .ifood-dashboard-page .ifood-lista-item form { width: 100%; }
+  .ifood-dashboard-page .ifood-lista-item form .btn { width: 100%; min-height: 2.75rem; }
+  .ifood-dashboard-page .acoes-2fa > form { flex: 1 1 auto; }
+  .ifood-dashboard-page .acoes-2fa .btn { min-height: 2.75rem; }
+  .ifood-dashboard-page .bloco-rodape .btn { min-height: 2.75rem; }
+  .ifood-dashboard-page .ifood-turno { gap: .25rem; }
+}
+@media (max-width: 25rem) {
+  .ifood-dashboard-metricas { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); width: 100%; }
+  .ifood-dashboard-metricas > div { min-width: 0; }
+  .ifood-dashboard-page .ifood-turno { grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); }
+}
+
+/* Feedback de operacao: overlay apenas durante envio; a confirmacao segue no card. */
+.ifood-aguardando[hidden] { display: none !important; }
+.ifood-aguardando { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 1.25rem; background: rgb(255 255 255 / 87%); backdrop-filter: blur(3px); }
+.ifood-aguardando-conteudo { display: grid; justify-items: center; gap: .8rem; width: min(100%, 25rem); padding: 1.75rem 1.2rem; text-align: center; color: var(--c-ink); }
+.ifood-aguardando-conteudo .icon { width: 3.1rem; height: 3.1rem; color: var(--c-orange); animation: ifood-girar 1s linear infinite; }
+.ifood-aguardando-conteudo strong { font-size: 1.3rem; }
+.ifood-aguardando-conteudo p { color: var(--c-muted); font-size: .9rem; }
+body.ifood-aguardando-ativo { overflow: hidden; }
+.ifood-pausa-temporaria { border-style: dashed; border-color: var(--c-orange); background: var(--c-cream); }
+.ifood-pausa-temporaria .ifood-estado-pendente { display: inline-flex; gap: .4rem; align-items: center; color: var(--c-wine); font-weight: 700; font-size: .8rem; }
+.ifood-estado-pendente .icon { width: 1rem; height: 1rem; animation: ifood-girar 1s linear infinite; }
+.ifood-pausa-temporaria small { color: var(--c-muted); }
+.ifood-pausa-temporaria[data-resultado="registrada"] { border-style: solid; background: var(--c-white); }
+.ifood-pausa-temporaria[data-resultado="registrada"] .icon { animation: none; }
+@keyframes ifood-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ifood-aguardando-conteudo .icon, .ifood-estado-pendente .icon { animation: none; }
+}

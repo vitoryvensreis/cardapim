@@ -216,6 +216,52 @@ final class IfoodLojaService extends BaseIntegracao
         return ['pausas' => $lista, 'erro' => null];
     }
 
+    /** Identificadores retornados pelo POST/DELETE; nao confundir com fechamento operacional. */
+    public function idCriado(): ?string
+    {
+        return $this->ultimaCriadaId;
+    }
+
+    public function idRemovido(): ?string
+    {
+        return $this->ultimaRemovidaId;
+    }
+
+    /**
+     * Consultas leves somente-leitura para acompanhar criacao/remocao, sem fingir
+     * confirmacao quando o iFood falha ou ainda devolve status antigo.
+     * @return array{pausas:array,situacao:array,erros:array,divergencia:bool}
+     */
+    public function acompanharPausa(): array
+    {
+        $conta = $this->conta();
+        $erros = [];
+        $pausas = [];
+        $situacao = [];
+        if (!$conta->conectada()) {
+            return ['pausas' => [], 'situacao' => [], 'erros' => ['geral' => 'iFood desconectado.'], 'divergencia' => false];
+        }
+        try {
+            $token = $conta->token();
+            $loja = (string) $conta->loja();
+            try {
+                $pausas = $this->api->pausas($token, $loja, $this->fusoDaLoja());
+            } catch (IntegracaoErro $e) {
+                $erros['pausas'] = $e->getMessage();
+            }
+            try {
+                $situacao = $this->api->situacaoLoja($token, $loja);
+            } catch (IntegracaoErro $e) {
+                $erros['situacao'] = $e->getMessage();
+            }
+        } catch (IntegracaoErro $e) {
+            $erros['geral'] = $e->getMessage();
+        }
+        $divergencia = $pausas !== [] && $situacao !== [] && !isset($erros['pausas'])
+            && EstadoLoja::resumoOperacional($situacao, $pausas)['divergente'];
+        return compact('pausas', 'situacao', 'erros', 'divergencia');
+    }
+
     /**
      * Confirma uma alteracao apenas quando o GET do iFood refletir o resultado.
      * Nao altera a lista exibida: serve somente para distinguir sucesso de pendencia visual.

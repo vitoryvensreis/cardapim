@@ -352,6 +352,59 @@ final class IntegracoesController extends BaseGerencia
         return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa($servico->fusoDaLoja()));
     }
 
+    /** Consulta pontual apos o POST/DELETE: registro e disponibilidade sao confirmacoes diferentes. */
+    public function ifoodPausaEstado(string $slug): Response
+    {
+        if ($this->entrar($slug)) {
+            return BotaoLojaIfood::semSessao();
+        }
+        $id = (string) ($_GET['pausa'] ?? '');
+        $acao = (string) ($_GET['acao'] ?? '');
+        if (preg_match('/\A[A-Za-z0-9-]{1,64}\z/', $id) !== 1 || !in_array($acao, ['criar', 'remover'], true)) {
+            return Response::json(['ok' => false, 'mensagem' => 'Identificador da pausa inválido.'], 422);
+        }
+        $servico = $this->ifoodLojaServico();
+        $estado = $servico->acompanharPausa();
+        $lista = $estado['pausas'];
+        $erros = $estado['erros'];
+        $presente = in_array($id, array_column($lista, 'id'), true);
+        $registroConfirmado = !isset($erros['pausas']) && !isset($erros['geral'])
+            && ($acao === 'criar' ? $presente : !$presente);
+        $pausaVigente = false;
+        foreach ($lista as $pausa) {
+            if ($pausa['id'] !== $id) {
+                continue;
+            }
+            $ini = IfoodApi::data((string) ($pausa['inicio'] ?? ''))?->getTimestamp();
+            $fim = IfoodApi::data((string) ($pausa['fim'] ?? ''))?->getTimestamp();
+            $pausaVigente = $ini !== null && $fim !== null && $ini <= time() && $fim > time();
+            break;
+        }
+        $operacoes = $estado['situacao'];
+        $disponivel = !isset($erros['situacao']) && $operacoes !== []
+            ? !\Cardapim\Services\Ifood\EstadoLoja::resumoOperacional($operacoes, $lista)['fechado'] : null;
+        $fuso = $servico->fusoDaLoja();
+        $htmlPausas = \Cardapim\Core\View::render('gerencia/integracoes/_ifood-pausas', [
+            'pausas' => $lista, 'erroLista' => $erros['pausas'] ?? ($erros['geral'] ?? null),
+            'eP' => [], 'vP' => IfoodLojaService::novaPausa($fuso),
+            'nota' => null, 'fusoLoja' => $fuso,
+            'base' => $this->url(), 'csrf' => \Cardapim\Core\Session::tokenCsrf(),
+        ], 'layouts/fragmento');
+        $escape = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $aviso = static fn (?string $msg): string => $msg
+            ? '<div class="notice notice-warning"><div><p>' . htmlspecialchars($msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p></div></div>' : '';
+        $htmlStatus = \Cardapim\Core\View::render('gerencia/integracoes/_ifood-situacao', [
+            'p' => $estado, 'e' => $escape, 'aviso' => $aviso,
+        ], 'layouts/fragmento');
+        return \Cardapim\Services\Auth\Guard::semCache(Response::json([
+            'ok' => true, 'registro_confirmado' => $registroConfirmado,
+            'vigente' => $pausaVigente,
+            'disponivel' => $disponivel,
+            'html' => $htmlPausas, 'html_status' => $htmlStatus,
+            'erro_consulta' => $erros !== [],
+        ]));
+    }
+
     /** Horario no iFood: o do Perfil (padrao) ou um horario diferente so para o iFood. */
     public function ifoodHorarios(string $slug): Response
     {
@@ -427,7 +480,14 @@ final class IntegracoesController extends BaseGerencia
             'base' => $this->url(),
             'csrf' => \Cardapim\Core\Session::tokenCsrf(),
         ], 'layouts/fragmento');
-        return \Cardapim\Services\Auth\Guard::semCache(Response::json(['ok' => $res->ok, 'mensagem' => $res->mensagem, 'html' => $html], $res->ok ? 200 : 422));
+        return \Cardapim\Services\Auth\Guard::semCache(Response::json([
+            'ok' => $res->ok,
+            'mensagem' => $res->mensagem,
+            'html' => $html,
+            'id_pausa' => $res->ok ? ($servico->idCriado() ?? $servico->idRemovido()) : null,
+            'acao' => $servico->idCriado() !== null ? 'criar' : 'remover',
+            'registro_confirmado' => $res->ok && !$pendente,
+        ], $res->ok ? 200 : 422));
     }
 
     /** @param array<string,array<string,string>> $erros @param array<string,mixed> $valores */

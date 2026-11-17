@@ -33,7 +33,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <?php else: ?>
     <ul class="ifood-lista">
         <?php foreach ($pausas as $pausa): $agora = in_array($pausa['id'], $ativas, true); $fimPausa = IfoodLojaService::dataIfood($pausa['fim']); $encerrada = $fimPausa !== null && $fimPausa->getTimestamp() <= time(); ?>
-            <li class="ifood-lista-item">
+            <li class="ifood-lista-item" data-ifood-pausa-id="<?= $e($pausa['id']) ?>">
                 <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
                     <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?> (horário da loja)</small></span>
                 <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Horário vigente' : ($encerrada ? 'Encerrada' : 'Agendada') ?></span>

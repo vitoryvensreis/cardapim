@@ -14,7 +14,7 @@ $resumoCardapio ??= ['total' => 0, 'ligados' => 0, 'erros' => 0];
 $ultimaConsulta = $integracao['verificado_em'] ? time() - (int) strtotime((string) $integracao['verificado_em']) : null;
 $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'pendente' && ($ultimaConsulta === null || $ultimaConsulta > 180);
 ?>
-<div class="painel-page painel-page-form">
+<div class="painel-page painel-page-form ifood-dashboard-page">
     <header class="painel-cabecalho">
         <div>
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
@@ -109,15 +109,32 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             <div class="notice notice-warning"><?= Icon::svg('triangle-exclamation-point') ?><div><strong>Os pedidos do iFood não estão chegando agora.</strong>
                 <p>A consulta automática ao iFood não rodou nos últimos minutos<?= $ultimaConsulta !== null ? ' (última às ' . $e(date('H:i', (int) strtotime((string) $integracao['verificado_em']))) . ')' : '' ?>. Use o Gestor de Pedidos do iFood enquanto isso e avise o suporte do <?= marca_html() ?>.</p></div></div>
         <?php endif; ?>
+
+        <?php if (is_array($painel ?? null)): ?>
+        <section class="ifood-dashboard-section" id="secao-status" aria-labelledby="ifood-grupo-status">
+            <header class="ifood-dashboard-heading">
+                <div><h2 id="ifood-grupo-status"><?= Icon::svg('activity', 'icon-sm') ?> Status da operação</h2><p>Acompanhe a loja e controle suas pausas.</p></div>
+                <div class="ifood-dashboard-metricas">
+                    <div><small>Pedidos do iFood hoje</small><strong><?= (int) $pedidosHoje ?></strong></div>
+                    <div><small>Última consulta</small><strong><?= $ultimaConsulta === null ? '-' : ($ultimaConsulta < 60 ? 'Agora há pouco' : $e($data($integracao['verificado_em']))) ?></strong></div>
+                </div>
+            </header>
+            <?php require __DIR__ . '/ifood-loja.php'; ?>
+        </section>
+        <?php endif; ?>
+
+        <section class="ifood-dashboard-section" id="secao-loja" aria-labelledby="ifood-grupo-loja">
+            <header class="ifood-dashboard-heading">
+                <div><h2 id="ifood-grupo-loja"><?= Icon::svg('store', 'icon-sm') ?> Loja</h2><p>Dados da conexão e horários de atendimento.</p></div>
+            </header>
+            <div class="ifood-dashboard-grid ifood-dashboard-grid-loja">
         <section class="bloco" aria-labelledby="titulo-conectado">
-            <div class="bloco-cabecalho"><h2 id="titulo-conectado"><?= Icon::svg('shopping-bag') ?>Conexão com o iFood</h2></div>
+            <div class="bloco-cabecalho"><h2 id="titulo-conectado"><?= Icon::svg('shopping-bag') ?>Conta vinculada</h2></div>
             <?php if ($integracao['ultimo_erro']): ?>
                 <div class="notice notice-warning"><?= Icon::svg('circle-exclamation-point') ?><div><p><?= $e((string) $integracao['ultimo_erro']) ?></p></div></div>
             <?php endif; ?>
             <div class="resumo-assinatura">
                 <div class="resumo-linha"><span>Loja no iFood</span><strong><?= $e((string) ($d['loja_nome'] ?? '-')) ?></strong></div>
-                <div class="resumo-linha"><span>Pedidos do iFood hoje</span><strong><?= (int) $pedidosHoje ?></strong></div>
-                <div class="resumo-linha"><span>Última consulta ao iFood</span><strong><?= $ultimaConsulta === null ? '-' : ($ultimaConsulta < 60 ? 'agora há pouco' : $e($data($integracao['verificado_em']))) ?></strong></div>
             </div>
             <p class="texto-suave">Os pedidos chegam automaticamente no Delivery do caixa, onde você também pode aceitar e acompanhar o preparo.</p>
             <div class="acoes-2fa">
@@ -133,10 +150,18 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             </div>
         </section>
 
-        <?php if (is_array($painel ?? null)): ?>
-            <?php require __DIR__ . '/ifood-loja.php'; ?>
-        <?php endif; ?>
 
+                <?php if (is_array($painel ?? null)): ?>
+                    <?php require __DIR__ . '/_ifood-horarios.php'; ?>
+                <?php endif; ?>
+            </div>
+        </section>
+
+        <section class="ifood-dashboard-section" id="secao-cardapio" aria-labelledby="ifood-grupo-cardapio">
+            <header class="ifood-dashboard-heading">
+                <div><h2 id="ifood-grupo-cardapio"><?= Icon::svg('utensils', 'icon-sm') ?> Cardápio</h2><p>Produtos, estoque e recebimento de pedidos.</p></div>
+            </header>
+            <div class="ifood-dashboard-grid ifood-dashboard-grid-cardapio">
         <section class="bloco" aria-labelledby="titulo-cardapio-ifood">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-cardapio-ifood"><?= Icon::svg('list-checks') ?>Cardápio e estoque</h2>
@@ -154,6 +179,7 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                 <a class="btn btn-outline" href="<?= $e($base . '/integracoes/ifood/cardapio') ?>"><?= Icon::svg('link', 'icon-sm') ?>Ligar itens do cardápio</a>
             </div>
         </section>
+
 
         <section class="bloco" aria-labelledby="titulo-opcoes-ifood">
             <div class="bloco-cabecalho"><h2 id="titulo-opcoes-ifood"><?= Icon::svg('settings') ?>Opções</h2></div>
@@ -173,5 +199,19 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                 <div class="bloco-rodape"><button class="btn btn-primary" type="submit"><?= Icon::svg('check', 'icon-sm') ?>Salvar opções</button></div>
             </form>
         </section>
+
+            </div>
+        </section>
+
+        <?php if (is_array($painel ?? null)): ?>
+            <?php require __DIR__ . '/_ifood-diagnosticos.php'; ?>
+            <div class="ifood-aguardando" data-ifood-overlay hidden role="status" aria-live="polite" aria-busy="true">
+                <div class="ifood-aguardando-conteudo">
+                    <?= Icon::svg('loader-circle', 'icon-lg') ?>
+                    <strong>Aguardando iFood</strong>
+                    <p>Enviando a solicitação. Não feche esta página.</p>
+                </div>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>

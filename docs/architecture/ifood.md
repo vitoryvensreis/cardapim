@@ -20,6 +20,15 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
   controla estoque, a quantidade também é enviada (se a loja não usar o controle de quantidade do iFood, só a
   disponibilidade é enviada).
 
+
+### Painel iFood responsivo e confirmação visual de pausas
+
+- A única tela `/{slug}/gerencia/integracoes/ifood` está dividida em **Status**, **Loja** e **Cardápio**, com diagnósticos técnicos recolhíveis durante a homologação; a rota antiga `/minha-loja` continua como alias. Grid responsiva com colunas `minmax(0,1fr)`, largura expandida no desktop e cards empilhados em mobile, sem rolagem horizontal.
+- `POST /integracoes/ifood/pausas` (ou `/remover`) mantém validação CSRF, tenant e RBAC. O JS mostra imediatamente card temporário da pausa, bloqueia reenvio e exibe overlay branco translúcido **somente enquanto aguarda a resposta HTTP**. Se a resposta for incerta (timeout/rede), NÃO repete o POST automaticamente; informa que é preciso consultar antes de tentar novamente.
+- Após a resposta HTTP de criação, a tela chama `GET /integracoes/ifood/pausas/estado?pausa={id}&acao=criar|remover` em polling **limitado** (até três consultas: primeira após 3 segundos para confirmar o registro, seguintes em intervalos de 30 segundos para respeitar o processamento assíncrono) usando sessão autenticada; a rota consulta GET Merchant `/interruptions` e `/status` sem modificar estado local. São retornadas renderizações parciais de pausas e disponibilidade, com `registro_confirmado`, `vigente`, `disponivel` e erros de consulta tratados separadamente.
+- **Dois níveis de confirmação:** `201 Created` significa solicitação recebida; o ID aparecer em `GET /interruptions` confirma o registro; somente `GET /status` com operação indisponível comprova fechamento operacional. Pausa futura apenas confirma registro, não exige fechamento prematuro.
+- CSS/JS em `public/assets/css/ifood.css` e `public/assets/js/integracoes.js`; spinner via sprite Lucide oficial, movimento reduzido respeitado; overlay com aria-live, sem HTML/JS inline. O cron independente continua responsável pela reconciliação persistida no MySQL.
+
 ## Telas
 
 - `Gerência > Integrações > iFood`: situação da loja, pedidos do iFood hoje, última consulta ao iFood (alerta se a
