@@ -258,7 +258,15 @@ curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
 esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
-contem "gerencia nao inventa fechamento apos POST" "$tmp/sit.json" '"estado":"divergente"'
+# O cron pode ter atualizado o snapshot no mesmo segundo do POST ou nao:
+# ambos "divergente" e "erro/Verificando iFood" sao seguros ate GET /status.
+if grep -Eq '"estado":"(divergente|erro)"' "$tmp/sit.json"; then
+  ok "gerencia sinaliza estado transitorio seguro apos POST"
+else
+  falha "gerencia nao sinalizou estado transitorio seguro apos POST"
+fi
+nao_contem "nunca inventa fechamento apos POST" "$tmp/sit.json" '"estado":"pausada"'
+nao_contem "nunca informa fechada antes do GET" "$tmp/sit.json" '"estado":"fechada"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa aguarda confirmacao antes de permitir reabrir" "$tmp/sit.json" '"pode_abrir":false'
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
