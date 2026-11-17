@@ -28,12 +28,10 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <?php if ($erroLista !== null): ?>
     <div class="notice notice-warning"><?= Icon::svg('circle-exclamation-point') ?><div><p><?= $e($erroLista) ?></p></div></div>
 <?php endif; ?>
-<?php if ($pausas === []): ?>
-    <p class="texto-suave"><?= $erroLista !== null ? 'Não foi possível confirmar as pausas agora.' : 'Nenhuma pausa ativa.' ?></p>
-<?php else: ?>
-    <ul class="ifood-lista">
+<p class="texto-suave" data-pausas-vazio<?= $pausas !== [] ? ' hidden' : '' ?>><?= $erroLista !== null ? 'Não foi possível confirmar as pausas agora.' : 'Nenhuma pausa ativa.' ?></p>
+    <ul class="ifood-lista" data-pausas-lista<?= $pausas === [] ? ' hidden' : '' ?>>
         <?php foreach ($pausas as $pausa): $agora = in_array($pausa['id'], $ativas, true); $fimPausa = IfoodLojaService::dataIfood($pausa['fim']); $encerrada = $fimPausa !== null && $fimPausa->getTimestamp() <= time(); ?>
-            <li class="ifood-lista-item">
+            <li class="ifood-lista-item" data-pausa-id="<?= $e($pausa['id']) ?>">
                 <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
                     <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?> (horário da loja)</small></span>
                 <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Horário vigente' : ($encerrada ? 'Encerrada' : 'Agendada') ?></span>
@@ -46,7 +44,6 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
             </li>
         <?php endforeach; ?>
     </ul>
-<?php endif; ?>
 <form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-pausa-form>
     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
     <h3>Nova pausa</h3>
