@@ -24,7 +24,7 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
         <div class="cd-hero-texto">
             <h1 id="cd-nome" data-hero-nome><?= $e((string) $restaurante['nome']) ?></h1>
             <p class="cd-hero-linha">
-                <span class="cd-status cd-status-<?= $status[0] ?>"><?= Icon::svg($status[1], 'icon-sm') ?><?= $status[2] ?></span>
+                <span class="cd-status cd-status-<?= $status[0] ?>" data-estado-loja><?= Icon::svg($status[1], 'icon-sm') ?><span data-estado-texto><?= $status[2] ?></span></span>
                 <?php if ($info['bairro_cidade'] !== ''): ?><span class="cd-local"><?= Icon::svg('map-pin', 'icon-sm') ?><?= $e($info['bairro_cidade']) ?></span><?php endif; ?>
             </p>
         </div>
@@ -52,8 +52,8 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
             <?php endif; ?>
         </div>
     </details>
-    <?php if (($info['horario_informado'] || ($info['fechado_integracao'] ?? false)) && !$aberto && $totalProdutos > 0): ?>
-        <p class="cd-aviso" role="status"><?= Icon::svg('clock', 'icon-sm') ?>O restaurante está fechado agora. Você pode montar sua sacola e pedir quando ele abrir.</p>
+    <?php if ($totalProdutos > 0): ?>
+        <p class="cd-aviso" role="status" data-aviso-loja<?= $aberto || (!$info['horario_informado'] && !($info['fechado_integracao'] ?? false)) ? ' hidden' : '' ?>><?= Icon::svg('clock', 'icon-sm') ?><span data-aviso-loja-texto><?= ($info['fechado_integracao'] ?? false) ? 'O restaurante está temporariamente fechado. Você pode montar sua sacola e pedir quando ele abrir.' : 'O restaurante está fechado agora. Você pode montar sua sacola e pedir quando ele abrir.' ?></span></p>
     <?php endif; ?>
     <div class="cd-ativos" data-pedidos-ativos aria-live="polite" hidden></div>
 </section>
