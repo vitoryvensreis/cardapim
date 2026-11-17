@@ -142,7 +142,7 @@
           acrescentarPendente(descricao, periodo, "Registrada; aguardando fechamento no iFood", id);
         } catch (erro) {
           // Falha no GET não significa falha no POST; não reenviar a pausa automaticamente.
-          if (tentativa === 9) {
+          if (tentativa === 2) {
             aviso("O iFood recebeu a solicitação, mas não foi possível confirmar o resultado. Atualize a tela e consulte a disponibilidade antes de tentar novamente.");
           }
         }
