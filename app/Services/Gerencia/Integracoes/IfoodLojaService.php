@@ -207,9 +207,11 @@ final class IfoodLojaService extends BaseIntegracao
     /**
      * Consultas leves somente-leitura para acompanhar criacao/remocao, sem fingir
      * confirmacao quando o iFood falha ou ainda devolve status antigo.
+     * Para remocao, consultar somente GET /interruptions: GET /status nao condiciona
+     * a remocao, pois outra restricao pode manter a loja fechada.
      * @return array{pausas:array,situacao:array,erros:array,divergencia:bool}
      */
-    public function acompanharPausa(): array
+    public function acompanharPausa(bool $consultarSituacao = true): array
     {
         $conta = $this->conta();
         $erros = [];
@@ -226,10 +228,12 @@ final class IfoodLojaService extends BaseIntegracao
             } catch (IntegracaoErro $e) {
                 $erros['pausas'] = $e->getMessage();
             }
-            try {
-                $situacao = $this->api->situacaoLoja($token, $loja);
-            } catch (IntegracaoErro $e) {
-                $erros['situacao'] = $e->getMessage();
+            if ($consultarSituacao) {
+                try {
+                    $situacao = $this->api->situacaoLoja($token, $loja);
+                } catch (IntegracaoErro $e) {
+                    $erros['situacao'] = $e->getMessage();
+                }
             }
         } catch (IntegracaoErro $e) {
             $erros['geral'] = $e->getMessage();
