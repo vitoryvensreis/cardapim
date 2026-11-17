@@ -39,7 +39,7 @@ flash() { curl -s -c "$1" -b "$1" "$2" | grep -o 'painel-flash-[a-z]*' | head -1
 aviso() { curl -s -c "$1" -b "$1" "$2" > "$tmp/aviso.html"; php -r 'if (preg_match("~data-flash>.*?<p>(.*?)</p>~s", file_get_contents($argv[1]), $m)) echo html_entity_decode($m[1]);' "$tmp/aviso.html"; }
 rodar() { $rotina > "$tmp/rotina.log" 2>&1 || { cat "$tmp/rotina.log"; falha "rotina do iFood rodou sem erro"; }; }
 registro() { curl -s "$fake/_teste/registro" > "$tmp/registro.json"; }
-no_registro() { registro; if grep -q -- "$2" "$tmp/registro.json"; then ok "$1"; else falha "$1 (iFood nao recebeu: $2)"; fi; }
+no_registro() { registro; if grep -q -- "$2" "$tmp/registro.json"; then ok "$1"; else falha "$1 (iFood nao recebeu: $2)"; php -r '$d = json_decode(file_get_contents($argv[1]), true); echo "    ultimas chamadas: ", implode(" | ", array_slice($d["linhas"] ?? [], -8)), "\n";' "$tmp/registro.json"; fi; }
 evento() { curl -s -o /dev/null -H 'Content-Type: application/json' --data "$1" "$fake/_teste/evento"; }
 id_local() { # display do iFood -> id do pedido no sistema (lista do delivery)
   curl -s -b "$cx" "$c/delivery" | php -r 'if (preg_match("~/caixa/delivery/(\d+)\">\s*<span class=\"delivery-linha\"><strong>#\d+ <span class=\"selo-ifood\">iFood #" . preg_quote($argv[1], "~") . "<~", stream_get_contents(STDIN), $m)) echo $m[1];' "$1"
@@ -287,6 +287,8 @@ esperar "muda nome e preco do item" "$(multipart "$gj" "$g/estoque/produtos/$pub
   -F controle=livre -F disponivel=1 -F "grupos[]=$grupo_ifood" -F "foto=@$tmp/foto.png;type=image/png" \
   -F "categoria=$(php -r 'if (preg_match("~<option value=\"(\d+)\" selected~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")" | cut -d' ' -f1)" "303"
 esperar "pausa o complemento" "$(enviar "$gj" "$g/estoque/complementos" "$g/estoque/complementos/opcoes/$bacon/pausar" | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/estoque/complementos" >/dev/null
+contem "complemento aparece pausado" "$tmp/pagina.html" 'R$ 4,50 · Pausado'
 enviar "$gj" "$g/integracoes/ifood/publicar" "$g/integracoes/ifood/publicar/sincronizar" >/dev/null
 aviso "$gj" "$g/integracoes/ifood/publicar" >/dev/null
 contem "mudancas enviadas" "$tmp/aviso.html" 'Mudanças enviadas ao iFood'
