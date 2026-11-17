@@ -31,6 +31,10 @@
 .campo-rotulo { color: var(--c-ink); font-size: .88rem; font-weight: 700; }
 .ifood-datas { display: grid; gap: .75rem; }
 .ifood-datas > div { display: grid; gap: .45rem; }
+.ifood-datas > div[hidden] { display: none; }
+.ifood-pausa-imediata { display: flex; align-items: center; gap: .65rem; padding: .45rem 0; font-weight: 650; cursor: pointer; }
+.ifood-pausa-imediata input { width: 1.15rem; height: 1.15rem; accent-color: var(--c-wine); }
+.ifood-form-pausa select { width: 100%; }
 .ifood-horarios { display: grid; gap: .75rem; }
 .ifood-dia { display: grid; gap: .45rem; margin: 0; padding: .75rem .9rem; border: 1px solid var(--c-line); border-radius: var(--r-md); }
 .ifood-dia legend { padding: 0 .3rem; color: var(--c-ink); font-weight: 700; }
