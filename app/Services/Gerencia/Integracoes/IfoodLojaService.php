@@ -12,6 +12,8 @@ use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Ifood\EstadoLoja;
+use Cardapim\Services\Ifood\FusoLojaIfood;
+use DateTimeZone;
 use DateTimeImmutable;
 use PDO;
 
@@ -44,7 +46,7 @@ final class IfoodLojaService extends BaseIntegracao
     public function painel(): array
     {
         $conta = $this->conta();
-        $vazio = ['conectada' => false, 'loja' => null, 'lojas' => [], 'detalhes' => null, 'situacao' => [], 'pausas' => [], 'divergencia' => false, 'horarios' => [], 'sugestao' => [],
+        $vazio = ['conectada' => false, 'loja' => null, 'lojas' => [], 'detalhes' => null, 'fuso' => 'America/Sao_Paulo', 'situacao' => [], 'pausas' => [], 'divergencia' => false, 'horarios' => [], 'sugestao' => [],
             'horario_proprio' => false, 'perfil' => ['turnos' => [], 'sempre' => false, 'resumo' => '', 'dias' => []], 'erros' => []];
         if (!$conta->conectada()) {
             return $vazio;
@@ -66,6 +68,8 @@ final class IfoodLojaService extends BaseIntegracao
                 return $padrao;
             }
         };
+        $detalhes = $buscar('detalhes', fn (): array => $this->api->detalhesLoja($token, $loja), null);
+        $fuso = FusoLojaIfood::sugerir(is_array($detalhes) ? $detalhes : []);
         $horarios = $buscar('horarios', fn (): array => $this->api->horarios($token, $loja), []);
         $situacao = $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []);
         $pausas = $buscar('pausas', fn (): array => $this->api->pausas($token, $loja), []);
@@ -75,7 +79,8 @@ final class IfoodLojaService extends BaseIntegracao
             'conectada' => true,
             'loja' => $loja,
             'lojas' => $buscar('lojas', fn (): array => $this->api->lojas($token), []),
-            'detalhes' => $buscar('detalhes', fn (): array => $this->api->detalhesLoja($token, $loja), null),
+            'detalhes' => $detalhes,
+            'fuso' => $fuso,
             'situacao' => $situacao,
             'pausas' => $pausas,
             'divergencia' => $divergencia,
@@ -87,46 +92,83 @@ final class IfoodLojaService extends BaseIntegracao
         ];
     }
 
-    /** Fecha a loja no iFood por um periodo. Datas no formato do campo datetime-local (2026-11-17T14:30). */
+    /**
+     * Cria interrupcao. O datetime-local e interpretado no fuso da loja Merchant
+     * (inferido do endereco, pois o endpoint nao informa o timezone configurado).
+     * A API trabalha com instantes ISO8601 UTC e responde de forma assincrona.
+     */
     public function criarPausa(string $descricao, string $inicio, string $fim): Resultado
     {
         $descricao = trim((string) preg_replace('/\s+/u', ' ', $descricao));
-        $erros = [];
-        if (mb_strlen($descricao) < 3 || mb_strlen($descricao) > 100) {
-            $erros['descricao'] = 'Conte o motivo da pausa (de 3 a 100 letras).';
+        if ($descricao === '' || mb_strlen($descricao) > 255) {
+            return Resultado::falha('Confira os campos da pausa.', [
+                'descricao' => 'Informe o motivo da pausa (até 255 caracteres).',
+            ]);
         }
-        $ini = self::dataHora($inicio);
-        $fi = self::dataHora($fim);
-        if ($ini === null) {
-            $erros['inicio'] = 'Escolha quando a pausa começa.';
-        } elseif ($ini < new DateTimeImmutable('-60 minutes')) {
-            $erros['inicio'] = 'A pausa não pode começar no passado.';
-        } elseif ($ini < new DateTimeImmutable()) {
-            $ini = new DateTimeImmutable(); // tela aberta ha alguns minutos: comeca agora
-        }
-        if ($fi === null) {
-            $erros['fim'] = 'Escolha quando a pausa termina.';
-        } elseif ($ini !== null && $fi <= $ini) {
-            $erros['fim'] = 'O fim precisa ser depois do começo.';
-        } elseif ($ini !== null && $fi > $ini->modify('+7 days')) {
-            $erros['fim'] = 'A pausa pode durar no máximo 7 dias (limite do iFood).';
-        }
-        if ($erros !== []) {
-            return Resultado::falha('Confira os campos da pausa.', $erros);
-        }
-        return $this->executar(function (string $token, string $loja) use ($descricao, $ini, $fi): Resultado {
+
+        return $this->executar(function (string $token, string $loja) use ($descricao, $inicio, $fim): Resultado {
+            $detalhes = $this->api->detalhesLoja($token, $loja);
+            $fuso = FusoLojaIfood::sugerir($detalhes);
+            $zona = new DateTimeZone($fuso);
+            $ini = self::dataHora($inicio, $zona);
+            $fi = self::dataHora($fim, $zona);
+            $agora = new DateTimeImmutable('now', $zona);
+            $campos = [];
+            if ($ini === null) {
+                $campos['inicio'] = 'Informe o início no horário da loja.';
+            } elseif ($ini->getTimestamp() < $agora->getTimestamp() - 60) {
+                $campos['inicio'] = 'O início da pausa não pode ficar no passado.';
+            } elseif ($ini < $agora) {
+                // O minuto apresentado pelo formulário pode ter acabado enquanto o gerente preenchia.
+                $ini = $agora;
+            }
+            if ($fi === null) {
+                $campos['fim'] = 'Informe o término no horário da loja.';
+            } elseif ($ini !== null) {
+                $duracao = $fi->getTimestamp() - $ini->getTimestamp();
+                if ($duracao < 60) {
+                    $campos['fim'] = 'A pausa deve durar pelo menos 1 minuto.';
+                } elseif ($duracao > 7 * 86400) {
+                    $campos['fim'] = 'A pausa pode durar no máximo 7 dias.';
+                }
+            }
+            if ($campos !== []) {
+                return Resultado::falha('Confira os horários da pausa.', $campos);
+            }
+
+            // O ambiente de teste pode aceitar sobreposicoes em vez do HTTP 409 documentado.
+            // Validar o intervalo de instantes no backend antes de enviar o POST.
+            foreach ($this->api->pausas($token, $loja) as $pausa) {
+                $inicioExistente = IfoodApi::data((string) ($pausa['inicio'] ?? ''))?->getTimestamp();
+                $fimExistente = IfoodApi::data((string) ($pausa['fim'] ?? ''))?->getTimestamp();
+                if ($inicioExistente !== null && $fimExistente !== null
+                    && $inicioExistente < $fi->getTimestamp() && $fimExistente > $ini->getTimestamp()) {
+                    return Resultado::falha('Já existe uma pausa no iFood nesse período. Ajuste as datas ou remova a pausa existente.', [
+                        'inicio' => 'Há uma interrupção sobreposta.',
+                    ]);
+                }
+            }
+
             $id = $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
             $this->ultimaCriadaId = $id;
             EstadoLoja::criarPausa($this->db, (int) $this->idRestaurante, $id, $ini, $fi);
-            $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s.', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i')));
-            return Resultado::sucesso('O iFood recebeu a solicitação de pausa de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . '. A disponibilidade foi protegida no Deliveryzim. Aguarde a confirmação na lista do iFood e atualize a página em alguns segundos.');
+            $this->log('iFood: pausa criada', sprintf(
+                '"%s" | loja=%s | fuso=%s | de=%s ate=%s | UTC=%s ate=%s',
+                $descricao, $loja, $fuso, $ini->format('d/m/Y H:i:s'), $fi->format('d/m/Y H:i:s'),
+                IfoodApi::data(self::utc($ini))?->format(DATE_ATOM), IfoodApi::data(self::utc($fi))?->format(DATE_ATOM)
+            ));
+            return Resultado::sucesso('O iFood recebeu a solicitação de pausa de '
+                . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i')
+                . ' (fuso da loja). Aguarde a confirmação na lista e no status operacional do iFood.');
         });
     }
 
-    /** Valores iniciais do formulario de nova pausa: comeca agora e dura 1 hora. @return array{descricao:string, inicio:string, fim:string} */
-    public static function novaPausa(): array
+    /** Valores iniciais no fuso inferido para o estabelecimento. */
+    public static function novaPausa(string $fuso = 'America/Sao_Paulo'): array
     {
-        return ['descricao' => '', 'inicio' => date('Y-m-d\TH:i'), 'fim' => date('Y-m-d\TH:i', time() + 3600)];
+        $agora = new DateTimeImmutable('now', FusoLojaIfood::timezone($fuso));
+        return ['descricao' => '', 'inicio' => $agora->format('Y-m-d\TH:i'),
+            'fim' => $agora->modify('+1 hour')->format('Y-m-d\TH:i')];
     }
 
     /**
@@ -517,9 +559,9 @@ final class IfoodLojaService extends BaseIntegracao
         return $d->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
     }
 
-    private static function dataHora(string $valor): ?DateTimeImmutable
+    private static function dataHora(string $valor, DateTimeZone $zona): ?DateTimeImmutable
     {
-        $d = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', trim($valor));
+        $d = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', trim($valor), $zona);
         return $d !== false && $d->format('Y-m-d\TH:i') === trim($valor) ? $d : null;
     }
 }
