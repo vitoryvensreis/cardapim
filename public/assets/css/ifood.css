@@ -89,3 +89,53 @@
 @media (prefers-reduced-motion: reduce) { .ifood-pausa-aviso { animation: none; } }
 .ifood-lista-item > span:first-child { flex: 1 1 14rem; }
 .ifood-lista-item > .etiqueta { display: inline-flex; }
+
+
+/* Painel iFood unificado — prioridade mobile e nenhum scroll horizontal. */
+.ifood-dashboard { width: min(100%, 82rem); max-width: 82rem; min-width: 0; margin-inline: auto; }
+.ifood-dashboard *, .ifood-dashboard *::before, .ifood-dashboard *::after { box-sizing: border-box; }
+.ifood-grupo { display: grid; gap: .85rem; min-width: 0; margin-top: 1.35rem; }
+.ifood-grupo-cabecalho { min-width: 0; }
+.ifood-grupo-cabecalho h2 { margin: 0; color: var(--c-wine); font-size: clamp(1.15rem, 2vw, 1.4rem); }
+.ifood-grupo-cabecalho p { margin: .2rem 0 0; color: var(--c-muted); font-size: .9rem; }
+.ifood-dashboard .bloco, .ifood-dashboard .ifood-secao-recolhivel { min-width: 0; margin-top: 0; }
+.ifood-status-grid, .ifood-grupo-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .9rem; align-items: start; min-width: 0; }
+.ifood-dashboard .bloco-rodape, .ifood-dashboard .acoes-2fa { display: flex; flex-wrap: wrap; gap: .55rem; }
+.ifood-dashboard .resumo-linha { min-width: 0; }
+.ifood-dashboard .resumo-linha strong, .ifood-dashboard .chave-curta { overflow-wrap: anywhere; min-width: 0; }
+.ifood-dashboard .ifood-secao-recolhivel > .bloco { margin: .6rem; }
+.ifood-dashboard input, .ifood-dashboard select, .ifood-dashboard button { max-width: 100%; min-width: 0; }
+.ifood-dashboard [data-pausas-vazio][hidden], .ifood-dashboard [data-pausas-lista][hidden] { display: none; }
+
+/* Card temporario nao indica que a API confirmou o fechamento. */
+.ifood-pausa-otimista { border: 1px dashed var(--c-orange); background: var(--c-cream); }
+.ifood-pausa-otimista .ifood-pausa-carregando { display: inline-flex; align-items: center; gap: .35rem; color: var(--c-wine); font-size: .82rem; font-weight: 700; }
+.ifood-pausa-otimista svg { width: 1rem; height: 1rem; animation: ifood-giro 1s linear infinite; }
+.ifood-pausa-otimista[data-estado="registrada"] svg, .ifood-pausa-otimista[data-estado="indefinida"] svg { animation: none; }
+.ifood-pausa-otimista[data-estado="registrada"] { border-style: solid; }
+
+/* Bloqueio visual enquanto confirma POST + consulta ao iFood. */
+.ifood-overlay { position: fixed; inset: 0; z-index: 3500; display: grid; place-items: center; background: rgba(255,255,255,.87); padding: 1.1rem; }
+.ifood-overlay[hidden] { display: none; }
+.ifood-overlay-conteudo { display: grid; justify-items: center; gap: .75rem; text-align: center; max-width: min(92vw, 26rem); padding: 1.5rem; color: var(--c-wine); }
+.ifood-overlay-conteudo svg { width: 3rem; height: 3rem; color: var(--c-orange); animation: ifood-giro 1s linear infinite; }
+.ifood-overlay-conteudo strong { font-size: 1.15rem; }
+.ifood-overlay-conteudo p { margin: 0; color: var(--c-ink); line-height: 1.5; }
+body.ifood-bloqueada { overflow: hidden; }
+@keyframes ifood-giro { to { transform: rotate(360deg); } }
+@media (min-width: 60rem) {
+  .ifood-status-grid { grid-template-columns: minmax(0, .8fr) minmax(0, 1.45fr); }
+  .ifood-grupo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 37rem) {
+  .ifood-dashboard { width: 100%; padding-inline: .65rem; }
+  .ifood-grupo { gap: .6rem; margin-top: 1rem; }
+  .ifood-grupo .bloco, .ifood-grupo .ifood-secao-recolhivel { width: 100%; }
+  .ifood-dashboard .bloco-rodape > .btn, .ifood-dashboard .acoes-2fa > form { flex: 1 1 auto; }
+  .ifood-dashboard .ifood-lista-item { flex-direction: column; align-items: stretch; }
+  .ifood-dashboard .ifood-lista-item form, .ifood-dashboard .ifood-lista-item button { width: 100%; }
+  .ifood-overlay-conteudo { padding: 1.1rem .6rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ifood-overlay-conteudo svg, .ifood-pausa-otimista svg { animation-duration: 2.8s; }
+}
