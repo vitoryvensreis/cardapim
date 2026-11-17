@@ -87,6 +87,34 @@ contem "resumo do cardapio" "$tmp/pagina.html" '0 de 2'
 contem "opcoes do iFood" "$tmp/pagina.html" 'Aceitar pedidos do iFood sozinho'
 contem "link para ligar os itens" "$tmp/pagina.html" '/integracoes/ifood/cardapio'
 
+echo "Loja no iFood (Merchant): lojas, dados, disponibilidade, pausas e horarios"
+contem "link da loja no iFood" "$tmp/pagina.html" '/integracoes/ifood/minha-loja'
+esperar "pagina da loja no iFood" "$(pagina "$gj" "$g/integracoes/ifood/minha-loja")" "200"
+contem "lista as lojas vinculadas" "$tmp/pagina.html" 'Loja CI Praia'
+contem "marca a loja ligada" "$tmp/pagina.html" 'Ligada a este restaurante'
+contem "razao social nos dados" "$tmp/pagina.html" 'Loja CI Ltda'
+contem "endereco nos dados" "$tmp/pagina.html" 'Rua CI, 10, Centro, Fortaleza - CE'
+contem "disponibilidade" "$tmp/pagina.html" 'Loja aberta no iFood'
+esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/minha-loja" | sed 's/302/403/')" "403"
+ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
+esperar "pausa sem motivo recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
+esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia' inicio="$fim" fim="$ini" | cut -d' ' -f1)" "422"
+esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
+pausa="$(php -r 'if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
+if [[ -z "$pausa" ]]; then falha "id da pausa na pagina"; fi
+esperar "remover pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa" | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
+esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
+esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" \
+  'h[SATURDAY][0][abre]=10:00' 'h[SATURDAY][0][fecha]=19:00' \
+  'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=13:00' 'h[SUNDAY][1][fecha]=16:00' 'h[SUNDAY][2][abre]=17:00' 'h[SUNDAY][2][fecha]=23:00' | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+contem "sabado no iFood" "$tmp/pagina.html" '10:00 às 19:00'
+contem "domingo com tres horarios no iFood" "$tmp/pagina.html" '09:00 às 12:00 · 13:00 às 16:00 · 17:00 às 23:00'
+
 echo "Cardapio do iFood ligado aos produtos"
 esperar "pagina do cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"
 contem "item do iFood listado" "$tmp/pagina.html" 'Lanche iFood CI'

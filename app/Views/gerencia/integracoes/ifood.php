@@ -134,6 +134,14 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             </div>
         </section>
 
+        <section class="bloco" aria-labelledby="titulo-loja-ifood">
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-loja-ifood"><?= Icon::svg('store') ?>Loja no iFood</h2>
+                <p>Dados da loja, disponibilidade agora, pausas e horário de funcionamento no iFood.</p>
+            </div>
+            <div class="bloco-rodape"><a class="btn btn-outline" href="<?= $e($base . '/integracoes/ifood/minha-loja') ?>"><?= Icon::svg('settings', 'icon-sm') ?>Abrir loja no iFood</a></div>
+        </section>
+
         <section class="bloco" aria-labelledby="titulo-cardapio-ifood">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-cardapio-ifood"><?= Icon::svg('list-checks') ?>Cardápio e estoque</h2>

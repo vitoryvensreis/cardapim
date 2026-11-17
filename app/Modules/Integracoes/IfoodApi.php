@@ -153,6 +153,122 @@ class IfoodApi
         return $this->exigirOk($r, 'buscar o entregador');
     }
 
+    /* ---------- Loja (Merchant): detalhes, situacao, pausas e horarios ---------- */
+
+    /** Dias da semana no formato do iFood, na ordem de segunda a domingo. */
+    public const DIAS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+    /** Detalhes completos da loja, como o iFood devolve (nome, razao social, endereco, operacoes e canais). @return array<string,mixed> */
+    public function detalhesLoja(string $token, string $idLoja): array
+    {
+        return $this->exigirOk($this->requisicao('GET', '/merchant/v1.0/merchants/' . self::id($idLoja), $token), 'buscar os dados da loja');
+    }
+
+    /**
+     * Situacao da loja por operacao (delivery, retirada...).
+     * @return list<array{operacao:string, canal:string, disponivel:bool, estado:string, mensagem:string, validacoes:list<string>, reabrir:?string}>
+     */
+    public function situacaoLoja(string $token, string $idLoja): array
+    {
+        $d = $this->exigirOk($this->requisicao('GET', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/status', $token), 'consultar a loja');
+        $lista = isset($d['operation']) || isset($d['state']) ? [$d] : $d;
+        $saida = [];
+        foreach ($lista as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $validacoes = [];
+            foreach (is_array($item['validations'] ?? null) ? $item['validations'] : [] as $v) {
+                if (is_array($v)) {
+                    $texto = trim((string) ($v['message']['title'] ?? $v['message']['description'] ?? $v['code'] ?? ''));
+                    if ($texto !== '') {
+                        $validacoes[] = mb_substr($texto . (isset($v['state']) ? ' (' . $v['state'] . ')' : ''), 0, 160);
+                    }
+                }
+            }
+            $msg = $item['message'] ?? [];
+            $saida[] = [
+                'operacao' => mb_substr((string) ($item['operation'] ?? '-'), 0, 40),
+                'canal' => mb_substr((string) ($item['salesChannel'] ?? ''), 0, 40),
+                'disponivel' => ($item['available'] ?? false) === true,
+                'estado' => mb_substr(strtoupper((string) ($item['state'] ?? '')), 0, 20),
+                'mensagem' => mb_substr(trim((string) (is_array($msg) ? ($msg['title'] ?? '') . ' ' . ($msg['subtitle'] ?? '') : $msg)), 0, 200),
+                'validacoes' => $validacoes,
+                'reabrir' => is_string($item['reopenable']['identifier'] ?? null) ? mb_substr($item['reopenable']['identifier'], 0, 64) : null,
+            ];
+        }
+        return $saida;
+    }
+
+    /** Pausas (interrupcoes) da loja. @return list<array{id:string, descricao:string, inicio:string, fim:string}> */
+    public function pausas(string $token, string $idLoja): array
+    {
+        $d = $this->exigirOk($this->requisicao('GET', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions', $token), 'listar as pausas');
+        $saida = [];
+        foreach ($d as $p) {
+            if (is_array($p) && is_string($p['id'] ?? null) && $p['id'] !== '') {
+                $saida[] = [
+                    'id' => mb_substr($p['id'], 0, 64),
+                    'descricao' => mb_substr((string) ($p['description'] ?? ''), 0, 200),
+                    'inicio' => (string) ($p['start'] ?? ''),
+                    'fim' => (string) ($p['end'] ?? ''),
+                ];
+            }
+        }
+        return $saida;
+    }
+
+    /** Cria uma pausa na loja (fecha no iFood entre inicio e fim). @return string id da pausa */
+    public function criarPausa(string $token, string $idLoja, string $descricao, \DateTimeImmutable $inicio, \DateTimeImmutable $fim): string
+    {
+        $id = self::uuid();
+        $r = $this->requisicao('POST', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions', $token, [
+            'id' => $id,
+            'description' => $descricao,
+            'start' => $inicio->format('Y-m-d\TH:i:sP'),
+            'end' => $fim->format('Y-m-d\TH:i:sP'),
+        ]);
+        $d = $this->exigirOk($r, 'criar a pausa');
+        return is_string($d['id'] ?? null) && $d['id'] !== '' ? $d['id'] : $id;
+    }
+
+    public function removerPausa(string $token, string $idLoja, string $idPausa): void
+    {
+        $this->exigirOk($this->requisicao('DELETE', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions/' . self::id($idPausa), $token), 'remover a pausa');
+    }
+
+    /** Horario de funcionamento no iFood. @return list<array{dia:string, inicio:string, duracao:int}> inicio "HH:MM", duracao em minutos */
+    public function horarios(string $token, string $idLoja): array
+    {
+        $d = $this->exigirOk($this->requisicao('GET', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/opening-hours', $token), 'consultar os horários');
+        $saida = [];
+        foreach (is_array($d['shifts'] ?? null) ? $d['shifts'] : [] as $t) {
+            if (!is_array($t) || !in_array($t['dayOfWeek'] ?? '', self::DIAS, true) || preg_match('/\A(\d{2}):(\d{2})/', (string) ($t['start'] ?? ''), $m) !== 1) {
+                continue;
+            }
+            $saida[] = ['dia' => (string) $t['dayOfWeek'], 'inicio' => $m[1] . ':' . $m[2], 'duracao' => max(0, (int) ($t['duration'] ?? 0))];
+        }
+        usort($saida, static fn (array $a, array $b): int => [array_search($a['dia'], self::DIAS, true), $a['inicio']] <=> [array_search($b['dia'], self::DIAS, true), $b['inicio']]);
+        return $saida;
+    }
+
+    /** Substitui o horario de funcionamento da loja no iFood. @param list<array{dia:string, inicio:string, duracao:int}> $turnos */
+    public function salvarHorarios(string $token, string $idLoja, array $turnos): void
+    {
+        $shifts = array_map(static fn (array $t): array => ['dayOfWeek' => $t['dia'], 'start' => $t['inicio'] . ':00', 'duration' => $t['duracao']], $turnos);
+        $r = $this->requisicao('PUT', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/opening-hours', $token, ['storeId' => $idLoja, 'shifts' => $shifts]);
+        $this->exigirOk($r, 'salvar os horários');
+    }
+
+    /** Identificador aleatorio (UUID v4), usado nos cadastros enviados ao iFood. */
+    public static function uuid(): string
+    {
+        $b = random_bytes(16);
+        $b[6] = chr((ord($b[6]) & 0x0f) | 0x40);
+        $b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
+    }
+
     /* ---------- Cardapio (itens e disponibilidade) ---------- */
 
     /** @return list<string> ids dos cardapios da loja */
@@ -289,6 +405,30 @@ class IfoodApi
         if ($r->status === 401 || $r->status === 403) {
             throw new IntegracaoErro('O iFood recusou o acesso ao ' . $acao . '. Se a autorização foi removida no Portal do Parceiro, conecte de novo.', $r->status);
         }
-        throw new IntegracaoErro('O iFood não respondeu como esperado ao ' . $acao . ' (código ' . $r->status . '). Tente de novo em instantes.', $r->status);
+        $detalhe = self::detalheErro($r);
+        throw new IntegracaoErro('O iFood não respondeu como esperado ao ' . $acao . ' (código ' . $r->status . ').'
+            . ($detalhe !== '' ? ' Resposta do iFood: ' . $detalhe : ' Tente de novo em instantes.'), $r->status);
+    }
+
+    /** Mensagem de erro que o iFood mandou (curta, sem quebras), para o gerente e o suporte entenderem o motivo. */
+    private static function detalheErro(RespostaHttp $r): string
+    {
+        try {
+            $d = $r->json();
+        } catch (\Throwable) {
+            return '';
+        }
+        $partes = [];
+        foreach ([$d['message'] ?? null, $d['error']['message'] ?? null, $d['error_description'] ?? null, is_string($d['error'] ?? null) ? $d['error'] : null] as $m) {
+            if (is_string($m) && trim($m) !== '') {
+                $partes[] = trim($m);
+            }
+        }
+        foreach (is_array($d['error']['details'] ?? null) ? array_slice($d['error']['details'], 0, 3) : [] as $det) {
+            if (is_array($det) && is_string($det['message'] ?? null)) {
+                $partes[] = trim(($det['field'] ?? '') !== '' ? $det['field'] . ': ' . $det['message'] : $det['message']);
+            }
+        }
+        return mb_substr((string) preg_replace('/\s+/u', ' ', implode(' | ', array_unique($partes))), 0, 220);
     }
 }

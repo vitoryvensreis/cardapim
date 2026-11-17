@@ -317,6 +317,42 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
     if (preg_match('~/merchants/[0-9a-f-]+/status\z~', $caminho)) {
         $responder(200, [['operation' => 'delivery', 'available' => true, 'state' => 'OK', 'message' => ['title' => 'Loja aberta no iFood']]]);
     }
+    // Merchant: detalhes, pausas (interrupcoes) e horarios, guardados em arquivo para o teste conferir.
+    if (preg_match('~\A/ifood/merchant/v1\.0/merchants/([0-9a-f-]+)\z~', $caminho, $m) && $metodo === 'GET') {
+        $responder(200, ['id' => $m[1], 'name' => 'Loja CI Centro', 'corporateName' => 'Loja CI Ltda', 'averageTicket' => 42.5, 'type' => 'RESTAURANT',
+            'address' => ['street' => 'Rua CI', 'number' => '10', 'district' => 'Centro', 'city' => 'Fortaleza', 'state' => 'CE', 'postalCode' => '60000000'],
+            'operations' => [['name' => 'DELIVERY', 'salesChannels' => [['name' => 'IFOOD', 'enabled' => true]]]]]);
+    }
+    if (preg_match('~\A/ifood/merchant/v1\.0/merchants/[0-9a-f-]+/interruptions\z~', $caminho)) {
+        $pausas = $ler('ifood-pausas.json') ?? [];
+        if ($metodo === 'POST') {
+            if (trim((string) ($json['description'] ?? '')) === '' || strtotime((string) ($json['end'] ?? '')) <= strtotime((string) ($json['start'] ?? ''))) {
+                $responder(400, ['message' => 'Interrupcao invalida']);
+            }
+            $pausas[$json['id']] = ['id' => $json['id'], 'description' => $json['description'], 'start' => $json['start'], 'end' => $json['end']];
+            $guardar('ifood-pausas.json', $pausas);
+            $responder(201, $pausas[$json['id']]);
+        }
+        $responder(200, array_values($pausas));
+    }
+    if (preg_match('~\A/ifood/merchant/v1\.0/merchants/[0-9a-f-]+/interruptions/([A-Za-z0-9-]+)\z~', $caminho, $m) && $metodo === 'DELETE') {
+        $pausas = $ler('ifood-pausas.json') ?? [];
+        unset($pausas[$m[1]]);
+        $guardar('ifood-pausas.json', $pausas);
+        http_response_code(204);
+        exit;
+    }
+    if (preg_match('~\A/ifood/merchant/v1\.0/merchants/([0-9a-f-]+)/opening-hours\z~', $caminho, $m)) {
+        if ($metodo === 'PUT') {
+            if (($json['storeId'] ?? '') !== $m[1] || !is_array($json['shifts'] ?? null)) {
+                $responder(400, ['message' => 'storeId ou shifts invalidos']);
+            }
+            $guardar('ifood-horarios.json', ['shifts' => $json['shifts']]);
+            http_response_code(201);
+            exit;
+        }
+        $responder(200, ['id' => 'oh-ci', 'shifts' => ($ler('ifood-horarios.json') ?? ['shifts' => []])['shifts']]);
+    }
 }
 /* ---------- iFood: pedidos, avisos (polling) e cardapio ---------- */
 $ifoodLog = static function (string $linha) use ($pasta): void {

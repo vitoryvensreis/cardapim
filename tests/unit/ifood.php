@@ -5,6 +5,8 @@ declare(strict_types=1);
 // Teste sem banco: php tests/unit/ifood.php (conversao do pedido do iFood e codigos dos avisos)
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
+use Cardapim\Modules\Integracoes\IfoodApi;
+use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
 use Cardapim\Services\Ifood\EventosIfood;
 use Cardapim\Services\Ifood\PedidoIfood;
 
@@ -110,6 +112,25 @@ try {
 } catch (InvalidArgumentException) {
     $ok(true, 'id invalido recusado');
 }
+
+// Horarios da loja no iFood (formulario -> turnos com duracao em minutos).
+$h = IfoodLojaService::lerHorarios([
+    'SATURDAY' => [['abre' => '10:00', 'fecha' => '19:00']],
+    'SUNDAY' => [['abre' => '17:00', 'fecha' => '23:00'], ['abre' => '09:00', 'fecha' => '12:00'], ['abre' => '13:00', 'fecha' => '16:00'], ['abre' => '', 'fecha' => '']],
+]);
+$ok($h['erros'] === [], 'horarios do checklist validos');
+$ok($h['turnos'] === [
+    ['dia' => 'SATURDAY', 'inicio' => '10:00', 'duracao' => 540],
+    ['dia' => 'SUNDAY', 'inicio' => '09:00', 'duracao' => 180],
+    ['dia' => 'SUNDAY', 'inicio' => '13:00', 'duracao' => 180],
+    ['dia' => 'SUNDAY', 'inicio' => '17:00', 'duracao' => 360],
+], 'turnos em ordem e com duracao');
+$ok(IfoodLojaService::lerHorarios(['MONDAY' => [['abre' => '18:00', 'fecha' => '00:00']]])['turnos'][0]['duracao'] === 360, 'fecha a meia-noite');
+$ok(isset(IfoodLojaService::lerHorarios(['MONDAY' => [['abre' => '09:00', 'fecha' => '12:00'], ['abre' => '11:00', 'fecha' => '13:00']]])['erros']['MONDAY.1']), 'sobreposicao recusada');
+$ok(isset(IfoodLojaService::lerHorarios(['MONDAY' => [['abre' => '19:00', 'fecha' => '10:00']]])['erros']['MONDAY.0']), 'fecha antes de abrir recusado');
+$ok(isset(IfoodLojaService::lerHorarios(['MONDAY' => [['abre' => '25:00', 'fecha' => '10:00']]])['erros']['MONDAY.0']), 'hora invalida recusada');
+$ok(IfoodLojaService::paraFormulario([['dia' => 'SUNDAY', 'inicio' => '17:00', 'duracao' => 420]]) === ['SUNDAY' => [['abre' => '17:00', 'fecha' => '00:00']]], 'volta para o formulario');
+$ok(preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/', IfoodApi::uuid()) === 1, 'uuid v4');
 
 if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s) no iFood.\n");

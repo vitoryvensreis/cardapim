@@ -17,3 +17,27 @@
 @media (min-width: 48rem) {
   .ifood-item { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); align-items: start; }
 }
+
+/* Loja no iFood (gerencia > integracoes > iFood > loja): lojas, dados, pausas e horarios */
+.ifood-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.ifood-lista-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .75rem .9rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.ifood-lista-item > span { display: grid; gap: .15rem; min-width: 0; }
+.ifood-lista-item strong { color: var(--c-ink); overflow-wrap: anywhere; }
+.ifood-lista-item small { color: var(--c-muted); font-size: .85rem; overflow-wrap: anywhere; }
+.ifood-json { max-height: 22rem; overflow: auto; margin: .75rem 0 0; padding: .75rem; border-radius: var(--r-md); background: #fbf7f8; color: var(--c-ink); font: .78rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ifood-form-pausa { display: grid; gap: .45rem; margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px dashed var(--c-line); }
+.ifood-form-pausa h3, .ifood-subtitulo { color: var(--c-ink); font-size: 1rem; font-weight: 700; }
+.ifood-subtitulo { margin: 1.25rem 0 .6rem; }
+.campo-rotulo { color: var(--c-ink); font-size: .88rem; font-weight: 700; }
+.ifood-datas { display: grid; gap: .75rem; }
+.ifood-datas > div { display: grid; gap: .45rem; }
+.ifood-horarios { display: grid; gap: .75rem; }
+.ifood-dia { display: grid; gap: .45rem; margin: 0; padding: .75rem .9rem; border: 1px solid var(--c-line); border-radius: var(--r-md); }
+.ifood-dia legend { padding: 0 .3rem; color: var(--c-ink); font-weight: 700; }
+.ifood-turno { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: .5rem; }
+.ifood-turno span { color: var(--c-muted); font-size: .85rem; }
+.ifood-turno.tem-erro input { border-color: var(--c-danger, #b3261e); }
+@media (min-width: 40rem) {
+  .ifood-datas { grid-template-columns: 1fr 1fr; }
+  .ifood-horarios { grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
+}
