@@ -73,65 +73,72 @@ gj="$tmp/g"; cx="$tmp/c"
 esperar "gerente entra" "$(login "$gj" ci_gerente)" "303"
 esperar "caixa entra" "$(login "$cx" ci_caixa)" "303"
 
-echo "Conectar o iFood (busca o cardapio sozinho)"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+echo "Conectar o iFood e verificar as quatro abas"
+esperar "url antiga redireciona para status" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code} %{redirect_url}' "$g/integracoes/ifood")" "302 $g/integracoes/ifood/status"
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 if grep -q 'Loja conectada' "$tmp/pagina.html"; then
-  enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/desconectar" >/dev/null
+  enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/desconectar" >/dev/null
 fi
-enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/iniciar" >/dev/null
-enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/concluir" codigo='AUTH-CI-OK' >/dev/null
-esperar "escolher a loja" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/loja" loja="$loja")" "303 $g/integracoes/ifood"
-esperar "conectado e cardapio buscado" "$(aviso "$gj" "$g/integracoes/ifood")" 'iFood conectado à loja "Loja CI Centro". Encontramos 2 itens no cardápio do iFood (0 ligados aos seus produtos).'
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/iniciar" >/dev/null
+enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/concluir" codigo='AUTH-CI-OK' >/dev/null
+esperar "escolher loja" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/loja" loja="$loja")" "303 $g/integracoes/ifood/status"
+esperar "conectado e cardapio buscado" "$(aviso "$gj" "$g/integracoes/ifood/status")" 'iFood conectado à loja "Loja CI Centro". Encontramos 2 itens no cardápio do iFood (0 ligados aos seus produtos).'
+
+esperar "aba Status" "$(pagina "$gj" "$g/integracoes/ifood/status")" "200"
+contem "navegacao tem Status" "$tmp/pagina.html" '/integracoes/ifood/status'
+contem "navegacao tem Loja" "$tmp/pagina.html" '/integracoes/ifood/loja'
+contem "navegacao tem Cardapio" "$tmp/pagina.html" '/integracoes/ifood/cardapio'
+contem "navegacao tem Dados" "$tmp/pagina.html" '/integracoes/ifood/dados'
+contem "Status ativo e acessivel" "$tmp/pagina.html" 'href="'
+contem "disponibilidade somente em Status" "$tmp/pagina.html" 'Disponibilidade agora'
+contem "pausas somente em Status" "$tmp/pagina.html" 'Nova pausa'
+contem "Status nao mistura cardapio" "$tmp/pagina.html" 'id="secao-status"'
+nao_contem "Status sem secao Loja" "$tmp/pagina.html" 'id="secao-loja"'
+nao_contem "Status sem secao Cardapio" "$tmp/pagina.html" 'id="secao-cardapio"'
+contem "overlay do Status" "$tmp/pagina.html" 'data-ifood-overlay'
+contem "confirmacao AJAX do Status" "$tmp/pagina.html" 'data-pausas-status-url='
+contem "motivo no limite Merchant" "$tmp/pagina.html" 'maxlength="255"'
+contem "horario fixo de Brasilia" "$tmp/pagina.html" 'Brasília'
+nao_contem "sem seletor de fuso" "$tmp/pagina.html" 'id="fuso-ifood"'
+nao_contem "sem relogios" "$tmp/pagina.html" 'data-ifood-relogios'
+nao_contem "sem inicio imediato" "$tmp/pagina.html" 'name="inicio_agora"'
+esperar "POST antigo de fuso removido" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code}' -X POST "$g/integracoes/ifood/fuso")" "404"
+esperar "caixa sem acesso ao Status" "$(pagina "$cx" "$g/integracoes/ifood/status" | sed 's/302/403/')" "403"
+
+esperar "aba Loja" "$(pagina "$gj" "$g/integracoes/ifood/loja")" "200"
+contem "Loja tem conta vinculada" "$tmp/pagina.html" 'Conta vinculada'
+contem "Loja tem horarios" "$tmp/pagina.html" 'Horários de funcionamento'
+nao_contem "Loja sem pausas" "$tmp/pagina.html" 'id="pausas"'
+nao_contem "Loja sem cardapio" "$tmp/pagina.html" 'id="secao-cardapio"'
+
+esperar "aba Cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"
 contem "resumo do cardapio" "$tmp/pagina.html" '0 de 2'
 contem "opcoes do iFood" "$tmp/pagina.html" 'Aceitar pedidos do iFood sozinho'
-contem "link para ligar os itens" "$tmp/pagina.html" '/integracoes/ifood/cardapio'
-contem "painel unico: disponibilidade na pagina principal" "$tmp/pagina.html" 'Disponibilidade agora'
-contem "painel unico: pausas na pagina principal" "$tmp/pagina.html" 'Nova pausa'
-contem "painel unico: horarios recolhiveis" "$tmp/pagina.html" 'ifood-secao-recolhivel'
-contem "diagnosticos mantidos" "$tmp/pagina.html" 'Dados e diagnósticos da integração'
-contem "grid de painel responsivo" "$tmp/pagina.html" 'ifood-dashboard-page'
-contem "secao status" "$tmp/pagina.html" 'id="secao-status"'
-contem "secao loja" "$tmp/pagina.html" 'id="secao-loja"'
-contem "secao cardapio" "$tmp/pagina.html" 'id="secao-cardapio"'
-contem "overlay de espera por iFood" "$tmp/pagina.html" 'data-ifood-overlay'
-contem "mensagem de envio bloqueante" "$tmp/pagina.html" 'Aguardando iFood'
-contem "url da confirmacao AJAX" "$tmp/pagina.html" 'data-pausas-status-url='
+contem "vinculos preservados" "$tmp/pagina.html" '/integracoes/ifood/cardapio/vinculos'
+nao_contem "Cardapio sem dados do Merchant" "$tmp/pagina.html" 'Lojas vinculadas'
 
-echo "Loja no iFood (Merchant): lojas, dados, disponibilidade, pausas e horarios"
-contem "acesso direto as pausas" "$tmp/pagina.html" 'id="pausas"'
-esperar "pagina da loja no iFood" "$(pagina "$gj" "$g/integracoes/ifood/minha-loja")" "200"
-contem "lista as lojas vinculadas" "$tmp/pagina.html" 'Loja CI Praia'
-contem "marca a loja ligada" "$tmp/pagina.html" 'Ligada a este restaurante'
-contem "razao social nos dados" "$tmp/pagina.html" 'Loja CI Ltda'
-contem "endereco nos dados" "$tmp/pagina.html" 'Rua CI, 10, Centro, Fortaleza - CE'
-contem "disponibilidade" "$tmp/pagina.html" 'Loja aberta no iFood'
-contem "fuso da loja no formulario" "$tmp/pagina.html" 'Brasília / Fortaleza'
-contem "motivo no limite Merchant" "$tmp/pagina.html" 'maxlength="255"'
-nao_contem "relogios removidos" "$tmp/pagina.html" 'data-ifood-relogios'
-nao_contem "relogio da loja removido" "$tmp/pagina.html" 'data-relogio-loja'
-nao_contem "relogio do dispositivo removido" "$tmp/pagina.html" 'data-relogio-dispositivo'
-contem "campos expressos no fuso da loja" "$tmp/pagina.html" 'Começa (horário da loja)'
-esperar "salvar fuso operacional de loja" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/fuso" fuso=America/Manaus | cut -d' ' -f1)" "303"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
-contem "fuso operacional salvo por loja" "$tmp/pagina.html" 'value="America/Manaus" selected'
-esperar "restaurar fuso da loja CI" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/fuso" fuso=America/Sao_Paulo | cut -d' ' -f1)" "303"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
-contem "fuso CE restaurado" "$tmp/pagina.html" 'value="America/Sao_Paulo" selected'
-nao_contem "sem modo de inicio imediato" "$tmp/pagina.html" 'name="inicio_agora"'
-esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/minha-loja" | sed 's/302/403/')" "403"
+esperar "aba Dados" "$(pagina "$gj" "$g/integracoes/ifood/dados")" "200"
+contem "lista lojas vinculadas" "$tmp/pagina.html" 'Loja CI Praia'
+contem "marca loja ligada" "$tmp/pagina.html" 'Ligada a este restaurante'
+contem "razao social" "$tmp/pagina.html" 'Loja CI Ltda'
+contem "endereco" "$tmp/pagina.html" 'Rua CI, 10, Centro, Fortaleza - CE'
+contem "historico de comunicacao" "$tmp/pagina.html" 'Diagnóstico da comunicação com o iFood'
+nao_contem "Dados sem seletor de fuso" "$tmp/pagina.html" 'name="fuso"'
+nao_contem "Dados sem pausas" "$tmp/pagina.html" 'id="pausas"'
+
+esperar "alias minha-loja" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code} %{redirect_url}' "$g/integracoes/ifood/minha-loja")" "302 $g/integracoes/ifood/status"
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
-esperar "pausa sem motivo recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
-esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia' inicio="$fim" fim="$ini" | cut -d' ' -f1)" "422"
-esperar "pausa maior que 7 dias recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Prazo invalido' inicio="$ini" fim="$(date -d '+9 days' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "422"
-esperar "duracao minima 1 min" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Muito curta' inicio="$ini" fim="$ini" | cut -d' ' -f1)" "422"
-esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
+esperar "pausa sem motivo recusada" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao= inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
+esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia' inicio="$fim" fim="$ini" | cut -d' ' -f1)" "422"
+esperar "pausa maior que 7 dias recusada" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Prazo invalido' inicio="$ini" fim="$(date -d '+9 days' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "422"
+esperar "duracao minima 1 min" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Muito curta' inicio="$ini" fim="$ini" | cut -d' ' -f1)" "422"
+esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
 curl -s "$fake/_teste/ultimo-payload-pausa" > "$tmp/payload-pausa.json"
 nao_contem "POST mantem hora local sem offset" "$tmp/payload-pausa.json" '-03:00'
 nao_contem "POST nao envia UTC Z" "$tmp/payload-pausa.json" 'Z"'
 contem "POST devolve valor de relogio original" "$tmp/payload-pausa.json" "$ini"
-esperar "sobreposicao tratada no backend" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Sobreposta CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
-pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+esperar "sobreposicao tratada no backend" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Sobreposta CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
 pausa="$(php -r 'if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
 if [[ -z "$pausa" ]]; then falha "id da pausa na pagina"; fi
@@ -141,10 +148,10 @@ contem "endpoint traz status operacional" "$tmp/estado-pausa.json" '"html_status
 contem "endpoint traz card atualizado" "$tmp/estado-pausa.json" '"html":'
 esperar "endpoint de confirmacao exige login" "$(curl -s -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?pausa=$pausa&acao=criar")" "401"
 esperar "endpoint rejeita ID invalido" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?pausa=invalido!&acao=criar")" "422"
-esperar "remover pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa" | cut -d' ' -f1)" "303"
+esperar "remover pausa" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/remover" pausa="$pausa" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remover'     "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa.json"
 contem "endpoint confirma remocao no iFood" "$tmp/estado-pausa.json" '"registro_confirmado":true'
-pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 # Pela tela (JS): a resposta traz o card de pausas pronto, com o aviso dentro dele.
 por_js() { # jar pagina-do-token url [campo=valor ...] -> codigo (corpo em $tmp/js.json)
@@ -154,25 +161,25 @@ por_js() { # jar pagina-do-token url [campo=valor ...] -> codigo (corpo em $tmp/
   curl -s -o "$tmp/js.json" -c "$jar" -b "$jar" -w '%{http_code}' -H 'X-Requested-With: fetch' -H 'Accept: application/json' --data-urlencode "_csrf=$t" "${args[@]}" "$url"
 }
 agora_local="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')"; depois_local="$(TZ=America/Fortaleza date -d '+30 minutes' '+%Y-%m-%dT%H:%M')"
-esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa tela CI' inicio="$agora_local" fim="$depois_local")" "200"
+esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Pausa tela CI' inicio="$agora_local" fim="$depois_local")" "200"
 contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
 contem "aviso de pausa criada" "$tmp/js.json" 'recebeu a solicitação de pausa'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
 contem "resposta do POST informa ID para acompanhar" "$tmp/js.json" '"id_pausa":"'
 contem "resposta identifica criacao da pausa" "$tmp/js.json" '"acao":"criar"'
 contem "horario da pausa identificado" "$tmp/js.json" 'Horário vigente'
-esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$agora_local" fim="$depois_local")" "422"
+esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao= inicio="$agora_local" fim="$depois_local")" "422"
 contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
 esperar "pausa pela tela sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'descricao=Teste' "$g/integracoes/ifood/pausas")" "419"
 pausa_js="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", $d["html"] ?? "", $m)) echo $m[1];' "$tmp/js.json")"
-esperar "remover pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_js")" "200"
+esperar "remover pela tela" "$(por_js "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_js")" "200"
 contem "aviso de removida no card" "$tmp/js.json" 'recebeu a solicitação de remoção'
 contem "lista vazia no card" "$tmp/js.json" 'Nenhuma pausa ativa.'
-esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
-esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 \
+esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/loja" "$g/integracoes/ifood/horarios" horario_proprio=1 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
+esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/loja" "$g/integracoes/ifood/horarios" horario_proprio=1 \
   'h[SATURDAY][0][abre]=10:00' 'h[SATURDAY][0][fecha]=19:00' \
   'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=13:00' 'h[SUNDAY][1][fecha]=16:00' 'h[SUNDAY][2][abre]=17:00' 'h[SUNDAY][2][fecha]=23:00' | cut -d' ' -f1)" "303"
-pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+pagina "$gj" "$g/integracoes/ifood/loja" >/dev/null
 contem "sabado no iFood" "$tmp/pagina.html" '10:00 às 19:00'
 contem "domingo com tres horarios no iFood" "$tmp/pagina.html" '09:00 às 12:00 · 13:00 às 16:00 · 17:00 às 23:00'
 contem "horario diferente fica ligado" "$tmp/pagina.html" 'name="horario_proprio" value="1" checked'
@@ -181,10 +188,10 @@ turnos_ifood() { curl -s -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/
 echo "Horario do iFood: o do Perfil (padrao) ou um diferente"
 esperar "perfil muda com horario diferente ligado" "$(enviar "$gj" "$g/perfil" "$g/perfil/horarios" modo=semana 'dia[2][aberto]=1' 'dia[2][abre1]=11:00' 'dia[2][fecha1]=15:00' | cut -d' ' -f1)" "303"
 esperar "iFood nao segue o perfil com horario diferente" "$(turnos_ifood)" "SATURDAY@10:00+540 SUNDAY@09:00+180 SUNDAY@13:00+180 SUNDAY@17:00+360"
-esperar "voltar ao horario do perfil" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" | cut -d' ' -f1)" "303"
-esperar "aviso do horario do perfil" "$(aviso "$gj" "$g/integracoes/ifood/minha-loja")" 'Pronto: o iFood segue o horário do Perfil. Quando você mudar o horário no Perfil, o iFood muda junto.'
+esperar "voltar ao horario do perfil" "$(enviar "$gj" "$g/integracoes/ifood/loja" "$g/integracoes/ifood/horarios" | cut -d' ' -f1)" "303"
+esperar "aviso do horario do perfil" "$(aviso "$gj" "$g/integracoes/ifood/loja")" 'Pronto: o iFood segue o horário do Perfil. Quando você mudar o horário no Perfil, o iFood muda junto.'
 esperar "iFood recebeu o horario do perfil" "$(turnos_ifood)" "TUESDAY@11:00+240"
-pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+pagina "$gj" "$g/integracoes/ifood/loja" >/dev/null
 nao_contem "horario diferente desligado" "$tmp/pagina.html" 'name="horario_proprio" value="1" checked'
 contem "resumo do perfil na tela" "$tmp/pagina.html" 'Horário do Perfil'
 esperar "perfil muda de novo" "$(enviar "$gj" "$g/perfil" "$g/perfil/horarios" modo=semana 'dia[3][aberto]=1' 'dia[3][abre1]=18:00' 'dia[3][fecha1]=02:00' | cut -d' ' -f1)" "303"
@@ -199,7 +206,7 @@ contem "botao no topo do caixa" "$tmp/pagina.html" 'data-ifood-loja'
 contem "caixa usa as rotas do caixa" "$tmp/pagina.html" '/caixa/ifood/situacao'
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
-esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
+esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "gerencia nao inventa fechamento apos POST" "$tmp/sit.json" '"estado":"divergente"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
@@ -217,7 +224,7 @@ contem "gerencia informa que o Merchant ainda esta aberto" "$tmp/sit.json" '"est
 contem "nao chama de loja fechada" "$tmp/sit.json" 'iFood: loja aberta'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao?novo=1"
 contem "caixa tambem detecta a divergencia" "$tmp/sit.json" '"estado":"divergente"'
-pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "aviso visivel na tela da loja" "$tmp/pagina.html" 'Pausa vigente, mas loja aberta no iFood.'
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
 contem "nao abre checkout local com pausa propria vigente" "$tmp/estado-publico.json" '"fechado_integracao":true'
@@ -234,7 +241,7 @@ contem "resposta do botao informa estado real" "$tmp/abrir.json" '"situacao":'
 rodar
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
 contem "cardapio reabre somente depois de confirmar no Merchant" "$tmp/estado-publico.json" '"fechado_integracao":false'
-pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "pausa removida pelo botao" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 t="$(token "$cx" "$c")"
 esperar "abrir loja ja aberta" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b "$cx" -c "$cx" -X POST -H "X-CSRF-Token: $t" "$c/ifood/abrir")" "200"
@@ -260,21 +267,21 @@ contem "reabertura externa restaura disponibilidade" "$tmp/estado-publico.json" 
 
 
 echo "Cardapio do iFood ligado aos produtos"
-esperar "pagina do cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"
+esperar "pagina do cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos")" "200"
 contem "item do iFood listado" "$tmp/pagina.html" 'Lanche iFood CI'
 contem "codigo PDV do item" "$tmp/pagina.html" 'Código PDV PDV-CI-1'
 contem "css do cardapio" "$tmp/pagina.html" '/assets/css/ifood.css'
 item="$(php -r 'if (preg_match("~Lanche iFood CI</strong>.*?name=\"produto\[(\d+)\]\"~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
 produto="$(php -r 'if (preg_match("~<option value=\"(\d+)\">~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
 if [[ -z "$item" || -z "$produto" ]]; then falha "item e produto encontrados na pagina"; fi
-esperar "ligar item ao produto" "$(enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/cardapio/ligar" "produto[$item]=$produto" | cut -d' ' -f1)" "303"
-esperar "ligacao salva" "$(aviso "$gj" "$g/integracoes/ifood/cardapio")" '1 ligação(ões) salva(s). A disponibilidade vai para o iFood em até 1 minuto.'
-esperar "produto de fora recusado" "$(enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/cardapio/ligar" "produto[$item]=999999" | cut -d' ' -f1)" "303"
-esperar "aviso do produto de fora" "$(flash "$gj" "$g/integracoes/ifood/cardapio")" "painel-flash-erro"
-pagina "$gj" "$g/integracoes/ifood/cardapio?filtro=soltos" >/dev/null
+esperar "ligar item ao produto" "$(enviar "$gj" "$g/integracoes/ifood/cardapio/vinculos" "$g/integracoes/ifood/cardapio/ligar" "produto[$item]=$produto" | cut -d' ' -f1)" "303"
+esperar "ligacao salva" "$(aviso "$gj" "$g/integracoes/ifood/cardapio/vinculos")" '1 ligação(ões) salva(s). A disponibilidade vai para o iFood em até 1 minuto.'
+esperar "produto de fora recusado" "$(enviar "$gj" "$g/integracoes/ifood/cardapio/vinculos" "$g/integracoes/ifood/cardapio/ligar" "produto[$item]=999999" | cut -d' ' -f1)" "303"
+esperar "aviso do produto de fora" "$(flash "$gj" "$g/integracoes/ifood/cardapio/vinculos")" "painel-flash-erro"
+pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos?filtro=soltos" >/dev/null
 contem "filtro sem ligacao mostra o solto" "$tmp/pagina.html" 'Item sem par CI'
 nao_contem "filtro sem ligacao esconde o ligado" "$tmp/pagina.html" 'Lanche iFood CI</strong>'
-esperar "caixa nao abre o cardapio do iFood" "$(pagina "$cx" "$g/integracoes/ifood/cardapio" | sed 's/302/403/')" "403"
+esperar "caixa nao abre o cardapio do iFood" "$(pagina "$cx" "$g/integracoes/ifood/cardapio/vinculos" | sed 's/302/403/')" "403"
 
 echo "Pedido novo do iFood (polling e confirmacao de leitura)"
 curl -s -o /dev/null -H 'Content-Type: application/json' --data "$(pedido_json ped-ci-1 7788 IFOOD online 4321)" "$fake/_teste/pedido"
@@ -362,8 +369,8 @@ contem "cancelado no iFood" "$tmp/pagina.html" 'Cancelado no iFood: Item indispo
 contem "pedido cancelado" "$tmp/pagina.html" 'Pedido cancelado'
 
 echo "Opcoes: aceitar sozinho"
-esperar "salvar opcoes" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/opcoes" aceitar_automatico=1 sincronizar_estoque=1)" "303 $g/integracoes/ifood"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+esperar "salvar opcoes" "$(enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/opcoes" aceitar_automatico=1 sincronizar_estoque=1)" "303 $g/integracoes/ifood/cardapio"
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
 contem "opcao aceitar marcada" "$tmp/pagina.html" 'name="aceitar_automatico" value="1" checked'
 curl -s -o /dev/null -H 'Content-Type: application/json' --data "$(pedido_json ped-ci-3 7800 IFOOD online 1111)" "$fake/_teste/pedido"
 rodar
@@ -371,7 +378,7 @@ id3="$(id_local 7800)"
 pagina "$cx" "$c/delivery/$id3" >/dev/null
 contem "aceito sozinho" "$tmp/pagina.html" 'Aceito automaticamente. Em preparo.'
 no_registro "iFood recebeu o aceite automatico" "acao ped-ci-3 confirm"
-enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/opcoes" sincronizar_estoque=1 >/dev/null
+enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/opcoes" sincronizar_estoque=1 >/dev/null
 
 echo "Item recriado pelo iFood (outro id, mesmo nome) usa a ligacao existente"
 curl -s -o /dev/null -H 'Content-Type: application/json' --data '{"id":"ped-ci-4","displayId":"7811","orderType":"TAKEOUT","merchant":{"id":"'"$loja"'"},"customer":{"name":"Ana iFood CI"},"items":[{"id":"item-ci-1-novo","name":"Lanche iFood CI","externalCode":"PDV-NOVO","unit":"UN","quantity":1,"unitPrice":25.9,"totalPrice":25.9}],"total":{"subTotal":25.9,"orderAmount":25.9},"payments":{"prepaid":25.9,"methods":[{"method":"PIX","type":"ONLINE","prepaid":true,"value":25.9}]}}' "$fake/_teste/pedido"
@@ -380,15 +387,16 @@ id4="$(id_local 7811)"
 esperar "pedido do item recriado chegou" "$(pagina "$cx" "$c/delivery/$id4")" "200"
 contem "pedido do item recriado aberto" "$tmp/pagina.html" 'iFood #7811'
 nao_contem "sem aviso de item sem ligacao" "$tmp/pagina.html" 'Sem produto ligado'
-pagina "$gj" "$g/integracoes/ifood/cardapio?filtro=soltos" >/dev/null
+pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos?filtro=soltos" >/dev/null
 nao_contem "item novo ligado sozinho" "$tmp/pagina.html" 'Código PDV PDV-NOVO'
 
 echo "Disponibilidade e situacao da integracao"
-esperar "enviar disponibilidade agora" "$(enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/cardapio/sincronizar" | cut -d' ' -f1)" "303"
-esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio")" "2 item(ns) atualizado(s) no iFood."
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+esperar "enviar disponibilidade agora" "$(enviar "$gj" "$g/integracoes/ifood/cardapio/vinculos" "$g/integracoes/ifood/cardapio/sincronizar" | cut -d' ' -f1)" "303"
+esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio/vinculos")" "2 item(ns) atualizado(s) no iFood."
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "pedidos do iFood hoje no novo status" "$tmp/pagina.html" 'Pedidos do iFood hoje'
 nao_contem "rotina rodando (sem alerta de parada)" "$tmp/pagina.html" 'não estão chegando agora'
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
 contem "itens ligados no resumo" "$tmp/pagina.html" '2 de'
 
 echo "Publicar o cardapio no iFood (Catalog)"

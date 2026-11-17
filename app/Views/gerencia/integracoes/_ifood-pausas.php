@@ -10,7 +10,7 @@ use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
 use Cardapim\Services\Ifood\FusoLojaIfood;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$fusoLoja = FusoLojaIfood::valido((string) ($fusoLoja ?? '')) ? $fusoLoja : 'America/Sao_Paulo';
+$fusoLoja = FusoLojaIfood::PADRAO;
 $quandoPausa = static fn (string $iso): string => IfoodLojaService::dataIfood($iso)?->setTimezone(FusoLojaIfood::timezone($fusoLoja))->format('d/m/Y \à\s H:i') ?? $iso;
 $erroPausa = static fn (string $campo): string => isset($eP[$campo]) ? '<p class="field-msg ficha-erro" id="erro-pausa-' . $e($campo) . '">' . $e($eP[$campo]) . '</p>' : '';
 $ativas = array_column(IfoodLojaService::pausasAtivas($pausas), 'id');
@@ -35,7 +35,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
         <?php foreach ($pausas as $pausa): $agora = in_array($pausa['id'], $ativas, true); $fimPausa = IfoodLojaService::dataIfood($pausa['fim']); $encerrada = $fimPausa !== null && $fimPausa->getTimestamp() <= time(); ?>
             <li class="ifood-lista-item" data-ifood-pausa-id="<?= $e($pausa['id']) ?>">
                 <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
-                    <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?> (horário da loja)</small></span>
+                    <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?> (horário de Brasília)</small></span>
                 <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Horário vigente' : ($encerrada ? 'Encerrada' : 'Agendada') ?></span>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/pausas/remover') ?>" data-pausa-form
                       data-confirm="Solicitar remoção da pausa ao iFood? Confira o status da loja depois da atualização." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
@@ -50,18 +50,18 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-pausa-form>
     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
     <h3>Nova pausa</h3>
-    <p class="texto-suave">Horário de referência do iFood: <?= $e(FusoLojaIfood::OPCOES[$fusoLoja]) ?>. Se estiver diferente do Portal, ajuste em Dados e diagnósticos.</p>
+    <p class="texto-suave">Horário de referência: Brasília (UTC−03:00). Informe o início e o fim nesse horário.</p>
     <label class="campo-rotulo" for="pausa-descricao">Motivo</label>
     <input class="campo-simples" id="pausa-descricao" name="descricao" maxlength="255" required value="<?= $e((string) $vP['descricao']) ?>" placeholder="Ex.: Cozinha cheia"<?= isset($eP['descricao']) ? ' aria-invalid="true" aria-describedby="erro-pausa-descricao"' : '' ?>>
     <?= $erroPausa('descricao') ?>
     <div class="ifood-datas">
         <div>
-            <label class="campo-rotulo" for="pausa-inicio">Começa (horário da loja)</label>
+            <label class="campo-rotulo" for="pausa-inicio">Começa (horário de Brasília)</label>
             <input class="campo-simples" id="pausa-inicio" type="datetime-local" name="inicio" required value="<?= $e((string) $vP['inicio']) ?>"<?= isset($eP['inicio']) ? ' aria-invalid="true" aria-describedby="erro-pausa-inicio"' : '' ?>>
             <?= $erroPausa('inicio') ?>
         </div>
         <div>
-            <label class="campo-rotulo" for="pausa-fim">Termina (horário da loja)</label>
+            <label class="campo-rotulo" for="pausa-fim">Termina (horário de Brasília)</label>
             <input class="campo-simples" id="pausa-fim" type="datetime-local" name="fim" required value="<?= $e((string) $vP['fim']) ?>"<?= isset($eP['fim']) ? ' aria-invalid="true" aria-describedby="erro-pausa-fim"' : '' ?>>
             <?= $erroPausa('fim') ?>
         </div>

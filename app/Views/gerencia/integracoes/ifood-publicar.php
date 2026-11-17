@@ -17,7 +17,7 @@ $total = array_sum(array_map(static fn (array $c): int => count($c['produtos']),
 <div class="painel-page painel-page-form">
     <header class="painel-cabecalho">
         <div>
-            <a class="voltar-link" href="<?= $e($base . '/integracoes/ifood') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>iFood</a>
+            <a class="voltar-link" href="<?= $e($base . '/integracoes/ifood/cardapio') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>iFood</a>
             <h1>Publicar cardápio no iFood</h1>
             <p>O cardápio do <?= marca_html() ?> vai para o iFood com categoria, foto, preço e complementos. Você cadastra uma vez aqui.</p>
         </div>
