@@ -8,6 +8,7 @@ use Cardapim\Realtime\Canais;
 use Cardapim\Realtime\TempoReal;
 use Cardapim\Core\Database;
 use Cardapim\Repositories\SuporteRepository;
+use Cardapim\Services\Ifood\BotaoLojaIfood;
 use Cardapim\Services\Painel\MenuGerencia;
 
 $slug = (string) $restaurante['slug'];
@@ -41,6 +42,7 @@ $painel = [
     'titulo_atual' => $ativo !== null && isset(MenuGerencia::SECOES[$ativo]) ? MenuGerencia::SECOES[$ativo]['rotulo']
         : (MenuGerencia::AREAS['@' . $ativo]['rotulo'] ?? 'Gerência'),
     'acao_topo' => [MenuGerencia::url($slug, '@caixa'), 'Abrir caixa', 'monitor'],
+    'botao_ifood' => BotaoLojaIfood::config((int) $restaurante['id'], MenuGerencia::url($slug, 'visao-geral') . '/integracoes/ifood/botao-loja'),
     'tempo_real' => TempoReal::ativo()
         ? ['ticket' => '/api/v1/tempo-real/ticket?restaurante=' . rawurlencode($slug), 'canais' => implode(',', Canais::daSecao($ativo))]
         : null,

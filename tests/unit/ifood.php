@@ -130,6 +130,33 @@ $ok(isset(IfoodLojaService::lerHorarios(['MONDAY' => [['abre' => '09:00', 'fecha
 $ok(isset(IfoodLojaService::lerHorarios(['MONDAY' => [['abre' => '19:00', 'fecha' => '10:00']]])['erros']['MONDAY.0']), 'fecha antes de abrir recusado');
 $ok(isset(IfoodLojaService::lerHorarios(['MONDAY' => [['abre' => '25:00', 'fecha' => '10:00']]])['erros']['MONDAY.0']), 'hora invalida recusada');
 $ok(IfoodLojaService::paraFormulario([['dia' => 'SUNDAY', 'inicio' => '17:00', 'duracao' => 420]]) === ['SUNDAY' => [['abre' => '17:00', 'fecha' => '00:00']]], 'volta para o formulario');
+// Horario do Perfil para o iFood: dias na ordem do iFood, turno que passa da meia-noite dividido, sempre aberto = 24 h.
+$ok(IfoodLojaService::turnosDoPerfil(false, [
+    ['dia_semana' => 0, 'abre' => '09:00:00', 'fecha' => '12:00:00'],
+    ['dia_semana' => 1, 'abre' => '11:00:00', 'fecha' => '15:00:00'],
+    ['dia_semana' => 1, 'abre' => '18:00:00', 'fecha' => '02:00:00'],
+]) === [
+    ['dia' => 'MONDAY', 'inicio' => '11:00', 'duracao' => 240],
+    ['dia' => 'MONDAY', 'inicio' => '18:00', 'duracao' => 360],
+    ['dia' => 'TUESDAY', 'inicio' => '00:00', 'duracao' => 120],
+    ['dia' => 'SUNDAY', 'inicio' => '09:00', 'duracao' => 180],
+], 'perfil convertido (madrugada vira o dia seguinte)');
+$ok(IfoodLojaService::turnosDoPerfil(false, [['dia_semana' => 6, 'abre' => '18:00', 'fecha' => '00:00']]) === [['dia' => 'SATURDAY', 'inicio' => '18:00', 'duracao' => 360]], 'fecha a meia-noite nao cria turno no dia seguinte');
+$ok(IfoodLojaService::turnosDoPerfil(false, [['dia_semana' => 6, 'abre' => '20:00', 'fecha' => '03:00'], ['dia_semana' => 0, 'abre' => '03:00', 'fecha' => '05:00']])
+    === [['dia' => 'SATURDAY', 'inicio' => '20:00', 'duracao' => 240], ['dia' => 'SUNDAY', 'inicio' => '00:00', 'duracao' => 300]], 'turnos encostados se juntam');
+$sempre = IfoodLojaService::turnosDoPerfil(true, []);
+$ok(count($sempre) === 7 && $sempre[0] === ['dia' => 'MONDAY', 'inicio' => '00:00', 'duracao' => 1440], 'sempre aberto = 24 h todos os dias');
+$ok(IfoodLojaService::turnosDoPerfil(false, []) === [], 'sem horario no perfil');
+
+// Pausa ativa: so a que ja comecou e ainda nao terminou.
+$agora = new DateTimeImmutable('2026-11-17 12:00:00');
+$ativas = IfoodLojaService::pausasAtivas([
+    ['id' => 'a', 'descricao' => 'agora', 'inicio' => $agora->modify('-10 minutes')->format(DATE_ATOM), 'fim' => $agora->modify('+20 minutes')->format(DATE_ATOM)],
+    ['id' => 'b', 'descricao' => 'futura', 'inicio' => $agora->modify('+1 hour')->format(DATE_ATOM), 'fim' => $agora->modify('+2 hours')->format(DATE_ATOM)],
+    ['id' => 'c', 'descricao' => 'acabou', 'inicio' => $agora->modify('-2 hours')->format(DATE_ATOM), 'fim' => $agora->modify('-1 hour')->format(DATE_ATOM)],
+], $agora);
+$ok(array_column($ativas, 'id') === ['a'], 'so a pausa valendo agora');
+
 $ok(preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/', IfoodApi::uuid()) === 1, 'uuid v4');
 
 if ($falhas > 0) {

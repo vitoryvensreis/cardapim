@@ -9,6 +9,7 @@
  *     'contexto' => ['rotulo' => string, 'nome' => string, 'icone' => string],
  *     'grupos' => [titulo => list<[url, rotulo, icone, atual(bool), tag(?string)]>],
  *     'trilha' => string, 'titulo_atual' => string, 'acao_topo' => ?[url, rotulo, icone],
+ *     'botao_ifood' => ?['situacao' => url, 'abrir' => url] (botao "Abrir loja no iFood", ao lado do "Abrir caixa"),
  *     'tempo_real' => ?['ticket' => url, 'canais' => string],
  *     'alerta_pedido' => ?string (url do delivery: liga o aviso de pedido novo com luz, tremida e som),
  *   ]
@@ -29,6 +30,10 @@ $tempoReal = $painel['tempo_real'] ?? null;
 $scripts = ['js/painel.js', 'js/confirmar.js', ...($tempoReal !== null ? ['js/tempo-real.js'] : []), ...($pageScripts ?? [])];
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));
 $acaoTopo = $painel['acao_topo'] ?? null;
+$botaoIfood = $painel['botao_ifood'] ?? null;
+if ($botaoIfood !== null) {
+    $scripts[] = 'js/ifood-botao.js';
+}
 $alertaPedido = $tempoReal !== null ? ($painel['alerta_pedido'] ?? null) : null;
 if ($alertaPedido !== null) {
     $styles[] = 'css/alerta-pedido.css';
@@ -102,6 +107,13 @@ if ($alertaPedido !== null) {
                         <span class="alerta-som-texto" data-alerta-som-texto>Som ligado</span>
                     </button>
                 <?php endif; ?>
+                <?php if ($botaoIfood !== null): ?>
+                    <button class="btn btn-sm painel-ifood" type="button" hidden data-ifood-loja
+                            data-situacao="<?= $e($botaoIfood['situacao']) ?>" data-abrir="<?= $e($botaoIfood['abrir']) ?>" data-csrf="<?= $e($csrf) ?>">
+                        <span class="painel-ifood-icones" aria-hidden="true"><?= Icon::svg('store', 'icon-sm ifood-ic-pausada') ?><?= Icon::svg('circle-check', 'icon-sm ifood-ic-aberta') ?><?= Icon::svg('clock', 'icon-sm ifood-ic-fechada') ?><?= Icon::svg('wifi-off', 'icon-sm ifood-ic-erro') ?><?= Icon::svg('loader-circle', 'icon-sm ifood-ic-carregando') ?></span>
+                        <span class="painel-ifood-marca">iFood</span><span class="painel-ifood-texto" data-ifood-loja-texto>Abrir loja</span>
+                    </button>
+                <?php endif; ?>
                 <?php if ($acaoTopo !== null): ?>
                     <a class="btn btn-primary btn-sm painel-caixa" href="<?= $e($acaoTopo[0]) ?>"><?= Icon::svg($acaoTopo[2], 'icon-sm') ?><?= $e($acaoTopo[1]) ?></a>
                 <?php endif; ?>
@@ -112,6 +124,13 @@ if ($alertaPedido !== null) {
                         <?= Icon::svg(($flash['tipo'] ?? '') === 'erro' ? 'circle-x' : (($flash['tipo'] ?? '') === 'aviso' ? 'info' : 'circle-check')) ?>
                         <p><?= $e((string) $flash['mensagem']) ?></p>
                         <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-flash-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
+                    </div>
+                <?php endif; ?>
+                <?php if ($botaoIfood !== null): ?>
+                    <div class="painel-flash ifood-flash" role="status" aria-live="polite" data-ifood-loja-aviso hidden>
+                        <?= Icon::svg('circle-check', 'ifood-flash-ok') ?><?= Icon::svg('circle-x', 'ifood-flash-erro') ?>
+                        <p data-ifood-loja-aviso-texto></p>
+                        <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-ifood-loja-aviso-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
                     </div>
                 <?php endif; ?>
                 <?php if ($tempoReal !== null): ?>

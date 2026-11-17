@@ -107,13 +107,52 @@ if [[ -z "$pausa" ]]; then falha "id da pausa na pagina"; fi
 esperar "remover pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa" | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
-esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
-esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" \
+esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
+esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 \
   'h[SATURDAY][0][abre]=10:00' 'h[SATURDAY][0][fecha]=19:00' \
   'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=13:00' 'h[SUNDAY][1][fecha]=16:00' 'h[SUNDAY][2][abre]=17:00' 'h[SUNDAY][2][fecha]=23:00' | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "sabado no iFood" "$tmp/pagina.html" '10:00 às 19:00'
 contem "domingo com tres horarios no iFood" "$tmp/pagina.html" '09:00 às 12:00 · 13:00 às 16:00 · 17:00 às 23:00'
+contem "horario diferente fica ligado" "$tmp/pagina.html" 'name="horario_proprio" value="1" checked'
+turnos_ifood() { curl -s -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/merchants/$loja/opening-hours" | php -r '$d = json_decode(stream_get_contents(STDIN), true); echo implode(" ", array_map(static fn ($t) => $t["dayOfWeek"] . "@" . substr($t["start"], 0, 5) . "+" . $t["duration"], $d["shifts"] ?? []));'; }
+
+echo "Horario do iFood: o do Perfil (padrao) ou um diferente"
+esperar "perfil muda com horario diferente ligado" "$(enviar "$gj" "$g/perfil" "$g/perfil/horarios" modo=semana 'dia[2][aberto]=1' 'dia[2][abre1]=11:00' 'dia[2][fecha1]=15:00' | cut -d' ' -f1)" "303"
+esperar "iFood nao segue o perfil com horario diferente" "$(turnos_ifood)" "SATURDAY@10:00+540 SUNDAY@09:00+180 SUNDAY@13:00+180 SUNDAY@17:00+360"
+esperar "voltar ao horario do perfil" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" | cut -d' ' -f1)" "303"
+esperar "aviso do horario do perfil" "$(aviso "$gj" "$g/integracoes/ifood/minha-loja")" 'Pronto: o iFood segue o horário do Perfil. Quando você mudar o horário no Perfil, o iFood muda junto.'
+esperar "iFood recebeu o horario do perfil" "$(turnos_ifood)" "TUESDAY@11:00+240"
+pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+nao_contem "horario diferente desligado" "$tmp/pagina.html" 'name="horario_proprio" value="1" checked'
+contem "resumo do perfil na tela" "$tmp/pagina.html" 'Horário do Perfil'
+esperar "perfil muda de novo" "$(enviar "$gj" "$g/perfil" "$g/perfil/horarios" modo=semana 'dia[3][aberto]=1' 'dia[3][abre1]=18:00' 'dia[3][fecha1]=02:00' | cut -d' ' -f1)" "303"
+esperar "aviso do perfil fala do iFood" "$(aviso "$gj" "$g/perfil")" 'Horário de funcionamento salvo. O iFood também recebeu o horário novo.'
+esperar "iFood segue o perfil (madrugada no dia seguinte)" "$(turnos_ifood)" "WEDNESDAY@18:00+360 THURSDAY@00:00+120"
+
+echo "Botao Abrir loja no iFood (gerencia e caixa)"
+pagina "$gj" "$g" >/dev/null
+contem "botao no topo da gerencia" "$tmp/pagina.html" 'data-ifood-loja'
+pagina "$cx" "$c" >/dev/null
+contem "botao no topo do caixa" "$tmp/pagina.html" 'data-ifood-loja'
+contem "caixa usa as rotas do caixa" "$tmp/pagina.html" '/caixa/ifood/situacao'
+curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
+contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
+esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
+curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
+contem "gerencia ve a loja pausada" "$tmp/sit.json" '"estado":"pausada"'
+curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
+contem "caixa ve a loja pausada" "$tmp/sit.json" '"pode_abrir":true'
+esperar "abrir sem token recusado" "$(curl -s -o /dev/null -w '%{http_code}' -b "$cx" -X POST "$c/ifood/abrir")" "419"
+t="$(token "$cx" "$c")"
+esperar "caixa abre a loja" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b "$cx" -c "$cx" -X POST -H "X-CSRF-Token: $t" "$c/ifood/abrir")" "200"
+contem "loja aberta depois do clique" "$tmp/abrir.json" '"estado":"aberta"'
+pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+contem "pausa removida pelo botao" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
+t="$(token "$cx" "$c")"
+esperar "abrir loja ja aberta" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b "$cx" -c "$cx" -X POST -H "X-CSRF-Token: $t" "$c/ifood/abrir")" "200"
+contem "avisa que ja estava aberta" "$tmp/abrir.json" 'já está aberta'
+esperar "sem login nao consulta" "$(curl -s -o /dev/null -w '%{http_code}' "$c/ifood/situacao")" "401"
 
 echo "Cardapio do iFood ligado aos produtos"
 esperar "pagina do cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"

@@ -315,7 +315,11 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
         $responder(200, [['id' => '11111111-2222-3333-4444-555555555555', 'name' => 'Loja CI Centro'], ['id' => '66666666-7777-8888-9999-000000000000', 'name' => 'Loja CI Praia']]);
     }
     if (preg_match('~/merchants/[0-9a-f-]+/status\z~', $caminho)) {
-        $responder(200, [['operation' => 'delivery', 'available' => true, 'state' => 'OK', 'message' => ['title' => 'Loja aberta no iFood']]]);
+        // Pausa valendo agora fecha a loja (como no iFood).
+        $pausada = array_filter($ler('ifood-pausas.json') ?? [], static fn (array $p): bool => strtotime((string) $p['start']) <= time() && strtotime((string) $p['end']) > time()) !== [];
+        $responder(200, [$pausada
+            ? ['operation' => 'delivery', 'available' => false, 'state' => 'CLOSED', 'message' => ['title' => 'Loja pausada']]
+            : ['operation' => 'delivery', 'available' => true, 'state' => 'OK', 'message' => ['title' => 'Loja aberta no iFood']]]);
     }
     // Merchant: detalhes, pausas (interrupcoes) e horarios, guardados em arquivo para o teste conferir.
     if (preg_match('~\A/ifood/merchant/v1\.0/merchants/([0-9a-f-]+)\z~', $caminho, $m) && $metodo === 'GET') {

@@ -7,6 +7,7 @@
  */
 use Cardapim\Realtime\TempoReal;
 use Cardapim\Services\Auth\Autorizacao;
+use Cardapim\Services\Ifood\BotaoLojaIfood;
 use Cardapim\Services\Painel\MenuCaixa;
 use Cardapim\Services\Painel\MenuGerencia;
 
@@ -43,6 +44,7 @@ $painel = [
     'trilha' => 'Caixa',
     'titulo_atual' => (string) ($tituloTela ?? 'Caixa'),
     'acao_topo' => $caixaAtual === null ? [MenuCaixa::url($slug, 'caixa'), 'Abrir caixa', 'lock-open'] : null,
+    'botao_ifood' => BotaoLojaIfood::config((int) $restaurante['id'], '/' . rawurlencode($slug) . '/caixa/ifood'),
     'tempo_real' => TempoReal::ativo()
         ? ['ticket' => '/api/v1/tempo-real/ticket?restaurante=' . rawurlencode($slug), 'canais' => 'pedidos,mesas,caixa']
         : null,

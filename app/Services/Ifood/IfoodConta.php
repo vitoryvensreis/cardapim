@@ -19,6 +19,7 @@ final class IfoodConta
     public const OPCOES = [
         'aceitar_automatico' => false,
         'sincronizar_estoque' => true,
+        'horario_proprio' => false, // false = o iFood segue o horario do Perfil
     ];
 
     private readonly IntegracaoRepository $integracoes;

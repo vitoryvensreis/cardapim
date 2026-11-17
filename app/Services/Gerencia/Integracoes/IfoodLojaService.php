@@ -6,6 +6,7 @@ namespace Cardapim\Services\Gerencia\Integracoes;
 
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
+use Cardapim\Modules\Restaurante\HorarioFuncionamento;
 use Cardapim\Repositories\Gerencia\PerfilRepository;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
@@ -15,7 +16,8 @@ use PDO;
 
 /**
  * Loja no iFood (modulo Merchant): lojas autorizadas, detalhes, situacao, pausas e horario de funcionamento.
- * Tudo lido do iFood na hora (o iFood e a fonte desses dados); nada fica guardado aqui alem do log de auditoria.
+ * Tudo lido do iFood na hora (o iFood e a fonte desses dados). Guardado aqui so a escolha do horario
+ * (integracoes.dados.horario_proprio: false = o iFood segue o horario do Perfil) e o log de auditoria.
  */
 final class IfoodLojaService extends BaseIntegracao
 {
@@ -30,15 +32,18 @@ final class IfoodLojaService extends BaseIntegracao
 
     /**
      * Tudo que a tela mostra. Cada parte e buscada separada: se uma falhar, as outras aparecem e a falha vira aviso.
-     * @return array{conectada:bool, loja:?string, lojas:array, detalhes:?array, situacao:array, pausas:array, horarios:array, sugestao:array, erros:array<string,string>}
+     * @return array{conectada:bool, loja:?string, lojas:array, detalhes:?array, situacao:array, pausas:array, horarios:array, sugestao:array, horario_proprio:bool, perfil:array, erros:array<string,string>}
      */
     public function painel(): array
     {
         $conta = $this->conta();
-        $vazio = ['conectada' => false, 'loja' => null, 'lojas' => [], 'detalhes' => null, 'situacao' => [], 'pausas' => [], 'horarios' => [], 'sugestao' => [], 'erros' => []];
+        $vazio = ['conectada' => false, 'loja' => null, 'lojas' => [], 'detalhes' => null, 'situacao' => [], 'pausas' => [], 'horarios' => [], 'sugestao' => [],
+            'horario_proprio' => false, 'perfil' => ['turnos' => [], 'sempre' => false, 'resumo' => '', 'dias' => []], 'erros' => []];
         if (!$conta->conectada()) {
             return $vazio;
         }
+        $vazio['horario_proprio'] = $conta->opcao('horario_proprio');
+        $vazio['perfil'] = $this->horarioDoPerfil();
         $loja = (string) $conta->loja();
         $erros = [];
         try {
@@ -63,7 +68,9 @@ final class IfoodLojaService extends BaseIntegracao
             'situacao' => $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []),
             'pausas' => $buscar('pausas', fn (): array => $this->api->pausas($token, $loja), []),
             'horarios' => $horarios,
-            'sugestao' => $horarios !== [] ? self::paraFormulario($horarios) : $this->horariosDoRestaurante(),
+            'sugestao' => self::paraFormulario($horarios !== [] ? $horarios : $vazio['perfil']['turnos']),
+            'horario_proprio' => $vazio['horario_proprio'],
+            'perfil' => $vazio['perfil'],
             'erros' => $erros,
         ];
     }
@@ -128,9 +135,10 @@ final class IfoodLojaService extends BaseIntegracao
         }
         return $this->executar(function (string $token, string $loja) use ($lido): Resultado {
             $this->api->salvarHorarios($token, $loja, $lido['turnos']);
+            $this->conta()->salvarOpcoes(['horario_proprio' => true]);
             $resumo = implode('; ', array_map(static fn (array $t): string => self::NOMES_DIAS[$t['dia']] . ' ' . $t['inicio'] . ' (' . $t['duracao'] . ' min)', $lido['turnos']));
-            $this->log('iFood: horários enviados', mb_substr($resumo, 0, 900));
-            return Resultado::sucesso('Horários enviados ao iFood. Confira abaixo como o iFood guardou.');
+            $this->log('iFood: horário diferente enviado', mb_substr($resumo, 0, 900));
+            return Resultado::sucesso('Horário do iFood salvo. Mudanças no horário do Perfil não alteram mais o iFood.');
         });
     }
 
@@ -192,22 +200,190 @@ final class IfoodLojaService extends BaseIntegracao
         return $saida;
     }
 
-    /** Horarios cadastrados no Deliveryzim (Perfil), como sugestao quando o iFood ainda nao tem nenhum. @return array<string, list<array{abre:string, fecha:string}>> */
-    private function horariosDoRestaurante(): array
+    /** O iFood volta a seguir o horario do Perfil (padrao) e recebe esse horario agora. */
+    public function usarHorarioDoPerfil(): Resultado
     {
-        $dias = [1 => 'MONDAY', 2 => 'TUESDAY', 3 => 'WEDNESDAY', 4 => 'THURSDAY', 5 => 'FRIDAY', 6 => 'SATURDAY', 0 => 'SUNDAY'];
-        $saida = [];
+        $perfil = $this->horarioDoPerfil();
+        if ($perfil['turnos'] === []) {
+            return Resultado::falha('O Perfil ainda não tem horário de funcionamento. Cadastre em Perfil do restaurante e volte aqui.');
+        }
+        return $this->executar(function (string $token, string $loja) use ($perfil): Resultado {
+            $this->api->salvarHorarios($token, $loja, $perfil['turnos']);
+            $this->conta()->salvarOpcoes(['horario_proprio' => false]);
+            $this->log('iFood: horário do Perfil enviado', mb_substr($perfil['resumo'], 0, 900));
+            return Resultado::sucesso('Pronto: o iFood segue o horário do Perfil. Quando você mudar o horário no Perfil, o iFood muda junto.');
+        });
+    }
+
+    /**
+     * Chamado depois de salvar o horario no Perfil: se o iFood segue o Perfil, envia o horario novo.
+     * null = nada a fazer (iFood desligado ou com horario diferente). Nunca lanca erro de rede.
+     */
+    public function acompanharPerfil(): ?Resultado
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada() || $conta->opcao('horario_proprio')) {
+            return null;
+        }
+        $perfil = $this->horarioDoPerfil();
+        if ($perfil['turnos'] === []) {
+            return null;
+        }
         try {
-            foreach ((new PerfilRepository($this->db))->horarios((int) $this->idRestaurante) as $h) {
-                $dia = $dias[(int) $h['dia_semana']] ?? null;
-                if ($dia !== null) {
-                    $saida[$dia][] = ['abre' => substr((string) $h['abre'], 0, 5), 'fecha' => substr((string) $h['fecha'], 0, 5)];
+            $this->api->salvarHorarios($conta->token(), (string) $conta->loja(), $perfil['turnos']);
+        } catch (IntegracaoErro $erro) {
+            return Resultado::falha('O horário foi salvo aqui, mas o iFood não recebeu: ' . $erro->getMessage() . ' Envie de novo em Integrações > iFood > Loja no iFood.');
+        }
+        $this->log('iFood: horário do Perfil enviado', mb_substr($perfil['resumo'], 0, 900));
+        return Resultado::sucesso('O iFood também recebeu o horário novo.');
+    }
+
+    /** Horario do Perfil ja convertido para o iFood. @return array{turnos: list<array{dia:string, inicio:string, duracao:int}>, sempre: bool, resumo: string, dias: array<string, list<string>>} */
+    public function horarioDoPerfil(): array
+    {
+        $repo = new PerfilRepository($this->db);
+        $restaurante = $repo->buscar((int) $this->idRestaurante) ?? [];
+        $sempre = (int) ($restaurante['sempre_aberto'] ?? 0) === 1;
+        $lista = $sempre ? [] : $repo->horarios((int) $this->idRestaurante);
+        $dias = [];
+        $porDia = HorarioFuncionamento::porDia($lista);
+        foreach ([1 => 'MONDAY', 2 => 'TUESDAY', 3 => 'WEDNESDAY', 4 => 'THURSDAY', 5 => 'FRIDAY', 6 => 'SATURDAY', 0 => 'SUNDAY'] as $d => $dia) {
+            $dias[$dia] = $sempre ? ['Aberto 24 horas'] : array_map(static fn (array $t): string => substr((string) $t['abre'], 0, 5) . ' às ' . substr((string) $t['fecha'], 0, 5), $porDia[$d]);
+        }
+        return ['turnos' => self::turnosDoPerfil($sempre, $lista), 'sempre' => $sempre, 'resumo' => HorarioFuncionamento::resumo($sempre, $lista), 'dias' => $dias];
+    }
+
+    /**
+     * Perfil (0 = domingo; turno com "fecha" menor que "abre" vai ate o dia seguinte) para turnos do iFood.
+     * O turno que passa da meia-noite vira dois (ate 24:00 e a partir de 00:00 do dia seguinte); turnos encostados se juntam.
+     * @param list<array{dia_semana:int|string, abre:string, fecha:string}> $lista
+     * @return list<array{dia:string, inicio:string, duracao:int}>
+     */
+    public static function turnosDoPerfil(bool $sempre, array $lista): array
+    {
+        $porDia = array_fill(0, 7, []);
+        for ($d = 0; $d <= 6 && $sempre; $d++) {
+            $porDia[$d][] = [0, 1440];
+        }
+        foreach ($sempre ? [] : $lista as $h) {
+            $d = (int) $h['dia_semana'];
+            $a = self::minutos(substr((string) $h['abre'], 0, 5));
+            $f = self::minutos(substr((string) $h['fecha'], 0, 5));
+            if ($d < 0 || $d > 6 || $a === null || $f === null || $a === $f) {
+                continue;
+            }
+            if ($f > $a) {
+                $porDia[$d][] = [$a, $f];
+                continue;
+            }
+            $porDia[$d][] = [$a, 1440];
+            if ($f > 0) {
+                $porDia[($d + 1) % 7][] = [0, $f];
+            }
+        }
+        $indice = ['SUNDAY' => 0, 'MONDAY' => 1, 'TUESDAY' => 2, 'WEDNESDAY' => 3, 'THURSDAY' => 4, 'FRIDAY' => 5, 'SATURDAY' => 6];
+        $turnos = [];
+        foreach (IfoodApi::DIAS as $dia) {
+            $faixas = $porDia[$indice[$dia]];
+            usort($faixas, static fn (array $x, array $y): int => $x[0] <=> $y[0]);
+            $juntas = [];
+            foreach ($faixas as [$a, $f]) {
+                $u = count($juntas) - 1;
+                if ($u >= 0 && $a <= $juntas[$u][1]) {
+                    $juntas[$u][1] = max($juntas[$u][1], $f);
+                } else {
+                    $juntas[] = [$a, $f];
                 }
             }
-        } catch (\Throwable) {
-            return [];
+            foreach (array_slice($juntas, 0, self::MAX_TURNOS_DIA) as [$a, $f]) {
+                $turnos[] = ['dia' => $dia, 'inicio' => sprintf('%02d:%02d', intdiv($a, 60), $a % 60), 'duracao' => $f - $a];
+            }
         }
-        return $saida;
+        return $turnos;
+    }
+
+    /**
+     * Situacao resumida para o botao "Abrir loja no iFood".
+     * estado: aberta | pausada (da para abrir: tem pausa ativa) | fechada (fora do horario ou outro motivo do iFood) | erro | desconectada
+     * @return array{estado:string, texto:string, detalhe:string, pode_abrir:bool}
+     */
+    public function situacaoAgora(): array
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return ['estado' => 'desconectada', 'texto' => 'Desconectado', 'detalhe' => 'Conecte o iFood em Integrações.', 'pode_abrir' => false];
+        }
+        try {
+            $token = $conta->token();
+            $loja = (string) $conta->loja();
+            $situacao = $this->api->situacaoLoja($token, $loja);
+            if (array_filter($situacao, static fn (array $s): bool => $s['disponivel']) !== []) {
+                return ['estado' => 'aberta', 'texto' => 'Loja aberta', 'detalhe' => 'A loja está recebendo pedidos no iFood.', 'pode_abrir' => false];
+            }
+            $ativas = self::pausasAtivas($this->api->pausas($token, $loja));
+            if ($ativas !== []) {
+                $p = $ativas[0];
+                $fim = self::dataIfood($p['fim']);
+                return ['estado' => 'pausada', 'texto' => 'Abrir loja', 'pode_abrir' => true,
+                    'detalhe' => 'Pausada' . ($p['descricao'] !== '' ? ' (' . $p['descricao'] . ')' : '') . ($fim !== null ? ' até ' . $fim->format('d/m H:i') : '') . '. Clique para abrir agora.'];
+            }
+            $motivo = '';
+            foreach ($situacao as $s) {
+                $motivo = $s['mensagem'] !== '' ? $s['mensagem'] : ($s['validacoes'][0] ?? '');
+                if ($motivo !== '') {
+                    break;
+                }
+            }
+            return ['estado' => 'fechada', 'texto' => 'Fora do horário', 'pode_abrir' => false,
+                'detalhe' => ($motivo !== '' ? $motivo . '. ' : '') . 'A loja abre sozinha no iFood no horário de funcionamento.'];
+        } catch (IntegracaoErro $erro) {
+            return ['estado' => 'erro', 'texto' => 'Sem resposta', 'detalhe' => $erro->getMessage(), 'pode_abrir' => false];
+        }
+    }
+
+    /** Abre a loja no iFood agora: remove as pausas ativas. Fora do horario de funcionamento nao ha o que abrir. */
+    public function abrirLoja(): Resultado
+    {
+        return $this->executar(function (string $token, string $loja): Resultado {
+            $ativas = self::pausasAtivas($this->api->pausas($token, $loja));
+            if ($ativas === []) {
+                $aberta = array_filter($this->api->situacaoLoja($token, $loja), static fn (array $s): bool => $s['disponivel']) !== [];
+                return $aberta ? Resultado::sucesso('A loja já está aberta no iFood.')
+                    : Resultado::falha('A loja não está pausada: ela está fora do horário de funcionamento do iFood e abre sozinha no horário.');
+            }
+            foreach ($ativas as $p) {
+                $this->api->removerPausa($token, $loja, $p['id']);
+            }
+            $this->log('iFood: loja aberta', count($ativas) === 1 ? 'Pausa "' . $ativas[0]['descricao'] . '" removida.' : count($ativas) . ' pausas removidas.');
+            return Resultado::sucesso('Loja aberta no iFood.');
+        });
+    }
+
+    /**
+     * Pausas valendo agora.
+     * @param list<array{id:string, descricao:string, inicio:string, fim:string}> $pausas
+     * @return list<array{id:string, descricao:string, inicio:string, fim:string}>
+     */
+    public static function pausasAtivas(array $pausas, ?DateTimeImmutable $agora = null): array
+    {
+        $agora ??= new DateTimeImmutable();
+        return array_values(array_filter($pausas, static function (array $p) use ($agora): bool {
+            $ini = self::dataIfood($p['inicio']);
+            $fim = self::dataIfood($p['fim']);
+            return $ini !== null && $ini <= $agora && ($fim === null || $fim > $agora);
+        }));
+    }
+
+    private static function dataIfood(string $valor): ?DateTimeImmutable
+    {
+        if (trim($valor) === '') {
+            return null;
+        }
+        try {
+            return (new DateTimeImmutable($valor))->setTimezone(new \DateTimeZone(date_default_timezone_get()));
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /** @param callable(string,string):Resultado $f */
