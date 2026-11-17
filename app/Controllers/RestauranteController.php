@@ -86,7 +86,7 @@ final class RestauranteController
                 'fechado_integracao' => (bool) ($info['fechado_integracao'] ?? false),
                 'motivo' => ($info['fechado_integracao'] ?? false) ? 'Restaurante fechado temporariamente.' : '',
             ])->comCabecalhos(['Cache-Control' => 'no-store']);
-        } catch (\\Throwable $erro) {
+        } catch (\Throwable $erro) {
             error_log('[Cardapim] Falha ao consultar estado da loja: ' . get_class($erro));
             return Response::json(['erro' => 'Não foi possível consultar o funcionamento agora.'], 503)
                 ->comCabecalhos(['Cache-Control' => 'no-store']);
