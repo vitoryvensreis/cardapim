@@ -111,7 +111,7 @@ contem "Loja tem horarios" "$tmp/pagina.html" 'Horários de funcionamento'
 nao_contem "Loja sem pausas" "$tmp/pagina.html" 'id="pausas"'
 nao_contem "Loja sem cardapio" "$tmp/pagina.html" 'id="secao-cardapio"'
 
-esperar "aba Cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos")" "200"
+esperar "aba Cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"
 contem "resumo do cardapio" "$tmp/pagina.html" '0 de 2'
 contem "opcoes do iFood" "$tmp/pagina.html" 'Aceitar pedidos do iFood sozinho'
 contem "vinculos preservados" "$tmp/pagina.html" '/integracoes/ifood/cardapio/vinculos'
@@ -126,7 +126,7 @@ contem "historico de comunicacao" "$tmp/pagina.html" 'Diagnóstico da comunicaç
 nao_contem "Dados sem seletor de fuso" "$tmp/pagina.html" 'name="fuso"'
 nao_contem "Dados sem pausas" "$tmp/pagina.html" 'id="pausas"'
 
-esperar "alias minha-loja" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code} %{redirect_url}' "$g/integracoes/ifood/status")" "302 $g/integracoes/ifood/status"
+esperar "alias minha-loja" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code} %{redirect_url}' "$g/integracoes/ifood/minha-loja")" "302 $g/integracoes/ifood/status"
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
 esperar "pausa sem motivo recusada" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao= inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
 esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia' inicio="$fim" fim="$ini" | cut -d' ' -f1)" "422"
