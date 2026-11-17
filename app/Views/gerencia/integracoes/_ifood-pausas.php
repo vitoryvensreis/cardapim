@@ -50,7 +50,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-pausa-form>
     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
     <h3>Nova pausa</h3>
-    <p class="texto-suave">Fuso estimado pelo endereço da loja no iFood: <?= $e(FusoLojaIfood::OPCOES[$fusoLoja]) ?>. A API Merchant não informa o fuso interno da conta.</p>
+    <p class="texto-suave">Horário de referência do iFood: <?= $e(FusoLojaIfood::OPCOES[$fusoLoja]) ?>. Se estiver diferente do Portal, ajuste em Dados e diagnósticos.</p>
     <label class="campo-rotulo" for="pausa-descricao">Motivo</label>
     <input class="campo-simples" id="pausa-descricao" name="descricao" maxlength="255" required value="<?= $e((string) $vP['descricao']) ?>" placeholder="Ex.: Cozinha cheia"<?= isset($eP['descricao']) ? ' aria-invalid="true" aria-describedby="erro-pausa-descricao"' : '' ?>>
     <?= $erroPausa('descricao') ?>
