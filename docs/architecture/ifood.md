@@ -21,9 +21,9 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
   disponibilidade é enviada).
 
 
-### Painel iFood responsivo e confirmação visual de pausas
+### Abas do iFood e confirmação visual de pausas
 
-- A única tela `/{slug}/gerencia/integracoes/ifood` está dividida em **Status**, **Loja** e **Cardápio**, com diagnósticos técnicos recolhíveis durante a homologação; a rota antiga `/minha-loja` continua como alias. Grid responsiva com colunas `minmax(0,1fr)`, largura expandida no desktop e cards empilhados em mobile, sem rolagem horizontal.
+- O iFood tem quatro **abas com rotas próprias**: `/integracoes/ifood/status` (disponibilidade e pausas), `/integracoes/ifood/loja` (vínculo e horários), `/integracoes/ifood/cardapio` (publicação, estoque e opções) e `/integracoes/ifood/dados` (lojas autorizadas, cadastro e diagnóstico Merchant). Apenas a seção da aba solicitada é renderizada. A rota `/integracoes/ifood` e a antiga `/integracoes/ifood/minha-loja` redirecionam para Status. O gerenciamento detalhado de vínculos migrou para `/integracoes/ifood/cardapio/vinculos`, sem alterar os POSTs existentes. A navegação por abas é responsiva e acessível.
 - `POST /integracoes/ifood/pausas` (ou `/remover`) mantém validação CSRF, tenant e RBAC. O JS mostra imediatamente card temporário da pausa, bloqueia reenvio e exibe overlay branco translúcido **somente enquanto aguarda a resposta HTTP**. Se a resposta for incerta (timeout/rede), NÃO repete o POST automaticamente; informa que é preciso consultar antes de tentar novamente.
 - Após a resposta HTTP de criação, a tela chama `GET /integracoes/ifood/pausas/estado?pausa={id}&acao=criar|remover` em polling **limitado** (até três consultas: primeira após 3 segundos para confirmar o registro, seguintes em intervalos de 30 segundos para respeitar o processamento assíncrono) usando sessão autenticada; a rota consulta GET Merchant `/interruptions` e `/status` sem modificar estado local. São retornadas renderizações parciais de pausas e disponibilidade, com `registro_confirmado`, `vigente`, `disponivel` e erros de consulta tratados separadamente.
 - **Dois níveis de confirmação:** `201 Created` significa solicitação recebida; o ID aparecer em `GET /interruptions` confirma o registro; somente `GET /status` com operação indisponível comprova fechamento operacional. Pausa futura apenas confirma registro, não exige fechamento prematuro.
@@ -31,11 +31,11 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 
 ## Telas
 
-- `Gerência > Integrações > iFood`: situação da loja, pedidos do iFood hoje, última consulta ao iFood (alerta se a
-  rotina parar), resumo do cardápio ligado e **opções**:
+- `Gerência > Integrações > iFood > Status`: situação da loja, pedidos do iFood hoje, última consulta ao iFood (alerta se a
+  rotina parar) e pausas. A aba **Cardápio** reúne o resumo do catálogo ligado e as **opções**:
   - *Aceitar pedidos do iFood sozinho* (padrão desligado): entra em preparo e o iFood é avisado na hora.
   - *Atualizar a disponibilidade no iFood pelo estoque* (padrão ligado).
-- `Gerência > Integrações > iFood > Cardápio do iFood` (`/integracoes/ifood/cardapio`): cada item do iFood com o produto
+- `Gerência > Integrações > iFood > Cardápio do iFood` (`/integracoes/ifood/cardapio/vinculos`): cada item do iFood com o produto
   daqui (ligação automática pelo **código PDV = código do produto** ou pelo mesmo nome; manual por lista), situação no
   iFood, estoque daqui, último envio e erros. Botões: *Buscar cardápio do iFood* e *Enviar disponibilidade agora*.
   Itens que chegam em pedidos e ainda não estão no cardápio buscado também aparecem para ligar.
@@ -70,17 +70,17 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 
 ## Loja no iFood (módulo Merchant)
 
-`Gerência > Integrações > iFood` (`/integracoes/ifood`): **painel único** com conexão, disponibilidade operacional, pausas e gerenciamento de horários. A rota antiga `/integracoes/ifood/minha-loja` permanece como alias da mesma tela para links salvos; não existe uma segunda interface. Dados cadastrais, lojas vinculadas e histórico bruto de diagnóstico ficam recolhidos em *Dados e diagnósticos da integração* durante a homologação. O último status operacional também é armazenado no MySQL:
+As quatro abas compartilham os mesmos serviços e permissões, mas exibem apenas o conteúdo pertinente. O último status operacional continua armazenado no MySQL:
 
 - **Lojas vinculadas** (`GET /merchant/v1.0/merchants`), marcando a ligada ao restaurante.
 - **Dados da loja** (`GET /merchants/{id}`): nome, razão social, endereço, operações e canais, e a resposta completa do iFood.
 - **Disponibilidade agora** (`GET /merchants/{id}/status`) por operação, com as validações do iFood.
 - **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo obrigatório de até **255 caracteres**; duração de **1 minuto a 7 dias**; intervalos não sobrepostos. Não há requisito documentado de antecedência mínima, mas não foi adicionado modo "Começar imediatamente": permanece o formulário existente com início/fim e início predefinido para o horário atual da loja.
-  - **Fuso**: `GET /merchants/{merchantId}` retorna endereço, mas **não** o identificador do fuso IANA configurado internamente. `FusoLojaIfood::sugerir` escolhe o fuso mais provável por Estado/município (Acre: `America/Rio_Branco`; Ceará: `America/Sao_Paulo`), sempre identificado como **inferência**, não garantia da configuração da conta Merchant.
-  - Os campos `datetime-local` continuam no fuso inferido da **loja**, não do PHP-FPM/navegador. No POST, o módulo Merchant envia a hora de parede sem offset, por exemplo `2026-11-17T15:40:00`, **sem somar/subtrair horas**: este foi o formato que o usuário testou no Postman e confirmou fechar sua loja TEST. Isto difere do exemplo oficial com `Z` e **não garante compatibilidade com toda loja**: validar com `GET /status` após a criação, respeitando processamento assíncrono. O GET pode retornar datas locais sem offset ou instantes com `Z`/offset; `IfoodApi::pausas(..., fuso)` normaliza somente os valores sem offset como horários locais daquela loja, deixando os demais intocados. `IfoodApi::data()` continua interpretando datas gerais sem offset como UTC (inclusive pedidos); essa regra não foi alterada.
+  - **Fuso fixo**: todas as pausas usam `America/Sao_Paulo` (horário de Brasília, UTC−03:00) independentemente do endereço do estabelecimento. O usuário não recebe seletor de fuso nem rota para alterá-lo. Preferências antigas eventualmente armazenadas no JSON são ignoradas.
+  - Os campos `datetime-local` usam o horário de **Brasília**, não o relógio do PHP-FPM/navegador. No POST, o módulo Merchant envia a hora de parede sem offset, por exemplo `2026-11-17T15:40:00`, **sem somar/subtrair horas**: este foi o formato que o usuário testou no Postman e confirmou fechar sua loja TEST. Isto difere do exemplo oficial com `Z` e **não garante compatibilidade com toda loja**: validar com `GET /status` após a criação, respeitando processamento assíncrono. O GET pode retornar datas locais sem offset ou instantes com `Z`/offset; `IfoodApi::pausas(..., fuso)` normaliza somente os valores sem offset como horários locais daquela loja, deixando os demais intocados. `IfoodApi::data()` continua interpretando datas gerais sem offset como UTC (inclusive pedidos); essa regra não foi alterada.
   - Os relógios digitais comparativos foram removidos por solicitação de UX. O formulário mantém início/fim em horário local e o processamento AJAX, em arquivos CSS/JS externos.
-  - **Ajuste de homologação por loja:** em `Dados e diagnósticos da integração`, o gerente pode escolher o fuso operacional usado na criação e leitura das interrupções. A opção é persistida atomicamente em `integracoes.dados.fuso_interrupcoes` como `{loja,zona}`, sempre isolada pelo `id_restaurante` e vinculada ao `merchantId`. Na ausência da opção, vale a sugestão do endereço; para a loja de teste em AC que operou com horário de Fortaleza, selecionar `America/Sao_Paulo` antes de criar nova pausa. O cron usa a mesma referência para não divergir da tela. A alteração **não muda a configuração interna do iFood nem edita pausas antigas**.
-  - **Importante:** o endpoint Merchant de detalhes não expõe o fuso IANA configurado internamente. A região da loja é uma inferência pelo endereço e é identificada como tal, **não** como leitura direta do fuso da conta. A documentação informa que a plataforma pode ignorar o offset fornecido e usar o fuso configurado na loja. Por isso, comparar **o corpo do POST, o valor devolvido em GET /interruptions, a configuração no Portal e o GET /status**. Nunca declarar loja fechada quando o Merchant permanece `available=true`/`state=OK`.
+  - **Sem ajuste manual:** o POST de fuso foi removido, o formulário técnico não mostra configuração e o cron usa a mesma constante `America/Sao_Paulo` da tela.
+  - **Importante:** o endpoint Merchant de detalhes não expõe o fuso IANA configurado internamente. O horário fixo de Brasília é uma decisão do Deliveryzim, não uma leitura direta da configuração do iFood. Em lojas que utilizem outra região, é necessário conferir a interpretação no Portal do Parceiro. Por isso, comparar **o corpo do POST, o valor devolvido em GET /interruptions, a configuração no Portal e o GET /status**. Nunca declarar loja fechada quando o Merchant permanece `available=true`/`state=OK`.
   - Validação prévia de sobreposição via `GET /interruptions`, sem confiar apenas no `409` de uma loja TEST. Cada POST 201 salva ID e período UTC auditado. `POST 201` não é confirmação de indisponibilidade; aguardar processamento assíncrono. Persistindo `OK` e sem validação `unavailabilities`, abrir chamado de homologação com logs da API, especialmente em lojas `TEST`/`DISABLED`.
 
   O POST envia somente `description`, `start` e `end` e exige **HTTP 201 com ID devolvido pelo iFood**;
@@ -100,15 +100,20 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 
 | Método | Rota | O que faz |
 | --- | --- | --- |
-| GET | `/{slug}/gerencia/integracoes/ifood` | Painel único de conexão, disponibilidade, pausas, horários e diagnósticos |
-| GET | `/{slug}/gerencia/integracoes/ifood/minha-loja` | Alias legado do mesmo painel único, preservando links anteriores |
+| GET | `/{slug}/gerencia/integracoes/ifood` | Redireciona para `/status` |
+| GET | `/{slug}/gerencia/integracoes/ifood/status` | Disponibilidade, pausas, métricas |
+| GET | `/{slug}/gerencia/integracoes/ifood/loja` | Conta vinculada e horários |
+| GET | `/{slug}/gerencia/integracoes/ifood/cardapio` | Resumo, publicação, estoque e opções |
+| GET | `/{slug}/gerencia/integracoes/ifood/cardapio/vinculos` | Ligação detalhada de itens aos produtos |
+| GET | `/{slug}/gerencia/integracoes/ifood/dados` | Lojas vinculadas, cadastro e diagnósticos |
+| GET | `/{slug}/gerencia/integracoes/ifood/minha-loja` | Alias legado que redireciona para Status |
 | POST | `/{slug}/gerencia/integracoes/ifood/pausas` | Cria pausa (`descricao`, `inicio`, `fim` em `Y-m-d\TH:i`) |
 | POST | `/{slug}/gerencia/integracoes/ifood/pausas/remover` | Remove pausa (`pausa` = id) |
 | POST | `/{slug}/gerencia/integracoes/ifood/horarios` | Sem `horario_proprio`: usa o horário do Perfil. Com `horario_proprio=1`: envia `h[MONDAY][0][abre]`, `h[MONDAY][0][fecha]`... |
 
 ### Diagnóstico das respostas da API Merchant
 
-Na tela **Loja no iFood**, o gerente encontra **Diagnóstico da comunicação com o iFood**. Os últimos 30 registros podem ser consultados nessa própria tela depois de atualizá-la. São mostrados apenas os registros do restaurante logado, com controle de acesso já existente na gerência. O log inclui:
+Na aba **Dados**, o gerente encontra **Diagnóstico da comunicação com o iFood**. Os últimos 30 registros podem ser consultados nessa própria tela depois de atualizá-la. São mostrados apenas os registros do restaurante logado, com controle de acesso já existente na gerência. O log inclui:
 
 - Horário UTC, origem (cron ou painel), restaurante e loja, método, rota, ID da pausa (quando aplicável), tempo de resposta e **código HTTP real**.
 - Corpo de envio seguro e resposta JSON sanitizada de `GET /status`, `GET /interruptions`, `POST /interruptions`, `DELETE /interruptions/{id}` e `GET|PUT /opening-hours`.
