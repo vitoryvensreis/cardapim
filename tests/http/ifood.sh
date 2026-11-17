@@ -280,14 +280,14 @@ contem "situacao no iFood" "$tmp/aviso.html" 'No iFood'
 no_registro "categoria criada no iFood" "categoria Teste Homologacao $r5"
 no_registro "foto enviada ao iFood" "foto"
 no_registro "item com grupo, 2 complementos e foto" "item $prod_nome preco 29.9 grupos 1 opcoes 2 foto"
-esperar "enviar mudancas (sem mudanca)" "$(enviar "$gj" "$g/integracoes/ifood/publicar/sincronizar" "$g/integracoes/ifood/publicar" | cut -d' ' -f1)" "303"
+esperar "enviar mudancas (sem mudanca)" "$(enviar "$gj" "$g/integracoes/ifood/publicar" "$g/integracoes/ifood/publicar/sincronizar" | cut -d' ' -f1)" "303"
 esperar "nada mudou" "$(aviso "$gj" "$g/integracoes/ifood/publicar")" 'Tudo igual: o cardápio do iFood já está atualizado.'
 pagina "$gj" "$g/estoque/produtos/$pub" >/dev/null
 esperar "muda nome e preco do item" "$(multipart "$gj" "$g/estoque/produtos/$pub" "$g/estoque/produtos/$pub" -F "nome=$prod_nome Novo" -F unidade_venda=un -F 'preco=34,90' \
   -F controle=livre -F disponivel=1 -F "grupos[]=$grupo_ifood" -F "foto=@$tmp/foto.png;type=image/png" \
   -F "categoria=$(php -r 'if (preg_match("~<option value=\"(\d+)\" selected~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")" | cut -d' ' -f1)" "303"
-esperar "pausa o complemento" "$(enviar "$gj" "$g/estoque/complementos/opcoes/$bacon/pausar" "$g/estoque/complementos" | cut -d' ' -f1)" "303"
-enviar "$gj" "$g/integracoes/ifood/publicar/sincronizar" "$g/integracoes/ifood/publicar" >/dev/null
+esperar "pausa o complemento" "$(enviar "$gj" "$g/estoque/complementos" "$g/estoque/complementos/opcoes/$bacon/pausar" | cut -d' ' -f1)" "303"
+enviar "$gj" "$g/integracoes/ifood/publicar" "$g/integracoes/ifood/publicar/sincronizar" >/dev/null
 aviso "$gj" "$g/integracoes/ifood/publicar" >/dev/null
 contem "mudancas enviadas" "$tmp/aviso.html" 'Mudanças enviadas ao iFood'
 no_registro "nome novo pelo cadastro, com o preco antigo" "item $prod_nome Novo preco 29.9"
