@@ -249,9 +249,11 @@ class IfoodApi
     {
         $r = $this->requisicao('POST', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions', $token, [
             'description' => $descricao,
-            // UTC com "Z", como na documentacao do iFood.
-            'start' => $inicio->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
-            'end' => $fim->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+            // ISO 8601 no horario da loja, com offset explicito.
+            // Nao converter o horario de parede para UTC antes do envio:
+            // o iFood informa que pode ignorar o offset e usar o fuso configurado na loja.
+            'start' => $inicio->format('Y-m-d\TH:i:sP'),
+            'end' => $fim->format('Y-m-d\TH:i:sP'),
         ]);
         $d = $this->exigirOk($r, 'criar a pausa');
         if ($r->status !== 201) {

@@ -312,6 +312,10 @@ if (in_array($caminho, ['/_teste/ifood-status-forcar-aberta', '/ifood/_teste/ifo
     $guardar('ifood-status-forcar-aberta.json', ($json['ativa'] ?? false) === true);
     $responder(200, ['ok' => true]);
 }
+if ($caminho === '/ifood/_teste/ultimo-payload-pausa' && $metodo === 'GET') {
+    // Somente fake local de CI, nunca exposto pela aplicacao em producao.
+    $responder(200, $ler('ifood-ultimo-payload-pausa.json') ?? []);
+}
 if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
     if (!str_starts_with($cab('Authorization'), 'Bearer acc-')) {
         $responder(401, ['error' => 'unauthorized']);
@@ -336,6 +340,7 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
     if (preg_match('~\A/ifood/merchant/v1\.0/merchants/[0-9a-f-]+/interruptions\z~', $caminho)) {
         $pausas = $ler('ifood-pausas.json') ?? [];
         if ($metodo === 'POST') {
+            $guardar('ifood-ultimo-payload-pausa.json', $json);
             if (trim((string) ($json['description'] ?? '')) === '' || strtotime((string) ($json['end'] ?? '')) <= strtotime((string) ($json['start'] ?? ''))) {
                 $responder(400, ['message' => 'Interrupcao invalida']);
             }
