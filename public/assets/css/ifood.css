@@ -29,6 +29,15 @@
 .ifood-form-pausa h3, .ifood-subtitulo { color: var(--c-ink); font-size: 1rem; font-weight: 700; }
 .ifood-subtitulo { margin: 1.25rem 0 .6rem; }
 .campo-rotulo { color: var(--c-ink); font-size: .88rem; font-weight: 700; }
+/* Relogios do horario da loja (Merchant) e do dispositivo que acessa a gerencia. */
+.ifood-relogios { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin: .65rem 0 .8rem; }
+.ifood-relogio { display: flex; flex-direction: column; align-items: flex-start; gap: .18rem; min-width: 0; padding: .8rem .95rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.ifood-relogio-loja { border-color: var(--c-orange); background: var(--c-cream); }
+.ifood-relogio-titulo { display: inline-flex; align-items: center; gap: .4rem; color: var(--c-ink); font-weight: 700; font-size: .82rem; }
+.ifood-relogio-hora { display: block; font-size: clamp(1.35rem, 3vw, 1.85rem); font-weight: 750; color: var(--c-wine); font-variant-numeric: tabular-nums; letter-spacing: .035em; line-height: 1.25; white-space: nowrap; }
+.ifood-relogio-data { font-size: .82rem; color: var(--c-muted); font-variant-numeric: tabular-nums; }
+.ifood-relogio small { font-size: .73rem; color: var(--c-muted); overflow-wrap: anywhere; }
+@media (max-width: 30rem) { .ifood-relogios { grid-template-columns: 1fr; } }
 .ifood-datas { display: grid; gap: .75rem; }
 .ifood-datas > div { display: grid; gap: .45rem; }
 .ifood-horarios { display: grid; gap: .75rem; }
