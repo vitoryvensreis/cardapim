@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Modules\Integracoes;
 
 use Cardapim\Core\Config;
+use Cardapim\Services\Ifood\IfoodDiagnostico;
 use Cardapim\Shared\Http\ClienteHttp;
 use Cardapim\Shared\Http\ErroHttp;
 use Cardapim\Shared\Http\RespostaHttp;
@@ -17,6 +18,13 @@ use Cardapim\Shared\Http\RespostaHttp;
  */
 class IfoodApi
 {
+    private ?int $restauranteDiagnostico = null;
+
+    public function identificarRestaurante(int $idRestaurante): void
+    {
+        $this->restauranteDiagnostico = $idRestaurante > 0 ? $idRestaurante : null;
+    }
+
     public function __construct(private readonly ClienteHttp $http = new ClienteHttp())
     {
     }
@@ -427,12 +435,28 @@ class IfoodApi
      */
     private function requisicao(string $metodo, string $caminho, string $token, ?array $corpo = null, array $extras = []): RespostaHttp
     {
+        $inicio = hrtime(true);
         try {
-            return $this->http->enviar($metodo, self::urlBase() . $caminho, ['Authorization' => 'Bearer ' . $token] + $extras, $corpo);
+            $resposta = $this->http->enviar($metodo, self::urlBase() . $caminho, ['Authorization' => 'Bearer ' . $token] + $extras, $corpo);
+            $this->registrarMerchant($metodo, $caminho, $corpo, $resposta, null, $inicio);
+            return $resposta;
         } catch (ErroHttp $erro) {
+            $this->registrarMerchant($metodo, $caminho, $corpo, null, $erro->getMessage(), $inicio);
             throw new IntegracaoErro('Não foi possível falar com o iFood agora: ' . $erro->getMessage());
         } catch (\JsonException) {
+            $this->registrarMerchant($metodo, $caminho, $corpo, null, 'JSON invalido', $inicio);
             throw new IntegracaoErro('Dados inválidos para o iFood.');
+        }
+    }
+
+    /**
+     * Log exclusivo das chamadas Merchant monitoradas. Nenhum cabecalho ou token e encaminhado.
+     * @param array<mixed>|null $corpo
+     */
+    private function registrarMerchant(string $metodo, string $caminho, ?array $corpo, ?RespostaHttp $resposta, ?string $erro, int $inicio): void
+    {
+        if ($this->restauranteDiagnostico !== null) {
+            IfoodDiagnostico::registrar($this->restauranteDiagnostico, $metodo, $caminho, $corpo, $resposta, $erro, (int) ((hrtime(true) - $inicio) / 1_000_000));
         }
     }
 
@@ -476,7 +500,7 @@ class IfoodApi
     private function get(string $caminho, string $token): RespostaHttp
     {
         try {
-            return $this->http->enviar('GET', self::urlBase() . $caminho, ['Authorization' => 'Bearer ' . $token]);
+            return $this->requisicao('GET', $caminho, $token);
         } catch (ErroHttp $erro) {
             throw new IntegracaoErro('Não foi possível falar com o iFood agora: ' . $erro->getMessage());
         }
