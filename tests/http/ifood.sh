@@ -88,6 +88,12 @@ contem "opcoes do iFood" "$tmp/pagina.html" 'Aceitar pedidos do iFood sozinho'
 contem "link para ligar os itens" "$tmp/pagina.html" '/integracoes/ifood/cardapio'
 contem "painel unico: disponibilidade na pagina principal" "$tmp/pagina.html" 'Disponibilidade agora'
 contem "painel unico: pausas na pagina principal" "$tmp/pagina.html" 'Nova pausa'
+contem "secao status para lojista" "$tmp/pagina.html" 'id="status-ifood"'
+contem "secao loja para lojista" "$tmp/pagina.html" 'id="loja-ifood"'
+contem "secao cardapio para lojista" "$tmp/pagina.html" 'id="catalogo-ifood"'
+contem "overlay aguardando ifood" "$tmp/pagina.html" 'data-ifood-overlay'
+contem "lista para card de pausa otimista" "$tmp/pagina.html" 'data-pausas-lista'
+contem "endpoint seguro de acompanhamento" "$tmp/pagina.html" 'data-pausas-consulta'
 contem "painel unico: horarios recolhiveis" "$tmp/pagina.html" 'ifood-secao-recolhivel'
 contem "diagnosticos mantidos" "$tmp/pagina.html" 'Dados e diagnósticos da integração'
 
@@ -142,12 +148,17 @@ agora_local="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')"; depois_local="$(TZ
 esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa tela CI' inicio="$agora_local" fim="$depois_local")" "200"
 contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
 contem "aviso de pausa criada" "$tmp/js.json" 'recebeu a solicitação de pausa'
+contem "ID da pausa para confirmar sem repeticao" "$tmp/js.json" '"pausa_id":'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
 contem "horario da pausa identificado" "$tmp/js.json" 'Horário vigente'
 esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$agora_local" fim="$depois_local")" "422"
 contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
 esperar "pausa pela tela sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'descricao=Teste' "$g/integracoes/ifood/pausas")" "419"
 pausa_js="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", $d["html"] ?? "", $m)) echo $m[1];' "$tmp/js.json")"
+curl -s -b "$gj" -o "$tmp/confirmacao-pausa.json" "$g/integracoes/ifood/pausas/estado?id=$pausa_js"
+contem "consulta de confirmacao retorna pausa cadastrada" "$tmp/confirmacao-pausa.json" '"registrada":true'
+contem "consulta de confirmacao informa estado" "$tmp/confirmacao-pausa.json" '"estado":'
+esperar "polling exige sessao autenticada" "$(curl -s -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?id=$pausa_js")" "401"
 esperar "remover pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_js")" "200"
 contem "aviso de removida no card" "$tmp/js.json" 'recebeu a solicitação de remoção'
 contem "lista vazia no card" "$tmp/js.json" 'Nenhuma pausa ativa.'
