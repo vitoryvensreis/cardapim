@@ -1,6 +1,7 @@
 <?php
 use Cardapim\Core\Icon;
 /** Status operacional do iFood; $p normalizado em IfoodLojaService. */
+use Cardapim\Core\Icon;
 ?>
     <section class="bloco" aria-labelledby="titulo-situacao" data-ifood-status>
         <div class="bloco-cabecalho">
