@@ -189,3 +189,8 @@ body.ifood-aguardando-ativo { overflow: hidden; }
 .ifood-confirmacao-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; width: 100%; margin-top: .6rem; }
 .ifood-confirmacao-acoes .btn { min-height: 2.75rem; white-space: normal; }
 @media (max-width: 28rem) { .ifood-confirmacao-acoes { display: grid; } .ifood-confirmacao-acoes .btn { width: 100%; } }
+
+/* Formulario de pausa: orientacao e retorno ao inicio automatico. */
+.ifood-inicio-ajuda { display: flex; flex-wrap: wrap; gap: .35rem .75rem; align-items: center; margin-top: .4rem; }
+.ifood-inicio-ajuda .texto-suave { line-height: 1.4; }
+.ifood-inicio-ajuda [hidden] { display: none; }
