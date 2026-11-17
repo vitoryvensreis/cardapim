@@ -1,6 +1,6 @@
 /**
  * Botao "Abrir loja no iFood" do topo (gerencia e modo caixa).
- * Consulta a situacao por JSON ao abrir a tela e a cada minuto (so com a aba visivel) e abre a loja sem recarregar.
+ * Consulta o snapshot local por JSON, sem chamar a API Merchant para cada aba aberta.
  * Estados (data-estado): carregando | aberta | pausada | fechada | erro | desconectada. So "pausada" e clicavel.
  */
 (() => {
@@ -12,7 +12,8 @@
   const texto = botao.querySelector("[data-ifood-loja-texto]");
   const aviso = document.querySelector("[data-ifood-loja-aviso]");
   const avisoTexto = aviso ? aviso.querySelector("[data-ifood-loja-aviso-texto]") : null;
-  const INTERVALO = 60000;
+  // Backend lê apenas o MySQL; a rotina do iFood consulta a API a cada 30s.
+  const INTERVALO = 10000;
   let timer = null;
   let ocupado = false;
 
@@ -91,7 +92,12 @@
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) consultar();
+    if (!document.hidden) consultar(true);
+  });
+  document.addEventListener("cardapim:tempo-real", (event) => {
+    if (event.detail?.tipo !== "loja.disponibilidade") return;
+    event.preventDefault(); // A interface atualiza o botão sem exigir recarregamento.
+    consultar(true);
   });
 
   // Pausa criada ou removida na tela Loja no iFood: o botao muda na hora e confere de novo em alguns
