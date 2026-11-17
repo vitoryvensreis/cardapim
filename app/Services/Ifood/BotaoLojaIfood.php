@@ -39,11 +39,11 @@ final class BotaoLojaIfood
         return ['situacao' => $base . '/situacao', 'abrir' => $base . '/abrir'];
     }
 
-    /** GET: situacao atual. */
+    /** GET: situacao atual. ?novo=1 = sem a copia guardada (logo depois de criar ou remover pausa). */
     public static function situacao(PDO $db, UsuarioLogado $usuario, int $idRestaurante): Response
     {
         $chave = self::chave($idRestaurante);
-        $guardado = Session::get($chave);
+        $guardado = ($_GET['novo'] ?? '') === '1' ? null : Session::get($chave);
         if (is_array($guardado) && ($guardado['ate'] ?? 0) > time() && is_array($guardado['dados'] ?? null)) {
             return Guard::semCache(Response::json($guardado['dados']));
         }

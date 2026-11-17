@@ -45,10 +45,10 @@
     aviso.hidden = true;
   });
 
-  const consultar = async () => {
+  const consultar = async (novo = false) => {
     if (ocupado || document.hidden) return;
     try {
-      const resposta = await fetch(botao.dataset.situacao, { credentials: "same-origin", headers: { Accept: "application/json" } });
+      const resposta = await fetch(botao.dataset.situacao + (novo === true ? "?novo=1" : ""), { credentials: "same-origin", headers: { Accept: "application/json" } });
       if (resposta.status === 401) {
         botao.hidden = true;
         return;
@@ -92,6 +92,17 @@
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) consultar();
+  });
+
+  // Pausa criada ou removida na tela Loja no iFood: o botao muda na hora e confere de novo em alguns
+  // segundos (o iFood pode demorar a refletir a mudanca).
+  let conferir = null;
+  document.addEventListener("ifood:loja-mudou", () => {
+    botao.dataset.estado = "carregando";
+    consultar(true);
+    clearTimeout(conferir);
+    conferir = setTimeout(() => consultar(true), 8000);
+    agendar();
   });
 
   botao.dataset.estado = "carregando";
