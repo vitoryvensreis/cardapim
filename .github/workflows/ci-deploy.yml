@@ -193,7 +193,7 @@ jobs:
           # Servidor de tempo real (WebSocket) com Redis; mais abaixo roda de novo SEM Redis (modo reserva).
           APP_URL=https://cardapim.test WS_PORTA=18095 REDIS_HOST=127.0.0.1 REDIS_PORT=6379 php bin/tempo-real.php >/tmp/cardapim-ws.log 2>&1 &
           ws_pid=$!
-          trap 'kill "$server_pid" "$fake_pid" "$ws_pid" 2>/dev/null || true; cat /tmp/cardapim-ws.log || true; echo "--- erros do servidor PHP ---"; grep -i "error\|warning\|exception" /tmp/cardapim-php.log | tail -n 40 || true' EXIT
+          trap 'kill "$server_pid" "$fake_pid" "$ws_pid" 2>/dev/null || true; cat /tmp/cardapim-ws.log || true; echo "--- erros do servidor PHP ---"; grep -i "error\|warning\|exception" /tmp/cardapim-php.log | grep -v "padrao usad" | tail -n 40 || true' EXIT
           sleep 2
           for path in / /login /cadastro /assets/css/core.css /assets/css/site.css /assets/css/pages.css /assets/js/core.js /assets/js/site.js /assets/js/forms.js /assets/icons/lucide.svg /assets/img/icone.svg; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
