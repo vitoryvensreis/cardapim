@@ -79,9 +79,9 @@ final class EstadoLoja
         $agora = time();
         $pausada = false;
         foreach ($pausas as $p) {
-            $inicio = strtotime((string) ($p['inicio'] ?? ''));
-            $fim = strtotime((string) ($p['fim'] ?? ''));
-            if ($inicio !== false && $inicio <= $agora && ($fim === false || $fim > $agora)) {
+            $inicio = \Cardapim\Modules\Integracoes\IfoodApi::data((string) ($p['inicio'] ?? ''))?->getTimestamp();
+            $fim = \Cardapim\Modules\Integracoes\IfoodApi::data((string) ($p['fim'] ?? ''))?->getTimestamp();
+            if ($inicio !== null && $inicio <= $agora && ($fim === null || $fim > $agora)) {
                 $pausada = true;
                 break;
             }
@@ -101,7 +101,7 @@ final class EstadoLoja
         }
         $atual = self::consultar($db, $idRestaurante);
         self::escrever($db, $idRestaurante, 'situacao_sincronizada', [
-            'fechado' => $fechado, 'motivo' => $fechado ? ($motivo ?: 'Loja indisponível no iFood.') : '',
+            'fechado' => $fechado, 'pausada' => $pausada, 'motivo' => $fechado ? ($motivo ?: 'Loja indisponível no iFood.') : '',
             'atualizado_em' => $agora,
         ]);
         if ($atual['fechado'] !== self::consultar($db, $idRestaurante)['fechado']) {
