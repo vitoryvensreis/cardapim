@@ -67,7 +67,7 @@ esperar "cria o grupo com 2 opcoes" "$(enviar "$gj" "$g/estoque/complementos" "$
 pagina "$gj" "$g/estoque/complementos" >/dev/null
 contem "grupo listado" "$tmp/pagina.html" "$grupo_nome"
 contem "preco da opcao" "$tmp/pagina.html" '+ R$ 8,00'
-grupo="$(php -r 'if (preg_match("~" . preg_quote($argv[2], "~") . ".*?estoque/complementos/(\d+)\"~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$grupo_nome")"
+grupo="$(php -r 'if (preg_match("~<h2 id=\"grupo-(\d+)\">" . preg_quote(htmlspecialchars($argv[2]), "~") . "</h2>~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$grupo_nome")"
 opcao_id() { php -r 'if (preg_match("~<strong>" . preg_quote($argv[2], "~") . "</strong>.*?opcoes/(\d+)/pausar~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$1"; }
 cat_op="$(opcao_id 'Catupiry CI')"; sem_op="$(opcao_id 'Sem borda CI')"
 [[ -n "$grupo" && -n "$cat_op" && -n "$sem_op" ]] && ok "ids do grupo e das opcoes ($grupo, $cat_op, $sem_op)" || falha "ids do grupo/opcoes nao encontrados"

@@ -261,8 +261,10 @@ esperar "grupo de complementos com fotos" "$(multipart "$gj" "$g/estoque/complem
   -F 'opcoes[0][nome]=Bacon iFood' -F 'opcoes[0][preco]=4,50' -F 'opcoes[0][disponivel]=1' -F "opcao_foto[0]=@$tmp/foto.png;type=image/png" \
   -F 'opcoes[1][nome]=Cheddar iFood' -F 'opcoes[1][preco]=3,00' -F 'opcoes[1][disponivel]=1' -F "opcao_foto[1]=@$tmp/foto.png;type=image/png" | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/estoque/complementos" >/dev/null
-grupo_ifood="$(php -r 'if (preg_match("~" . preg_quote($argv[2], "~") . ".*?estoque/complementos/(\d+)\"~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$grupo_nome")"
-bacon="$(php -r 'if (preg_match("~<strong>Bacon iFood</strong>.*?opcoes/(\d+)/pausar~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
+# Ancora no titulo do grupo (o aviso de "salvo" no topo tambem traz o nome).
+grupo_ifood="$(php -r 'if (preg_match("~<h2 id=\"grupo-(\d+)\">" . preg_quote(htmlspecialchars($argv[2]), "~") . "</h2>~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$grupo_nome")"
+bacon="$(php -r 'if (preg_match("~<h2 id=\"grupo-" . $argv[2] . "\">.*?<strong>Bacon iFood</strong>.*?opcoes/(\d+)/pausar~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$grupo_ifood")"
+[[ -n "$grupo_ifood" && -n "$bacon" ]] && ok "grupo ($grupo_ifood) e complemento ($bacon) encontrados" || falha "grupo ou complemento nao encontrado"
 contem "foto do complemento salva" "$tmp/pagina.html" '/midia/cardapio/'
 prod_nome="Produto Teste $r5"
 esperar "produto com foto, categoria nova e complementos" "$(multipart "$gj" "$g/estoque/produtos" "$g/estoque/produtos/novo" -F "nome=$prod_nome" -F unidade_venda=un -F 'preco=29,90' \
