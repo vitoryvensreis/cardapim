@@ -115,7 +115,7 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             <header class="ifood-dashboard-heading">
                 <div><h2 id="ifood-grupo-status"><?= Icon::svg('activity', 'icon-sm') ?> Status da operação</h2><p>Acompanhe a loja e controle suas pausas.</p></div>
                 <div class="ifood-dashboard-metricas">
-                    <div><small>Pedidos hoje</small><strong><?= (int) $pedidosHoje ?></strong></div>
+                    <div><small>Pedidos do iFood hoje</small><strong><?= (int) $pedidosHoje ?></strong></div>
                     <div><small>Última consulta</small><strong><?= $ultimaConsulta === null ? '-' : ($ultimaConsulta < 60 ? 'Agora há pouco' : $e($data($integracao['verificado_em']))) ?></strong></div>
                 </div>
             </header>
