@@ -35,7 +35,7 @@ final class RotinaIfood
                 // A API de pausas pode retornar horario local sem offset; diferenciar de UTC
                 // em todo o modulo Merchant, inclusive no cron.
                 $detalhes = $conta->api()->detalhesLoja($token, (string) $conta->loja());
-                $fuso = FusoLojaIfood::sugerir($detalhes);
+                $fuso = $conta->fusoInterrupcoes() ?? FusoLojaIfood::sugerir($detalhes);
                 $pausas = $conta->api()->pausas($token, (string) $conta->loja(), $fuso);
                 EstadoLoja::reconciliar($this->db, $idRestaurante, $operacoes, $pausas);
             } catch (IntegracaoErro $erroMerchant) {
