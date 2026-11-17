@@ -108,7 +108,7 @@ final class IfoodLojaService extends BaseIntegracao
         }
         return $this->executar(function (string $token, string $loja) use ($descricao, $ini, $fi): Resultado {
             $id = $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
-            $this->pausaCriada = ['id' => $id, 'descricao' => $descricao, 'inicio' => $ini->format(DATE_ATOM), 'fim' => $fi->format(DATE_ATOM)];
+            $this->pausaCriada = ['id' => $id, 'descricao' => $descricao, 'inicio' => self::utc($ini), 'fim' => self::utc($fi)];
             $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s.', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i')));
             return Resultado::sucesso('Pausa criada. A loja fica fechada no iFood de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . ' e aparece na lista abaixo.');
         });
@@ -409,30 +409,13 @@ final class IfoodLojaService extends BaseIntegracao
         }));
     }
 
-    private static function dataIfood(string $valor): ?DateTimeImmutable
+    /**
+     * Data/hora vinda do iFood, no fuso do sistema. O iFood trabalha em UTC e as vezes devolve sem o fuso
+     * ("2026-11-17T12:49:00"): sem fuso, e UTC (nunca o horario local).
+     */
+    public static function dataIfood(string $valor): ?DateTimeImmutable
     {
-        if (trim($valor) === '') {
-            return null;
-        }
-        try {
-            return (new DateTimeImmutable($valor))->setTimezone(new \DateTimeZone(date_default_timezone_get()));
-        } catch (\Exception) {
-            return null;
-        }
-    }
-
-    /** @param callable(string,string):Resultado $f */
-    private function executar(callable $f): Resultado
-    {
-        $conta = $this->conta();
-        if (!$conta->conectada()) {
-            return Resultado::falha('Conecte o iFood primeiro.');
-        }
-        try {
-            return $f($conta->token(), (string) $conta->loja());
-        } catch (IntegracaoErro $erro) {
-            return Resultado::falha($erro->getMessage());
-        }
+        return IfoodApi::data($valor);
     }
 
     private function conta(): IfoodConta
@@ -446,6 +429,12 @@ final class IfoodLojaService extends BaseIntegracao
             return null;
         }
         return (int) $m[1] * 60 + (int) $m[2];
+    }
+
+    /** Formato que o iFood usa: UTC com "Z". */
+    public static function utc(DateTimeImmutable $d): string
+    {
+        return $d->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
     }
 
     private static function dataHora(string $valor): ?DateTimeImmutable

@@ -156,6 +156,12 @@ $ativas = IfoodLojaService::pausasAtivas([
     ['id' => 'c', 'descricao' => 'acabou', 'inicio' => $agora->modify('-2 hours')->format(DATE_ATOM), 'fim' => $agora->modify('-1 hour')->format(DATE_ATOM)],
 ], $agora);
 $ok(array_column($ativas, 'id') === ['a'], 'so a pausa valendo agora');
+// Horario do iFood: sem fuso = UTC (12:49 UTC = 09:49 em Fortaleza), nunca horario local.
+$ok(IfoodLojaService::dataIfood('2026-11-17T12:49:00')?->format('H:i') === '09:49', 'hora do iFood sem fuso e UTC');
+$ok(IfoodLojaService::dataIfood('2026-11-17T12:49:00Z')?->format('H:i') === '09:49', 'hora do iFood com Z');
+$ok(IfoodLojaService::dataIfood('2026-11-17T09:49:00-03:00')?->format('H:i') === '09:49', 'hora com fuso');
+$ok(IfoodLojaService::utc(new DateTimeImmutable('2026-11-17 09:49:00')) === '2026-11-17T12:49:00Z', 'envio em UTC');
+$ok(IfoodLojaService::pausasAtivas([['id' => 'u', 'descricao' => '', 'inicio' => gmdate('Y-m-d\TH:i:s', time() - 60), 'fim' => gmdate('Y-m-d\TH:i:s', time() + 600)]]) !== [], 'pausa sem fuso valendo agora');
 
 $ok(preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/', IfoodApi::uuid()) === 1, 'uuid v4');
 
