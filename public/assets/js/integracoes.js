@@ -119,8 +119,8 @@
 
     const acompanhar = async (id, acao, descricao, periodo) => {
       let ultimo = null;
-      for (let tentativa = 0; tentativa < 10; tentativa += 1) {
-        await aguardar(3000);
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        await aguardar(tentativa === 0 ? 3000 : 30000);
         try {
           const dados = await consultar(id, acao);
           ultimo = dados;
