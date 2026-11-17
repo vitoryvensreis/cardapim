@@ -18,7 +18,7 @@
     chave?.addEventListener("change", trocar);
   }
 
-  /* ---------- Interrupcoes iFood: envio bloqueante + confirmacao nao bloqueante ---------- */
+  /* ---------- Interrupcoes iFood: bloquear ate confirmar registro, periodo e status ---------- */
   const pausas = document.querySelector("[data-pausas]");
   if (pausas) {
     const overlay = document.querySelector("[data-ifood-overlay]");
@@ -26,8 +26,14 @@
     const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let ocupado = false;
 
-    const mostrarOverlay = (ligado) => {
+    const mostrarOverlay = (ligado, titulo = "Aguardando iFood", detalhe = "Verificando a solicitação e o status da loja.") => {
       if (!overlay) return;
+      if (ligado) {
+        const rotulo = overlay.querySelector("strong");
+        const explicacao = overlay.querySelector("p");
+        if (rotulo) rotulo.textContent = titulo;
+        if (explicacao) explicacao.textContent = detalhe;
+      }
       overlay.hidden = !ligado;
       document.body.classList.toggle("ifood-aguardando-ativo", ligado);
     };
@@ -35,11 +41,11 @@
       pausas.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "start" });
       pausas.querySelector("[data-pausas-aviso]")?.focus({ preventScroll: true });
     };
-    const aviso = (mensagem) => {
+    const aviso = (mensagem, sucesso = false) => {
       pausas.querySelector("[data-pausas-aviso]")?.remove();
       const box = document.createElement("div");
-      box.className = "notice notice-warning ifood-pausa-aviso";
-      box.setAttribute("role", "alert");
+      box.className = "notice " + (sucesso ? "notice-success" : "notice-warning") + " ifood-pausa-aviso";
+      box.setAttribute("role", sucesso ? "status" : "alert");
       box.tabIndex = -1;
       box.dataset.pausasAviso = "";
       const p = document.createElement("p");
@@ -104,25 +110,40 @@
       const novo = temp.querySelector("[data-ifood-status]");
       if (novo) destino.replaceWith(novo);
     };
-    const consultar = async (id, acao) => {
+    const consultar = async (id, acao, inicio = "", fim = "") => {
       const url = new URL(urlEstado, window.location.href);
       url.searchParams.set("pausa", id);
       url.searchParams.set("acao", acao);
-      const resposta = await fetch(url.toString(), {
-        credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" },
-      });
-      const dados = await resposta.json().catch(() => ({}));
-      if (!resposta.ok || !dados.ok) throw new Error(dados.mensagem || "Não foi possível consultar a situação da loja.");
-      return dados;
+      if (acao === "criar") {
+        url.searchParams.set("inicio", inicio);
+        url.searchParams.set("fim", fim);
+      }
+      // Cada consulta tem seu proprio limite, sem cancelar ou repetir o POST.
+      const controlador = new AbortController();
+      const limite = window.setTimeout(() => controlador.abort(), 12000);
+      try {
+        const resposta = await fetch(url.toString(), {
+          credentials: "same-origin", cache: "no-store",
+          headers: { Accept: "application/json" }, signal: controlador.signal,
+        });
+        const dados = await resposta.json().catch(() => ({}));
+        if (!resposta.ok || !dados.ok) throw new Error(dados.mensagem || "Não foi possível consultar a situação da loja.");
+        return dados;
+      } finally {
+        window.clearTimeout(limite);
+      }
     };
     const aguardar = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-    const acompanhar = async (id, acao, descricao, periodo) => {
+    const acompanhar = async (id, acao, descricao, periodo, inicio = "", fim = "") => {
+      const intervalos = [1500, 3500, 6000, 9000, 12000, 15000];
       let ultimo = null;
-      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
-        await aguardar(tentativa === 0 ? 3000 : 30000);
+      for (let tentativa = 0; tentativa < intervalos.length; tentativa += 1) {
+        mostrarOverlay(true, "Confirmando no iFood",
+          "Verificando o registro da interrupção, os horários e a disponibilidade da loja (" + (tentativa + 1) + "/" + intervalos.length + ").");
+        await aguardar(intervalos[tentativa]);
         try {
-          const dados = await consultar(id, acao);
+          const dados = await consultar(id, acao, inicio, fim);
           ultimo = dados;
           if (typeof dados.html === "string") pausas.innerHTML = dados.html;
           atualizarStatus(dados.html_status);
@@ -132,25 +153,42 @@
             acrescentarPendente(descricao, periodo, acao === "criar" ? "Aguardando registro no iFood" : "Aguardando remoção no iFood", id, acao);
             continue;
           }
-          // Criacao agendada so precisa confirmar o registro. Loja nao deve fechar antes do inicio.
-          if (acao === "remover" || !dados.vigente || dados.disponivel === false) {
-            if (acao === "criar" && dados.vigente && dados.disponivel === false) {
-              aviso("Pausa registrada e loja indisponível no iFood.");
-            }
+          if (!dados.situacao_consultada) {
+            acrescentarPendente(descricao, periodo, "Registro confirmado; verificando a disponibilidade", id, acao);
+            continue;
+          }
+          if (acao === "remover") {
+            aviso(dados.disponivel === true
+              ? "Remoção confirmada no iFood. A disponibilidade da loja também foi consultada: aberta."
+              : "Remoção confirmada no iFood. A disponibilidade foi consultada, mas a loja ainda está indisponível por outra condição.", true);
             return;
           }
-          acrescentarPendente(descricao, periodo, "Registrada; aguardando fechamento no iFood", id);
-        } catch (erro) {
-          // Falha no GET não significa falha no POST; não reenviar a pausa automaticamente.
-          if (tentativa === 2) {
-            aviso("O iFood recebeu a solicitação, mas não foi possível confirmar o resultado. Atualize a tela e consulte a disponibilidade antes de tentar novamente.");
+          if (!dados.periodo_confirmado) {
+            acrescentarPendente(descricao, periodo, "Conferindo os horários devolvidos pelo iFood", id);
+            continue;
           }
+          // Interrupcao futura e agendamento correto: nao exigir fechar a loja antes do inicio.
+          if (!dados.vigente) {
+            aviso("Pausa agendada e horários confirmados no iFood. A disponibilidade foi verificada; a loja não precisa fechar antes do início da pausa.", true);
+            return;
+          }
+          if (dados.disponivel === false) {
+            aviso("Pausa registrada com horários corretos e fechamento confirmado pelo iFood.", true);
+            return;
+          }
+          acrescentarPendente(descricao, periodo, "Agendamento confirmado; aguardando fechamento operacional", id);
+        } catch {
+          // Falha na consulta nao prova falha na criacao. Nunca reenviar automaticamente.
+          acrescentarPendente(descricao, periodo, "Aguardando nova consulta ao iFood", id, acao);
         }
       }
-      if (ultimo?.registro_confirmado) {
-        aviso("Pausa registrada no iFood, mas a operação ainda não confirmou o fechamento. Verifique o status antes de receber novos pedidos.");
+
+      if (ultimo?.registro_confirmado && ultimo.periodo_confirmado && ultimo.situacao_consultada) {
+        aviso("O iFood confirmou o agendamento e os horários, mas a operação ainda não confirmou o fechamento. Confira a disponibilidade antes de considerar a loja pausada.");
+      } else if (ultimo?.registro_confirmado && !ultimo.periodo_confirmado && acao === "criar") {
+        aviso("O iFood registrou a pausa, mas os horários devolvidos não coincidem com os enviados. Confira o agendamento no Portal do Parceiro.");
       } else {
-        aviso("O iFood recebeu a solicitação, mas o registro ainda não apareceu na consulta. Confira a lista antes de enviar novamente.");
+        aviso("Não foi possível confirmar o registro e a disponibilidade no prazo de verificação. A solicitação pode ter sido aceita. Consulte o Portal do Parceiro antes de tentar novamente.");
       }
     };
 
@@ -178,7 +216,7 @@
       botao.setAttribute("aria-busy", "true");
       if (rotulo && botao.dataset.submitLabel) rotulo.textContent = botao.dataset.submitLabel;
       if (criando) acrescentarPendente(descricao, periodo, "Aguardando resposta do iFood");
-      mostrarOverlay(true);
+      mostrarOverlay(true, "Enviando ao iFood", "Enviando a solicitação. Em seguida, vamos confirmar o registro e a disponibilidade.");
       const controlador = new AbortController();
       const limite = window.setTimeout(() => controlador.abort(), 25000);
       try {
@@ -198,9 +236,10 @@
         const id = dados.id_pausa;
         if (typeof id === "string" && id !== "" && urlEstado) {
           const acao = dados.acao === "remover" ? "remover" : "criar";
-          mostrarOverlay(false); // POST respondeu; acompanhamos a confirmacao no card.
           if (acao === "criar") acrescentarPendente(descricao, periodo, "Aguardando confirmação do iFood", id);
-          await acompanhar(id, acao, descricao, periodo);
+          await acompanhar(id, acao, descricao, periodo,
+            criando ? (dadosForm.get("inicio") || "").toString() : "",
+            criando ? (dadosForm.get("fim") || "").toString() : "");
         } else {
           aviso("Solicitação enviada, mas não foi possível acompanhar o identificador. Confira as pausas e o status antes de tentar novamente.");
         }

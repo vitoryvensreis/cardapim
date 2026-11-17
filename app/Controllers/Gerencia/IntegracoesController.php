@@ -414,8 +414,32 @@ final class IntegracoesController extends BaseGerencia
             break;
         }
         $operacoes = $estado['situacao'];
-        $disponivel = !isset($erros['situacao']) && $operacoes !== []
+        $situacaoConsultada = $operacoes !== [] && !isset($erros['situacao']) && !isset($erros['geral']);
+        $disponivel = $situacaoConsultada
             ? !\Cardapim\Services\Ifood\EstadoLoja::resumoOperacional($operacoes, $lista)['fechado'] : null;
+
+        // A mesma pausa pode ser devolvida com horas diferentes do que foi solicitado.
+        // Confirmar o periodo no fuso fixo antes de informar agendamento correto.
+        $inicioEsperado = (string) ($_GET['inicio'] ?? '');
+        $fimEsperado = (string) ($_GET['fim'] ?? '');
+        $periodoConfirmado = $acao === 'remover' || ($inicioEsperado === '' && $fimEsperado === '');
+        if ($acao === 'criar' && $inicioEsperado !== '' && $fimEsperado !== ''
+            && preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}\\z/', $inicioEsperado) === 1
+            && preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}\\z/', $fimEsperado) === 1) {
+            $periodoConfirmado = false;
+            foreach ($lista as $pausa) {
+                if ($pausa['id'] !== $id) {
+                    continue;
+                }
+                $inicio = IfoodApi::data((string) ($pausa['inicio'] ?? ''));
+                $fim = IfoodApi::data((string) ($pausa['fim'] ?? ''));
+                $zona = new \DateTimeZone(\Cardapim\Services\Ifood\FusoLojaIfood::PADRAO);
+                $periodoConfirmado = $inicio !== null && $fim !== null
+                    && $inicio->setTimezone($zona)->format('Y-m-d\\TH:i') === $inicioEsperado
+                    && $fim->setTimezone($zona)->format('Y-m-d\\TH:i') === $fimEsperado;
+                break;
+            }
+        }
         $fuso = $servico->fusoDaLoja();
         $htmlPausas = \Cardapim\Core\View::render('gerencia/integracoes/_ifood-pausas', [
             'pausas' => $lista, 'erroLista' => $erros['pausas'] ?? ($erros['geral'] ?? null),
@@ -432,6 +456,8 @@ final class IntegracoesController extends BaseGerencia
         return \Cardapim\Services\Auth\Guard::semCache(Response::json([
             'ok' => true, 'registro_confirmado' => $registroConfirmado,
             'vigente' => $pausaVigente,
+            'periodo_confirmado' => $periodoConfirmado,
+            'situacao_consultada' => $situacaoConsultada,
             'disponivel' => $disponivel,
             'html' => $htmlPausas, 'html_status' => $htmlStatus,
             'erro_consulta' => $erros !== [],

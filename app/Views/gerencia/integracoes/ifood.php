@@ -233,7 +233,9 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                     <p>Informações técnicas da loja e respostas da integração.</p>
                 </div></header>
                 <?php if (is_array($painel ?? null)): ?>
-                    <?php require __DIR__ . '/_ifood-diagnosticos.php'; ?>
+                    <div class="ifood-dados-cards">
+                        <?php require __DIR__ . '/_ifood-diagnosticos.php'; ?>
+                    </div>
                 <?php else: ?>
                     <div class="bloco" role="status"><p>Não foi possível consultar os dados do iFood agora. Tente novamente em instantes.</p></div>
                 <?php endif; ?>
