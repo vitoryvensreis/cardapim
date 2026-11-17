@@ -417,8 +417,42 @@ final class IntegracoesController extends BaseGerencia
         }
         $operacoes = $estado['situacao'];
         $situacaoConsultada = $operacoes !== [] && !isset($erros['situacao']) && !isset($erros['geral']);
+
+        // Na remocao, a ausencia do ID no GET /interruptions continua sendo
+        // a UNICA confirmacao. Apenas depois dela buscamos GET /status para
+        // atualizar o card e o snapshot MySQL que alimenta o botao do topo.
+        if ($acao === 'remover' && $registroConfirmado) {
+            $atualizacao = $servico->atualizarDisponibilidadeConfirmada($lista);
+            $operacoes = $atualizacao['situacao'];
+            $situacaoConsultada = $atualizacao['erro'] === null;
+            if ($atualizacao['erro'] !== null) {
+                $erros['situacao'] = $atualizacao['erro'];
+            }
+        } elseif ($acao === 'criar' && $listaConsultada && $situacaoConsultada) {
+            // Um GET validado apos criar pausa atualiza o cabecalho sem aguardar o cron.
+            \Cardapim\Services\Ifood\EstadoLoja::reconciliar(
+                $this->db, (int) $this->restaurante['id'], $operacoes, $lista
+            );
+        }
+
         $disponivel = $situacaoConsultada
             ? !\Cardapim\Services\Ifood\EstadoLoja::resumoOperacional($operacoes, $lista)['fechado'] : null;
+        $estado['situacao'] = $operacoes;
+        $estado['erros'] = $erros;
+        $estado['divergencia'] = $listaConsultada && $situacaoConsultada
+            && \Cardapim\Services\Ifood\EstadoLoja::resumoOperacional($operacoes, $lista)['divergente'];
+
+        $botao = null;
+        if ($listaConsultada && $situacaoConsultada) {
+            BotaoLojaIfood::esquecer((int) $this->restaurante['id']);
+            $botao = $servico->situacaoAgora();
+        } elseif ($acao === 'remover' && $registroConfirmado) {
+            $botao = [
+                'estado' => 'erro', 'texto' => 'Verificando iFood',
+                'detalhe' => 'A pausa foi removida, mas o iFood ainda não confirmou a disponibilidade.',
+                'pode_abrir' => false,
+            ];
+        }
 
         // A mesma pausa pode ser devolvida com horas diferentes do que foi solicitado.
         // Confirmar o periodo no fuso fixo antes de informar agendamento correto.
@@ -452,8 +486,9 @@ final class IntegracoesController extends BaseGerencia
         $escape = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $aviso = static fn (?string $msg): string => $msg
             ? '<div class="notice notice-warning"><div><p>' . htmlspecialchars($msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p></div></div>' : '';
-        // A consulta de remocao nao faz GET /status e nao sobrescreve a disponibilidade.
-        $htmlStatus = $acao === 'criar'
+        // Ao confirmar a remocao, renderiza disponibilidade atual obtida do
+        // Merchant (ou o erro da consulta); nao reutiliza HTML anterior ao DELETE.
+        $htmlStatus = ($acao === 'criar' || $registroConfirmado)
             ? \Cardapim\Core\View::render('gerencia/integracoes/_ifood-situacao', [
                 'p' => $estado, 'e' => $escape, 'aviso' => $aviso,
             ], 'layouts/fragmento')
@@ -465,6 +500,7 @@ final class IntegracoesController extends BaseGerencia
             'situacao_consultada' => $situacaoConsultada,
             'disponivel' => $disponivel,
             'html' => $htmlPausas, 'html_status' => $htmlStatus,
+            'situacao_botao' => $botao,
             'erro_consulta' => $erros !== [],
         ]));
     }
