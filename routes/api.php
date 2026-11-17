@@ -15,6 +15,7 @@ return static function (Router $router): void {
     $router->get('/api/v1/cadastro/disponibilidade', [DisponibilidadeController::class, 'verificar']);
     $router->get('/api/v1/restaurantes', [CatalogoController::class, 'listar']);
     $router->get('/api/v1/tempo-real/ticket', [TempoRealController::class, 'ticket']);
+    $router->get('/api/v1/restaurantes/{slug}/situacao', [RestauranteController::class, 'situacao']);
     $router->post('/api/v1/restaurantes/{slug}/sacola', [RestauranteController::class, 'sacola']);
     // Cliente final (login pelo WhatsApp da plataforma)
     $router->get('/api/v1/cliente', [ClienteController::class, 'sessao']);
