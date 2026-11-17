@@ -23,7 +23,7 @@ falha() { printf '  FALHOU %s\n' "$1"; falhas=$((falhas + 1)); }
 esperar() { if [[ "$2" == "$3" ]]; then ok "$1"; else falha "$1 (obtido: $2, esperado: $3)"; fi; }
 contem() { if grep -q -- "$3" "$2"; then ok "$1"; else falha "$1 (texto ausente: $3)"; fi; }
 nao_contem() { if grep -q -- "$3" "$2"; then falha "$1 (texto presente: $3)"; else ok "$1"; fi; }
-token() { curl -s -c "$1" -b "$1" "$2" | grep -o 'name="_csrf" value="[a-f0-9]*"' | head -1 | sed 's/.*value="//; s/"$//'; }
+token() { curl -s -c "$1" -b "$1" "$2" | grep -o -m1 'name="_csrf" value="[a-f0-9]*"' | sed 's/.*value="//; s/"$//' || true; }
 login() {
   local t; rm -f "$1"; t="$(token "$1" "$base/login")"
   curl -s -o /dev/null -c "$1" -b "$1" -w '%{http_code}' --data-urlencode "_csrf=$t" --data-urlencode "identificacao=$2" --data-urlencode "senha=$senha" "$base/login"
@@ -280,7 +280,7 @@ contem "situacao no iFood" "$tmp/aviso.html" 'No iFood'
 no_registro "categoria criada no iFood" "categoria Teste Homologacao $r5"
 no_registro "foto enviada ao iFood" "foto"
 no_registro "item com grupo, 2 complementos e foto" "item $prod_nome preco 29.9 grupos 1 opcoes 2 foto"
-enviar "$gj" "$g/integracoes/ifood/publicar/sincronizar" "$g/integracoes/ifood/publicar" >/dev/null
+esperar "enviar mudancas (sem mudanca)" "$(enviar "$gj" "$g/integracoes/ifood/publicar/sincronizar" "$g/integracoes/ifood/publicar" | cut -d' ' -f1)" "303"
 esperar "nada mudou" "$(aviso "$gj" "$g/integracoes/ifood/publicar")" 'Tudo igual: o cardápio do iFood já está atualizado.'
 pagina "$gj" "$g/estoque/produtos/$pub" >/dev/null
 esperar "muda nome e preco do item" "$(multipart "$gj" "$g/estoque/produtos/$pub" "$g/estoque/produtos/$pub" -F "nome=$prod_nome Novo" -F unidade_venda=un -F 'preco=34,90' \
