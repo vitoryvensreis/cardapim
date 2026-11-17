@@ -239,21 +239,30 @@ class IfoodApi
     /** Cria uma pausa na loja (fecha no iFood entre inicio e fim). @return string id da pausa */
     public function criarPausa(string $token, string $idLoja, string $descricao, \DateTimeImmutable $inicio, \DateTimeImmutable $fim): string
     {
-        $id = self::uuid();
         $r = $this->requisicao('POST', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions', $token, [
-            'id' => $id,
             'description' => $descricao,
             // UTC com "Z", como na documentacao do iFood.
             'start' => $inicio->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
             'end' => $fim->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
         ]);
         $d = $this->exigirOk($r, 'criar a pausa');
-        return is_string($d['id'] ?? null) && $d['id'] !== '' ? $d['id'] : $id;
+        if ($r->status !== 201) {
+            throw new IntegracaoErro('O iFood não confirmou a criação da pausa (HTTP ' . $r->status . '). Consulte a lista antes de tentar novamente.');
+        }
+        $id = $d['id'] ?? null;
+        if (!is_string($id) || preg_match('~^[A-Za-z0-9-]{1,64}$~D', $id) !== 1) {
+            throw new IntegracaoErro('O iFood não devolveu o identificador da pausa. Consulte a lista antes de tentar novamente para evitar duplicidade.');
+        }
+        return $id;
     }
 
     public function removerPausa(string $token, string $idLoja, string $idPausa): void
     {
-        $this->exigirOk($this->requisicao('DELETE', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions/' . self::id($idPausa), $token), 'remover a pausa');
+        $r = $this->requisicao('DELETE', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions/' . self::id($idPausa), $token);
+        $this->exigirOk($r, 'remover a pausa');
+        if ($r->status !== 204) {
+            throw new IntegracaoErro('O iFood não confirmou a remoção da pausa (HTTP ' . $r->status . '). Consulte a lista antes de tentar novamente.');
+        }
     }
 
     /** Horario de funcionamento no iFood. @return list<array{dia:string, inicio:string, duracao:int}> inicio "HH:MM", duracao em minutos */
