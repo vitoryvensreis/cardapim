@@ -119,7 +119,7 @@ esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/
 contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
 contem "aviso de pausa criada" "$tmp/js.json" 'Pausa criada'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
-contem "pausa valendo marcada" "$tmp/js.json" 'Loja fechada agora'
+contem "pausa valendo marcada" "$tmp/js.json" 'Valendo agora'
 esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao=x inicio="$agora_local" fim="$depois_local")" "422"
 contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
 esperar "pausa pela tela sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'descricao=Teste' "$g/integracoes/ifood/pausas")" "419"

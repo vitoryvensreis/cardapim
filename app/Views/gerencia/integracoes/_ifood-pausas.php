@@ -34,7 +34,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
             <li class="ifood-lista-item">
                 <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
                     <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?></small></span>
-                <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Loja fechada agora' : 'Agendada' ?></span>
+                <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Valendo agora' : 'Agendada' ?></span>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/pausas/remover') ?>" data-pausa-form
                       data-confirm="A loja volta a abrir no iFood conforme o horário de funcionamento." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">

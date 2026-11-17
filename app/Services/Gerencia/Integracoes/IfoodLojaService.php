@@ -352,15 +352,16 @@ final class IfoodLojaService extends BaseIntegracao
             $token = $conta->token();
             $loja = (string) $conta->loja();
             $situacao = $this->api->situacaoLoja($token, $loja);
-            if (array_filter($situacao, static fn (array $s): bool => $s['disponivel']) !== []) {
-                return ['estado' => 'aberta', 'texto' => 'Loja aberta', 'detalhe' => 'A loja está recebendo pedidos no iFood.', 'pode_abrir' => false];
-            }
+            // Pausa valendo vem primeiro: o iFood pode levar alguns minutos para mostrar a loja fechada.
             $ativas = self::pausasAtivas($this->api->pausas($token, $loja));
             if ($ativas !== []) {
                 $p = $ativas[0];
                 $fim = self::dataIfood($p['fim']);
                 return ['estado' => 'pausada', 'texto' => 'Abrir loja', 'pode_abrir' => true,
                     'detalhe' => 'Pausada' . ($p['descricao'] !== '' ? ' (' . $p['descricao'] . ')' : '') . ($fim !== null ? ' até ' . $fim->format('d/m H:i') : '') . '. Clique para abrir agora.'];
+            }
+            if (array_filter($situacao, static fn (array $s): bool => $s['disponivel']) !== []) {
+                return ['estado' => 'aberta', 'texto' => 'Loja aberta', 'detalhe' => 'A loja está recebendo pedidos no iFood.', 'pode_abrir' => false];
             }
             $motivo = '';
             foreach ($situacao as $s) {
