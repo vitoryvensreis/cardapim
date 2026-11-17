@@ -67,3 +67,13 @@
 .ifood-horario-resumo li:last-child { border-bottom: 0; }
 .ifood-horario-resumo span { color: var(--c-muted); text-align: right; }
 .ifood-horario-proprio { display: grid; gap: .75rem; margin-top: 1rem; }
+
+/* Card de pausas: o aviso de criada/removida aparece dentro dele; o topo fixo nao cobre o card ao rolar. */
+#pausas { scroll-margin-top: 5rem; }
+.ifood-pausa-aviso { margin-bottom: 1rem; animation: ifood-aviso-entra .25s ease-out; }
+.ifood-pausa-aviso:focus { outline: none; }
+.ifood-pausa-aviso:focus-visible { outline: 2px solid var(--c-wine); outline-offset: 2px; }
+@keyframes ifood-aviso-entra { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .ifood-pausa-aviso { animation: none; } }
+.ifood-lista-item > span:first-child { flex: 1 1 14rem; }
+.ifood-lista-item > .etiqueta { display: inline-flex; }

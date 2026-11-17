@@ -17,7 +17,7 @@ $det = is_array($p['detalhes']) ? $p['detalhes'] : [];
 $end = is_array($det['address'] ?? null) ? $det['address'] : [];
 $eP = $erros['pausa'] ?? [];
 $eH = $erros['horarios'] ?? [];
-$vP = $valores['pausa'] ?? ['descricao' => '', 'inicio' => date('Y-m-d\TH:i', time() + 300), 'fim' => date('Y-m-d\TH:i', time() + 3900)];
+$vP = $valores['pausa'] ?? IfoodLojaService::novaPausa();
 $form = $valores['horarios'] ?? $p['sugestao'];
 $proprio = (bool) ($valores['horario_proprio'] ?? $p['horario_proprio']);
 $perfil = $p['perfil'];
@@ -109,51 +109,8 @@ $campoErro = static fn (array $lista, string $campo): string => isset($lista[$ca
         </ul>
     </section>
 
-    <section class="bloco" id="pausas" aria-labelledby="titulo-pausas">
-        <div class="bloco-cabecalho">
-            <h2 id="titulo-pausas"><?= Icon::svg('circle-pause') ?>Pausas</h2>
-            <p>Feche a loja no iFood por um tempo (ex.: falta de entregador, cozinha cheia). Ela volta sozinha no fim da pausa.</p>
-        </div>
-        <?= $aviso($p['erros']['pausas'] ?? null) ?>
-        <?php if (isset($eP['_geral']) && count($eP) === 1): ?><?= $aviso($eP['_geral']) ?><?php endif; ?>
-        <?php if ($p['pausas'] === []): ?>
-            <p class="texto-suave">Nenhuma pausa ativa.</p>
-        <?php else: ?>
-            <ul class="ifood-lista">
-                <?php foreach ($p['pausas'] as $pausa): ?>
-                    <li class="ifood-lista-item">
-                        <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
-                            <small>De <?= $e($quando($pausa['inicio'])) ?> até <?= $e($quando($pausa['fim'])) ?></small></span>
-                        <form method="post" action="<?= $e($base . '/integracoes/ifood/pausas/remover') ?>"
-                              data-confirm="A loja volta a abrir no iFood conforme o horário de funcionamento." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
-                            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                            <input type="hidden" name="pausa" value="<?= $e($pausa['id']) ?>">
-                            <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('circle-play', 'icon-sm') ?>Remover pausa</button>
-                        </form>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
-        <form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-validate-form>
-            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-            <h3>Nova pausa</h3>
-            <label class="campo-rotulo" for="pausa-descricao">Motivo</label>
-            <input class="campo-simples" id="pausa-descricao" name="descricao" maxlength="100" required value="<?= $e((string) $vP['descricao']) ?>" placeholder="Ex.: Cozinha cheia">
-            <?= $campoErro($eP, 'descricao') ?>
-            <div class="ifood-datas">
-                <div>
-                    <label class="campo-rotulo" for="pausa-inicio">Começa</label>
-                    <input class="campo-simples" id="pausa-inicio" type="datetime-local" name="inicio" required value="<?= $e((string) $vP['inicio']) ?>">
-                    <?= $campoErro($eP, 'inicio') ?>
-                </div>
-                <div>
-                    <label class="campo-rotulo" for="pausa-fim">Termina</label>
-                    <input class="campo-simples" id="pausa-fim" type="datetime-local" name="fim" required value="<?= $e((string) $vP['fim']) ?>">
-                    <?= $campoErro($eP, 'fim') ?>
-                </div>
-            </div>
-            <div class="bloco-rodape"><button class="btn btn-primary" type="submit" data-submit-label="Criando..."><?= Icon::svg('circle-pause', 'icon-sm') ?>Criar pausa</button></div>
-        </form>
+    <section class="bloco" id="pausas" aria-labelledby="titulo-pausas" data-pausas>
+        <?php $pausas = $p['pausas']; $erroLista = $p['erros']['pausas'] ?? null; $nota = null; require __DIR__ . '/_ifood-pausas.php'; ?>
     </section>
 
     <section class="bloco" id="horarios" aria-labelledby="titulo-horarios">

@@ -107,6 +107,26 @@ if [[ -z "$pausa" ]]; then falha "id da pausa na pagina"; fi
 esperar "remover pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa" | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
+# Pela tela (JS): a resposta traz o card de pausas pronto, com o aviso dentro dele.
+por_js() { # jar pagina-do-token url [campo=valor ...] -> codigo (corpo em $tmp/js.json)
+  local jar="$1" origem="$2" url="$3" t args=(); shift 3
+  t="$(token "$jar" "$origem")"
+  for campo in "$@"; do args+=(--data-urlencode "$campo"); done
+  curl -s -o "$tmp/js.json" -c "$jar" -b "$jar" -w '%{http_code}' -H 'X-Requested-With: fetch' -H 'Accept: application/json' --data-urlencode "_csrf=$t" "${args[@]}" "$url"
+}
+agora_local="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')"; depois_local="$(TZ=America/Fortaleza date -d '+30 minutes' '+%Y-%m-%dT%H:%M')"
+esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa tela CI' inicio="$agora_local" fim="$depois_local")" "200"
+contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
+contem "aviso de pausa criada" "$tmp/js.json" 'Pausa criada'
+contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
+contem "pausa valendo marcada" "$tmp/js.json" 'Loja fechada agora'
+esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao=x inicio="$agora_local" fim="$depois_local")" "422"
+contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
+esperar "pausa pela tela sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'descricao=Teste' "$g/integracoes/ifood/pausas")" "419"
+pausa_js="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", $d["html"] ?? "", $m)) echo $m[1];' "$tmp/js.json")"
+esperar "remover pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_js")" "200"
+contem "aviso de removida no card" "$tmp/js.json" 'Pausa removida'
+contem "lista vazia no card" "$tmp/js.json" 'Nenhuma pausa ativa.'
 esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
 esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 \
   'h[SATURDAY][0][abre]=10:00' 'h[SATURDAY][0][fecha]=19:00' \
