@@ -149,6 +149,8 @@ curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=criar
 contem "endpoint de confirmacao devolve o registro" "$tmp/estado-pausa.json" '"registro_confirmado":true'
 contem "periodo confirmado no fuso de Brasilia" "$tmp/estado-pausa.json" '"periodo_confirmado":true'
 contem "consulta status realizada antes da confirmacao visual" "$tmp/estado-pausa.json" '"situacao_consultada":true'
+contem "botao atualizado apos criar" "$tmp/estado-pausa.json" '"situacao_botao":{"estado":'
+contem "status atualizado apos criar" "$tmp/estado-pausa.json" 'data-ifood-status'
 curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=criar' --data-urlencode "inicio=$fim" --data-urlencode "fim=$ini" "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-periodo-errado.json"
 contem "nao aceita pausa com periodo diferente" "$tmp/estado-periodo-errado.json" '"periodo_confirmado":false'
 contem "endpoint traz status operacional" "$tmp/estado-pausa.json" '"html_status":'
@@ -160,6 +162,7 @@ curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remov
 contem "ID ainda listado nao confirma remocao" "$tmp/estado-remocao-pendente.json" '"registro_confirmado":false'
 contem "GET de interrupcoes consultado" "$tmp/estado-remocao-pendente.json" '"lista_consultada":true'
 nao_contem "remocao nao depende de GET status" "$tmp/estado-remocao-pendente.json" '"situacao_consultada":true'
+contem "ainda nao renderiza status durante GET de remocao pendente" "$tmp/estado-remocao-pendente.json" '"html_status":null'
 # Um outro ID pode permanecer na lista sem impedir a confirmacao da remocao alvo.
 extra_ini="$(TZ=America/Fortaleza date -d '+3 days' '+%Y-%m-%dT%H:%M:00')"
 extra_fim="$(TZ=America/Fortaleza date -d '+3 days 20 minutes' '+%Y-%m-%dT%H:%M:00')"
@@ -173,12 +176,15 @@ curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remov
 contem "endpoint confirma remocao mesmo com outra pausa" "$tmp/estado-pausa.json" '"registro_confirmado":true'
 contem "GET da lista confirma remocao" "$tmp/estado-pausa.json" '"lista_consultada":true'
 contem "outra pausa ainda existe" "$tmp/estado-pausa.json" 'Outra pausa CI'
-contem "status nao condiciona remocao" "$tmp/estado-pausa.json" '"situacao_consultada":false'
-contem "nao substitui status da loja sem consultar" "$tmp/estado-pausa.json" '"html_status":null'
+contem "remocao consulta disponibilidade apos confirmar ID ausente" "$tmp/estado-pausa.json" '"situacao_consultada":true'
+contem "remocao atualiza disponibilidade agora" "$tmp/estado-pausa.json" 'data-ifood-status'
+contem "remocao atualiza botao sem aguardar o cron" "$tmp/estado-pausa.json" '"situacao_botao":{"estado":'
 curl -s -X DELETE -H 'Authorization: Bearer acc-ci' -o /dev/null "$fake/merchant/v1.0/merchants/$loja/interruptions/$extra_id"
 curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remover' "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa-vazia.json"
 contem "lista vazia valida confirma remocao" "$tmp/estado-pausa-vazia.json" '"registro_confirmado":true'
 contem "GET vazio foi consultado com sucesso" "$tmp/estado-pausa-vazia.json" '"lista_consultada":true'
+contem "GET vazio tambem traz disponibilidade atual" "$tmp/estado-pausa-vazia.json" 'data-ifood-status'
+contem "GET vazio atualiza botao" "$tmp/estado-pausa-vazia.json" '"situacao_botao":{"estado":'
 pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 # Pela tela (JS): a resposta traz o card de pausas pronto, com o aviso dentro dele.
