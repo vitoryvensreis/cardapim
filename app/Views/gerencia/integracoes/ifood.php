@@ -1,5 +1,5 @@
 <?php
-/** iFood. Espera: $integracao, $disponivel, $opcoes, $resumoCardapio, $pedidosHoje, $base, $csrf. */
+/** Integracao iFood com navegacao por rotas independentes (abaIfood). */
 use Cardapim\Core\Icon;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -19,10 +19,17 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
         <div>
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
             <h1>iFood</h1>
-            <p><?= $statusIntegracao === 'conectado' ? 'Controle sua loja, pausas e pedidos do iFood em um só lugar.' : 'Conecte sua loja para gerenciar tudo por aqui.' ?></p>
+            <p><?= $statusIntegracao === 'conectado' ? 'Escolha uma aba para gerenciar sua operação.' : 'Conecte sua loja para gerenciar tudo por aqui.' ?></p>
         </div>
         <?php require __DIR__ . '/_status.php'; ?>
     </header>
+    <nav class="ifood-abas" aria-label="Seções da integração iFood">
+        <?php foreach (['status' => ['activity', 'Status'], 'loja' => ['store', 'Loja'], 'cardapio' => ['utensils', 'Cardápio'], 'dados' => ['settings', 'Dados']] as $chave => [$icone, $rotulo]): ?>
+            <a class="ifood-aba<?= $abaIfood === $chave ? ' is-active' : '' ?>" href="<?= $e($base . '/integracoes/ifood/' . $chave) ?>"<?= $abaIfood === $chave ? ' aria-current="page"' : '' ?>>
+                <?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?>
+            </a>
+        <?php endforeach; ?>
+    </nav>
 
     <?php if (!$disponivel): ?>
         <section class="bloco">
@@ -105,11 +112,15 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             </form>
         </section>
     <?php else: ?>
+        <?php if (is_array($painel ?? null)): ?>
+            <?php require __DIR__ . '/_ifood-variaveis.php'; ?>
+        <?php endif; ?>
         <?php if ($rotinaParada): ?>
             <div class="notice notice-warning"><?= Icon::svg('triangle-exclamation-point') ?><div><strong>Os pedidos do iFood não estão chegando agora.</strong>
                 <p>A consulta automática ao iFood não rodou nos últimos minutos<?= $ultimaConsulta !== null ? ' (última às ' . $e(date('H:i', (int) strtotime((string) $integracao['verificado_em']))) . ')' : '' ?>. Use o Gestor de Pedidos do iFood enquanto isso e avise o suporte do <?= marca_html() ?>.</p></div></div>
         <?php endif; ?>
 
+        <?php if ($abaIfood === 'status'): ?>
         <section class="ifood-dashboard-section" id="secao-status" aria-labelledby="ifood-grupo-status">
             <header class="ifood-dashboard-heading">
                 <div><h2 id="ifood-grupo-status"><?= Icon::svg('activity', 'icon-sm') ?> Status da operação</h2><p>Acompanhe a loja e controle suas pausas.</p></div>
@@ -130,6 +141,8 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             <?php endif; ?>
         </section>
 
+        <?php endif; ?>
+        <?php if ($abaIfood === 'loja'): ?>
         <section class="ifood-dashboard-section" id="secao-loja" aria-labelledby="ifood-grupo-loja">
             <header class="ifood-dashboard-heading">
                 <div><h2 id="ifood-grupo-loja"><?= Icon::svg('store', 'icon-sm') ?> Loja</h2><p>Dados da conexão e horários de atendimento.</p></div>
@@ -164,6 +177,8 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             </div>
         </section>
 
+        <?php endif; ?>
+        <?php if ($abaIfood === 'cardapio'): ?>
         <section class="ifood-dashboard-section" id="secao-cardapio" aria-labelledby="ifood-grupo-cardapio">
             <header class="ifood-dashboard-heading">
                 <div><h2 id="ifood-grupo-cardapio"><?= Icon::svg('utensils', 'icon-sm') ?> Cardápio</h2><p>Produtos, estoque e recebimento de pedidos.</p></div>
@@ -183,7 +198,7 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             <?php endif; ?>
             <div class="bloco-rodape">
                 <a class="btn btn-primary" href="<?= $e($base . '/integracoes/ifood/publicar') ?>"><?= Icon::svg('send', 'icon-sm') ?>Publicar cardápio no iFood</a>
-                <a class="btn btn-outline" href="<?= $e($base . '/integracoes/ifood/cardapio') ?>"><?= Icon::svg('link', 'icon-sm') ?>Ligar itens do cardápio</a>
+                <a class="btn btn-outline" href="<?= $e($base . '/integracoes/ifood/cardapio/vinculos') ?>"><?= Icon::svg('link', 'icon-sm') ?>Ligar itens do cardápio</a>
             </div>
         </section>
 
@@ -210,8 +225,21 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             </div>
         </section>
 
-        <?php if (is_array($painel ?? null)): ?>
-            <?php require __DIR__ . '/_ifood-diagnosticos.php'; ?>
+        <?php endif; ?>
+        <?php if ($abaIfood === 'dados'): ?>
+            <section class="ifood-dashboard-section" id="secao-dados" aria-labelledby="ifood-grupo-dados">
+                <header class="ifood-dashboard-heading"><div>
+                    <h2 id="ifood-grupo-dados"><?= Icon::svg('settings', 'icon-sm') ?> Dados e diagnósticos</h2>
+                    <p>Informações técnicas da loja e respostas da integração.</p>
+                </div></header>
+                <?php if (is_array($painel ?? null)): ?>
+                    <?php require __DIR__ . '/_ifood-diagnosticos.php'; ?>
+                <?php else: ?>
+                    <div class="bloco" role="status"><p>Não foi possível consultar os dados do iFood agora. Tente novamente em instantes.</p></div>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
+        <?php if ($abaIfood === 'status' && is_array($painel ?? null)): ?>
             <div class="ifood-aguardando" data-ifood-overlay hidden role="status" aria-live="polite" aria-busy="true">
                 <div class="ifood-aguardando-conteudo">
                     <?= Icon::svg('loader-circle', 'icon-lg') ?>
