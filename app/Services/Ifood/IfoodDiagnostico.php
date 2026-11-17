@@ -33,6 +33,7 @@ final class IfoodDiagnostico
                 error_log('[Cardapim] Log Merchant indisponivel: nao foi possivel criar diretorio.');
                 return;
             }
+            self::limparAntigos($dir);
             $arquivo = self::arquivo($restaurante, gmdate('Y-m-d'));
             $novo = !is_file($arquivo);
             $entrada = [
@@ -109,6 +110,21 @@ final class IfoodDiagnostico
             }
         }
         return $resultado;
+    }
+
+    /** Limpa arquivos com mais de 14 dias, no maximo uma vez por dia. */
+    private static function limparAntigos(string $dir): void
+    {
+        $marcador = $dir . '/.ultima-limpeza';
+        if (is_file($marcador) && (int) @filemtime($marcador) > time() - 86400) {
+            return;
+        }
+        foreach (glob($dir . '/restaurante-*-????-??-??.jsonl') ?: [] as $arquivo) {
+            if (is_file($arquivo) && (int) filemtime($arquivo) < time() - 14 * 86400) {
+                @unlink($arquivo);
+            }
+        }
+        @touch($marcador);
     }
 
     private static function diretorio(): string
