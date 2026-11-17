@@ -135,7 +135,7 @@
           // Criacao agendada so precisa confirmar o registro. Loja nao deve fechar antes do inicio.
           if (acao === "remover" || !dados.vigente || dados.disponivel === false) {
             if (acao === "criar" && dados.vigente && dados.disponivel === false) {
-              aviso("Pausa confirmada: o iFood informa que a loja está indisponível.");
+              aviso("Pausa registrada e loja indisponível no iFood.");
             }
             return;
           }
