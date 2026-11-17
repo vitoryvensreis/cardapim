@@ -22,42 +22,6 @@
   const pausas = document.querySelector("[data-pausas]");
   if (pausas) {
     const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    // O datetime-local nao possui fuso. O seletor explicita a hora da unidade
-    // Merchant e a caixa "agora" ignora qualquer horario inicial desatualizado.
-    const configurarInicioPausa = () => {
-      const formulario = pausas.querySelector(".ifood-form-pausa");
-      if (!formulario) return;
-      const imediata = formulario.querySelector("[data-pausa-inicio-agora]");
-      const areaInicio = formulario.querySelector("[data-pausa-inicio-agendado]");
-      const inicio = areaInicio?.querySelector("input[name=inicio]");
-      if (!imediata || !areaInicio || !inicio) return;
-      areaInicio.hidden = imediata.checked;
-      inicio.disabled = imediata.checked;
-      inicio.required = !imediata.checked;
-    };
-    const dataNoFuso = (timestamp, fuso) => {
-      const partes = new Intl.DateTimeFormat("en-GB", {
-        timeZone: fuso,
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-      }).formatToParts(new Date(timestamp));
-      const valor = (nome) => partes.find((item) => item.type === nome)?.value;
-      return `${valor("year")}-${valor("month")}-${valor("day")}T${valor("hour")}:${valor("minute")}`;
-    };
-    pausas.addEventListener("change", (event) => {
-      if (event.target.matches("[data-pausa-inicio-agora]")) {
-        configurarInicioPausa();
-      }
-      if (event.target.matches("[data-pausa-fuso]")) {
-        const form = event.target.closest("form");
-        if (form?.querySelector("[data-pausa-inicio-agora]")?.checked) {
-          const fim = form.querySelector("[name=fim]");
-          if (fim) fim.value = dataNoFuso(Date.now() + 3600000, event.target.value);
-        }
-      }
-    });
-    configurarInicioPausa();
     const mostrarCard = () => {
       pausas.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "start" });
       pausas.querySelector("[data-pausas-aviso]")?.focus({ preventScroll: true });
@@ -98,7 +62,6 @@
         const dados = await resposta.json().catch(() => ({}));
         if (typeof dados.html !== "string") throw new Error(dados.mensagem || "");
         pausas.innerHTML = dados.html;
-        configurarInicioPausa();
         // Avisa o botao "Abrir loja no iFood" do topo para mostrar a situacao nova.
         if (dados.ok) document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
       } catch (erro) {
