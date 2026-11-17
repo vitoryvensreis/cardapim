@@ -92,6 +92,9 @@ contem "navegacao tem Dados" "$tmp/pagina.html" '/integracoes/ifood/dados'
 contem "Status ativo e acessivel" "$tmp/pagina.html" 'href="'
 contem "disponibilidade somente em Status" "$tmp/pagina.html" 'Disponibilidade agora'
 contem "pausas somente em Status" "$tmp/pagina.html" 'Nova pausa'
+contem "inicio com segundos no navegador" "$tmp/pagina.html" 'id="pausa-inicio" type="datetime-local" step="1"'
+contem "inicio atualizado automaticamente" "$tmp/pagina.html" 'data-ifood-inicio-auto'
+contem "retorno ao inicio automatico" "$tmp/pagina.html" 'data-ifood-retomar-inicio'
 contem "Status nao mistura cardapio" "$tmp/pagina.html" 'id="secao-status"'
 nao_contem "Status sem secao Loja" "$tmp/pagina.html" 'id="secao-loja"'
 nao_contem "Status sem secao Cardapio" "$tmp/pagina.html" 'id="secao-cardapio"'
@@ -187,6 +190,19 @@ contem "GET vazio tambem traz disponibilidade atual" "$tmp/estado-pausa-vazia.js
 contem "GET vazio atualiza botao" "$tmp/estado-pausa-vazia.json" '"situacao_botao":{"estado":'
 pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
+
+# Compatibilidade: o novo input envia segundos, mas o backend tambem aceita minutos legados.
+ini_seg="$(TZ=America/Fortaleza date -d '+2 hours' '+%Y-%m-%dT%H:%M:%S')"
+fim_seg="$(TZ=America/Fortaleza date -d '+3 hours' '+%Y-%m-%dT%H:%M:%S')"
+esperar "criar pausa com segundos" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Segundos CI' inicio="$ini_seg" fim="$fim_seg" | cut -d' ' -f1)" "303"
+curl -s "$fake/_teste/ultimo-payload-pausa" > "$tmp/payload-pausa-segundos.json"
+contem "POST preserva segundos exatos" "$tmp/payload-pausa-segundos.json" "$ini_seg"
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
+pausa_seg="$(php -r 'if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
+[[ -n "$pausa_seg" ]] && ok "identificador da pausa com segundos" || falha "nao encontrou pausa com segundos"
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa_seg" --data-urlencode 'acao=criar' --data-urlencode "inicio=$ini_seg" --data-urlencode "fim=$fim_seg" "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa-segundos.json"
+contem "GET confirma periodo com precisao de segundos" "$tmp/estado-pausa-segundos.json" '"periodo_confirmado":true'
+esperar "remover pausa com segundos" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_seg" | cut -d' ' -f1)" "303"
 # Pela tela (JS): a resposta traz o card de pausas pronto, com o aviso dentro dele.
 por_js() { # jar pagina-do-token url [campo=valor ...] -> codigo (corpo em $tmp/js.json)
   local jar="$1" origem="$2" url="$3" t args=(); shift 3
