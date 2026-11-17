@@ -144,7 +144,7 @@ $campoErro = static fn (array $lista, string $campo): string => isset($lista[$ca
     </section>
 
 
-        <summary><?= Icon::svg('wrench', 'icon-sm') ?> Dados e diagnósticos da integração <span class="texto-suave">Informações para homologação e suporte</span></summary>
+
     <section class="bloco" aria-labelledby="titulo-lojas">
         <div class="bloco-cabecalho">
             <h2 id="titulo-lojas"><?= Icon::svg('store') ?>Lojas vinculadas</h2>
