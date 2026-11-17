@@ -183,6 +183,23 @@ esperar "abrir loja ja aberta" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}'
 contem "avisa que ja estava aberta" "$tmp/abrir.json" 'já está aberta'
 esperar "sem login nao consulta" "$(curl -s -o /dev/null -w '%{http_code}' "$c/ifood/situacao")" "401"
 
+echo "iFood -> Deliveryzim: fechamento remoto e reabertura confirmada"
+pausa_remota="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+inicio_remoto="$(date -u -d '-1 minute' '+%Y-%m-%dT%H:%M:%SZ')"
+fim_remoto="$(date -u -d '+60 minutes' '+%Y-%m-%dT%H:%M:%SZ')"
+curl -s -o "$tmp/remota.json" -w '%{http_code}' -X POST -H 'Authorization: Bearer acc-ci' -H 'Content-Type: application/json' \
+  --data "{\"id\":\"$pausa_remota\",\"description\":\"Pausa Portal CI\",\"start\":\"$inicio_remoto\",\"end\":\"$fim_remoto\"}" \
+  "$fake/merchant/v1.0/merchants/$loja/interruptions" > "$tmp/codigo-remoto"
+esperar "portal criou pausa" "$(cat "$tmp/codigo-remoto")" "201"
+rodar
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "pausa feita no Portal fecha o Deliveryzim" "$tmp/estado-publico.json" '"fechado_integracao":true'
+curl -s -o /dev/null -X DELETE -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/merchants/$loja/interruptions/$pausa_remota"
+rodar
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "reabertura externa restaura disponibilidade" "$tmp/estado-publico.json" '"fechado_integracao":false'
+
+
 echo "Cardapio do iFood ligado aos produtos"
 esperar "pagina do cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"
 contem "item do iFood listado" "$tmp/pagina.html" 'Lanche iFood CI'
