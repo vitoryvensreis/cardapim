@@ -1,5 +1,9 @@
 <?php
 /** Diagnósticos da loja iFood; variáveis definidas em ifood-loja.php. */
+use Cardapim\Core\Icon;
+use Cardapim\Modules\Integracoes\IfoodApi;
+use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
+use Cardapim\Services\Ifood\FusoLojaIfood;
 ?>
     <details class="ifood-secao-recolhivel ifood-secao-tecnica" id="diagnosticos">
         <summary><?= Icon::svg('wrench', 'icon-sm') ?> Dados e diagnósticos da integração <span class="texto-suave">Informações para homologação e suporte</span></summary>
