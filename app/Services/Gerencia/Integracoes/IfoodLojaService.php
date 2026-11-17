@@ -418,6 +418,20 @@ final class IfoodLojaService extends BaseIntegracao
         return IfoodApi::data($valor);
     }
 
+    /** @param callable(string,string):Resultado $f */
+    private function executar(callable $f): Resultado
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return Resultado::falha('Conecte o iFood primeiro.');
+        }
+        try {
+            return $f($conta->token(), (string) $conta->loja());
+        } catch (IntegracaoErro $erro) {
+            return Resultado::falha($erro->getMessage());
+        }
+    }
+
     private function conta(): IfoodConta
     {
         return new IfoodConta($this->db, (int) $this->idRestaurante, $this->api);
