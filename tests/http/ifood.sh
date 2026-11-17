@@ -208,7 +208,6 @@ curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
 esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
-echo "CI diagnóstico Botao Loja após pausa: $(cat "$tmp/sit.json")"
 contem "gerencia nao inventa fechamento apos POST" "$tmp/sit.json" '"estado":"divergente"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa aguarda confirmacao antes de permitir reabrir" "$tmp/sit.json" '"pode_abrir":false'
@@ -221,7 +220,6 @@ curl -s -o /dev/null -H 'Content-Type: application/json' -X POST \
   --data '{"ativa":true}' "$fake/_teste/ifood-status-forcar-aberta"
 rodar
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao?novo=1"
-echo "CI diagnóstico Botao Loja forcada aberta: $(cat "$tmp/sit.json")"
 contem "gerencia informa que o Merchant ainda esta aberto" "$tmp/sit.json" '"estado":"divergente"'
 contem "nao chama de loja fechada" "$tmp/sit.json" 'iFood: loja aberta'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao?novo=1"
@@ -261,7 +259,6 @@ pausa_remota="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); ech
 if [[ -z "$pausa_remota" ]]; then falha "portal recebeu ID da pausa"; fi
 rodar
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
-echo "CI diagnóstico pausa Portal: $(cat "$tmp/estado-publico.json")"
 contem "pausa feita no Portal fecha o Deliveryzim" "$tmp/estado-publico.json" '"fechado_integracao":true'
 curl -s -o /dev/null -X DELETE -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/merchants/$loja/interruptions/$pausa_remota"
 rodar
