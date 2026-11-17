@@ -308,7 +308,7 @@ if ($caminho === '/ifood/authentication/v1.0/oauth/token' && $metodo === 'POST')
     $responder(200, ['accessToken' => 'acc-' . bin2hex(random_bytes(4)), 'refreshToken' => 'ref-' . bin2hex(random_bytes(4)), 'type' => 'bearer', 'expiresIn' => 10800]);
 }
 // Cenario de homologacao: o Merchant lista pausas vigentes, mas continua com state OK.
-if ($caminho === '/_teste/ifood-status-forcar-aberta' && $metodo === 'POST') {
+if (in_array($caminho, ['/_teste/ifood-status-forcar-aberta', '/ifood/_teste/ifood-status-forcar-aberta'], true) && $metodo === 'POST') {
     $guardar('ifood-status-forcar-aberta.json', ($json['ativa'] ?? false) === true);
     $responder(200, ['ok' => true]);
 }
