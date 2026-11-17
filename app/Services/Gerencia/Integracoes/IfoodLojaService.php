@@ -72,7 +72,7 @@ final class IfoodLojaService extends BaseIntegracao
         $fuso = FusoLojaIfood::sugerir(is_array($detalhes) ? $detalhes : []);
         $horarios = $buscar('horarios', fn (): array => $this->api->horarios($token, $loja), []);
         $situacao = $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []);
-        $pausas = $buscar('pausas', fn (): array => $this->api->pausas($token, $loja), []);
+        $pausas = $buscar('pausas', fn (): array => $this->api->pausas($token, $loja, $fuso), []);
         $divergencia = $situacao !== [] && !isset($erros['pausas'])
             && EstadoLoja::resumoOperacional($situacao, $pausas)['divergente'];
         return [
@@ -138,7 +138,7 @@ final class IfoodLojaService extends BaseIntegracao
 
             // O ambiente de teste pode aceitar sobreposicoes em vez do HTTP 409 documentado.
             // Validar o intervalo de instantes no backend antes de enviar o POST.
-            foreach ($this->api->pausas($token, $loja) as $pausa) {
+            foreach ($this->api->pausas($token, $loja, $fuso) as $pausa) {
                 $inicioExistente = IfoodApi::data((string) ($pausa['inicio'] ?? ''))?->getTimestamp();
                 $fimExistente = IfoodApi::data((string) ($pausa['fim'] ?? ''))?->getTimestamp();
                 if ($inicioExistente !== null && $fimExistente !== null
@@ -194,7 +194,7 @@ final class IfoodLojaService extends BaseIntegracao
     {
         $conta = $this->conta();
         try {
-            $lista = $conta->conectada() ? $this->api->pausas($conta->token(), (string) $conta->loja()) : [];
+            $lista = $conta->conectada() ? $this->api->pausas($conta->token(), (string) $conta->loja(), $this->fusoDaLoja()) : [];
         } catch (IntegracaoErro $erro) {
             return ['pausas' => [], 'erro' => $erro->getMessage()];
         }
@@ -434,7 +434,7 @@ final class IfoodLojaService extends BaseIntegracao
                 $token = $conta->token();
                 $operacoes = $this->api->situacaoLoja($token, (string) $conta->loja());
                 if ($operacoes !== []) {
-                    $pausas = $this->api->pausas($token, (string) $conta->loja());
+                    $pausas = $this->api->pausas($token, (string) $conta->loja(), $this->fusoDaLoja());
                     EstadoLoja::reconciliar($this->db, (int) $this->idRestaurante, $operacoes, $pausas);
                     $estado = EstadoLoja::consultar($this->db, (int) $this->idRestaurante);
                 }
@@ -488,7 +488,7 @@ final class IfoodLojaService extends BaseIntegracao
     public function abrirLoja(): Resultado
     {
         return $this->executar(function (string $token, string $loja): Resultado {
-            $ativas = self::pausasAtivas($this->api->pausas($token, $loja));
+            $ativas = self::pausasAtivas($this->api->pausas($token, $loja, $this->fusoDaLoja()));
             if ($ativas === []) {
                 $aberta = array_filter($this->api->situacaoLoja($token, $loja), static fn (array $s): bool => $s['disponivel']) !== [];
                 return $aberta ? Resultado::sucesso('A loja já está aberta no iFood.')
