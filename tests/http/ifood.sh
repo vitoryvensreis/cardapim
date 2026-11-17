@@ -387,7 +387,7 @@ echo "Disponibilidade e situacao da integracao"
 esperar "enviar disponibilidade agora" "$(enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/cardapio/sincronizar" | cut -d' ' -f1)" "303"
 esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio")" "2 item(ns) atualizado(s) no iFood."
 pagina "$gj" "$g/integracoes/ifood" >/dev/null
-contem "pedidos do iFood hoje" "$tmp/pagina.html" 'Pedidos do iFood hoje'
+contem "pedidos do iFood hoje no novo status" "$tmp/pagina.html" 'Pedidos hoje'
 nao_contem "rotina rodando (sem alerta de parada)" "$tmp/pagina.html" 'não estão chegando agora'
 contem "itens ligados no resumo" "$tmp/pagina.html" '2 de'
 
