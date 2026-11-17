@@ -62,10 +62,6 @@ final class BotaoLojaIfood
         $resultado = $servico->abrirLoja();
         Session::remover(self::chave($idRestaurante));
         $situacao = $servico->situacaoAgora();
-        if ($resultado->ok && $situacao['estado'] !== 'aberta') {
-            // A pausa saiu, mas o iFood pode levar alguns segundos para mostrar a loja aberta.
-            $situacao = ['estado' => 'aberta', 'texto' => 'Loja aberta', 'detalhe' => 'Pausa removida. O iFood pode levar alguns segundos para mostrar a loja aberta.', 'pode_abrir' => false];
-        }
         Session::set(self::chave($idRestaurante), ['ate' => time() + self::CACHE_SEGUNDOS, 'dados' => $situacao]);
         return Guard::semCache(Response::json(['ok' => $resultado->ok, 'mensagem' => $resultado->mensagem, 'situacao' => $situacao], $resultado->ok ? 200 : 422));
     }
