@@ -69,6 +69,12 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 - **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até **7 dias**, limite oficial).
   Datas enviadas em UTC com "Z"; o iFood devolve em UTC, às vezes sem o fuso: `IfoodApi::data()` lê sem fuso como UTC
   (também nas datas dos pedidos) e mostra no fuso do sistema.
+  O POST envia somente `description`, `start` e `end` e exige **HTTP 201 com ID devolvido pelo iFood**;
+  não se inventa ID localmente. O DELETE exige **HTTP 204**. Depois de cada comando a tela consulta
+  novamente `GET /interruptions` e mostra apenas o que a API retornou, sem inserir ou ocultar pausas
+  artificialmente. Se a API ainda não refletiu a alteração, o aviso fica **aguardando confirmação**;
+  o estado operacional pode levar alguns segundos para se propagar. Em falha de consulta, nunca se
+  exibe "Nenhuma pausa ativa" como se a ausência estivesse confirmada.
 - **Horário de funcionamento** (`GET|PUT /merchants/{id}/opening-hours`, turnos `dayOfWeek` + `start` + `duration` em minutos):
   - **Padrão: o iFood segue o horário do Perfil.** Ao salvar o horário no Perfil, o iFood recebe o horário novo na hora
     (`IfoodLojaService::acompanharPerfil`, chamado pelo `PerfilController`; falha vira aviso, o Perfil já fica salvo).
