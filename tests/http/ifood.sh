@@ -97,6 +97,11 @@ contem "endereco nos dados" "$tmp/pagina.html" 'Rua CI, 10, Centro, Fortaleza - 
 contem "disponibilidade" "$tmp/pagina.html" 'Loja aberta no iFood'
 contem "fuso da loja no formulario" "$tmp/pagina.html" 'Brasília / Fortaleza'
 contem "motivo no limite Merchant" "$tmp/pagina.html" 'maxlength="255"'
+contem "dois relogios no formulario" "$tmp/pagina.html" 'data-ifood-relogios'
+contem "fuso do Merchant para o relogio" "$tmp/pagina.html" 'data-fuso-loja="America/Sao_Paulo"'
+contem "relogio da loja" "$tmp/pagina.html" 'data-relogio-loja'
+contem "relogio do dispositivo" "$tmp/pagina.html" 'data-relogio-dispositivo'
+contem "campos expressos no fuso da loja" "$tmp/pagina.html" 'Começa (horário da loja)'
 nao_contem "sem modo de inicio imediato" "$tmp/pagina.html" 'name="inicio_agora"'
 esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/minha-loja" | sed 's/302/403/')" "403"
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
@@ -105,6 +110,9 @@ esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes
 esperar "pausa maior que 7 dias recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Prazo invalido' inicio="$ini" fim="$(date -d '+9 days' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "422"
 esperar "duracao minima 1 min" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Muito curta' inicio="$ini" fim="$ini" | cut -d' ' -f1)" "422"
 esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
+curl -s "$fake/_teste/ultimo-payload-pausa" > "$tmp/payload-pausa.json"
+contem "POST envia hora local com offset explicito da loja" "$tmp/payload-pausa.json" '-03:00'
+nao_contem "POST nao converte o horario local em Z" "$tmp/payload-pausa.json" 'Z"'
 esperar "sobreposicao tratada no backend" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Sobreposta CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
