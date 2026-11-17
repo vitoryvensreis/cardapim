@@ -15,6 +15,8 @@ use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Pedidos\CancelarPedido;
+use Cardapim\Modules\Catalog\Complementos;
+use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 use PDO;
 use Throwable;
@@ -183,8 +185,9 @@ final class ComandaService
         if ($p === null || !in_array($p['tipo'], ['mesa', 'balcao'], true)) {
             return null;
         }
+        $comp = Esquema::tem($this->db, 'complementos') ? ', i.complementos_texto' : '';
         $q = $this->db->prepare(
-            "SELECT i.id, i.id_produto, i.nome, i.preco_unitario, i.quantidade, i.unidade, i.observacao, i.total, i.criado_em, i.cancelado_em, i.motivo_cancelamento,
+            "SELECT i.id, i.id_produto, i.nome, i.preco_unitario, i.quantidade, i.unidade, i.observacao$comp, i.total, i.criado_em, i.cancelado_em, i.motivo_cancelamento,
                     u.nome AS autor
              FROM pedido_itens i LEFT JOIN `user` u ON u.id = i.id_user
              WHERE i.id_pedido = ? AND i.id_restaurante = ? ORDER BY i.id"
@@ -234,9 +237,10 @@ final class ComandaService
 
     /**
      * Lanca um produto na comanda. $quantidade: unidades (1 a 99) ou, no produto vendido por quilo/litro,
-     * o peso/volume digitado ("0,846").
+     * o peso/volume digitado ("0,846"). $complementos: ids escolhidos (ou id => quantidade), conferidos pela regra unica.
+     * @param array<mixed> $complementos
      */
-    public function lancar(int $id, int $idProduto, string|int $quantidade, string $observacao): Resultado
+    public function lancar(int $id, int $idProduto, string|int $quantidade, string $observacao, array $complementos = []): Resultado
     {
         $comanda = $this->aberta($id);
         if ($comanda instanceof Resultado) {
@@ -262,17 +266,39 @@ final class ComandaService
         } catch (\InvalidArgumentException $erro) {
             return Resultado::falha(QuantidadeVenda::porPeso($unidade) ? '"' . $produto['nome'] . '": ' . $erro->getMessage() : $erro->getMessage());
         }
-        $preco = Numero::centavos((string) $produto['preco']);
+        // Complementos (adicionais, borda...): mesma regra do cardapio online; o preco unitario inclui os escolhidos.
+        $escolhas = Complementos::formato($complementos);
+        if ($escolhas === null) {
+            return Resultado::falha('Complementos inválidos. Escolha de novo.');
+        }
+        $grupos = $unidade === 'un' ? (Complementos::carregar($this->db, $this->idRestaurante, [$idProduto])[$idProduto] ?? []) : [];
+        $conf = ['centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => []];
+        if ($grupos !== [] || $escolhas !== []) {
+            $conf = Complementos::conferir($grupos, $escolhas);
+            if (!$conf['ok']) {
+                return Resultado::falha('"' . $produto['nome'] . '": ' . $conf['erro']);
+            }
+        }
+        $preco = Numero::centavos((string) $produto['preco']) + $conf['centavos'];
+        $extras = Complementos::consumoDaLinha($conf['insumos'], intdiv($milesimos, 1000));
+        $comComplementos = Esquema::tem($this->db, 'complementos');
         $agora = date('Y-m-d H:i:s');
         $this->db->beginTransaction();
         try {
             // Baixa primeiro: se faltar insumo, nada e gravado.
-            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($this->idRestaurante, [$idProduto => $milesimos]);
-            $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, id_user, consumo_estoque, criado_em)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                ->execute([$id, $this->idRestaurante, $idProduto, mb_substr((string) $produto['nome'], 0, 180), CaixaService::dec($preco), QuantidadeVenda::paraBanco($milesimos), $unidade,
-                    $observacao !== '' ? $observacao : null, CaixaService::dec(QuantidadeVenda::totalCentavos($preco, $milesimos)), $this->autor->id,
-                    $consumo !== [] ? json_encode($consumo, JSON_THROW_ON_ERROR) : null, $agora]);
+            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($this->idRestaurante, [$idProduto => $milesimos], $extras);
+            $valores = [$id, $this->idRestaurante, $idProduto, mb_substr((string) $produto['nome'], 0, 180), CaixaService::dec($preco), QuantidadeVenda::paraBanco($milesimos), $unidade,
+                $observacao !== '' ? $observacao : null, CaixaService::dec(QuantidadeVenda::totalCentavos($preco, $milesimos)), $this->autor->id,
+                $consumo !== [] ? json_encode($consumo, JSON_THROW_ON_ERROR) : null, $agora];
+            if ($comComplementos) {
+                $valores[] = $conf['texto'] !== '' ? $conf['texto'] : null;
+            }
+            $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, id_user, consumo_estoque, criado_em'
+                . ($comComplementos ? ', complementos_texto) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)' : ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'))
+                ->execute($valores);
+            if ($comComplementos && $conf['itens'] !== []) {
+                Complementos::gravarNoItem($this->db, $this->idRestaurante, (int) $this->db->lastInsertId(), $conf['itens']);
+            }
             $this->recalcular($id);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
             $this->db->commit();

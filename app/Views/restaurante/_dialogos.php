@@ -15,6 +15,9 @@ use Cardapim\Core\Icon;
             <h2 id="produto-nome" data-produto-nome></h2>
             <p class="cd-folha-desc" data-produto-desc></p>
             <p class="cd-folha-preco" data-produto-preco></p>
+            <img class="cd-folha-foto" data-produto-foto alt="" hidden>
+            <div class="cd-grupos" data-produto-grupos hidden></div>
+            <p class="cd-erro cd-grupos-erro" role="alert" data-grupos-erro hidden></p>
             <fieldset class="cd-porcoes" data-produto-porcoes hidden>
                 <legend>Escolha a porção</legend>
                 <div class="cd-porcoes-opcoes" data-porcoes-opcoes></div>

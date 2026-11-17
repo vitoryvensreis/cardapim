@@ -7,8 +7,9 @@ namespace Cardapim\Modules\Inventory;
 use PDO;
 
 /**
- * Regra de venda: produto indisponivel se estiver arquivado, pausado manualmente
- * ou se faltar qualquer insumo da ficha tecnica (ou o insumo estiver inativo).
+ * Regra de venda: produto indisponivel se estiver arquivado, pausado manualmente,
+ * se faltar qualquer insumo da ficha tecnica (ou o insumo estiver inativo) ou se um grupo de complementos
+ * obrigatorio ficar sem opcoes para escolher.
  */
 final class DisponibilidadeProdutos
 {
@@ -16,6 +17,8 @@ final class DisponibilidadeProdutos
     public const MOTIVO_PAUSADO = 'pausado';
     public const MOTIVO_SEM_INSUMO = 'sem_insumo';
     public const MOTIVO_INSUMO_INATIVO = 'insumo_inativo';
+    /** Grupo de complementos obrigatorio sem opcoes que possam ser vendidas (pausadas ou sem insumo). */
+    public const MOTIVO_SEM_COMPLEMENTO = 'sem_complemento';
 
     public function __construct(private readonly PDO $db)
     {
@@ -95,6 +98,14 @@ final class DisponibilidadeProdutos
                 'unidade' => $unidade,
                 'faltando' => $faltando,
             ];
+        }
+        foreach (\Cardapim\Modules\Catalog\Complementos::carregar($this->db, $idRestaurante, array_keys($resultado)) as $idProduto => $grupos) {
+            if (($resultado[$idProduto]['disponivel'] ?? false) && \Cardapim\Modules\Catalog\Complementos::bloqueia($grupos)) {
+                $resultado[$idProduto]['disponivel'] = false;
+                $resultado[$idProduto]['motivo'] = self::MOTIVO_SEM_COMPLEMENTO;
+                $resultado[$idProduto]['faltando'] = array_values(array_map(static fn (array $g): string => (string) $g['nome'],
+                    array_filter($grupos, static fn (array $g): bool => \Cardapim\Modules\Catalog\Complementos::bloqueia([$g]))));
+            }
         }
         return $resultado;
     }

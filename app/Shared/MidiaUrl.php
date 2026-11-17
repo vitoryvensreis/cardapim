@@ -13,7 +13,7 @@ namespace Cardapim\Shared;
  */
 final class MidiaUrl
 {
-    private const PADRAO = '~\A(/midia/(?:logos|marca)/[a-f0-9]{32}(?:-(?:512|192|maskable|apple))?)[.-](svg|png|jpg|webp)\z~';
+    private const PADRAO = '~\A(/midia/(?:logos|marca|cardapio)/[a-f0-9]{32}(?:-(?:512|192|maskable|apple))?)[.-](svg|png|jpg|webp)\z~';
 
     /** "/midia/marca/abc.svg" -> "/midia/marca/abc-svg". Outros enderecos voltam como vieram. */
     public static function publica(string $caminho): string

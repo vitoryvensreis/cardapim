@@ -54,6 +54,7 @@ $router->get('/tratamento-de-dados', Guard::paginaPublica([LegalController::clas
 $router->get('/minha-conta', [AreaController::class, 'minhaConta']);
 $router->get('/midia/logos/{arquivo}', [MidiaController::class, 'logo']);
 $router->get('/midia/marca/{arquivo}', [MidiaController::class, 'marca']);
+$router->get('/midia/cardapio/{arquivo}', [MidiaController::class, 'cardapio']);
 // Google e redes sociais: mapa do site, regras para buscadores e a imagem dos links compartilhados.
 $router->get('/robots.txt', [SeoController::class, 'robots']);
 $router->get('/sitemap.xml', [SeoController::class, 'sitemap']);

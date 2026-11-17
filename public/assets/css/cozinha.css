@@ -104,3 +104,11 @@
 @media (prefers-reduced-motion: reduce) {
   .kds-voltar { transition: none; }
 }
+/* Complementos escolhidos (adicionais, borda...): destaque proprio, separado da observacao do cliente */
+.kds-complementos {
+  display: flex; align-items: flex-start; gap: .4rem; margin-top: .45rem;
+  padding: .55rem .7rem; background: var(--c-blush); color: var(--c-wine-900, var(--c-wine));
+  border-left: 3px solid var(--c-wine); border-radius: var(--r-sm);
+  font-size: clamp(.96rem, 1vw, 1.15rem); font-weight: 700; line-height: 1.4; overflow-wrap: anywhere;
+}
+.kds-complementos .icon { margin-top: .2rem; flex: 0 0 auto; }

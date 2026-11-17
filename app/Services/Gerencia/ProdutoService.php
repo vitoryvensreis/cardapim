@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Gerencia;
 
+use Cardapim\Modules\Catalog\ImagemCardapio;
 use Cardapim\Modules\Inventory\Quantidade;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\UnidadeMedida;
 use Cardapim\Repositories\Estoque\CategoriaRepository;
+use Cardapim\Repositories\Estoque\ComplementoRepository;
 use Cardapim\Repositories\Estoque\InsumoRepository;
 use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
+use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 use InvalidArgumentException;
 use PDO;
 use PDOException;
+use RuntimeException;
 use Throwable;
 
 /** Cadastro, edicao, pausa e exclusao de produtos do cardapio, com ficha tecnica e auditoria. */
@@ -27,6 +31,7 @@ final class ProdutoService
         'nome' => 'Nome', 'categoria' => 'Categoria', 'preco' => 'Preço', 'codigo' => 'Código', 'descricao' => 'Descrição',
         'controla_estoque' => 'Controla estoque', 'disponivel' => 'Disponível', 'ficha' => 'Ficha técnica',
         'unidade_venda' => 'Como vende', 'venda_minima' => 'Venda mínima', 'porcoes' => 'Porções do cardápio online',
+        'complementos' => 'Complementos', 'foto' => 'Foto',
     ];
 
     /** Rotulos de "Como vende" (produtos.unidade_venda). */
@@ -42,8 +47,11 @@ final class ProdutoService
         $this->categorias = new CategoriaRepository($db);
     }
 
-    /** @param array<string,mixed> $entrada */
-    public function salvar(?int $id, array $entrada): Resultado
+    /**
+     * @param array<string,mixed> $entrada
+     * @param array<string,mixed>|null $foto item de $_FILES (foto do produto, opcional)
+     */
+    public function salvar(?int $id, array $entrada, ?array $foto = null): Resultado
     {
         $antes = null;
         $fichaAntes = [];
@@ -61,9 +69,31 @@ final class ProdutoService
         if ($erroPorcoes !== null) {
             $erros['porcoes'] = $erroPorcoes;
         }
+        $comComplementos = Esquema::tem($this->db, 'complementos');
+        $grupos = [];
+        $gruposAntes = [];
+        if ($comComplementos) {
+            $repoComplementos = new ComplementoRepository($this->db);
+            [$grupos, $erroGrupos] = $this->validarGrupos($repoComplementos, $entrada, $dados['unidade_venda']);
+            if ($erroGrupos !== null) {
+                $erros['complementos'] = $erroGrupos;
+            }
+            $gruposAntes = $id !== null ? $repoComplementos->idsGruposDoProduto($this->idRestaurante, $id) : [];
+        }
         if ($erros !== []) {
             return Resultado::falha('Confira os campos destacados.', $erros);
         }
+        // Foto: recebida antes de gravar (se falhar, nada muda e o erro aparece no campo).
+        $novaFoto = null;
+        if (is_array($foto) && (int) ($foto['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            try {
+                $novaFoto = ImagemCardapio::salvar($foto);
+            } catch (RuntimeException $erro) {
+                return Resultado::falha('Confira os campos destacados.', ['foto' => $erro->getMessage()]);
+            }
+        }
+        $fotoAntes = $antes['imagem_path'] ?? null;
+        $tirarFoto = ($entrada['tirar_foto'] ?? '') === '1';
 
         $this->db->beginTransaction();
         try {
@@ -77,9 +107,18 @@ final class ProdutoService
             }
             $this->produtos->salvarFicha($this->idRestaurante, $id, array_map(static fn (array $i): string => $i['quantidade'], $ficha));
             $this->produtos->salvarPorcoes($this->idRestaurante, $id, $porcoes);
+            if ($novaFoto !== null || $tirarFoto) {
+                $this->produtos->definirImagem($this->idRestaurante, $id, $novaFoto);
+            }
+            if ($comComplementos) {
+                (new ComplementoRepository($this->db))->salvarGruposDoProduto($this->idRestaurante, $id, $grupos);
+            }
             $this->db->commit();
         } catch (PDOException $exception) {
             $this->db->rollBack();
+            if ($novaFoto !== null) {
+                ImagemCardapio::apagar($novaFoto);
+            }
             if ($exception->getCode() === '23000') {
                 return Resultado::falha('Confira os campos destacados.', ['nome' => 'Já existe um produto (ou categoria) com este nome ou código.']);
             }
@@ -88,13 +127,20 @@ final class ProdutoService
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
+            if ($novaFoto !== null) {
+                ImagemCardapio::apagar($novaFoto);
+            }
             throw $exception;
+        }
+        if ($fotoAntes !== null && ($novaFoto !== null || $tirarFoto)) {
+            ImagemCardapio::apagar($fotoAntes);
         }
 
         if ($novaCategoria !== null) {
             Auditoria::registrar($this->autor, 'Categoria cadastrada', $novaCategoria . ' (criada no cadastro do produto ' . $dados['nome'] . ').');
         }
-        $depoisLog = $this->paraLog($dados, $novaCategoria ?? $this->nomeCategoria($dados['id_categoria']), $ficha, $porcoes);
+        $depoisLog = $this->paraLog($dados, $novaCategoria ?? $this->nomeCategoria($dados['id_categoria']), $ficha, $porcoes)
+            + ['complementos' => $this->nomesGrupos($grupos), 'foto' => ($novaFoto !== null ? 'nova' : ($tirarFoto ? 'sem foto' : ($fotoAntes !== null ? 'mantida' : 'sem foto')))];
         if ($antes === null) {
             Auditoria::registrar($this->autor, 'Produto cadastrado', sprintf(
                 '%s - preço %s; categoria %s; %s.',
@@ -109,7 +155,8 @@ final class ProdutoService
             ...$antes,
             'controla_estoque' => (int) $antes['controla_estoque'],
             'disponivel' => (int) $antes['disponivel'],
-        ], $antes['categoria'], array_map(static fn (array $i): array => $i + ['quantidade' => $i['quantidade']], $fichaAntes), $porcoesAntes);
+        ], $antes['categoria'], array_map(static fn (array $i): array => $i + ['quantidade' => $i['quantidade']], $fichaAntes), $porcoesAntes)
+            + ['complementos' => $this->nomesGrupos($gruposAntes), 'foto' => $fotoAntes !== null ? 'mantida' : 'sem foto'];
         Auditoria::registrar($this->autor, 'Produto editado', $antes['nome'] . ' - ' . Auditoria::diferencas($antesLog, $depoisLog, self::ROTULOS));
         return Resultado::sucesso('Produto "' . $dados['nome'] . '" atualizado.', $id);
     }
@@ -139,6 +186,9 @@ final class ProdutoService
             if ($arquivado) {
                 $this->produtos->arquivar($this->idRestaurante, $id, (string) $produto['nome']);
             } else {
+                if (Esquema::tem($this->db, 'complementos')) {
+                    (new ComplementoRepository($this->db))->removerLigacoesDoProduto($this->idRestaurante, $id);
+                }
                 $this->produtos->excluir($this->idRestaurante, $id);
             }
             $this->db->commit();
@@ -308,6 +358,46 @@ final class ProdutoService
         $milesimos = array_keys($lista);
         sort($milesimos);
         return [array_map([QuantidadeVenda::class, 'paraBanco'], $milesimos), null];
+    }
+
+    /**
+     * Grupos de complementos marcados no produto, na ordem escolhida (grupos[] = ids; ordem_grupo[id] = posicao).
+     * @param array<string,mixed> $e
+     * @return array{0: list<int>, 1: ?string}
+     */
+    private function validarGrupos(ComplementoRepository $repo, array $e, string $unidade): array
+    {
+        $marcados = is_array($e['grupos'] ?? null) ? array_values(array_filter($e['grupos'], static fn ($v): bool => is_string($v) && ctype_digit($v))) : [];
+        if ($marcados === []) {
+            return [[], null];
+        }
+        if ($unidade !== 'un') {
+            return [[], 'Complementos só podem ser usados em produto vendido por unidade.'];
+        }
+        $ordem = is_array($e['ordem_grupo'] ?? null) ? $e['ordem_grupo'] : [];
+        $ids = array_map('intval', $marcados);
+        usort($ids, static fn (int $a, int $b): int => [(int) ($ordem[$a] ?? 99), $a] <=> [(int) ($ordem[$b] ?? 99), $b]);
+        $validos = $repo->gruposValidos($this->idRestaurante, $ids);
+        if (count($validos) !== count(array_unique($ids))) {
+            return [[], 'Algum grupo escolhido não existe mais. Recarregue a página e escolha de novo.'];
+        }
+        if (count($validos) > 20) {
+            return [[], 'Use no máximo 20 grupos de complementos por produto.'];
+        }
+        return [$validos, null];
+    }
+
+    /** @param list<int> $ids */
+    private function nomesGrupos(array $ids): string
+    {
+        if ($ids === []) {
+            return 'nenhum';
+        }
+        $nomes = [];
+        foreach ((new ComplementoRepository($this->db))->grupos($this->idRestaurante) as $g) {
+            $nomes[$g['id']] = $g['nome'];
+        }
+        return implode(', ', array_map(static fn (int $id): string => $nomes[$id] ?? ('#' . $id), $ids));
     }
 
     private function nomeCategoria(?int $id): ?string

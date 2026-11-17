@@ -85,7 +85,7 @@ final class GarcomController
         ]);
     }
 
-    /** Lanca varios produtos de uma vez: qtd[id_produto] = quantidade, obs[id_produto] = observacao. */
+    /** Lanca varios produtos de uma vez: qtd[id_produto] = quantidade, obs[id_produto] = observacao, comp[id_produto][] = complementos. */
     public function lancar(string $slug, string $id): Response
     {
         if ($r = $this->entrar($slug, true)) {
@@ -95,13 +95,15 @@ final class GarcomController
         $volta = $this->url('comandas/' . (int) $idComanda);
         $qtds = is_array($_POST['qtd'] ?? null) ? $_POST['qtd'] : [];
         $obs = is_array($_POST['obs'] ?? null) ? $_POST['obs'] : [];
+        $comps = is_array($_POST['comp'] ?? null) ? $_POST['comp'] : [];
         $pedidos = [];
         foreach ($qtds as $produto => $q) {
             $idProduto = self::id((string) $produto);
             // Unidades ("2") ou, no produto por quilo/litro, o peso ("0,846"). Vazio ou zero = nao lancar.
             $quantidade = is_string($q) ? trim($q) : '';
             if ($idProduto !== null && $quantidade !== '' && preg_match('/\A0*(?:[.,]0*)?\z/', $quantidade) !== 1) {
-                $pedidos[$idProduto] = [mb_substr($quantidade, 0, 12), is_string($obs[$produto] ?? null) ? (string) $obs[$produto] : ''];
+                $pedidos[$idProduto] = [mb_substr($quantidade, 0, 12), is_string($obs[$produto] ?? null) ? (string) $obs[$produto] : '',
+                    is_array($comps[$produto] ?? null) ? array_values($comps[$produto]) : []];
             }
         }
         if ($idComanda === null || $pedidos === []) {
@@ -113,8 +115,8 @@ final class GarcomController
         $servico = $this->comandas();
         $lancados = 0;
         $falhas = [];
-        foreach ($pedidos as $idProduto => [$quantidade, $observacao]) {
-            $res = $servico->lancar($idComanda, $idProduto, $quantidade, $observacao);
+        foreach ($pedidos as $idProduto => [$quantidade, $observacao, $complementos]) {
+            $res = $servico->lancar($idComanda, $idProduto, $quantidade, $observacao, $complementos);
             if ($res->ok) {
                 $lancados += ctype_digit($quantidade) ? (int) $quantidade : 1;
             } else {

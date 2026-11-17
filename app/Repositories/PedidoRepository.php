@@ -52,7 +52,8 @@ final class PedidoRepository
     /** @return list<array<string,mixed>> */
     public function itens(int $idRestaurante, int $idPedido): array
     {
-        $q = $this->db->prepare('SELECT id_produto, nome, preco_unitario, quantidade, unidade, observacao, total FROM pedido_itens WHERE id_pedido = ? AND id_restaurante = ? ORDER BY id');
+        $comp = \Cardapim\Shared\Esquema::tem($this->db, 'complementos') ? ', complementos_texto' : '';
+        $q = $this->db->prepare('SELECT id_produto, nome, preco_unitario, quantidade, unidade, observacao, total' . $comp . ' FROM pedido_itens WHERE id_pedido = ? AND id_restaurante = ? ORDER BY id');
         $q->execute([$idPedido, $idRestaurante]);
         return $q->fetchAll(PDO::FETCH_ASSOC);
     }

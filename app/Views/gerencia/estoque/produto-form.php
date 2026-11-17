@@ -2,6 +2,7 @@
 /**
  * Cadastro/edicao de produto com ficha tecnica.
  * Espera: $produto (null = novo), $valores, $erros, $categorias, $insumos (mapaParaFicha), $base, $csrf.
+ * Opcional: $gruposComplemento (null = complementos ainda nao liberados), $fotoAtual.
  */
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Inventory\UnidadeMedida;
@@ -58,7 +59,7 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
 
     <?= Campo::resumoErros($erros) ?>
 
-    <form method="post" action="<?= $e($acao) ?>" novalidate data-validate-form data-produto-form>
+    <form method="post" action="<?= $e($acao) ?>" enctype="multipart/form-data" novalidate data-validate-form data-produto-form>
         <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
 
         <section class="bloco" aria-labelledby="titulo-dados">
@@ -90,7 +91,52 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                     'dica' => 'Para achar rápido no caixa. Exemplo: 101', 'attrs' => ['maxlength' => 40, 'autocomplete' => 'off']]) ?>
             </div>
             <?= Campo::alternador('disponivel', 'Disponível para venda', 'Desligue para pausar o produto sem apagar nada.', $v('disponivel') === '1') ?>
+            <div class="produto-foto" id="campo-foto">
+                <?php if (!empty($fotoAtual)): ?>
+                    <img src="<?= $e(\Cardapim\Shared\MidiaUrl::publica((string) $fotoAtual)) ?>" alt="Foto atual do produto" width="96" height="96" loading="lazy">
+                <?php endif; ?>
+                <div class="opcao-campo">
+                    <label for="foto-produto"><strong><?= empty($fotoAtual) ? 'Foto do produto' : 'Trocar a foto' ?></strong> <span class="field-optional">(opcional)</span></label>
+                    <input id="foto-produto" type="file" name="foto" accept="image/png,image/jpeg,image/webp" aria-describedby="foto-dica">
+                    <small class="texto-suave" id="foto-dica">PNG, JPG ou WebP, a partir de 300 x 275 pixels e até 5 MB. Aparece no cardápio e no iFood.</small>
+                    <?php if (isset($erros['foto'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['foto']) ?></p><?php endif; ?>
+                    <?php if (!empty($fotoAtual)): ?>
+                        <label class="opcao-tirar"><input type="checkbox" name="tirar_foto" value="1"><span>Tirar a foto</span></label>
+                    <?php endif; ?>
+                </div>
+            </div>
         </section>
+
+        <?php if (isset($gruposComplemento) && is_array($gruposComplemento)):
+            $marcados = array_map('strval', is_array($valores['grupos'] ?? null) ? $valores['grupos'] : []);
+            $ordemGrupo = is_array($valores['ordem_grupo'] ?? null) ? $valores['ordem_grupo'] : [];
+        ?>
+            <section class="bloco" aria-labelledby="titulo-complementos" id="campo-complementos">
+                <div class="bloco-cabecalho">
+                    <h2 id="titulo-complementos"><?= Icon::svg('square-plus') ?>Complementos</h2>
+                    <p>Escolhas que o cliente faz neste produto (adicionais, borda, molho...). Só para produto vendido por unidade.</p>
+                </div>
+                <?php if (isset($erros['complementos'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['complementos']) ?></p><?php endif; ?>
+                <?php if ($gruposComplemento === []): ?>
+                    <p class="texto-suave">Nenhum grupo cadastrado ainda. <a href="<?= $e($base . '/estoque/complementos/novo') ?>">Criar grupo de complementos</a></p>
+                <?php else: ?>
+                    <fieldset class="produto-grupos">
+                        <legend class="sr-only">Grupos de complementos deste produto</legend>
+                        <?php foreach ($gruposComplemento as $g): $gid = (string) $g['id']; ?>
+                            <div class="produto-grupo">
+                                <input type="checkbox" id="grupo-<?= $e($gid) ?>" name="grupos[]" value="<?= $e($gid) ?>"<?= in_array($gid, $marcados, true) ? ' checked' : '' ?>>
+                                <label for="grupo-<?= $e($gid) ?>"><span><strong><?= $e($g['nome']) ?></strong>
+                                    <small><?= $e(implode(', ', array_map(static fn (array $o): string => $o['nome'], array_slice($g['opcoes'], 0, 6))) . (count($g['opcoes']) > 6 ? '...' : '')) ?></small></span></label>
+                                <label class="sr-only" for="ordem-<?= $e($gid) ?>">Posição do grupo <?= $e($g['nome']) ?></label>
+                                <input class="campo-simples produto-grupo-ordem" id="ordem-<?= $e($gid) ?>" name="ordem_grupo[<?= $e($gid) ?>]" type="number" min="1" max="99" inputmode="numeric"
+                                       value="<?= $e((string) ($ordemGrupo[$gid] ?? $ordemGrupo[(int) $gid] ?? '')) ?>" placeholder="Ordem" title="Ordem em que aparece">
+                            </div>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <p class="texto-suave">Ordem: 1 aparece primeiro. Gerencie os grupos em <a href="<?= $e($base . '/estoque/complementos') ?>">Complementos</a>.</p>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
 
         <section class="bloco" aria-labelledby="titulo-peso" data-bloco-peso<?= $porPeso ? '' : ' hidden' ?>>
             <div class="bloco-cabecalho">

@@ -135,6 +135,13 @@ final class InsumoService
                 self::lista($produtos),
             ));
         }
+        if (\Cardapim\Shared\Esquema::tem($this->db, 'complementos')) {
+            $complementos = (new \Cardapim\Repositories\Estoque\ComplementoRepository($this->db))->queUsamInsumo($this->idRestaurante, $id);
+            if ($complementos !== []) {
+                return Resultado::falha(sprintf('Não dá para excluir "%s": ele é gasto pelos complementos %s. Tire ele dos complementos ou desative o insumo.',
+                    $insumo['nome'], self::lista($complementos)));
+            }
+        }
         try {
             $this->insumos->excluir($this->idRestaurante, $id);
         } catch (PDOException $exception) {

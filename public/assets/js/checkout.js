@@ -40,16 +40,17 @@
   const textoPeso = (m, unidade) => (m < 1000
     ? `${m} ${unidade === "l" ? "ml" : "g"}`
     : `${Math.floor(m / 1000)},${String(m % 1000).padStart(3, "0")} ${unidade === "l" ? "L" : "kg"}`);
-  const valorLinha = (i) => (i.porcao ? Math.floor((i.centavos * i.qtd * i.porcao + 500) / 1000) : i.centavos * i.qtd);
+  const valorLinha = (i) => (i.porcao ? Math.floor((i.centavos * i.qtd * i.porcao + 500) / 1000) : (i.centavos + (i.compsCentavos || 0)) * i.qtd);
   const textoLinha = (i) => (i.porcao ? textoPeso(i.qtd * i.porcao, i.unidade) : `${i.qtd}x`);
-  const paraApi = (i) => ({ id: i.id, quantidade: i.qtd, porcao: i.porcao || null });
+  const paraApi = (i) => ({ id: i.id, quantidade: i.qtd, porcao: i.porcao || null, complementos: (i.comps || []).map((c) => ({ id: c.id, quantidade: c.qtd })) });
 
   /* ---------- Sacola (do aparelho) ---------- */
   const lerSacola = () => {
     const d = lerJson(CHAVE_SACOLA);
     if (!d || !Array.isArray(d.itens) || Date.now() - (d.salvo || 0) > 2 * 24 * 3600 * 1000) return [];
     return d.itens.filter((i) => Number.isInteger(i.id) && Number.isInteger(i.qtd) && i.qtd > 0
-      && (i.porcao === undefined || i.porcao === null || (Number.isInteger(i.porcao) && i.porcao > 0))).slice(0, 50);
+      && (i.porcao === undefined || i.porcao === null || (Number.isInteger(i.porcao) && i.porcao > 0))
+      && (i.comps === undefined || (Array.isArray(i.comps) && i.comps.every((c) => Number.isInteger(c.id) && Number.isInteger(c.qtd) && c.qtd > 0)))).slice(0, 50);
   };
   let sacola = lerSacola();
   const mostrarVazio = () => {
@@ -105,6 +106,12 @@
       const nome = document.createElement("span");
       nome.className = "ck-item-nome";
       nome.textContent = i.nome;
+      if (i.compsTexto) {
+        const comps = document.createElement("small");
+        comps.className = "ck-item-comps";
+        comps.textContent = i.compsTexto;
+        nome.append(comps);
+      }
       if (i.obs) {
         const obs = document.createElement("small");
         obs.textContent = i.obs;
@@ -620,6 +627,14 @@
       if (!s) { mudou = true; return false; }
       const porcoes = Array.isArray(s.porcoes) ? s.porcoes : [];
       if ((i.porcao && !porcoes.includes(i.porcao)) || (!i.porcao && s.unidade && s.unidade !== "un")) { mudou = true; return false; }
+      const grupos = Array.isArray(s.grupos) ? s.grupos : [];
+      if (grupos.length || (i.comps || []).length) {
+        const conf = window.CardapimComplementos?.conferir(grupos, i.comps || []);
+        if (!conf || !conf.ok) { mudou = true; return false; }
+        if (conf.centavos !== (i.compsCentavos || 0)) mudou = true;
+        i.compsCentavos = conf.centavos;
+        i.compsTexto = conf.texto;
+      }
       if (s.centavos !== i.centavos) mudou = true;
       i.centavos = s.centavos;
       i.unidade = s.unidade || "un";

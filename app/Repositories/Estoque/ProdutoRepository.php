@@ -31,7 +31,7 @@ final class ProdutoRepository
     public function buscar(int $idRestaurante, int $id): ?array
     {
         $query = $this->db->prepare(
-            'SELECT p.id, p.nome, p.descricao, p.preco, p.unidade_venda, p.venda_minima, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
+            'SELECT p.id, p.nome, p.descricao, p.preco, p.unidade_venda, p.venda_minima, p.codigo, p.imagem_path, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
              WHERE p.id = ? AND p.id_restaurante = ?'
@@ -109,6 +109,12 @@ final class ProdutoRepository
         foreach (array_values($porcoes) as $ordem => $quantidade) {
             $insert->execute([$idRestaurante, $idProduto, $quantidade, $ordem]);
         }
+    }
+
+    /** Foto do produto (caminho publico de ImagemCardapio, ou null para tirar). */
+    public function definirImagem(int $idRestaurante, int $id, ?string $caminho): void
+    {
+        $this->db->prepare('UPDATE produtos SET imagem_path = ? WHERE id = ? AND id_restaurante = ?')->execute([$caminho, $id, $idRestaurante]);
     }
 
     public function definirDisponivel(int $idRestaurante, int $id, bool $disponivel): void

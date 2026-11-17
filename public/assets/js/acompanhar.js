@@ -136,6 +136,12 @@
       const n = document.createElement("span");
       n.className = "ck-item-nome";
       n.textContent = i.nome;
+      if (i.complementos) {
+        const c = document.createElement("small");
+        c.className = "ck-item-comps";
+        c.textContent = i.complementos;
+        n.append(c);
+      }
       if (i.observacao) {
         const o = document.createElement("small");
         o.textContent = i.observacao;

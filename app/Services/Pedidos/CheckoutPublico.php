@@ -103,6 +103,7 @@ final class CheckoutPublico
                 // "2x" ou "846 g": a tela mostra este texto antes do nome.
                 'quantidade_texto' => \Cardapim\Modules\Inventory\QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un')),
                 'observacao' => (string) ($i['observacao'] ?? ''),
+                'complementos' => (string) ($i['complementos_texto'] ?? ''),
                 'total_centavos' => Numero::centavos((string) $i['total']),
             ], $itens),
             'final' => in_array($p['status'], ['concluido', 'cancelado'], true),

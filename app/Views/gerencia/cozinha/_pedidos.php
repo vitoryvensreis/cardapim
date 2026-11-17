@@ -49,6 +49,9 @@ $e = static fn (string $valor): string => htmlspecialchars($valor, ENT_QUOTES | 
                         <strong class="kds-quantidade"><?= $e(QuantidadeVenda::textoDoBanco((string) $item['quantidade'], (string) ($item['unidade'] ?? 'un'))) ?></strong>
                         <div class="kds-item-descricao">
                             <strong class="kds-item-nome"><?= $e((string) $item['nome']) ?></strong>
+                            <?php if (trim((string) ($item['complementos_texto'] ?? '')) !== ''): ?>
+                                <p class="kds-complementos"><?= Icon::svg('square-plus', 'icon-sm') ?><span><?= $e((string) $item['complementos_texto']) ?></span></p>
+                            <?php endif; ?>
                             <?php if (trim((string) ($item['observacao'] ?? '')) !== ''): ?>
                                 <p class="kds-observacao"><?= Icon::svg('message-circle', 'icon-sm') ?><span><?= $e((string) $item['observacao']) ?></span></p>
                             <?php endif; ?>

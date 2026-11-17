@@ -233,6 +233,59 @@ final class IfoodService extends BaseIntegracao
             : Resultado::sucesso($r['enviados'] . ' item(ns) atualizado(s) no iFood.');
     }
 
+    /** Publica no iFood os produtos escolhidos (cadastro completo: categoria, item, foto, complementos). @param list<mixed> $ids */
+    public function publicarCardapio(array $ids): Resultado
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return Resultado::falha('Conecte o iFood primeiro.');
+        }
+        if (!\Cardapim\Services\Ifood\IfoodPublicacao::disponivel($this->db)) {
+            return Resultado::falha('A publicação do cardápio ainda não foi liberada neste servidor.');
+        }
+        $ids = array_values(array_unique(array_filter(array_map(static fn ($v): int => is_scalar($v) && ctype_digit((string) $v) ? (int) $v : 0, $ids))));
+        if ($ids === []) {
+            return Resultado::falha('Marque os produtos que vão para o iFood.');
+        }
+        if (count($ids) > 50) {
+            return Resultado::falha('Publique até 50 produtos de cada vez.');
+        }
+        try {
+            $r = (new \Cardapim\Services\Ifood\IfoodPublicacao($this->db, (int) $this->idRestaurante))->publicar($conta, $ids);
+        } catch (IntegracaoErro $erro) {
+            return Resultado::falha($erro->getMessage());
+        }
+        $this->log('iFood: cardápio publicado', sprintf('%d produto(s) publicado(s)%s.', $r['publicados'], $r['erros'] !== [] ? '; ' . count($r['erros']) . ' com erro' : ''));
+        if ($r['erros'] !== []) {
+            return Resultado::falha(($r['publicados'] > 0 ? $r['publicados'] . ' publicado(s). ' : '') . 'Não deu certo: ' . mb_substr(implode(' | ', $r['erros']), 0, 600));
+        }
+        return Resultado::sucesso($r['publicados'] === 1 ? 'Produto publicado no iFood. Confira no Portal do Parceiro.' : $r['publicados'] . ' produtos publicados no iFood. Confira no Portal do Parceiro.');
+    }
+
+    /** Envia agora as mudancas dos produtos ja publicados (preco e pausa por PATCH; nome, foto e complementos pelo cadastro). */
+    public function sincronizarPublicacao(): Resultado
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return Resultado::falha('Conecte o iFood primeiro.');
+        }
+        if (!\Cardapim\Services\Ifood\IfoodPublicacao::disponivel($this->db)) {
+            return Resultado::falha('A publicação do cardápio ainda não foi liberada neste servidor.');
+        }
+        try {
+            $r = (new \Cardapim\Services\Ifood\IfoodPublicacao($this->db, (int) $this->idRestaurante))->sincronizar($conta);
+        } catch (IntegracaoErro $erro) {
+            return Resultado::falha($erro->getMessage());
+        }
+        if ($r['erros'] > 0) {
+            return Resultado::falha('Algumas mudanças não foram aceitas pelo iFood: ' . $r['ultimo_erro']);
+        }
+        if ($r['enviados'] > 0) {
+            $this->log('iFood: mudanças do cardápio enviadas', $r['enviados'] . ' envio(s).');
+        }
+        return Resultado::sucesso($r['enviados'] === 0 ? 'Tudo igual: o cardápio do iFood já está atualizado.' : 'Mudanças enviadas ao iFood (' . $r['enviados'] . ' envio' . ($r['enviados'] === 1 ? '' : 's') . '). Confira no Portal do Parceiro.');
+    }
+
     private function conta(): IfoodConta
     {
         return new IfoodConta($this->db, (int) $this->idRestaurante, $this->api);

@@ -40,6 +40,13 @@ return static function (Router $router): void {
     $router->post($g . '/estoque/produtos/{id}', [EstoqueController::class, 'atualizarProduto']);
     $router->post($g . '/estoque/produtos/{id}/pausar', [EstoqueController::class, 'alternarProduto']);
     $router->post($g . '/estoque/produtos/{id}/excluir', [EstoqueController::class, 'excluirProduto']);
+    $router->get($g . '/estoque/complementos', [EstoqueController::class, 'complementos']);
+    $router->get($g . '/estoque/complementos/novo', [EstoqueController::class, 'novoGrupo']);
+    $router->post($g . '/estoque/complementos', [EstoqueController::class, 'criarGrupo']);
+    $router->post($g . '/estoque/complementos/opcoes/{id}/pausar', [EstoqueController::class, 'alternarOpcao']);
+    $router->get($g . '/estoque/complementos/{id}', [EstoqueController::class, 'editarGrupo']);
+    $router->post($g . '/estoque/complementos/{id}', [EstoqueController::class, 'atualizarGrupo']);
+    $router->post($g . '/estoque/complementos/{id}/excluir', [EstoqueController::class, 'excluirGrupo']);
     $router->get($g . '/estoque/insumos', [EstoqueController::class, 'insumos']);
     $router->get($g . '/estoque/insumos/novo', [EstoqueController::class, 'novoInsumo']);
     $router->post($g . '/estoque/insumos', [EstoqueController::class, 'criarInsumo']);
@@ -158,6 +165,10 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/ifood/cardapio/buscar', [IntegracoesController::class, 'ifoodCardapioBuscar']);
     $router->post($g . '/integracoes/ifood/cardapio/ligar', [IntegracoesController::class, 'ifoodCardapioLigar']);
     $router->post($g . '/integracoes/ifood/cardapio/sincronizar', [IntegracoesController::class, 'ifoodSincronizar']);
+    // Cardapio publicado no iFood (Catalog): categoria, item, foto, complementos; preco e pausa por PATCH.
+    $router->get($g . '/integracoes/ifood/publicar', [IntegracoesController::class, 'ifoodPublicar']);
+    $router->post($g . '/integracoes/ifood/publicar', [IntegracoesController::class, 'ifoodPublicarEnviar']);
+    $router->post($g . '/integracoes/ifood/publicar/sincronizar', [IntegracoesController::class, 'ifoodPublicarSincronizar']);
     // Loja no iFood (Merchant): dados, situacao, pausas e horarios.
     $router->get($g . '/integracoes/ifood/minha-loja', [IntegracoesController::class, 'ifoodMinhaLoja']);
     $router->post($g . '/integracoes/ifood/pausas', [IntegracoesController::class, 'ifoodPausaCriar']);

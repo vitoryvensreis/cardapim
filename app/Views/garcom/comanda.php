@@ -45,6 +45,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                     <span class="comanda-item-qtd"><?= $e(QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?></span>
                     <div class="comanda-item-texto">
                         <strong><?= $e((string) $i['nome']) ?></strong>
+                        <?php if (!empty($i['complementos_texto'])): ?><span class="comanda-item-obs item-complementos"><?= Icon::svg('square-plus', 'icon-sm') ?><?= $e((string) $i['complementos_texto']) ?></span><?php endif; ?>
                         <?php if ($i['observacao']): ?><span class="comanda-item-obs"><?= Icon::svg('sticky-note', 'icon-sm') ?><?= $e((string) $i['observacao']) ?></span><?php endif; ?>
                         <small><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small>
                     </div>
@@ -146,6 +147,21 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                                         <input class="passo-num" type="number" name="qtd[<?= (int) $p['id'] ?>]" value="0" min="0" max="<?= $p['porcoes'] !== null ? min(99, (int) $p['porcoes']) : 99 ?>" inputmode="numeric" aria-label="Quantidade de <?= $e($p['nome']) ?>" data-qtd>
                                         <button type="button" class="passo-btn passo-mais" data-mais aria-label="Adicionar um <?= $e($p['nome']) ?>"><?= Icon::svg('plus') ?></button>
                                     </div>
+                                    <?php if (!empty($p['grupos'])): ?>
+                                        <div class="produto-comps" data-comps hidden>
+                                            <?php foreach ($p['grupos'] as $g): ?>
+                                                <fieldset class="comps-grupo" data-comps-grupo data-max="<?= (int) $g['maximo'] ?>">
+                                                    <legend><?= $e($g['nome']) ?> <small><?= $g['minimo'] > 0 ? 'obrigatório' : 'opcional' ?><?= $g['maximo'] > 1 ? ', até ' . (int) $g['maximo'] : '' ?></small></legend>
+                                                    <?php foreach ($g['opcoes'] as $o): ?>
+                                                        <label class="chip-opcao<?= $o['disponivel'] ? '' : ' is-indisponivel' ?>">
+                                                            <input type="checkbox" name="comp[<?= (int) $p['id'] ?>][]" value="<?= (int) $o['id'] ?>" data-centavos="<?= (int) $o['centavos'] ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>
+                                                            <span><?= $e($o['nome']) ?><?= $o['centavos'] > 0 ? ' +' . $e($o['preco']) : '' ?><?= $o['disponivel'] ? '' : ' (acabou)' ?></span>
+                                                        </label>
+                                                    <?php endforeach; ?>
+                                                </fieldset>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <div class="produto-obs" data-obs hidden>
                                         <label><?= Icon::svg('sticky-note', 'icon-sm') ?><span class="sr-only">Observação para <?= $e($p['nome']) ?></span>
                                             <input type="text" name="obs[<?= (int) $p['id'] ?>]" maxlength="140" placeholder="Observação (ex.: sem cebola)" autocomplete="off">

@@ -99,6 +99,7 @@ jobs:
           php tests/unit/recuperar-senha.php
           php tests/unit/peso.php
           php tests/unit/cozinha.php
+          php tests/unit/complementos.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -138,6 +139,7 @@ jobs:
           php database/verify-comandas.php --verify
           php database/verify-cupons.php --verify
           php database/verify-peso.php --verify
+          php database/verify-complementos.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -155,6 +157,7 @@ jobs:
           php tests/integration/restaurantes.php
           php database/verify-cardapio-estoque.php --verify
           php tests/integration/cardapio-estoque.php
+          php tests/integration/complementos.php
           php database/verify-endereco-restaurantes.php --verify
           php tests/integration/endereco-restaurantes.php
           php database/verify-sessoes-lembradas.php --verify
@@ -190,7 +193,7 @@ jobs:
           # Servidor de tempo real (WebSocket) com Redis; mais abaixo roda de novo SEM Redis (modo reserva).
           APP_URL=https://cardapim.test WS_PORTA=18095 REDIS_HOST=127.0.0.1 REDIS_PORT=6379 php bin/tempo-real.php >/tmp/cardapim-ws.log 2>&1 &
           ws_pid=$!
-          trap 'kill "$server_pid" "$fake_pid" "$ws_pid" 2>/dev/null || true; cat /tmp/cardapim-ws.log || true' EXIT
+          trap 'kill "$server_pid" "$fake_pid" "$ws_pid" 2>/dev/null || true; cat /tmp/cardapim-ws.log || true; echo "--- erros do servidor PHP ---"; grep -i "error\|warning\|exception" /tmp/cardapim-php.log | grep -v "padrao usad" | tail -n 40 || true' EXIT
           sleep 2
           for path in / /login /cadastro /assets/css/core.css /assets/css/site.css /assets/css/pages.css /assets/js/core.js /assets/js/site.js /assets/js/forms.js /assets/icons/lucide.svg /assets/img/icone.svg; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
@@ -304,6 +307,7 @@ jobs:
           bash tests/http/cupons.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/seo.sh http://127.0.0.1:18080
           bash tests/http/peso.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          bash tests/http/complementos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           php tests/http/verificar-alerta-ci.php
           IFOOD_BASE_URL=http://127.0.0.1:18099/ifood IFOOD_CLIENT_ID=ifood-ci IFOOD_CLIENT_SECRET=ifood-segredo-ci APP_URL=https://cardapim.test \
             bash tests/http/ifood.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099

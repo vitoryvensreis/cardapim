@@ -118,6 +118,7 @@ final class AnaliseEstoque
             DisponibilidadeProdutos::MOTIVO_ARQUIVADO => 'Arquivado',
             DisponibilidadeProdutos::MOTIVO_INSUMO_INATIVO => 'Insumo desativado: ' . implode(', ', $d['faltando']),
             DisponibilidadeProdutos::MOTIVO_SEM_INSUMO => 'Acabou: ' . implode(', ', $d['faltando']),
+            DisponibilidadeProdutos::MOTIVO_SEM_COMPLEMENTO => 'Sem opção para escolher: ' . implode(', ', $d['faltando']),
             default => 'Disponível',
         };
     }

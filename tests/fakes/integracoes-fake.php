@@ -419,6 +419,36 @@ if (preg_match('~\A/ifood/(events|order|catalog)/~', $caminho)) {
     if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs\z~', $caminho) && $metodo === 'GET') {
         $responder(200, [['catalogId' => 'cat-ci', 'status' => 'AVAILABLE', 'context' => ['DEFAULT'], 'modifiedAt' => gmdate('c')]]);
     }
+    // Cardapio publicado pelo sistema: categoria, foto, item completo e PATCH de preco/status (guardados no registro).
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs/cat-ci/categories\z~', $caminho) && $metodo === 'POST') {
+        if (trim((string) ($json['name'] ?? '')) === '') {
+            $responder(400, ['message' => 'name obrigatorio']);
+        }
+        $ifoodLog('categoria ' . $json['name']);
+        $responder(201, ['id' => 'catpub-' . substr(md5((string) $json['name']), 0, 12), 'name' => $json['name']]);
+    }
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/image/upload\z~', $caminho) && $metodo === 'POST') {
+        if (!str_starts_with((string) ($json['image'] ?? ''), 'data:image/jpeg;base64,')) {
+            $responder(400, ['message' => 'imagem invalida']);
+        }
+        $ifoodLog('foto');
+        $responder(200, ['path' => 'ci/' . substr(md5((string) $json['image']), 0, 16) . '.jpg']);
+    }
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/items\z~', $caminho) && $metodo === 'PUT') {
+        $produto = $json['products'][0] ?? [];
+        if (!isset($json['item']['id'], $json['item']['categoryId'], $json['item']['price']['value']) || ($produto['name'] ?? '') === '') {
+            $responder(400, ['message' => 'item incompleto']);
+        }
+        $ifoodLog('item ' . $produto['name'] . ' preco ' . $json['item']['price']['value'] . ' grupos ' . count($json['optionGroups'] ?? []) . ' opcoes ' . count($json['options'] ?? [])
+            . (isset($produto['imagePath']) ? ' foto' : ''));
+        $responder(200, ['batchId' => 'b-' . bin2hex(random_bytes(4))]);
+    }
+    if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/(items/price|options/price|options/status)\z~', $caminho, $m) && $metodo === 'PATCH') {
+        [$m[2], $m[3]] = explode('/', $m[2]);
+        $alvo = $m[2] === 'items' ? ($json['itemId'] ?? '') : ($json['optionId'] ?? '');
+        $ifoodLog(($m[2] === 'items' ? 'item' : 'opcao') . '-' . $m[3] . ' ' . $alvo . ' ' . ($m[3] === 'price' ? ($json['price']['value'] ?? '') : ($json['status'] ?? '')));
+        $responder(202, ['batchId' => 'b-' . bin2hex(random_bytes(4))]);
+    }
     if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs/cat-ci/categories\z~', $caminho) && $metodo === 'GET') {
         $responder(200, [
             ['id' => 'cat-lanches', 'name' => 'Lanches CI', 'status' => 'AVAILABLE', 'items' => [

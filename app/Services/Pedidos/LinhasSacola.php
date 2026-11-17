@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Pedidos;
 
+use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Shared\Numero;
@@ -11,15 +12,16 @@ use PDO;
 
 /**
  * Linhas da sacola do cardapio online, conferidas com os precos e as porcoes de AGORA (o navegador manda so
- * ids, quantidades e a porcao escolhida). Cada linha: {id, quantidade (1 a 99), porcao (milesimos, so produto por
- * quilo/litro), observacao}. Produto por peso so aceita uma porcao cadastrada pelo gerente.
+ * ids, quantidades, a porcao e os complementos escolhidos). Cada linha: {id, quantidade (1 a 99), porcao (milesimos, so
+ * produto por quilo/litro), observacao, complementos [{id, quantidade}]}. Produto por peso so aceita uma porcao cadastrada
+ * pelo gerente. Complementos conferidos pela regra unica (Modules/Catalog/Complementos): preco unitario = base + complementos.
  * Valor da linha = preco do quilo x (quantidade x porcao), arredondado ao centavo (mesma conta do navegador).
  */
 final class LinhasSacola
 {
     /**
      * Le e valida o formato (sem banco).
-     * @return list<array{id:int, quantidade:int, porcao:?int, observacao:string}>|null null = formato invalido
+     * @return list<array{id:int, quantidade:int, porcao:?int, observacao:string, complementos:list<array{id:int,quantidade:int}>}>|null null = formato invalido
      */
     public static function formato(mixed $itens, int $max): ?array
     {
@@ -36,7 +38,11 @@ final class LinhasSacola
                 return null;
             }
             $obs = is_string($item['observacao'] ?? null) ? mb_substr(trim((string) preg_replace('/\s+/u', ' ', $item['observacao'])), 0, 140) : '';
-            $linhas[] = ['id' => $id, 'quantidade' => $qtd, 'porcao' => $porcao, 'observacao' => $obs];
+            $complementos = Complementos::formato($item['complementos'] ?? null);
+            if ($complementos === null) {
+                return null;
+            }
+            $linhas[] = ['id' => $id, 'quantidade' => $qtd, 'porcao' => $porcao, 'observacao' => $obs, 'complementos' => $complementos];
         }
         return $linhas;
     }
@@ -45,14 +51,15 @@ final class LinhasSacola
      * Completa as linhas com nome, unidade, preco, quantidade vendida (milesimos) e valor.
      * Produto que nao existe mais fica em 'ausentes'; porcao que nao existe (ou porcao em produto por unidade)
      * deixa a linha invalida.
-     * @param list<array{id:int, quantidade:int, porcao:?int, observacao:string}> $linhas
-     * @return array{linhas: list<array<string,mixed>>, ausentes: list<int>, invalida: bool}
+     * Complemento que nao pode ser escolhido (sumiu, acabou, fora do minimo/maximo) tambem deixa a linha invalida, com 'mensagem'.
+     * @param list<array{id:int, quantidade:int, porcao:?int, observacao:string, complementos?:list<array{id:int,quantidade:int}>}> $linhas
+     * @return array{linhas: list<array<string,mixed>>, ausentes: list<int>, invalida: bool, mensagem: ?string}
      */
     public static function completar(PDO $db, int $idRestaurante, array $linhas): array
     {
         $ids = array_values(array_unique(array_column($linhas, 'id')));
         if ($ids === []) {
-            return ['linhas' => [], 'ausentes' => [], 'invalida' => false];
+            return ['linhas' => [], 'ausentes' => [], 'invalida' => false, 'mensagem' => null];
         }
         $q = $db->prepare('SELECT id, nome, preco, unidade_venda FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
         $q->execute([$idRestaurante, ...$ids]);
@@ -61,8 +68,10 @@ final class LinhasSacola
             $produtos[(int) $p['id']] = $p;
         }
         $porcoes = (new CardapioPublico($db))->porcoes($idRestaurante, $ids);
+        $grupos = Complementos::carregar($db, $idRestaurante, $ids);
         $saida = [];
         $invalida = false;
+        $mensagem = null;
         foreach ($linhas as $l) {
             $p = $produtos[$l['id']] ?? null;
             if ($p === null) {
@@ -87,14 +96,30 @@ final class LinhasSacola
                 }
             }
             $centavos = Numero::centavos((string) $p['preco']);
-            $saida[] = $l + [
+            $escolhas = $l['complementos'] ?? [];
+            $gruposProduto = $unidade === 'un' ? ($grupos[$l['id']] ?? []) : [];
+            $conf = ['ok' => true, 'centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => []];
+            if ($gruposProduto !== [] || $escolhas !== []) {
+                $conf = Complementos::conferir($gruposProduto, $escolhas);
+                if (!$conf['ok']) {
+                    $invalida = true;
+                    $mensagem ??= $p['nome'] . ': ' . $conf['erro'];
+                    continue;
+                }
+            }
+            $unitario = $centavos + $conf['centavos'];
+            // array_replace: 'complementos' passa a ser a copia conferida (grupo, nome, preco), no lugar dos ids enviados.
+            $saida[] = array_replace($l, [
                 'nome' => (string) $p['nome'],
                 'unidade' => $unidade,
-                'centavos' => $centavos,
+                'centavos' => $unitario,
                 'milesimos' => $milesimos,
-                'total' => QuantidadeVenda::totalCentavos($centavos, $milesimos),
-            ];
+                'total' => QuantidadeVenda::totalCentavos($unitario, $milesimos),
+                'complementos' => $conf['itens'],
+                'complementos_texto' => $conf['texto'],
+                'insumos_complementos' => Complementos::consumoDaLinha($conf['insumos'], intdiv($milesimos, 1000)),
+            ]);
         }
-        return ['linhas' => $saida, 'ausentes' => array_values(array_diff($ids, array_keys($produtos))), 'invalida' => $invalida];
+        return ['linhas' => $saida, 'ausentes' => array_values(array_diff($ids, array_keys($produtos))), 'invalida' => $invalida, 'mensagem' => $mensagem];
     }
 }

@@ -95,3 +95,6 @@
 .local-bloqueio > p { color: var(--c-muted); line-height: 1.5; }
 .local-bloqueio-passos { display: grid; gap: .55rem; width: 100%; margin: 0; padding: .9rem 1rem .9rem 2.1rem; border-radius: var(--r-md); background: #faf5f6; color: var(--c-ink); font-size: .92rem; line-height: 1.45; text-align: left; }
 .local-bloqueio-passos .icon { display: inline-block; margin: 0 .15rem; vertical-align: -.2em; color: var(--c-wine); }
+
+/* Complementos escolhidos no item */
+.item-complementos, .ck-item-comps { display: block; color: var(--c-ink); font-weight: 600; overflow-wrap: anywhere; }

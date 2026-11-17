@@ -8,16 +8,19 @@ use Cardapim\Core\Response;
 use Cardapim\Modules\Inventory\AnaliseEstoque;
 use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
 use Cardapim\Repositories\Estoque\CategoriaRepository;
+use Cardapim\Repositories\Estoque\ComplementoRepository;
 use Cardapim\Repositories\Estoque\InsumoRepository;
 use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Gerencia\CategoriaService;
+use Cardapim\Services\Gerencia\ComplementoService;
 use Cardapim\Services\Gerencia\InsumoService;
 use Cardapim\Services\Gerencia\ProdutoService;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 
 /**
- * Aba Estoque: resumo (analise), produtos, insumos e categorias.
+ * Aba Estoque: resumo (analise), produtos, complementos, insumos e categorias.
  * Rotas em /{slug}/gerencia/estoque/... Toda escrita exige CSRF e gera log em log_user.
  */
 final class EstoqueController extends BaseGerencia
@@ -100,7 +103,7 @@ final class EstoqueController extends BaseGerencia
             'venda_minima' => $produto['venda_minima'] !== null ? \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($produto['venda_minima'])) : '',
             'porcoes' => array_map(static fn (string $p): string => \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($p)),
                 (new ProdutoRepository($this->db))->porcoes($this->restaurante['id'], $id)),
-        ], []);
+        ] + $this->gruposDoProdutoParaForm($id), []);
     }
 
     public function criarProduto(string $slug): Response
@@ -278,7 +281,157 @@ final class EstoqueController extends BaseGerencia
         return $this->responder($this->avisarEstoque((new CategoriaService($this->db, $this->usuario, $this->restaurante['id']))->excluir($id), 'categoria', 'excluido', $id), $this->url('estoque/categorias'));
     }
 
+    /* ---------- Complementos (adicionais, bordas, molhos...) ---------- */
+
+    public function complementos(string $slug): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        $pronto = Esquema::tem($this->db, 'complementos');
+        return $this->tela('gerencia/estoque/complementos', 'estoque', 'Complementos', [
+            'pronto' => $pronto,
+            'grupos' => $pronto ? (new ComplementoRepository($this->db))->grupos($this->restaurante['id']) : [],
+            'contagem' => $this->contagem(null, null),
+            'abaAtual' => 'complementos',
+            'pageStyles' => ['css/complementos.css'],
+        ]);
+    }
+
+    public function novoGrupo(string $slug): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        if (!Esquema::tem($this->db, 'complementos')) {
+            return $this->voltar($this->url('estoque/complementos'), 'erro', 'Os complementos ainda não foram liberados neste servidor.');
+        }
+        return $this->formGrupo(null, ['minimo' => '0', 'maximo' => '1', 'opcoes' => [['disponivel' => '1']]], []);
+    }
+
+    public function editarGrupo(string $slug, string $idTexto): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        $id = self::id($idTexto);
+        $grupo = $id === null || !Esquema::tem($this->db, 'complementos') ? null : (new ComplementoRepository($this->db))->grupo($this->restaurante['id'], $id);
+        if ($grupo === null) {
+            return $this->naoEncontrado('Grupo de complementos', $this->url('estoque/complementos'));
+        }
+        return $this->formGrupo($grupo, self::valoresGrupo($grupo), []);
+    }
+
+    public function criarGrupo(string $slug): Response
+    {
+        return $this->salvarGrupo($slug, null);
+    }
+
+    public function atualizarGrupo(string $slug, string $idTexto): Response
+    {
+        return $this->salvarGrupo($slug, $idTexto);
+    }
+
+    public function excluirGrupo(string $slug, string $idTexto): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $id = self::id($idTexto);
+        if ($id === null || !Esquema::tem($this->db, 'complementos')) {
+            return $this->naoEncontrado('Grupo de complementos', $this->url('estoque/complementos'));
+        }
+        $res = (new ComplementoService($this->db, $this->usuario, $this->restaurante['id']))->excluirGrupo($id);
+        return $this->responder($this->avisarEstoque($res, 'complemento', 'excluido', $id), $this->url('estoque/complementos'));
+    }
+
+    public function alternarOpcao(string $slug, string $idTexto): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $id = self::id($idTexto);
+        $voltar = $this->origem($this->url('estoque/complementos'));
+        if ($id === null || !Esquema::tem($this->db, 'complementos')) {
+            return $this->naoEncontrado('Opção', $voltar);
+        }
+        $res = (new ComplementoService($this->db, $this->usuario, $this->restaurante['id']))->alternarOpcao($id);
+        return $this->responder($this->avisarEstoque($res, 'complemento', 'pausado_ou_liberado', $id), $voltar);
+    }
+
     /* ---------- Internos ---------- */
+
+    private function salvarGrupo(string $slug, ?string $idTexto): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        if (!Esquema::tem($this->db, 'complementos')) {
+            return $this->voltar($this->url('estoque/complementos'), 'erro', 'Os complementos ainda não foram liberados neste servidor.');
+        }
+        $id = $idTexto === null ? null : self::id($idTexto);
+        $repo = new ComplementoRepository($this->db);
+        $grupo = $id === null ? null : $repo->grupo($this->restaurante['id'], $id);
+        if ($idTexto !== null && $grupo === null) {
+            return $this->naoEncontrado('Grupo de complementos', $this->url('estoque/complementos'));
+        }
+        $res = (new ComplementoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST, self::arquivos('opcao_foto'));
+        if ($this->avisarEstoque($res, 'complemento', $id === null ? 'criado' : 'editado', $id ?? $res->id)->ok) {
+            return $this->voltar($this->url('estoque/complementos'), 'sucesso', $res->mensagem);
+        }
+        $valores = ['nome' => $this->post('nome'), 'minimo' => $this->post('minimo'), 'maximo' => $this->post('maximo'),
+            'opcoes' => is_array($_POST['opcoes'] ?? null) ? $_POST['opcoes'] : []];
+        return $this->formGrupo($grupo, $valores, $res->erros + ($res->erros === [] ? ['_geral' => $res->mensagem] : []), 422);
+    }
+
+    /** @param array<string,mixed>|null $grupo @param array<string,mixed> $valores @param array<string,string> $erros */
+    private function formGrupo(?array $grupo, array $valores, array $erros, int $status = 200): Response
+    {
+        $imagens = [];
+        foreach ($grupo['opcoes'] ?? [] as $o) {
+            $imagens[$o['id']] = $o['imagem_path'];
+        }
+        return $this->tela('gerencia/estoque/complemento-form', 'estoque', $grupo === null ? 'Novo grupo de complementos' : 'Editar grupo', [
+            'grupo' => $grupo,
+            'valores' => $valores,
+            'imagens' => $imagens,
+            'erros' => $erros,
+            'insumos' => (new InsumoRepository($this->db))->mapaParaFicha($this->restaurante['id']),
+            'pageStyles' => ['css/complementos.css'],
+            'pageScripts' => ['js/forms.js', 'js/estoque.js'],
+        ], $status);
+    }
+
+    /** @param array<string,mixed> $grupo @return array<string,mixed> */
+    private static function valoresGrupo(array $grupo): array
+    {
+        return [
+            'nome' => $grupo['nome'],
+            'minimo' => (string) $grupo['minimo'],
+            'maximo' => (string) $grupo['maximo'],
+            'opcoes' => array_map(static fn (array $o): array => [
+                'id' => (string) $o['id'], 'nome' => $o['nome'], 'preco' => Numero::dinheiroCampo($o['preco']), 'codigo' => (string) ($o['codigo'] ?? ''),
+                'descricao' => (string) ($o['descricao'] ?? ''), 'disponivel' => $o['disponivel'] ? '1' : '',
+                'insumo' => isset($o['ficha'][0]) ? (string) $o['ficha'][0]['id_insumo'] : '',
+                'quantidade' => isset($o['ficha'][0]) ? Numero::decimalCampo($o['ficha'][0]['quantidade']) : '',
+            ], $grupo['opcoes']),
+        ];
+    }
+
+    /** $_FILES[campo] com varios arquivos (campo[i]) -> i => arquivo. @return array<int|string,array<string,mixed>> */
+    private static function arquivos(string $campo): array
+    {
+        $f = $_FILES[$campo] ?? null;
+        if (!is_array($f) || !is_array($f['name'] ?? null)) {
+            return [];
+        }
+        $saida = [];
+        foreach (array_keys($f['name']) as $i) {
+            $saida[$i] = ['name' => $f['name'][$i] ?? '', 'type' => $f['type'][$i] ?? '', 'tmp_name' => $f['tmp_name'][$i] ?? '',
+                'error' => $f['error'][$i] ?? UPLOAD_ERR_NO_FILE, 'size' => $f['size'][$i] ?? 0];
+        }
+        return $saida;
+    }
 
     /** Outras telas abertas do restaurante ficam sabendo que o estoque mudou (tempo real). */
     private function avisarEstoque(Resultado $r, string $area, string $acao, ?int $id): Resultado
@@ -295,7 +448,7 @@ final class EstoqueController extends BaseGerencia
         if ($idTexto !== null && $id === null) {
             return $this->naoEncontrado('Produto', $this->url('estoque/produtos'));
         }
-        $resultado = (new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST);
+        $resultado = (new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST, is_array($_FILES['foto'] ?? null) ? $_FILES['foto'] : null);
         if ($this->avisarEstoque($resultado, 'produto', $id === null ? 'criado' : 'editado', $id ?? $resultado->id)->ok) {
             return $this->voltar($this->url('estoque/produtos'), 'sucesso', $resultado->mensagem);
         }
@@ -336,8 +489,25 @@ final class EstoqueController extends BaseGerencia
             'erros' => $erros,
             'categorias' => (new CategoriaRepository($this->db))->listar($idRest),
             'insumos' => (new InsumoRepository($this->db))->mapaParaFicha($idRest),
+            'gruposComplemento' => Esquema::tem($this->db, 'complementos') ? (new ComplementoRepository($this->db))->grupos($idRest) : null,
+            'fotoAtual' => $produto['imagem_path'] ?? null,
+            'pageStyles' => ['css/complementos.css'],
             'pageScripts' => ['js/forms.js', 'js/estoque.js'],
         ], $status);
+    }
+
+    /** Grupos de complementos do produto para o formulario. @return array{grupos?:list<string>, ordem_grupo?:array<int,string>} */
+    private function gruposDoProdutoParaForm(int $idProduto): array
+    {
+        if (!Esquema::tem($this->db, 'complementos')) {
+            return [];
+        }
+        $ids = (new ComplementoRepository($this->db))->idsGruposDoProduto($this->restaurante['id'], $idProduto);
+        $ordem = [];
+        foreach ($ids as $pos => $idGrupo) {
+            $ordem[$idGrupo] = (string) ($pos + 1);
+        }
+        return ['grupos' => array_map('strval', $ids), 'ordem_grupo' => $ordem];
     }
 
     /** @param array<string,mixed>|null $insumo @param array<string,mixed> $valores @param array<string,string> $erros */
@@ -361,7 +531,9 @@ final class EstoqueController extends BaseGerencia
             if ($campo === '_csrf' || !is_string($campo)) {
                 continue;
             }
-            if (is_array($valor)) {
+            if (is_array($valor) && $campo === 'ordem_grupo') {
+                $valores[$campo] = array_map(static fn ($v): string => is_string($v) ? $v : '', $valor);
+            } elseif (is_array($valor)) {
                 $valores[$campo] = array_values(array_map(static fn ($v): string => is_string($v) ? $v : '', $valor));
             } elseif (is_string($valor)) {
                 $valores[$campo] = $valor;
