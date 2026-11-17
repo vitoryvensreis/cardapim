@@ -7,6 +7,7 @@ require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
+use Cardapim\Services\Ifood\FusoLojaIfood;
 use Cardapim\Services\Ifood\EventosIfood;
 use Cardapim\Services\Ifood\PedidoIfood;
 
@@ -17,6 +18,11 @@ $ok = static function (bool $cond, string $nome) use (&$falhas): void {
         fwrite(STDERR, "FALHOU: $nome\n");
     }
 };
+
+// Fuso de interrupcoes sempre Brasilia, mesmo para loja no Acre.
+$ok(FusoLojaIfood::sugerir(['address' => ['state' => 'AC', 'city' => 'Rio Branco']]) === 'America/Sao_Paulo', 'fuso fixo mesmo no Acre');
+$ok(FusoLojaIfood::timezone('America/Manaus')->getName() === 'America/Sao_Paulo', 'timezone nao aceita mudanca');
+$ok(!FusoLojaIfood::valido('America/Manaus'), 'outros fusos nao configuraveis');
 
 // Codigos dos avisos: curto, completo e com prefixo.
 $ok(EventosIfood::codigo(['code' => 'PLC']) === 'PLACED', 'PLC = PLACED');
