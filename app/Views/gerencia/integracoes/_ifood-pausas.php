@@ -50,18 +50,18 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-pausa-form>
     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
     <h3>Nova pausa</h3>
-    <p class="texto-suave">Horário de referência do iFood: <?= $e(FusoLojaIfood::OPCOES[$fusoLoja]) ?>. Se estiver diferente do Portal, ajuste em Dados e diagnósticos.</p>
+    <p class="texto-suave">Horário de referência: Brasília (UTC−03:00). Informe o início e o fim nesse horário.</p>
     <label class="campo-rotulo" for="pausa-descricao">Motivo</label>
     <input class="campo-simples" id="pausa-descricao" name="descricao" maxlength="255" required value="<?= $e((string) $vP['descricao']) ?>" placeholder="Ex.: Cozinha cheia"<?= isset($eP['descricao']) ? ' aria-invalid="true" aria-describedby="erro-pausa-descricao"' : '' ?>>
     <?= $erroPausa('descricao') ?>
     <div class="ifood-datas">
         <div>
-            <label class="campo-rotulo" for="pausa-inicio">Começa (horário da loja)</label>
+            <label class="campo-rotulo" for="pausa-inicio">Começa (horário de Brasília)</label>
             <input class="campo-simples" id="pausa-inicio" type="datetime-local" name="inicio" required value="<?= $e((string) $vP['inicio']) ?>"<?= isset($eP['inicio']) ? ' aria-invalid="true" aria-describedby="erro-pausa-inicio"' : '' ?>>
             <?= $erroPausa('inicio') ?>
         </div>
         <div>
-            <label class="campo-rotulo" for="pausa-fim">Termina (horário da loja)</label>
+            <label class="campo-rotulo" for="pausa-fim">Termina (horário de Brasília)</label>
             <input class="campo-simples" id="pausa-fim" type="datetime-local" name="fim" required value="<?= $e((string) $vP['fim']) ?>"<?= isset($eP['fim']) ? ' aria-invalid="true" aria-describedby="erro-pausa-fim"' : '' ?>>
             <?= $erroPausa('fim') ?>
         </div>
