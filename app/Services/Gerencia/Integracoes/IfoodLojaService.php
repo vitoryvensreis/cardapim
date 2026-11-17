@@ -112,7 +112,7 @@ final class IfoodLojaService extends BaseIntegracao
             $this->pausaCriada = ['id' => $id, 'descricao' => $descricao, 'inicio' => self::utc($ini), 'fim' => self::utc($fi)];
             EstadoLoja::criarPausa($this->db, (int) $this->idRestaurante, $id, $ini, $fi);
             $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s.', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i')));
-            return Resultado::sucesso('Pausa enviada ao iFood e disponibilidade atualizada no Deliveryzim. A confirmação final pode levar alguns segundos: de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . ' e aparece na lista abaixo.');
+            return Resultado::sucesso('Pausa criada no iFood; disponibilidade atualizada no Deliveryzim. A confirmação final pode levar alguns segundos: de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . ' e aparece na lista abaixo.');
         });
     }
 
@@ -353,6 +353,20 @@ final class IfoodLojaService extends BaseIntegracao
         }
         // Uma consulta ao MySQL, sem uma chamada por aba à API Merchant. O cron já consulta a cada 30s.
         $estado = EstadoLoja::consultar($this->db, (int) $this->idRestaurante);
+        if ($estado['remoto'] === null) {
+            // Bootstrap único antes da primeira rodada do cron; depois disso somente consulta MySQL.
+            try {
+                $token = $conta->token();
+                $operacoes = $this->api->situacaoLoja($token, (string) $conta->loja());
+                if ($operacoes !== []) {
+                    $pausas = $this->api->pausas($token, (string) $conta->loja());
+                    EstadoLoja::reconciliar($this->db, (int) $this->idRestaurante, $operacoes, $pausas);
+                    $estado = EstadoLoja::consultar($this->db, (int) $this->idRestaurante);
+                }
+            } catch (IntegracaoErro) {
+                // Uma falha na primeira consulta nunca declara a loja aberta.
+            }
+        }
         $pausa = $estado['pausa'];
         $agora = time();
         if ($pausa !== null && (int) ($pausa['inicio'] ?? 0) <= $agora && (int) ($pausa['fim'] ?? 0) > $agora
