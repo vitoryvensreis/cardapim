@@ -14,6 +14,7 @@ use Cardapim\Realtime\TempoReal;
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Cardapio\CardapioPublico;
+use Cardapim\Services\Ifood\EstadoLoja;
 use Cardapim\Services\Descontos\DescontoPedido;
 use Cardapim\Shared\Numero;
 use Cardapim\Shared\Validation\Documento;
@@ -73,7 +74,7 @@ final class CriarPedido
             return self::erro(422, 'Escolha uma forma de pagamento.', 'forma_pagamento');
         }
         $info = (new CardapioPublico($this->db))->informacoes($idRest);
-        if ($info['horario_informado'] && !$info['aberto']) {
+        if ($info['fechado_integracao'] || ($info['horario_informado'] && !$info['aberto'])) {
             return self::erro(409, 'O restaurante está fechado agora. Confira o horário de funcionamento.');
         }
 
@@ -161,6 +162,13 @@ final class CriarPedido
         try {
             if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
                 $this->db->prepare('SELECT id FROM restaurantes WHERE id = ? FOR UPDATE')->execute([$idRest]);
+            }
+            // Proteção contra corrida: a pausa pode ter sido criada enquanto a sacola era conferida.
+            // A mesma linha do restaurante é travada para fechar a porta antes do INSERT do pedido.
+            $estadoAgora = EstadoLoja::consultar($this->db, $idRest);
+            if ($estadoAgora['fechado']) {
+                $this->db->rollBack();
+                return self::erro(409, 'O restaurante foi fechado agora. Não foi possível receber seu pedido.');
             }
             // Com o restaurante travado, ninguem mais grava pedido agora: o limite do cupom e a fidelidade nao estouram.
             if ($desconto['origem'] !== null) {
