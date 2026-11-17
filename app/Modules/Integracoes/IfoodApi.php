@@ -255,8 +255,8 @@ class IfoodApi
             return $iso;
         }
         try {
-            return (new \\DateTimeImmutable($iso, new \\DateTimeZone($fusoLocal)))->format('Y-m-d\\TH:i:sP');
-        } catch (\\Throwable) {
+            return (new \DateTimeImmutable($iso, new \DateTimeZone($fusoLocal)))->format('Y-m-d\\TH:i:sP');
+        } catch (\Throwable) {
             return $iso;
         }
     }
