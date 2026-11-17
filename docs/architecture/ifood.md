@@ -95,6 +95,7 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 | GET | `/{slug}/gerencia/integracoes/ifood/minha-loja` | Alias legado do mesmo painel único, preservando links anteriores |
 | POST | `/{slug}/gerencia/integracoes/ifood/pausas` | Cria pausa (`descricao`, `inicio`, `fim` em `Y-m-d\TH:i`) |
 | POST | `/{slug}/gerencia/integracoes/ifood/pausas/remover` | Remove pausa (`pausa` = id) |
+| GET | `/{slug}/gerencia/integracoes/ifood/pausas/estado?id={id}` | Consulta autenticada da pausa deste restaurante e indisponibilidade real do Merchant, para confirmação no frontend; sem credenciais no JSON |
 | POST | `/{slug}/gerencia/integracoes/ifood/horarios` | Sem `horario_proprio`: usa o horário do Perfil. Com `horario_proprio=1`: envia `h[MONDAY][0][abre]`, `h[MONDAY][0][fecha]`... |
 
 ### Diagnóstico das respostas da API Merchant
@@ -106,6 +107,8 @@ Na tela **Loja no iFood**, o gerente encontra **Diagnóstico da comunicação co
 - Em falha de rede, o motivo genérico, sem token. Nenhuma chamada OAuth, pedido, dados do cliente, bearer ou credencial é registrada.
 - Arquivos persistidos fora de `public/`: `storage/logs/ifood-merchant/restaurante-{id}-AAAA-MM-DD.jsonl`. Em produção, `storage/` é compartilhado entre releases. Permissões 0700 no diretório criado e 0600 nos arquivos novos. Logs anteriores a 14 dias são apagados automaticamente.
 - A API informa **201** no POST e **204** no DELETE; a disponibilidade não é garantida por isso. Compare com os GET subsequentes e com `state`, `available`, `validations` e `reopenable`. Nunca considerar a loja aberta ou fechada sem a confirmação do Merchant.
+
+**Painel e feedback de interrupções (UX mobile-first):** o painel único organiza seções de **Status** (disponibilidade, pausas), **Minha loja** (conexão e horários), **Cardápio e estoque** (produtos e opções) e **Dados e diagnósticos** recolhidos. Grades usam `minmax(0,1fr)`, uma única coluna no celular e duas colunas apenas quando há espaço, sem rolagem horizontal. Ao criar uma pausa, o JS externo insere um **card transitório** com título e período digitados e exibe um overlay branco translúcido com spinner e mensagem "Aguardando iFood", prevenindo cliques duplicados. O POST aceito devolve o ID para o GET autenticado `/pausas/estado?id=...`, que compara a presença da interrupção em `GET /interruptions` com a **indisponibilidade efetiva** de todas as operações em `GET /status`. O painel diferencia `agendada`, `fechada`, `registrada` (ainda aberta), `aguardando` e `erro`. Após cinco verificações espaçadas, remove o overlay e mostra aviso claro se ainda não houver confirmação, **sem disparar POST novamente**. Um timeout de rede é inconclusivo, não uma recusa. As pausas confirmadas atualizam a tela para refletir o retorno oficial. Os diagnósticos de homologação são preservados.
 
 **Diagnóstico de homologação:** se o POST retorna 201 com ID mas a interrupção não aparece no GET ou o status permanece OK, registrar a sequência e verificar no Portal do Parceiro. O iFood documenta processamento assíncrono; investigar autorizações e merchantId se persistir por mais de um ciclo de polling. A disponibilidade na loja de testes pode diferir da loja real. Não repetir POST indiscriminadamente (risco de pausa duplicada).
 
