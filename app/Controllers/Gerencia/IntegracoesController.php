@@ -165,16 +165,48 @@ final class IntegracoesController extends BaseGerencia
         if ($r = $this->entrar($slug)) {
             return $r;
         }
-        return $this->telaIfood();
+        return Response::redirect($this->url('integracoes/ifood/status'));
     }
 
-    /** Tela unica de operacao e configuracao iFood, incluindo os formularios com erro. */
-    private function telaIfood(array $erros = [], array $valores = [], int $status = 200): Response
+    public function ifoodStatus(string $slug): Response
+    {
+        return $this->abrirAbaIfood($slug, 'status');
+    }
+
+    public function ifoodAbaLoja(string $slug): Response
+    {
+        return $this->abrirAbaIfood($slug, 'loja');
+    }
+
+    public function ifoodAbaCardapio(string $slug): Response
+    {
+        return $this->abrirAbaIfood($slug, 'cardapio');
+    }
+
+    public function ifoodDados(string $slug): Response
+    {
+        return $this->abrirAbaIfood($slug, 'dados');
+    }
+
+    private function abrirAbaIfood(string $slug, string $aba): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        return $this->telaIfood($aba);
+    }
+
+    /** Renderiza somente os dados da aba selecionada. */
+    private function telaIfood(string $aba = 'status', array $erros = [], array $valores = [], int $status = 200): Response
     {
         $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
-        $itens = $conta->conectada() ? (new IfoodCatalogo($this->db, (int) $this->restaurante['id']))->itens() : [];
-        $hoje = $this->db->prepare("SELECT COUNT(*) FROM pedidos WHERE id_restaurante = ? AND origem = 'ifood' AND criado_em >= ?");
-        $hoje->execute([$this->restaurante['id'], date('Y-m-d 00:00:00')]);
+        $itens = $conta->conectada() && $aba === 'cardapio' ? (new IfoodCatalogo($this->db, (int) $this->restaurante['id']))->itens() : [];
+        $pedidosHoje = 0;
+        if ($aba === 'status') {
+            $hoje = $this->db->prepare("SELECT COUNT(*) FROM pedidos WHERE id_restaurante = ? AND origem = 'ifood' AND criado_em >= ?");
+            $hoje->execute([$this->restaurante['id'], date('Y-m-d 00:00:00')]);
+            $pedidosHoje = (int) $hoje->fetchColumn();
+        }
         return $this->tela('gerencia/integracoes/ifood', 'integracoes', 'iFood', [
             'integracao' => (new IntegracaoRepository($this->db))->buscar($this->restaurante['id'], 'ifood'),
             'disponivel' => IfoodApi::disponivel(),
@@ -184,9 +216,10 @@ final class IntegracoesController extends BaseGerencia
                 'ligados' => count(array_filter($itens, static fn (array $i): bool => $i['id_produto'] !== null)),
                 'erros' => count(array_filter($itens, static fn (array $i): bool => $i['ultimo_erro'] !== null)),
             ],
-            'pedidosHoje' => (int) $hoje->fetchColumn(),
-            'painel' => $conta->conectada() ? $this->ifoodLojaServico()->painel() : null,
-            'diagnosticoMerchant' => $conta->conectada() ? IfoodDiagnostico::recentes((int) $this->restaurante['id'], 30) : [],
+            'abaIfood' => $aba,
+            'pedidosHoje' => $pedidosHoje,
+            'painel' => $conta->conectada() && $aba !== 'cardapio' ? $this->ifoodLojaServico()->painel() : null,
+            'diagnosticoMerchant' => $conta->conectada() && $aba === 'dados' ? IfoodDiagnostico::recentes((int) $this->restaurante['id'], 30) : [],
             'erros' => $erros,
             'valores' => $valores,
             'pageStyles' => ['css/ifood.css'],
@@ -196,37 +229,37 @@ final class IntegracoesController extends BaseGerencia
 
     public function ifoodIniciar(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->iniciar(), 'integracoes/ifood');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->iniciar(), 'integracoes/ifood/status');
     }
 
     public function ifoodConcluir(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->concluir($this->post('codigo')), 'integracoes/ifood');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->concluir($this->post('codigo')), 'integracoes/ifood/status');
     }
 
     public function ifoodLoja(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->escolherLoja($this->post('loja')), 'integracoes/ifood');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->escolherLoja($this->post('loja')), 'integracoes/ifood/status');
     }
 
     public function ifoodTestar(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->testar(), 'integracoes/ifood');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->testar(), 'integracoes/ifood/loja');
     }
 
     public function ifoodCancelar(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->cancelar(), 'integracoes/ifood');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->cancelar(), 'integracoes/ifood/status');
     }
 
     public function ifoodDesconectar(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->desconectar(), 'integracoes/ifood');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->desconectar(), 'integracoes/ifood/status');
     }
 
     public function ifoodOpcoes(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->salvarOpcoes(isset($_POST['aceitar_automatico']), isset($_POST['sincronizar_estoque'])), 'integracoes/ifood');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->salvarOpcoes(isset($_POST['aceitar_automatico']), isset($_POST['sincronizar_estoque'])), 'integracoes/ifood/cardapio/vinculos');
     }
 
     /** Cardapio do iFood: cada item ligado a um produto (estoque e disponibilidade). */
@@ -237,7 +270,7 @@ final class IntegracoesController extends BaseGerencia
         }
         $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
         if (!$conta->conectada()) {
-            return $this->voltar($this->url('integracoes/ifood'), 'erro', 'Conecte o iFood primeiro.');
+            return $this->voltar($this->url('integracoes/ifood/status'), 'erro', 'Conecte o iFood primeiro.');
         }
         $catalogo = new IfoodCatalogo($this->db, (int) $this->restaurante['id']);
         $filtro = in_array($_GET['filtro'] ?? '', ['soltos', 'erros'], true) ? (string) $_GET['filtro'] : 'todos';
@@ -254,19 +287,19 @@ final class IntegracoesController extends BaseGerencia
 
     public function ifoodCardapioBuscar(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->buscarCardapio(), 'integracoes/ifood/cardapio');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->buscarCardapio(), 'integracoes/ifood/cardapio/vinculos');
     }
 
     public function ifoodCardapioLigar(string $slug): Response
     {
         $escolhas = is_array($_POST['produto'] ?? null) ? $_POST['produto'] : [];
-        $volta = 'integracoes/ifood/cardapio' . (in_array($_POST['filtro'] ?? '', ['soltos', 'erros'], true) ? '?filtro=' . $_POST['filtro'] : '');
+        $volta = 'integracoes/ifood/cardapio/vinculos' . (in_array($_POST['filtro'] ?? '', ['soltos', 'erros'], true) ? '?filtro=' . $_POST['filtro'] : '');
         return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->salvarLigacoes($escolhas), $volta);
     }
 
     public function ifoodSincronizar(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->sincronizarAgora(), 'integracoes/ifood/cardapio');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->sincronizarAgora(), 'integracoes/ifood/cardapio/vinculos');
     }
 
     /* ---------- Cardapio publicado no iFood (Catalog) ---------- */
@@ -278,7 +311,7 @@ final class IntegracoesController extends BaseGerencia
         }
         $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
         if (!$conta->conectada()) {
-            return $this->voltar($this->url('integracoes/ifood'), 'erro', 'Conecte o iFood primeiro.');
+            return $this->voltar($this->url('integracoes/ifood/status'), 'erro', 'Conecte o iFood primeiro.');
         }
         $pronto = \Cardapim\Services\Ifood\IfoodPublicacao::disponivel($this->db);
         return $this->tela('gerencia/integracoes/ifood-publicar', 'integracoes', 'Publicar no iFood', [
@@ -326,7 +359,7 @@ final class IntegracoesController extends BaseGerencia
             return $this->cardPausas($servico, $res, $res->ok ? IfoodLojaService::novaPausa($servico->fusoDaLoja()) : $valores);
         }
         if ($res->ok || $res->erros === []) {
-            return $this->responder($res, $this->url('integracoes/ifood/minha-loja#pausas'));
+            return $this->responder($res, $this->url('integracoes/ifood/status#pausas'));
         }
         return $this->telaLojaIfood(['pausa' => $res->erros + ['_geral' => $res->mensagem]], ['pausa' => $valores], 422);
     }
@@ -338,7 +371,7 @@ final class IntegracoesController extends BaseGerencia
             return $this->acao($slug, function (): Resultado {
                 BotaoLojaIfood::esquecer($this->restaurante['id']);
                 return $this->ifoodLojaServico()->removerPausa($this->post('pausa'));
-            }, 'integracoes/ifood/minha-loja#pausas');
+            }, 'integracoes/ifood/status#pausas');
         }
         if ($this->entrar($slug)) {
             return BotaoLojaIfood::semSessao();
@@ -412,26 +445,14 @@ final class IntegracoesController extends BaseGerencia
             return $r;
         }
         if (($_POST['horario_proprio'] ?? '') !== '1') {
-            return $this->responder($this->ifoodLojaServico()->usarHorarioDoPerfil(), $this->url('integracoes/ifood/minha-loja#horarios'));
+            return $this->responder($this->ifoodLojaServico()->usarHorarioDoPerfil(), $this->url('integracoes/ifood/loja#horarios'));
         }
         $entrada = is_array($_POST['h'] ?? null) ? $_POST['h'] : [];
         $res = $this->ifoodLojaServico()->salvarHorarios($entrada);
         if ($res->ok || $res->erros === []) {
-            return $this->responder($res, $this->url('integracoes/ifood/minha-loja#horarios'));
+            return $this->responder($res, $this->url('integracoes/ifood/loja#horarios'));
         }
         return $this->telaLojaIfood(['horarios' => $res->erros + ['_geral' => $res->mensagem]], ['horarios' => $entrada, 'horario_proprio' => true], 422);
-    }
-
-    /** Ajuste por restaurante e merchant do fuso operacional de interrupcoes (homologacao). */
-    public function ifoodFuso(string $slug): Response
-    {
-        if ($r = $this->entrar($slug, true)) {
-            return $r;
-        }
-        return $this->responder(
-            $this->ifoodLojaServico()->definirFusoInterrupcoes($this->post('fuso')),
-            $this->url('integracoes/ifood#diagnosticos')
-        );
     }
 
     /** Botao "Abrir loja no iFood" do topo: situacao (JSON). */
@@ -493,7 +514,7 @@ final class IntegracoesController extends BaseGerencia
     /** @param array<string,array<string,string>> $erros @param array<string,mixed> $valores */
     private function telaLojaIfood(array $erros, array $valores, int $status = 200): Response
     {
-        return $this->telaIfood($erros, $valores, $status);
+        return $this->telaIfood(isset($erros['horarios']) ? 'loja' : 'status', $erros, $valores, $status);
     }
 
     private function ifoodLojaServico(): IfoodLojaService
