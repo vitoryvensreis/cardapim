@@ -309,13 +309,12 @@ final class IntegracoesController extends BaseGerencia
         if ($porJs && !\Cardapim\Core\Session::csrfValido($_POST['_csrf'] ?? null)) {
             return Response::json(['ok' => false, 'mensagem' => 'Sua sessão expirou. Recarregue a página.'], 419);
         }
-        $valores = ['descricao' => $this->post('descricao'), 'inicio' => $this->post('inicio'), 'fim' => $this->post('fim'),
-            'fuso' => $this->post('fuso'), 'inicio_agora' => $this->post('inicio_agora')];
+        $valores = ['descricao' => $this->post('descricao'), 'inicio' => $this->post('inicio'), 'fim' => $this->post('fim')];
         $servico = $this->ifoodLojaServico();
-        $res = $servico->criarPausa($valores['descricao'], $valores['inicio'], $valores['fim'], $valores['fuso'], $valores['inicio_agora'] === '1');
+        $res = $servico->criarPausa($valores['descricao'], $valores['inicio'], $valores['fim']);
         BotaoLojaIfood::esquecer($this->restaurante['id']);
         if ($porJs) {
-            return $this->cardPausas($servico, $res, $res->ok ? IfoodLojaService::novaPausa($valores['fuso']) : $valores);
+            return $this->cardPausas($servico, $res, $res->ok ? IfoodLojaService::novaPausa() : $valores);
         }
         if ($res->ok || $res->erros === []) {
             return $this->responder($res, $this->url('integracoes/ifood/minha-loja#pausas'));
@@ -341,7 +340,7 @@ final class IntegracoesController extends BaseGerencia
         $servico = $this->ifoodLojaServico();
         $res = $servico->removerPausa($this->post('pausa'));
         BotaoLojaIfood::esquecer($this->restaurante['id']);
-        return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa($this->post('fuso') ?: 'America/Sao_Paulo'));
+        return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa());
     }
 
     /** Horario no iFood: o do Perfil (padrao) ou um horario diferente so para o iFood. */
@@ -397,7 +396,6 @@ final class IntegracoesController extends BaseGerencia
             'erroLista' => $lista['erro'],
             'eP' => $res->ok ? [] : $res->erros,
             'vP' => $valores,
-            'fusoLoja' => $valores['fuso'] ?? 'America/Sao_Paulo',
             'nota' => [
                 'tipo' => $res->ok ? ($pendente ? 'pendente' : 'sucesso') : 'erro',
                 'mensagem' => $pendente
