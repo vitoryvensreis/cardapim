@@ -106,6 +106,8 @@ esperar "POST antigo de fuso removido" "$(curl -s -b "$gj" -o /dev/null -w '%{ht
 esperar "caixa sem acesso ao Status" "$(pagina "$cx" "$g/integracoes/ifood/status" | sed 's/302/403/')" "403"
 
 esperar "aba Loja" "$(pagina "$gj" "$g/integracoes/ifood/loja")" "200"
+contem "horarios sempre expandidos" "$tmp/pagina.html" 'class="bloco ifood-horarios-painel" id="horarios"'
+nao_contem "sem detalhes recolhiveis de horario" "$tmp/pagina.html" 'class="ifood-secao-recolhivel"'
 contem "Loja tem conta vinculada" "$tmp/pagina.html" 'Conta vinculada'
 contem "Loja tem horarios" "$tmp/pagina.html" 'Horários de funcionamento'
 nao_contem "Loja sem pausas" "$tmp/pagina.html" 'id="pausas"'
@@ -118,6 +120,7 @@ contem "vinculos preservados" "$tmp/pagina.html" '/integracoes/ifood/cardapio/vi
 nao_contem "Cardapio sem dados do Merchant" "$tmp/pagina.html" 'Lojas vinculadas'
 
 esperar "aba Dados" "$(pagina "$gj" "$g/integracoes/ifood/dados")" "200"
+contem "grid de cards com espacamento" "$tmp/pagina.html" 'class="ifood-dados-cards"'
 contem "lista lojas vinculadas" "$tmp/pagina.html" 'Loja CI Praia'
 contem "marca loja ligada" "$tmp/pagina.html" 'Ligada a este restaurante'
 contem "razao social" "$tmp/pagina.html" 'Loja CI Ltda'
@@ -142,8 +145,12 @@ pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
 pausa="$(php -r 'if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
 if [[ -z "$pausa" ]]; then falha "id da pausa na pagina"; fi
-curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=criar'     "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa.json"
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=criar' --data-urlencode "inicio=$ini" --data-urlencode "fim=$fim" "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa.json"
 contem "endpoint de confirmacao devolve o registro" "$tmp/estado-pausa.json" '"registro_confirmado":true'
+contem "periodo confirmado no fuso de Brasilia" "$tmp/estado-pausa.json" '"periodo_confirmado":true'
+contem "consulta status realizada antes da confirmacao visual" "$tmp/estado-pausa.json" '"situacao_consultada":true'
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=criar' --data-urlencode "inicio=$fim" --data-urlencode "fim=$ini" "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-periodo-errado.json"
+contem "nao aceita pausa com periodo diferente" "$tmp/estado-periodo-errado.json" '"periodo_confirmado":false'
 contem "endpoint traz status operacional" "$tmp/estado-pausa.json" '"html_status":'
 contem "endpoint traz card atualizado" "$tmp/estado-pausa.json" '"html":'
 esperar "endpoint de confirmacao exige login" "$(curl -s -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?pausa=$pausa&acao=criar")" "401"
