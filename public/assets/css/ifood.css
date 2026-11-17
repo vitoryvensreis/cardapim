@@ -184,3 +184,8 @@ body.ifood-aguardando-ativo { overflow: hidden; }
 .ifood-dados-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; align-items: start; }
 .ifood-dados-cards > .bloco { margin: 0; min-width: 0; }
 @media (max-width: 48rem) { .ifood-dados-cards { gap: .85rem; } }
+
+/* Remocao de pausa: acoes explicitas quando GET do iFood nao confirmar. */
+.ifood-confirmacao-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; width: 100%; margin-top: .6rem; }
+.ifood-confirmacao-acoes .btn { min-height: 2.75rem; white-space: normal; }
+@media (max-width: 28rem) { .ifood-confirmacao-acoes { display: grid; } .ifood-confirmacao-acoes .btn { width: 100%; } }
