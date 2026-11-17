@@ -21,48 +21,6 @@
   /* ---------- Pausas do iFood: criar e remover sem recarregar; o aviso aparece dentro do card ---------- */
   const pausas = document.querySelector("[data-pausas]");
   if (pausas) {
-    // Sempre o mesmo instante (Date.now), formatado em dois fusos diferentes.
-    // datetime-local permanece no horario da loja: relogios NAO alteram campos nem somam horas.
-    const fusoDispositivo = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    const formatadores = new Map();
-    const formatador = (fuso) => {
-      if (!formatadores.has(fuso)) {
-        formatadores.set(fuso, new Intl.DateTimeFormat("pt-BR", {
-          timeZone: fuso, day: "2-digit", month: "2-digit", year: "numeric",
-          hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-        }));
-      }
-      return formatadores.get(fuso);
-    };
-    const atualizarRelogios = () => {
-      if (document.hidden) return;
-      const area = pausas.querySelector("[data-ifood-relogios]");
-      if (!area) return;
-      const fusoLoja = area.dataset.fusoLoja || "America/Sao_Paulo";
-      const agora = new Date();
-      const escrever = (fuso, tipo) => {
-        const partes = formatador(fuso).formatToParts(agora);
-        const parte = (chave) => partes.find((item) => item.type === chave)?.value || "--";
-        const hora = area.querySelector(`[data-relogio-${tipo}]`);
-        const data = area.querySelector(`[data-data-${tipo}]`);
-        if (hora) hora.textContent = `${parte("hour")}:${parte("minute")}:${parte("second")}`;
-        if (data) data.textContent = `${parte("day")}/${parte("month")}/${parte("year")}`;
-      };
-      escrever(fusoLoja, "loja");
-      escrever(fusoDispositivo, "dispositivo");
-      const descricaoFuso = area.querySelector("[data-fuso-dispositivo]");
-      if (descricaoFuso) {
-        const minutos = -agora.getTimezoneOffset();
-        const sinal = minutos < 0 ? "−" : "+";
-        const horas = String(Math.floor(Math.abs(minutos) / 60)).padStart(2, "0");
-        const minutosRestantes = String(Math.abs(minutos) % 60).padStart(2, "0");
-        descricaoFuso.textContent = `${fusoDispositivo} (UTC${sinal}${horas}:${minutosRestantes})`;
-      }
-    };
-    atualizarRelogios();
-    const relogioIntervalo = window.setInterval(atualizarRelogios, 1000);
-    window.addEventListener("pagehide", () => window.clearInterval(relogioIntervalo), { once: true });
-    document.addEventListener("visibilitychange", atualizarRelogios);
     const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const mostrarCard = () => {
       pausas.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "start" });
@@ -104,7 +62,6 @@
         const dados = await resposta.json().catch(() => ({}));
         if (typeof dados.html !== "string") throw new Error(dados.mensagem || "");
         pausas.innerHTML = dados.html;
-        atualizarRelogios();
         // Avisa o botao "Abrir loja no iFood" do topo para mostrar a situacao nova.
         if (dados.ok) document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
       } catch (erro) {
