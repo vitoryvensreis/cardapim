@@ -98,7 +98,7 @@
 .painel-ifood[data-estado="carregando"] .ifood-ic-carregando { animation: ifood-girar 1s linear infinite; }
 @keyframes ifood-girar { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .painel-ifood[data-estado="carregando"] .ifood-ic-carregando { animation: none; } }
-.ifood-flash.painel-flash-sucesso .ifood-flash-erro, .ifood-flash.painel-flash-erro .ifood-flash-ok { display: none; }
+.ifood-flash:not(.painel-flash-erro) .ifood-flash-erro, .ifood-flash.painel-flash-erro .ifood-flash-ok { display: none; }
 .ifood-flash[hidden] { display: none; }
 
 /* Avisos de atualizacao mantidos; sem indicador permanente no topo. */

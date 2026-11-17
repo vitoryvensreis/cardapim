@@ -119,18 +119,18 @@ if ($alertaPedido !== null) {
                 <?php endif; ?>
             </header>
             <main id="conteudo" class="painel-main">
-                <?php if ($botaoIfood !== null): ?>
-                    <div class="painel-flash painel-flash-sucesso ifood-flash" role="status" aria-live="polite" data-ifood-loja-aviso hidden>
-                        <?= Icon::svg('circle-check', 'ifood-flash-ok') ?><?= Icon::svg('circle-x', 'ifood-flash-erro') ?>
-                        <p data-ifood-loja-aviso-texto></p>
-                        <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-ifood-loja-aviso-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
-                    </div>
-                <?php endif; ?>
                 <?php if (!empty($flash['mensagem'])): ?>
                     <div class="painel-flash painel-flash-<?= $e((string) $flash['tipo']) ?>" role="<?= ($flash['tipo'] ?? '') === 'erro' ? 'alert' : 'status' ?>" data-flash>
                         <?= Icon::svg(($flash['tipo'] ?? '') === 'erro' ? 'circle-x' : (($flash['tipo'] ?? '') === 'aviso' ? 'info' : 'circle-check')) ?>
                         <p><?= $e((string) $flash['mensagem']) ?></p>
                         <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-flash-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
+                    </div>
+                <?php endif; ?>
+                <?php if ($botaoIfood !== null): ?>
+                    <div class="painel-flash ifood-flash" role="status" aria-live="polite" data-ifood-loja-aviso hidden>
+                        <?= Icon::svg('circle-check', 'ifood-flash-ok') ?><?= Icon::svg('circle-x', 'ifood-flash-erro') ?>
+                        <p data-ifood-loja-aviso-texto></p>
+                        <button type="button" class="painel-flash-fechar" aria-label="Fechar aviso" data-ifood-loja-aviso-fechar><?= Icon::svg('x', 'icon-sm') ?></button>
                     </div>
                 <?php endif; ?>
                 <?php if ($tempoReal !== null): ?>

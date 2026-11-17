@@ -138,7 +138,7 @@ contem "botao no topo do caixa" "$tmp/pagina.html" 'data-ifood-loja'
 contem "caixa usa as rotas do caixa" "$tmp/pagina.html" '/caixa/ifood/situacao'
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
-esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(date '+%Y-%m-%dT%H:%M')" fim="$(date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
+esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "gerencia ve a loja pausada" "$tmp/sit.json" '"estado":"pausada"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
