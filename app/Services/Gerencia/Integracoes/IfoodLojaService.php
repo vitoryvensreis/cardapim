@@ -200,6 +200,65 @@ final class IfoodLojaService extends BaseIntegracao
         return Resultado::sucesso('Fuso das pausas atualizado. Confira os horarios das proximas interrupcoes no iFood.');
     }
 
+    /** ID da solicitacao aceita no POST, nunca equivale a fechamento operacional. */
+    public function ultimaCriadaId(): ?string
+    {
+        return $this->ultimaCriadaId;
+    }
+
+    /**
+     * Confirmacao leve e isolada do merchant para polling do frontend.
+     * Nao expõe token, nao cria/remova pausas nem altera o estado local.
+     * @return array{estado:string,registrada:bool,fechada:bool,mensagem:string}
+     */
+    public function consultarConfirmacaoPausa(string $idPausa): array
+    {
+        if (preg_match('/\A[A-Za-z0-9-]{1,64}\z/', $idPausa) !== 1) {
+            return ['estado' => 'erro', 'registrada' => false, 'fechada' => false, 'mensagem' => 'Identificador inválido.'];
+        }
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return ['estado' => 'erro', 'registrada' => false, 'fechada' => false, 'mensagem' => 'Loja desconectada do iFood.'];
+        }
+
+        try {
+            $token = $conta->token();
+            $loja = (string) $conta->loja();
+            $lista = $this->api->pausas($token, $loja, $this->fusoDaLoja());
+            $pausa = null;
+            foreach ($lista as $item) {
+                if ($item['id'] === $idPausa) {
+                    $pausa = $item;
+                    break;
+                }
+            }
+            if ($pausa === null) {
+                return ['estado' => 'aguardando', 'registrada' => false, 'fechada' => false,
+                    'mensagem' => 'O iFood aceitou a solicitação, mas ainda não confirmou a pausa na consulta.'];
+            }
+            $inicio = IfoodApi::data($pausa['inicio']);
+            if ($inicio !== null && $inicio->getTimestamp() > time()) {
+                return ['estado' => 'agendada', 'registrada' => true, 'fechada' => false,
+                    'mensagem' => 'Pausa agendada e encontrada no iFood. A loja fechará no horário previsto, se a operação permitir.'];
+            }
+
+            $operacoes = $this->api->situacaoLoja($token, $loja);
+            $fechada = $operacoes !== [] && array_reduce($operacoes,
+                static fn (bool $resultado, array $op): bool => $resultado && !$op['disponivel'], true);
+            return [
+                'estado' => $fechada ? 'fechada' : 'registrada',
+                'registrada' => true,
+                'fechada' => $fechada,
+                'mensagem' => $fechada
+                    ? 'Pausa registrada e operação indisponível confirmada pelo iFood.'
+                    : 'Pausa registrada no iFood, mas a operação ainda aparece aberta. Aguardando atualização.',
+            ];
+        } catch (IntegracaoErro $erro) {
+            return ['estado' => 'erro', 'registrada' => false, 'fechada' => false,
+                'mensagem' => 'Não foi possível consultar a confirmação. Atualize a página para verificar.'];
+        }
+    }
+
     /**
      * Consulta apenas as pausas devolvidas pelo iFood: jamais adicionar/remover
      * linhas artificialmente antes da confirmação externa.
