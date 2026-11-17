@@ -414,7 +414,7 @@ final class IntegracoesController extends BaseGerencia
             break;
         }
         $operacoes = $estado['situacao'];
-        $situacaoConsultada = $operacoes !== [] && !isset($erros['situacao'], $erros['geral']);
+        $situacaoConsultada = $operacoes !== [] && !isset($erros['situacao']) && !isset($erros['geral']);
         $disponivel = $situacaoConsultada
             ? !\Cardapim\Services\Ifood\EstadoLoja::resumoOperacional($operacoes, $lista)['fechado'] : null;
 
