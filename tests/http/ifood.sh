@@ -105,6 +105,12 @@ nao_contem "relogios removidos" "$tmp/pagina.html" 'data-ifood-relogios'
 nao_contem "relogio da loja removido" "$tmp/pagina.html" 'data-relogio-loja'
 nao_contem "relogio do dispositivo removido" "$tmp/pagina.html" 'data-relogio-dispositivo'
 contem "campos expressos no fuso da loja" "$tmp/pagina.html" 'Começa (horário da loja)'
+esperar "salvar fuso operacional de loja" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/fuso" fuso=America/Manaus | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood" >/dev/null
+contem "fuso operacional salvo por loja" "$tmp/pagina.html" 'value="America/Manaus" selected'
+esperar "restaurar fuso da loja CI" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/fuso" fuso=America/Sao_Paulo | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood" >/dev/null
+contem "fuso CE restaurado" "$tmp/pagina.html" 'value="America/Sao_Paulo" selected'
 nao_contem "sem modo de inicio imediato" "$tmp/pagina.html" 'name="inicio_agora"'
 esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/minha-loja" | sed 's/302/403/')" "403"
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
