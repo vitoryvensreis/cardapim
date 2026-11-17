@@ -10,7 +10,7 @@ use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
 use Cardapim\Services\Ifood\FusoLojaIfood;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$fusoLoja = FusoLojaIfood::valido((string) ($fusoLoja ?? '')) ? $fusoLoja : 'America/Sao_Paulo';
+$fusoLoja = FusoLojaIfood::PADRAO;
 $quandoPausa = static fn (string $iso): string => IfoodLojaService::dataIfood($iso)?->setTimezone(FusoLojaIfood::timezone($fusoLoja))->format('d/m/Y \à\s H:i') ?? $iso;
 $erroPausa = static fn (string $campo): string => isset($eP[$campo]) ? '<p class="field-msg ficha-erro" id="erro-pausa-' . $e($campo) . '">' . $e($eP[$campo]) . '</p>' : '';
 $ativas = array_column(IfoodLojaService::pausasAtivas($pausas), 'id');
@@ -35,7 +35,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
         <?php foreach ($pausas as $pausa): $agora = in_array($pausa['id'], $ativas, true); $fimPausa = IfoodLojaService::dataIfood($pausa['fim']); $encerrada = $fimPausa !== null && $fimPausa->getTimestamp() <= time(); ?>
             <li class="ifood-lista-item" data-ifood-pausa-id="<?= $e($pausa['id']) ?>">
                 <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
-                    <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?> (horário da loja)</small></span>
+                    <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?> (horário de Brasília)</small></span>
                 <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Horário vigente' : ($encerrada ? 'Encerrada' : 'Agendada') ?></span>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/pausas/remover') ?>" data-pausa-form
                       data-confirm="Solicitar remoção da pausa ao iFood? Confira o status da loja depois da atualização." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
