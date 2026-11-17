@@ -66,9 +66,12 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 - **Lojas vinculadas** (`GET /merchant/v1.0/merchants`), marcando a ligada ao restaurante.
 - **Dados da loja** (`GET /merchants/{id}`): nome, razão social, endereço, operações e canais, e a resposta completa do iFood.
 - **Disponibilidade agora** (`GET /merchants/{id}/status`) por operação, com as validações do iFood.
-- **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até **7 dias**, limite oficial).
-  Datas enviadas em UTC com "Z"; o iFood devolve em UTC, às vezes sem o fuso: `IfoodApi::data()` lê sem fuso como UTC
-  (também nas datas dos pedidos) e mostra no fuso do sistema.
+- **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo obrigatório de até **255 caracteres**; duração de **1 minuto a 7 dias**; intervalos não sobrepostos. Não há requisito documentado de antecedência mínima, mas não foi adicionado modo "Começar imediatamente": permanece o formulário existente com início/fim e início predefinido para o horário atual da loja.
+  - **Fuso**: `GET /merchants/{merchantId}` retorna endereço, mas **não** o identificador do fuso IANA configurado internamente. `FusoLojaIfood::sugerir` escolhe o fuso mais provável por Estado/município (Acre: `America/Rio_Branco`; Ceará: `America/Sao_Paulo`), sempre identificado como **inferência**, não garantia da configuração da conta Merchant.
+  - Os campos `datetime-local` são interpretados no fuso inferido da **loja**, não do PHP-FPM/navegador. O backend transforma o instante em ISO8601 UTC `Z`, como no exemplo oficial, e `GET /interruptions` é exibido no mesmo fuso da loja. Uma pausa de 15:40 em Fortaleza aparece como 18:40:00 UTC, **o mesmo instante**; esse deslocamento não é erro.
+  - A documentação informa que o iFood aplica o fuso configurado na loja e pode ignorar o offset do payload. Por isso, comparar sempre **o valor efetivamente retornado pelo iFood, o fuso configurado no Portal e o GET /status**. Não tentar adivinhar o offset nem declarar loja fechada se o Merchant continuar `available=true`/`state=OK`.
+  - Validação prévia de sobreposição via `GET /interruptions`, sem confiar apenas no `409` de uma loja TEST. Cada POST 201 salva ID e período UTC auditado. `POST 201` não é confirmação de indisponibilidade; aguardar processamento assíncrono. Persistindo `OK` e sem validação `unavailabilities`, abrir chamado de homologação com logs da API, especialmente em lojas `TEST`/`DISABLED`.
+
   O POST envia somente `description`, `start` e `end` e exige **HTTP 201 com ID devolvido pelo iFood**;
   não se inventa ID localmente. O DELETE exige **HTTP 204**. Depois de cada comando a tela consulta
   novamente `GET /interruptions` e mostra apenas o que a API retornou, sem inserir ou ocultar pausas
