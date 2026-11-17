@@ -68,13 +68,16 @@ final class IfoodConta
     /** @param array<string,bool> $opcoes */
     public function salvarOpcoes(array $opcoes): void
     {
-        $dados = $this->integracao()['dados'];
+        // Modifica cada opção de modo atômico. Regravar o JSON inteiro poderia apagar
+        // uma atualização de disponibilidade feita em paralelo pelo cron Merchant.
         foreach (self::OPCOES as $nome => $padrao) {
-            if (array_key_exists($nome, $opcoes)) {
-                $dados[$nome] = (bool) $opcoes[$nome];
+            if (!array_key_exists($nome, $opcoes)) {
+                continue;
             }
+            $this->db->prepare("UPDATE integracoes SET dados = JSON_SET(COALESCE(NULLIF(dados,''),'{}'),
+                '$." . $nome . "', CAST(? AS JSON)) WHERE id_restaurante = ? AND provedor = 'ifood'")
+                ->execute([($opcoes[$nome] ? 'true' : 'false'), $this->idRestaurante]);
         }
-        $this->integracoes->salvar($this->idRestaurante, 'ifood', ['dados' => $dados]);
         $this->cache = null;
     }
 
