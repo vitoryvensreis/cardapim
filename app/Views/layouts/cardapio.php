@@ -15,7 +15,7 @@ $logoPreta = Configuracoes::logoOuPadrao('logo_preta');
 $title = $e((string) ($pageTitle ?? 'Cardápio | ' . marca()));
 $description = $e((string) ($pageDescription ?? 'Cardápio digital no ' . marca() . '.'));
 $styles = ['css/cardapio.css', 'css/meus-pedidos.css', ...($pageStyles ?? [])];
-$scripts = ['js/cliente.js', 'js/meus-pedidos.js', 'js/complementos.js', ...($pageScripts ?? ['js/cardapio.js'])];
+$scripts = ['js/cliente.js', 'js/meus-pedidos.js', 'js/complementos.js', ...($pageScripts ?? ['js/cardapio.js', 'js/cardapio-status.js'])];
 [$voltarUrl, $voltarRotulo] = $voltar ?? [null, null];
 ?>
 <!doctype html>

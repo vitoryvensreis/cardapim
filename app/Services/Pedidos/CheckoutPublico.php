@@ -41,7 +41,7 @@ final class CheckoutPublico
         return [
             'modos' => $modos,
             'formas' => $formas,
-            'aberto' => !$info['horario_informado'] || $info['aberto'],
+            'aberto' => !$info['fechado_integracao'] && (!$info['horario_informado'] || $info['aberto']),
             'endereco_restaurante' => trim($info['endereco'] . ($info['bairro_cidade'] !== '' ? ' · ' . $info['bairro_cidade'] : '')),
             'telefone' => $info['telefone'],
             'pix_prazo_minutos' => PixPedido::PRAZO_MINUTOS,

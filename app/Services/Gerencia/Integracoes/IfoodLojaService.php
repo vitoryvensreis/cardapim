@@ -11,6 +11,7 @@ use Cardapim\Repositories\Gerencia\PerfilRepository;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Ifood\IfoodConta;
+use Cardapim\Services\Ifood\EstadoLoja;
 use DateTimeImmutable;
 use PDO;
 
@@ -100,8 +101,8 @@ final class IfoodLojaService extends BaseIntegracao
             $erros['fim'] = 'Escolha quando a pausa termina.';
         } elseif ($ini !== null && $fi <= $ini) {
             $erros['fim'] = 'O fim precisa ser depois do começo.';
-        } elseif ($ini !== null && $fi > $ini->modify('+30 days')) {
-            $erros['fim'] = 'A pausa pode durar no máximo 30 dias.';
+        } elseif ($ini !== null && $fi > $ini->modify('+7 days')) {
+            $erros['fim'] = 'A pausa pode durar no máximo 7 dias (limite do iFood).';
         }
         if ($erros !== []) {
             return Resultado::falha('Confira os campos da pausa.', $erros);
@@ -109,8 +110,9 @@ final class IfoodLojaService extends BaseIntegracao
         return $this->executar(function (string $token, string $loja) use ($descricao, $ini, $fi): Resultado {
             $id = $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
             $this->pausaCriada = ['id' => $id, 'descricao' => $descricao, 'inicio' => self::utc($ini), 'fim' => self::utc($fi)];
+            EstadoLoja::criarPausa($this->db, (int) $this->idRestaurante, $id, $ini, $fi);
             $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s.', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i')));
-            return Resultado::sucesso('Pausa criada. A loja fica fechada no iFood de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . ' e aparece na lista abaixo.');
+            return Resultado::sucesso('Pausa criada no iFood; disponibilidade atualizada no Deliveryzim. A confirmação final pode levar alguns segundos: de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . ' e aparece na lista abaixo.');
         });
     }
 
@@ -149,6 +151,7 @@ final class IfoodLojaService extends BaseIntegracao
         return $this->executar(function (string $token, string $loja) use ($idPausa): Resultado {
             $this->api->removerPausa($token, $loja, $idPausa);
             $this->pausaRemovida = $idPausa;
+            EstadoLoja::removerPausa($this->db, (int) $this->idRestaurante, $idPausa);
             $this->log('iFood: pausa removida', 'Pausa ' . $idPausa . ' removida.');
             return Resultado::sucesso('Pausa removida. A loja volta a seguir o horário de funcionamento no iFood.');
         });
@@ -348,33 +351,48 @@ final class IfoodLojaService extends BaseIntegracao
         if (!$conta->conectada()) {
             return ['estado' => 'desconectada', 'texto' => 'Desconectado', 'detalhe' => 'Conecte o iFood em Integrações.', 'pode_abrir' => false];
         }
-        try {
-            $token = $conta->token();
-            $loja = (string) $conta->loja();
-            $situacao = $this->api->situacaoLoja($token, $loja);
-            // Pausa valendo vem primeiro: o iFood pode levar alguns minutos para mostrar a loja fechada.
-            $ativas = self::pausasAtivas($this->api->pausas($token, $loja));
-            if ($ativas !== []) {
-                $p = $ativas[0];
-                $fim = self::dataIfood($p['fim']);
-                return ['estado' => 'pausada', 'texto' => 'Abrir loja', 'pode_abrir' => true,
-                    'detalhe' => 'Pausada' . ($p['descricao'] !== '' ? ' (' . $p['descricao'] . ')' : '') . ($fim !== null ? ' até ' . $fim->format('d/m H:i') : '') . '. Clique para abrir agora.'];
-            }
-            if (array_filter($situacao, static fn (array $s): bool => $s['disponivel']) !== []) {
-                return ['estado' => 'aberta', 'texto' => 'Loja aberta', 'detalhe' => 'A loja está recebendo pedidos no iFood.', 'pode_abrir' => false];
-            }
-            $motivo = '';
-            foreach ($situacao as $s) {
-                $motivo = $s['mensagem'] !== '' ? $s['mensagem'] : ($s['validacoes'][0] ?? '');
-                if ($motivo !== '') {
-                    break;
+        // Uma consulta ao MySQL, sem uma chamada por aba à API Merchant. O cron já consulta a cada 30s.
+        $estado = EstadoLoja::consultar($this->db, (int) $this->idRestaurante);
+        if ($estado['remoto'] === null) {
+            // Bootstrap único antes da primeira rodada do cron; depois disso somente consulta MySQL.
+            try {
+                $token = $conta->token();
+                $operacoes = $this->api->situacaoLoja($token, (string) $conta->loja());
+                if ($operacoes !== []) {
+                    $pausas = $this->api->pausas($token, (string) $conta->loja());
+                    EstadoLoja::reconciliar($this->db, (int) $this->idRestaurante, $operacoes, $pausas);
+                    $estado = EstadoLoja::consultar($this->db, (int) $this->idRestaurante);
                 }
+            } catch (IntegracaoErro) {
+                // Uma falha na primeira consulta nunca declara a loja aberta.
             }
-            return ['estado' => 'fechada', 'texto' => 'Fora do horário', 'pode_abrir' => false,
-                'detalhe' => ($motivo !== '' ? $motivo . '. ' : '') . 'A loja abre sozinha no iFood no horário de funcionamento.'];
-        } catch (IntegracaoErro $erro) {
-            return ['estado' => 'erro', 'texto' => 'Sem resposta', 'detalhe' => $erro->getMessage(), 'pode_abrir' => false];
         }
+        $pausa = $estado['pausa'];
+        $agora = time();
+        if ($pausa !== null && (int) ($pausa['inicio'] ?? 0) <= $agora && (int) ($pausa['fim'] ?? 0) > $agora
+            && ($estado['fechado'] || ($estado['remoto']['pausada'] ?? false) === true)) {
+            return ['estado' => 'pausada', 'texto' => 'Abrir loja', 'pode_abrir' => true,
+                'detalhe' => 'Pausa ativa. Clique para solicitar a reabertura; confirme o estado após a atualização do iFood.'];
+        }
+        if ($estado['remoto'] !== null) {
+            $ultima = (int) ($estado['remoto']['atualizado_em'] ?? 0);
+            if ($ultima < $agora - 120) {
+                return ['estado' => 'erro', 'texto' => 'Aguardando iFood', 'pode_abrir' => false,
+                    'detalhe' => 'Último estado externo antigo. Verifique a rotina de integração; o fechamento conhecido continua protegido.'];
+            }
+            if ($estado['fechado']) {
+                return ['estado' => 'fechada', 'texto' => 'Loja fechada', 'pode_abrir' => false,
+                    'detalhe' => $estado['motivo'] ?: 'Loja indisponível no iFood.'];
+            }
+            return ['estado' => 'aberta', 'texto' => 'Loja aberta', 'pode_abrir' => false,
+                'detalhe' => 'Disponibilidade confirmada pela última consulta ao iFood.'];
+        }
+        if ($estado['fechado']) {
+            return ['estado' => 'fechada', 'texto' => 'Sincronizando', 'pode_abrir' => false,
+                'detalhe' => $estado['motivo']];
+        }
+        return ['estado' => 'erro', 'texto' => 'Verificando iFood', 'pode_abrir' => false,
+            'detalhe' => 'Aguardando a primeira consulta de disponibilidade ao iFood (até 30 segundos).'];
     }
 
     /** Abre a loja no iFood agora: remove as pausas ativas. Fora do horario de funcionamento nao ha o que abrir. */
@@ -387,11 +405,25 @@ final class IfoodLojaService extends BaseIntegracao
                 return $aberta ? Resultado::sucesso('A loja já está aberta no iFood.')
                     : Resultado::falha('A loja não está pausada: ela está fora do horário de funcionamento do iFood e abre sozinha no horário.');
             }
-            foreach ($ativas as $p) {
-                $this->api->removerPausa($token, $loja, $p['id']);
+            $local = EstadoLoja::consultar($this->db, (int) $this->idRestaurante)['pausa'];
+            $id = (string) ($local['id'] ?? '');
+            if ($id === '') {
+                return Resultado::falha('A pausa foi criada fora do Deliveryzim. Para evitar remover outra restrição sem autorização, use a lista de pausas em Integrações > iFood.');
             }
-            $this->log('iFood: loja aberta', count($ativas) === 1 ? 'Pausa "' . $ativas[0]['descricao'] . '" removida.' : count($ativas) . ' pausas removidas.');
-            return Resultado::sucesso('Loja aberta no iFood.');
+            $encontrada = false;
+            foreach ($ativas as $p) {
+                if ($p['id'] === $id) {
+                    $this->api->removerPausa($token, $loja, $id);
+                    $encontrada = true;
+                    break;
+                }
+            }
+            if (!$encontrada) {
+                return Resultado::falha('Esta pausa não está mais ativa no iFood. Atualize a situação para confirmar o funcionamento.');
+            }
+            EstadoLoja::removerPausa($this->db, (int) $this->idRestaurante, $id);
+            $this->log('iFood: pausa local removida', 'Pausa ' . $id . ' removida.');
+            return Resultado::sucesso('Pausa removida. Aguardando o iFood confirmar a reabertura.');
         });
     }
 

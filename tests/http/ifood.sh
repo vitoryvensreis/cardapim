@@ -99,6 +99,7 @@ esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/m
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
 esperar "pausa sem motivo recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
 esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia' inicio="$fim" fim="$ini" | cut -d' ' -f1)" "422"
+esperar "pausa maior que 7 dias recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Prazo invalido' inicio="$ini" fim="$(date -d '+9 days' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "422"
 esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
@@ -163,16 +164,41 @@ curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "gerencia ve a loja pausada" "$tmp/sit.json" '"estado":"pausada"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa ve a loja pausada" "$tmp/sit.json" '"pode_abrir":true'
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "cardapio publico bloqueia novos pedidos imediatamente" "$tmp/estado-publico.json" '"fechado_integracao":true'
+esperar "cardapio mostra fechamento temporario" "$(pagina "$gj" "$base/$slug")" "200"
+contem "cardapio informa pausa do restaurante" "$tmp/pagina.html" 'Fechado temporariamente'
 esperar "abrir sem token recusado" "$(curl -s -o /dev/null -w '%{http_code}' -b "$cx" -X POST "$c/ifood/abrir")" "419"
 t="$(token "$cx" "$c")"
 esperar "caixa abre a loja" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b "$cx" -c "$cx" -X POST -H "X-CSRF-Token: $t" "$c/ifood/abrir")" "200"
-contem "loja aberta depois do clique" "$tmp/abrir.json" '"estado":"aberta"'
+# Remover pausa é assíncrono no iFood: não declarar sucesso pelo comando DELETE.
+contem "resposta do botao informa estado real" "$tmp/abrir.json" '"situacao":'
+rodar
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "cardapio reabre somente depois de confirmar no Merchant" "$tmp/estado-publico.json" '"fechado_integracao":false'
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa removida pelo botao" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 t="$(token "$cx" "$c")"
 esperar "abrir loja ja aberta" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b "$cx" -c "$cx" -X POST -H "X-CSRF-Token: $t" "$c/ifood/abrir")" "200"
 contem "avisa que ja estava aberta" "$tmp/abrir.json" 'já está aberta'
 esperar "sem login nao consulta" "$(curl -s -o /dev/null -w '%{http_code}' "$c/ifood/situacao")" "401"
+
+echo "iFood -> Deliveryzim: fechamento remoto e reabertura confirmada"
+pausa_remota="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+inicio_remoto="$(date -u -d '-1 minute' '+%Y-%m-%dT%H:%M:%SZ')"
+fim_remoto="$(date -u -d '+60 minutes' '+%Y-%m-%dT%H:%M:%SZ')"
+curl -s -o "$tmp/remota.json" -w '%{http_code}' -X POST -H 'Authorization: Bearer acc-ci' -H 'Content-Type: application/json' \
+  --data "{\"id\":\"$pausa_remota\",\"description\":\"Pausa Portal CI\",\"start\":\"$inicio_remoto\",\"end\":\"$fim_remoto\"}" \
+  "$fake/merchant/v1.0/merchants/$loja/interruptions" > "$tmp/codigo-remoto"
+esperar "portal criou pausa" "$(cat "$tmp/codigo-remoto")" "201"
+rodar
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "pausa feita no Portal fecha o Deliveryzim" "$tmp/estado-publico.json" '"fechado_integracao":true'
+curl -s -o /dev/null -X DELETE -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/merchants/$loja/interruptions/$pausa_remota"
+rodar
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "reabertura externa restaura disponibilidade" "$tmp/estado-publico.json" '"fechado_integracao":false'
+
 
 echo "Cardapio do iFood ligado aos produtos"
 esperar "pagina do cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"

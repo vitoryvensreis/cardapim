@@ -71,6 +71,28 @@ final class RestauranteController
         ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-cache']);
     }
 
+    /** Estado de recebimento do cardápio; utilizado nas abas de clientes já abertas. */
+    public function situacao(string $slug): Response
+    {
+        $restaurante = $this->restaurantePublico($slug);
+        if ($restaurante instanceof Response) {
+            return $restaurante;
+        }
+        try {
+            $info = (new CardapioPublico(Database::connect()))->informacoes((int) $restaurante['id']);
+            $aberto = !($info['fechado_integracao'] ?? false) && (!$info['horario_informado'] || $info['aberto']);
+            return Response::json([
+                'aberto' => $aberto,
+                'fechado_integracao' => (bool) ($info['fechado_integracao'] ?? false),
+                'motivo' => ($info['fechado_integracao'] ?? false) ? 'Restaurante fechado temporariamente.' : '',
+            ])->comCabecalhos(['Cache-Control' => 'no-store']);
+        } catch (\Throwable $erro) {
+            error_log('[Cardapim] Falha ao consultar estado da loja: ' . get_class($erro));
+            return Response::json(['erro' => 'Não foi possível consultar o funcionamento agora.'], 503)
+                ->comCabecalhos(['Cache-Control' => 'no-store']);
+        }
+    }
+
     /** GET /{slug}/finalizar - entrega ou retirada, endereco, pagamento e resumo (a sacola vem do aparelho). */
     public function finalizar(string $slug): Response
     {
