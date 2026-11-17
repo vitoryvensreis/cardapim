@@ -1,7 +1,8 @@
 /**
  * Botao "Abrir loja no iFood" do topo (gerencia e modo caixa).
  * Consulta o snapshot local por JSON, sem chamar a API Merchant para cada aba aberta.
- * Estados (data-estado): carregando | aberta | pausada | fechada | erro | desconectada. So "pausada" e clicavel.
+ * Estados (data-estado): carregando | aberta | divergente | pausada | fechada | erro | desconectada.
+ * Divergente = Merchant confirma aberto, mas ha pausa vigente; so "pausada" e clicavel.
  */
 (() => {
   "use strict";
