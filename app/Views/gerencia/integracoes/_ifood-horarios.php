@@ -4,11 +4,9 @@ use Cardapim\Core\Icon;
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
 ?>
-    <details class="ifood-secao-recolhivel" id="horarios"<?= isset($erros['horarios']) ? ' open' : '' ?>>
-        <summary><?= Icon::svg('clock', 'icon-sm') ?> Horários de funcionamento <span class="texto-suave">Ver ou alterar os horários do iFood</span></summary>
-    <section class="bloco" aria-labelledby="titulo-horarios">
+    <section class="bloco ifood-horarios-painel" id="horarios" aria-labelledby="titulo-horarios">
         <div class="bloco-cabecalho">
-            <h2 id="titulo-horarios"><?= Icon::svg('clock') ?>Horário de funcionamento no iFood</h2>
+            <h2 id="titulo-horarios"><?= Icon::svg('clock') ?>Horários de funcionamento</h2>
             <p>Normalmente o iFood usa o mesmo horário do seu Perfil. Se no iFood a loja abre em outro horário, ligue a opção abaixo.</p>
         </div>
         <?= $aviso($p['erros']['horarios'] ?? null) ?>
@@ -65,4 +63,3 @@ use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
             </ul>
         <?php endif; ?>
     </section>
-    </details>
