@@ -125,6 +125,26 @@ $campoErro = static fn (array $lista, string $campo): string => isset($lista[$ca
     </details>
     <details class="ifood-secao-recolhivel ifood-secao-tecnica" id="diagnosticos">
         <summary><?= Icon::svg('wrench', 'icon-sm') ?> Dados e diagnósticos da integração <span class="texto-suave">Informações para homologação e suporte</span></summary>
+    <section class="bloco" aria-labelledby="titulo-fuso-ifood">
+        <div class="bloco-cabecalho">
+            <h2 id="titulo-fuso-ifood"><?= Icon::svg('clock') ?>Horário usado pelo iFood nas pausas</h2>
+            <p>Para homologação: o fuso interno não vem na API. O endereço sugere uma região, mas sua loja de teste pode usar outra. O teste no Postman funcionou com o horário de Fortaleza.</p>
+        </div>
+        <form method="post" action="<?= $e($base . '/integracoes/ifood/fuso') ?>">
+            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+            <label class="campo-rotulo" for="fuso-ifood">Fuso utilizado nas interrupções</label>
+            <select class="campo-simples" id="fuso-ifood" name="fuso" required>
+                <?php foreach (FusoLojaIfood::OPCOES as $zona => $rotulo): ?>
+                    <option value="<?= $e($zona) ?>"<?= $zona === $p['fuso'] ? ' selected' : '' ?>><?= $e($rotulo) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <p class="texto-suave">Ajusta o horário exibido e enviado nas próximas pausas apenas desta loja. Não altera o relógio do Portal do Parceiro.</p>
+            <div class="bloco-rodape"><button class="btn btn-outline" type="submit"><?= Icon::svg('check', 'icon-sm') ?>Salvar horário de referência</button></div>
+        </form>
+    </section>
+
+
+        <summary><?= Icon::svg('wrench', 'icon-sm') ?> Dados e diagnósticos da integração <span class="texto-suave">Informações para homologação e suporte</span></summary>
     <section class="bloco" aria-labelledby="titulo-lojas">
         <div class="bloco-cabecalho">
             <h2 id="titulo-lojas"><?= Icon::svg('store') ?>Lojas vinculadas</h2>
