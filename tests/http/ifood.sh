@@ -90,6 +90,13 @@ contem "painel unico: disponibilidade na pagina principal" "$tmp/pagina.html" 'D
 contem "painel unico: pausas na pagina principal" "$tmp/pagina.html" 'Nova pausa'
 contem "painel unico: horarios recolhiveis" "$tmp/pagina.html" 'ifood-secao-recolhivel'
 contem "diagnosticos mantidos" "$tmp/pagina.html" 'Dados e diagnósticos da integração'
+contem "grid de painel responsivo" "$tmp/pagina.html" 'ifood-dashboard-page'
+contem "secao status" "$tmp/pagina.html" 'id="secao-status"'
+contem "secao loja" "$tmp/pagina.html" 'id="secao-loja"'
+contem "secao cardapio" "$tmp/pagina.html" 'id="secao-cardapio"'
+contem "overlay de espera por iFood" "$tmp/pagina.html" 'data-ifood-overlay'
+contem "mensagem de envio bloqueante" "$tmp/pagina.html" 'Aguardando iFood'
+contem "url da confirmacao AJAX" "$tmp/pagina.html" 'data-pausas-status-url='
 
 echo "Loja no iFood (Merchant): lojas, dados, disponibilidade, pausas e horarios"
 contem "acesso direto as pausas" "$tmp/pagina.html" 'id="pausas"'
@@ -128,7 +135,15 @@ pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
 pausa="$(php -r 'if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
 if [[ -z "$pausa" ]]; then falha "id da pausa na pagina"; fi
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=criar'     "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa.json"
+contem "endpoint de confirmacao devolve o registro" "$tmp/estado-pausa.json" '"registro_confirmado":true'
+contem "endpoint traz status operacional" "$tmp/estado-pausa.json" '"html_status":'
+contem "endpoint traz card atualizado" "$tmp/estado-pausa.json" '"html":'
+esperar "endpoint de confirmacao exige login" "$(curl -s -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?pausa=$pausa&acao=criar")" "401"
+esperar "endpoint rejeita ID invalido" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?pausa=invalido!&acao=criar")" "422"
 esperar "remover pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa" | cut -d' ' -f1)" "303"
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remover'     "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa.json"
+contem "endpoint confirma remocao no iFood" "$tmp/estado-pausa.json" '"registro_confirmado":true'
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 # Pela tela (JS): a resposta traz o card de pausas pronto, com o aviso dentro dele.
@@ -143,6 +158,8 @@ esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/
 contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
 contem "aviso de pausa criada" "$tmp/js.json" 'recebeu a solicitação de pausa'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
+contem "resposta do POST informa ID para acompanhar" "$tmp/js.json" '"id_pausa":"'
+contem "resposta identifica criacao da pausa" "$tmp/js.json" '"acao":"criar"'
 contem "horario da pausa identificado" "$tmp/js.json" 'Horário vigente'
 esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$agora_local" fim="$depois_local")" "422"
 contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
