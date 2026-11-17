@@ -24,6 +24,16 @@ $ok(FusoLojaIfood::sugerir(['address' => ['state' => 'AC', 'city' => 'Rio Branco
 $ok(FusoLojaIfood::timezone('America/Manaus')->getName() === 'America/Sao_Paulo', 'timezone nao aceita mudanca');
 $ok(!FusoLojaIfood::valido('America/Manaus'), 'outros fusos nao configuraveis');
 
+// Início automático: respeita Brasilia e tem precisão de segundos (+10 s).
+$agoraPausa = new DateTimeImmutable('now', new DateTimeZone('America/Sao_Paulo'));
+$padraoPausa = IfoodLojaService::novaPausa();
+$inicioPausa = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i:s', $padraoPausa['inicio'], new DateTimeZone('America/Sao_Paulo'));
+$fimPausa = DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i:s', $padraoPausa['fim'], new DateTimeZone('America/Sao_Paulo'));
+$segundosAdiante = $inicioPausa !== false ? $inicioPausa->getTimestamp() - $agoraPausa->getTimestamp() : 0;
+$ok($segundosAdiante >= 8 && $segundosAdiante <= 12, 'inicio padrao dez segundos no futuro');
+$ok($inicioPausa !== false && $fimPausa !== false
+    && $fimPausa->getTimestamp() - $inicioPausa->getTimestamp() === 3600, 'fim automatico uma hora depois com segundos');
+
 // Codigos dos avisos: curto, completo e com prefixo.
 $ok(EventosIfood::codigo(['code' => 'PLC']) === 'PLACED', 'PLC = PLACED');
 $ok(EventosIfood::codigo(['code' => 'PLC', 'fullCode' => 'PLACED']) === 'PLACED', 'fullCode tem preferencia');

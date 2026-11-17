@@ -26,6 +26,92 @@
     const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let ocupado = false;
 
+    // O campo datetime-local nao possui fuso proprio: formatar sempre em
+    // America/Sao_Paulo, independentemente do relogio visual do navegador.
+    // Com step=1 preservamos os dez segundos (sem arredondar para o minuto).
+    const formatadorBrasilia = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit",
+      day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hourCycle: "h23",
+    });
+    const dataBrasilia = (ms) => {
+      const partes = Object.fromEntries(formatadorBrasilia.formatToParts(new Date(ms))
+        .filter((item) => item.type !== "literal").map((item) => [item.type, item.value]));
+      return `${partes.year}-${partes.month}-${partes.day}T${partes.hour}:${partes.minute}:${partes.second}`;
+    };
+    const horaMaisUma = (texto) => {
+      // Operacao no relogio local do campo; preserva a data escolhida pelo usuario
+      // sem depender do fuso do computador.
+      const [data, horario] = texto.split("T");
+      if (!data || !horario) return "";
+      const [ano, mes, dia] = data.split("-").map(Number);
+      const [hora, minuto, segundo = 0] = horario.split(":").map(Number);
+      if (![ano, mes, dia, hora, minuto, segundo].every(Number.isFinite)) return "";
+      const fim = new Date(Date.UTC(ano, mes - 1, dia, hora + 1, minuto, segundo));
+      const dois = (num) => String(num).padStart(2, "0");
+      return `${fim.getUTCFullYear()}-${dois(fim.getUTCMonth() + 1)}-${dois(fim.getUTCDate())}T${dois(fim.getUTCHours())}:${dois(fim.getUTCMinutes())}:${dois(fim.getUTCSeconds())}`;
+    };
+    const relogioInicio = (forcar = false) => {
+      const form = pausas.querySelector(".ifood-form-pausa");
+      const inicio = form?.querySelector("[name=inicio]");
+      const fim = form?.querySelector("[name=fim]");
+      if (!(inicio instanceof HTMLInputElement) || !(fim instanceof HTMLInputElement)) return;
+      const atualizando = !ocupado && (forcar || !document.hidden);
+      if (!atualizando) return;
+      if (inicio.hasAttribute("data-ifood-inicio-auto") &&
+          !inicio.hasAttribute("data-ifood-valor-preservado") &&
+          (forcar || document.activeElement !== inicio)) {
+        inicio.value = dataBrasilia(Date.now() + 10000);
+      }
+      if (fim.hasAttribute("data-ifood-fim-auto") &&
+          !fim.hasAttribute("data-ifood-valor-preservado") &&
+          (forcar || document.activeElement !== fim)) {
+        const proximoFim = horaMaisUma(inicio.value);
+        if (proximoFim) fim.value = proximoFim;
+      }
+      if (inicio.hasAttribute("data-ifood-valor-preservado")) {
+        const dica = form.querySelector("[data-ifood-inicio-ajuda]");
+        if (dica) dica.textContent = "Horário preservado para correção. Use o botão para voltar ao automático.";
+        const botao = form.querySelector("[data-ifood-retomar-inicio]");
+        if (botao) botao.hidden = false;
+      }
+    };
+    pausas.addEventListener("input", (event) => {
+      const campo = event.target;
+      if (!(campo instanceof HTMLInputElement) || !campo.closest(".ifood-form-pausa")) return;
+      if (campo.name === "inicio") {
+        campo.removeAttribute("data-ifood-inicio-auto");
+        campo.removeAttribute("data-ifood-valor-preservado");
+        const form = campo.closest("form");
+        const dica = form?.querySelector("[data-ifood-inicio-ajuda]");
+        if (dica) dica.textContent = "Horário escolhido manualmente. Use o botão para voltar ao automático.";
+        const botao = form?.querySelector("[data-ifood-retomar-inicio]");
+        if (botao) botao.hidden = false;
+      } else if (campo.name === "fim") {
+        campo.removeAttribute("data-ifood-fim-auto");
+        campo.removeAttribute("data-ifood-valor-preservado");
+      }
+    });
+    pausas.addEventListener("click", (event) => {
+      const botao = event.target instanceof Element
+        ? event.target.closest("[data-ifood-retomar-inicio]") : null;
+      if (!botao) return;
+      const form = botao.closest(".ifood-form-pausa");
+      const inicio = form?.querySelector("[name=inicio]");
+      if (!(inicio instanceof HTMLInputElement)) return;
+      inicio.setAttribute("data-ifood-inicio-auto", "");
+      inicio.removeAttribute("data-ifood-valor-preservado");
+      const dica = form.querySelector("[data-ifood-inicio-ajuda]");
+      if (dica) dica.textContent = "Início automático: agora + 10 segundos, atualizado em tempo real.";
+      botao.hidden = true;
+      relogioInicio(true);
+    });
+    relogioInicio(true);
+    window.setInterval(relogioInicio, 1000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) relogioInicio(true);
+    });
+
     const mostrarOverlay = (ligado, titulo = "Aguardando iFood", detalhe = "Verificando a solicitação e o status da loja.") => {
       if (!overlay) return;
       if (ligado) {
@@ -280,7 +366,12 @@
       if (form.dataset.confirm && form.dataset.confirmado !== "1") return;
       event.preventDefault();
       if (ocupado) return;
-      if (form.matches(".ifood-form-pausa") && !form.reportValidity()) return;
+      if (form.matches(".ifood-form-pausa")) {
+        // Recalcular no instante do envio: evita valor vencido entre dois ticks,
+        // inclusive apos o usuario deixar a aba em segundo plano.
+        relogioInicio(true);
+        if (!form.reportValidity()) return;
+      }
 
       ocupado = true;
       const botao = form.querySelector("[type=submit]");

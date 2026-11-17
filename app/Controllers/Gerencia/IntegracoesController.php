@@ -460,8 +460,8 @@ final class IntegracoesController extends BaseGerencia
         $fimEsperado = (string) ($_GET['fim'] ?? '');
         $periodoConfirmado = $acao === 'remover' || ($inicioEsperado === '' && $fimEsperado === '');
         if ($acao === 'criar' && $inicioEsperado !== '' && $fimEsperado !== ''
-            && preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}\\z/', $inicioEsperado) === 1
-            && preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}\\z/', $fimEsperado) === 1) {
+            && preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2})?\\z/', $inicioEsperado) === 1
+            && preg_match('/\\A\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2})?\\z/', $fimEsperado) === 1) {
             $periodoConfirmado = false;
             foreach ($lista as $pausa) {
                 if ($pausa['id'] !== $id) {
@@ -470,9 +470,11 @@ final class IntegracoesController extends BaseGerencia
                 $inicio = IfoodApi::data((string) ($pausa['inicio'] ?? ''));
                 $fim = IfoodApi::data((string) ($pausa['fim'] ?? ''));
                 $zona = new \DateTimeZone(\Cardapim\Services\Ifood\FusoLojaIfood::PADRAO);
+                $formatoInicio = strlen($inicioEsperado) === 19 ? 'Y-m-d\\TH:i:s' : 'Y-m-d\\TH:i';
+                $formatoFim = strlen($fimEsperado) === 19 ? 'Y-m-d\\TH:i:s' : 'Y-m-d\\TH:i';
                 $periodoConfirmado = $inicio !== null && $fim !== null
-                    && $inicio->setTimezone($zona)->format('Y-m-d\\TH:i') === $inicioEsperado
-                    && $fim->setTimezone($zona)->format('Y-m-d\\TH:i') === $fimEsperado;
+                    && $inicio->setTimezone($zona)->format($formatoInicio) === $inicioEsperado
+                    && $fim->setTimezone($zona)->format($formatoFim) === $fimEsperado;
                 break;
             }
         }
