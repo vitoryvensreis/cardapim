@@ -27,8 +27,11 @@ final class EstadoLoja
         if (!is_array($dados)) {
             return ['fechado' => false, 'motivo' => '', 'pausa' => null, 'remoto' => null];
         }
-        $pausa = is_array($dados['pausa_sincronizada'] ?? null) ? $dados['pausa_sincronizada'] : null;
-        $remoto = is_array($dados['situacao_sincronizada'] ?? null) ? $dados['situacao_sincronizada'] : null;
+        $loja = (string) ($dados['loja_id'] ?? '');
+        $pausa = is_array($dados['pausa_sincronizada'] ?? null) && ($dados['pausa_sincronizada']['loja_id'] ?? '') === $loja
+            ? $dados['pausa_sincronizada'] : null;
+        $remoto = is_array($dados['situacao_sincronizada'] ?? null) && ($dados['situacao_sincronizada']['loja_id'] ?? '') === $loja
+            ? $dados['situacao_sincronizada'] : null;
         $agora = time();
         // Fechamento confirmado localmente só expira no fim da pausa ou após reabertura
         // comprovada pela rotina. Falha na API nunca reabre a loja por timeout.
@@ -48,7 +51,8 @@ final class EstadoLoja
     public static function criarPausa(PDO $db, int $idRestaurante, string $id, DateTimeImmutable $inicio, DateTimeImmutable $fim): void
     {
         self::escrever($db, $idRestaurante, 'pausa_sincronizada', [
-            'id' => $id, 'inicio' => $inicio->getTimestamp(), 'fim' => $fim->getTimestamp(), 'criada_em' => time(),
+            'id' => $id, 'loja_id' => self::lojaId($db, $idRestaurante),
+            'inicio' => $inicio->getTimestamp(), 'fim' => $fim->getTimestamp(), 'criada_em' => time(),
         ]);
         self::avisar($idRestaurante, 'pausa_criada');
     }
@@ -119,6 +123,7 @@ final class EstadoLoja
             }
         }
         self::escrever($db, $idRestaurante, 'situacao_sincronizada', [
+            'loja_id' => self::lojaId($db, $idRestaurante),
             'fechado' => $fechado, 'pausada' => $pausada, 'motivo' => $fechado ? ($motivo ?: 'Loja indisponível no iFood.') : '',
             'atualizado_em' => $agora,
         ]);
@@ -151,6 +156,14 @@ final class EstadoLoja
             }
             throw $e;
         }
+    }
+
+    private static function lojaId(PDO $db, int $idRestaurante): string
+    {
+        $q = $db->prepare("SELECT JSON_UNQUOTE(JSON_EXTRACT(dados, '$.loja_id')) FROM integracoes
+            WHERE id_restaurante = ? AND provedor = 'ifood'");
+        $q->execute([$idRestaurante]);
+        return (string) ($q->fetchColumn() ?: '');
     }
 
     private static function avisar(int $idRestaurante, string $acao): void
