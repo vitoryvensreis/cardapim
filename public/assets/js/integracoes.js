@@ -18,60 +18,181 @@
     chave?.addEventListener("change", trocar);
   }
 
-  /* ---------- Pausas do iFood: criar e remover sem recarregar; o aviso aparece dentro do card ---------- */
+  /* ---------- Pausas iFood: pedido unico, card otimista e confirmacao remota ---------- */
   const pausas = document.querySelector("[data-pausas]");
   if (pausas) {
-    const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const mostrarCard = () => {
-      pausas.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "start" });
-      pausas.querySelector("[data-pausas-aviso]")?.focus({ preventScroll: true });
-    };
-    const avisoErro = (mensagem) => {
+    const overlay = document.querySelector("[data-ifood-overlay]");
+    const aguardar = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    let enviando = false;
+    const aviso = (mensagem, erro = false) => {
       pausas.querySelector("[data-pausas-aviso]")?.remove();
-      const aviso = document.createElement("div");
-      aviso.className = "notice notice-warning ifood-pausa-aviso";
-      aviso.setAttribute("role", "alert");
-      aviso.tabIndex = -1;
-      aviso.dataset.pausasAviso = "";
-      const texto = document.createElement("p");
-      texto.textContent = mensagem;
-      aviso.append(texto);
-      pausas.querySelector(".bloco-cabecalho")?.after(aviso);
+      const caixa = document.createElement("div");
+      caixa.className = "notice ifood-pausa-aviso " + (erro ? "notice-warning" : "notice-info");
+      caixa.dataset.pausasAviso = "";
+      caixa.setAttribute("role", erro ? "alert" : "status");
+      caixa.tabIndex = -1;
+      const p = document.createElement("p");
+      p.textContent = mensagem;
+      caixa.append(p);
+      pausas.querySelector(".bloco-cabecalho")?.after(caixa);
+      caixa.focus({ preventScroll: true });
+    };
+    const mostrarOverlay = (texto) => {
+      if (!overlay) return;
+      overlay.querySelector("[data-ifood-overlay-mensagem]").textContent = texto;
+      overlay.hidden = false;
+      document.body.classList.add("ifood-bloqueada");
+      pausas.setAttribute("aria-busy", "true");
+    };
+    const atualizarOverlay = (texto) => {
+      if (overlay && !overlay.hidden) overlay.querySelector("[data-ifood-overlay-mensagem]").textContent = texto;
+    };
+    const esconderOverlay = () => {
+      if (overlay) overlay.hidden = true;
+      document.body.classList.remove("ifood-bloqueada");
+      pausas.removeAttribute("aria-busy");
+    };
+    const otimista = (form) => {
+      const lista = pausas.querySelector("[data-pausas-lista]");
+      if (!lista) return null;
+      lista.hidden = false;
+      const vazio = pausas.querySelector("[data-pausas-vazio]");
+      if (vazio) vazio.hidden = true;
+      const linha = document.createElement("li");
+      linha.className = "ifood-lista-item ifood-pausa-otimista";
+      linha.dataset.pausaOtimista = "";
+      linha.dataset.estado = "enviando";
+      const info = document.createElement("span");
+      const titulo = document.createElement("strong");
+      titulo.textContent = form.elements.namedItem("descricao")?.value.trim() || "Nova pausa";
+      const periodo = document.createElement("small");
+      const inicio = form.elements.namedItem("inicio")?.value.replace("T", " ") || "";
+      const fim = form.elements.namedItem("fim")?.value.replace("T", " ") || "";
+      periodo.textContent = "De " + inicio + " até " + fim + " (horário da loja)";
+      info.append(titulo, periodo);
+      const estado = document.createElement("span");
+      estado.className = "ifood-pausa-carregando";
+      estado.setAttribute("role", "status");
+      const icone = overlay?.querySelector("svg")?.cloneNode(true);
+      if (icone) estado.append(icone);
+      const texto = document.createElement("span");
+      texto.textContent = "Aguardando iFood";
+      estado.append(texto);
+      linha.append(info, estado);
+      lista.prepend(linha);
+      return linha;
+    };
+    const sinalizar = (card, situacao, mensagem) => {
+      if (!card) return;
+      card.dataset.estado = situacao;
+      const status = card.querySelector(".ifood-pausa-carregando");
+      if (!status) return;
+      status.querySelector("span")?.replaceChildren(document.createTextNode(mensagem));
+    };
+    const confirmar = async (id, card) => {
+      const endereco = pausas.dataset.pausasConsulta;
+      if (!endereco || !id) return "indefinida";
+      for (let tentativa = 0; tentativa < 5; tentativa += 1) {
+        if (tentativa) await aguardar(2000);
+        try {
+          const url = new URL(endereco, window.location.href);
+          url.searchParams.set("id", id);
+          const resposta = await fetch(url, {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+            signal: AbortSignal.timeout(6500),
+          });
+          if (!resposta.ok) continue;
+          const resultado = await resposta.json();
+          if (resultado.estado === "fechada") return "fechada";
+          if (resultado.estado === "agendada") return "agendada";
+          if (resultado.estado === "registrada") {
+            sinalizar(card, "registrada", "Registrada; aguardando fechamento");
+            atualizarOverlay("Pausa cadastrada. Aguardando o iFood confirmar que a loja está fechada.");
+          } else if (resultado.estado === "aguardando") {
+            atualizarOverlay("O iFood recebeu a solicitação. Consultando a lista de pausas...");
+          }
+        } catch {
+          atualizarOverlay("A comunicação está demorando. Verificando a disponibilidade...");
+        }
+      }
+      return "pendente";
     };
 
     pausas.addEventListener("submit", async (event) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !form.matches("[data-pausa-form]")) return;
-      // Remover pede confirmacao antes (confirmar.js); o envio volta aqui depois do "Remover".
+      // O modulo confirmar.js solicita a confirmacao de exclusao primeiro.
       if (form.dataset.confirm && form.dataset.confirmado !== "1") return;
       event.preventDefault();
+      if (enviando) return;
+      const criar = form.matches(".ifood-form-pausa");
+      if (criar && !form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      enviando = true;
       const botao = form.querySelector("[type=submit]");
-      if (!botao || botao.disabled) return;
-      const rotulo = botao.querySelector("span");
-      const original = rotulo ? rotulo.textContent : "";
-      botao.disabled = true;
-      botao.setAttribute("aria-busy", "true");
-      if (rotulo && botao.dataset.submitLabel) rotulo.textContent = botao.dataset.submitLabel;
+      if (botao) botao.disabled = true;
+      const card = criar ? otimista(form) : null;
+      mostrarOverlay(criar
+        ? "Criando a pausa e aguardando o iFood responder."
+        : "Removendo a pausa. Aguardando a resposta do iFood.");
+      let atualizou = false;
       try {
         const resposta = await fetch(form.action, {
           method: "POST",
           body: new FormData(form),
           credentials: "same-origin",
           headers: { Accept: "application/json", "X-Requested-With": "fetch" },
+          signal: AbortSignal.timeout(30000),
         });
         const dados = await resposta.json().catch(() => ({}));
-        if (typeof dados.html !== "string") throw new Error(dados.mensagem || "");
+        if (typeof dados.html !== "string") throw new Error(dados.mensagem || "Resposta inesperada do servidor.");
         pausas.innerHTML = dados.html;
-        // Avisa o botao "Abrir loja no iFood" do topo para mostrar a situacao nova.
-        if (dados.ok) document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
+        const consulta = pausas.dataset.pausasConsulta;
+        if (consulta) pausas.dataset.pausasConsulta = consulta;
+        if (!dados.ok) {
+          aviso(dados.mensagem || "O iFood recusou a operação. Confira os campos.", true);
+          return;
+        }
+        document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
+        if (criar && dados.pausa_id) {
+          const visivel = [...pausas.querySelectorAll("[data-pausa-id]")]
+            .find((linha) => linha.dataset.pausaId === dados.pausa_id);
+          let pendente = null;
+          if (!visivel) {
+            pendente = otimista(form);
+            if (pendente) sinalizar(pendente, "registrada", "Cadastrada; verificando iFood");
+          }
+          atualizarOverlay("Pausa cadastrada. Consultando o status operacional do iFood.");
+          const estado = await confirmar(dados.pausa_id, pendente);
+          if (estado === "fechada" || estado === "agendada") {
+            atualizarOverlay(estado === "fechada"
+              ? "Loja fechada, confirmada pelo iFood. Atualizando o painel."
+              : "Pausa agendada e confirmada pelo iFood. Atualizando o painel.");
+            window.location.reload();
+            atualizou = true;
+            return;
+          }
+          sinalizar(pendente, "registrada", "Registrada; fechamento não confirmado");
+          aviso("O iFood recebeu a pausa, mas ainda não confirmou o fechamento da loja. Consulte a disponibilidade antes de reenviar.", true);
+        } else if (criar) {
+          aviso("Pausa solicitada. Não foi possível consultar o identificador; confira a lista antes de tentar novamente.", true);
+        }
       } catch (erro) {
-        botao.disabled = false;
-        botao.removeAttribute("aria-busy");
-        if (rotulo) rotulo.textContent = original;
-        delete form.dataset.confirmado;
-        avisoErro(erro.message || "Não foi possível falar com o servidor. Confira a internet e tente de novo.");
+        sinalizar(card, "indefinida", "Confirmação indisponível");
+        aviso(erro.name === "TimeoutError" || erro.name === "AbortError"
+          ? "A resposta demorou. Confira a lista de pausas antes de tentar novamente para evitar duplicidade."
+          : "Não foi possível confirmar a operação no iFood. Atualize a lista antes de reenviar.", true);
+      } finally {
+        if (!atualizou) {
+          esconderOverlay();
+          if (botao?.isConnected) botao.disabled = false;
+          enviando = false;
+        }
       }
-      mostrarCard();
     });
   }
 
