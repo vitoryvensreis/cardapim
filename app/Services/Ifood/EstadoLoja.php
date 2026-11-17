@@ -102,8 +102,21 @@ final class EstadoLoja
         // Fechamento removido diretamente no Portal do Parceiro: só descarta a proteção
         // depois de o Merchant confirmar estado aberto (e dar tempo de propagar a criação).
         $local = $atual['pausa'];
-        if ($local !== null && !$fechado && (int) ($local['criada_em'] ?? 0) + 120 <= $agora) {
-            self::removerPausa($db, $idRestaurante, (string) ($local['id'] ?? ''));
+        if ($local !== null) {
+            $encontrada = false;
+            foreach ($pausas as $p) {
+                if (($p['id'] ?? '') === ($local['id'] ?? '') && $pausada) {
+                    $encontrada = true;
+                    break;
+                }
+            }
+            if ($encontrada && !($local['confirmada'] ?? false)) {
+                self::escrever($db, $idRestaurante, 'pausa_sincronizada', [...$local, 'confirmada' => true]);
+            } elseif (!$encontrada && !$fechado &&
+                (($local['confirmada'] ?? false) || (int) ($local['criada_em'] ?? 0) + 120 <= $agora)) {
+                // Foi vista ativa no iFood, depois removida pelo Portal (ou expirou a janela de propagação).
+                self::removerPausa($db, $idRestaurante, (string) ($local['id'] ?? ''));
+            }
         }
         self::escrever($db, $idRestaurante, 'situacao_sincronizada', [
             'fechado' => $fechado, 'pausada' => $pausada, 'motivo' => $fechado ? ($motivo ?: 'Loja indisponível no iFood.') : '',
