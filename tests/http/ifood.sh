@@ -118,7 +118,7 @@ por_js() { # jar pagina-do-token url [campo=valor ...] -> codigo (corpo em $tmp/
 agora_local="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')"; depois_local="$(TZ=America/Fortaleza date -d '+30 minutes' '+%Y-%m-%dT%H:%M')"
 esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa tela CI' inicio="$agora_local" fim="$depois_local")" "200"
 contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
-contem "aviso de pausa criada" "$tmp/js.json" 'Pausa criada'
+contem "aviso de pausa criada" "$tmp/js.json" 'recebeu a solicitação de pausa'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
 contem "pausa valendo marcada" "$tmp/js.json" 'Valendo agora'
 esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao=x inicio="$agora_local" fim="$depois_local")" "422"
@@ -126,7 +126,7 @@ contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
 esperar "pausa pela tela sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'descricao=Teste' "$g/integracoes/ifood/pausas")" "419"
 pausa_js="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", $d["html"] ?? "", $m)) echo $m[1];' "$tmp/js.json")"
 esperar "remover pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_js")" "200"
-contem "aviso de removida no card" "$tmp/js.json" 'Pausa removida'
+contem "aviso de removida no card" "$tmp/js.json" 'recebeu a solicitação de remoção'
 contem "lista vazia no card" "$tmp/js.json" 'Nenhuma pausa ativa.'
 esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
 esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/horarios" horario_proprio=1 \
@@ -184,13 +184,14 @@ contem "avisa que ja estava aberta" "$tmp/abrir.json" 'já está aberta'
 esperar "sem login nao consulta" "$(curl -s -o /dev/null -w '%{http_code}' "$c/ifood/situacao")" "401"
 
 echo "iFood -> Deliveryzim: fechamento remoto e reabertura confirmada"
-pausa_remota="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 inicio_remoto="$(date -u -d '-1 minute' '+%Y-%m-%dT%H:%M:%SZ')"
 fim_remoto="$(date -u -d '+60 minutes' '+%Y-%m-%dT%H:%M:%SZ')"
 curl -s -o "$tmp/remota.json" -w '%{http_code}' -X POST -H 'Authorization: Bearer acc-ci' -H 'Content-Type: application/json' \
-  --data "{\"id\":\"$pausa_remota\",\"description\":\"Pausa Portal CI\",\"start\":\"$inicio_remoto\",\"end\":\"$fim_remoto\"}" \
+  --data "{\"description\":\"Pausa Portal CI\",\"start\":\"$inicio_remoto\",\"end\":\"$fim_remoto\"}" \
   "$fake/merchant/v1.0/merchants/$loja/interruptions" > "$tmp/codigo-remoto"
 esperar "portal criou pausa" "$(cat "$tmp/codigo-remoto")" "201"
+pausa_remota="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); echo $d["id"] ?? "";' "$tmp/remota.json")"
+if [[ -z "$pausa_remota" ]]; then falha "portal recebeu ID da pausa"; fi
 rodar
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
 contem "pausa feita no Portal fecha o Deliveryzim" "$tmp/estado-publico.json" '"fechado_integracao":true'

@@ -19,22 +19,22 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
     <p>Feche a loja no iFood por um tempo (ex.: falta de entregador, cozinha cheia). Ela volta sozinha no fim da pausa.</p>
 </div>
 <?php if ($geral !== null): ?>
-    <div class="notice <?= $geral['tipo'] === 'sucesso' ? 'notice-success' : 'notice-warning' ?> ifood-pausa-aviso" role="<?= $geral['tipo'] === 'sucesso' ? 'status' : 'alert' ?>" tabindex="-1" data-pausas-aviso>
-        <?= Icon::svg($geral['tipo'] === 'sucesso' ? 'circle-check' : 'circle-exclamation-point') ?><div><p><?= $e($geral['mensagem']) ?></p></div>
+    <div class="notice <?= $geral['tipo'] === 'sucesso' ? 'notice-success' : 'notice-warning' ?> ifood-pausa-aviso" role="<?= $geral['tipo'] === 'erro' ? 'alert' : 'status' ?>" tabindex="-1" data-pausas-aviso>
+        <?= Icon::svg($geral['tipo'] === 'sucesso' ? 'circle-check' : ($geral['tipo'] === 'pendente' ? 'clock' : 'circle-exclamation-point')) ?><div><p><?= $e($geral['mensagem']) ?></p></div>
     </div>
 <?php endif; ?>
 <?php if ($erroLista !== null): ?>
     <div class="notice notice-warning"><?= Icon::svg('circle-exclamation-point') ?><div><p><?= $e($erroLista) ?></p></div></div>
 <?php endif; ?>
 <?php if ($pausas === []): ?>
-    <p class="texto-suave">Nenhuma pausa ativa.</p>
+    <p class="texto-suave"><?= $erroLista !== null ? 'Não foi possível confirmar as pausas agora.' : 'Nenhuma pausa ativa.' ?></p>
 <?php else: ?>
     <ul class="ifood-lista">
-        <?php foreach ($pausas as $pausa): $agora = in_array($pausa['id'], $ativas, true); ?>
+        <?php foreach ($pausas as $pausa): $agora = in_array($pausa['id'], $ativas, true); $fimPausa = IfoodLojaService::dataIfood($pausa['fim']); $encerrada = $fimPausa !== null && $fimPausa->getTimestamp() <= time(); ?>
             <li class="ifood-lista-item">
                 <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
                     <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?></small></span>
-                <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Valendo agora' : 'Agendada' ?></span>
+                <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Valendo agora' : ($encerrada ? 'Encerrada' : 'Agendada') ?></span>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/pausas/remover') ?>" data-pausa-form
                       data-confirm="A loja volta a abrir no iFood conforme o horário de funcionamento." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">

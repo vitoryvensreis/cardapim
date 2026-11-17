@@ -389,12 +389,18 @@ final class IntegracoesController extends BaseGerencia
     private function cardPausas(IfoodLojaService $servico, Resultado $res, array $valores): Response
     {
         $lista = $servico->pausasAgora();
+        $pendente = $res->ok && ($lista['erro'] !== null || !$servico->alteracaoConfirmada($lista['pausas']));
         $html = \Cardapim\Core\View::render('gerencia/integracoes/_ifood-pausas', [
             'pausas' => $lista['pausas'],
             'erroLista' => $lista['erro'],
             'eP' => $res->ok ? [] : $res->erros,
             'vP' => $valores,
-            'nota' => ['tipo' => $res->ok ? 'sucesso' : 'erro', 'mensagem' => $res->ok || $res->erros === [] ? $res->mensagem : 'Confira os campos destacados.'],
+            'nota' => [
+                'tipo' => $res->ok ? ($pendente ? 'pendente' : 'sucesso') : 'erro',
+                'mensagem' => $pendente
+                    ? $res->mensagem . ' Ainda não foi possível confirmar a alteração na consulta ao iFood.'
+                    : ($res->ok || $res->erros === [] ? $res->mensagem : 'Confira os campos destacados.'),
+            ],
             'base' => $this->url(),
             'csrf' => \Cardapim\Core\Session::tokenCsrf(),
         ], 'layouts/fragmento');
