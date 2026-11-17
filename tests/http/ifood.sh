@@ -95,12 +95,17 @@ contem "marca a loja ligada" "$tmp/pagina.html" 'Ligada a este restaurante'
 contem "razao social nos dados" "$tmp/pagina.html" 'Loja CI Ltda'
 contem "endereco nos dados" "$tmp/pagina.html" 'Rua CI, 10, Centro, Fortaleza - CE'
 contem "disponibilidade" "$tmp/pagina.html" 'Loja aberta no iFood'
+contem "fuso da loja no formulario" "$tmp/pagina.html" 'Brasília / Fortaleza'
+contem "motivo no limite Merchant" "$tmp/pagina.html" 'maxlength="255"'
+nao_contem "sem modo de inicio imediato" "$tmp/pagina.html" 'name="inicio_agora"'
 esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/minha-loja" | sed 's/302/403/')" "403"
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
 esperar "pausa sem motivo recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
 esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia' inicio="$fim" fim="$ini" | cut -d' ' -f1)" "422"
 esperar "pausa maior que 7 dias recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Prazo invalido' inicio="$ini" fim="$(date -d '+9 days' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "422"
+esperar "duracao minima 1 min" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Muito curta' inicio="$ini" fim="$ini" | cut -d' ' -f1)" "422"
 esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
+esperar "sobreposicao tratada no backend" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Sobreposta CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
 pausa="$(php -r 'if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
@@ -121,7 +126,7 @@ contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
 contem "aviso de pausa criada" "$tmp/js.json" 'recebeu a solicitação de pausa'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
 contem "horario da pausa identificado" "$tmp/js.json" 'Horário vigente'
-esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao=x inicio="$agora_local" fim="$depois_local")" "422"
+esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$agora_local" fim="$depois_local")" "422"
 contem "erro no campo dentro do card" "$tmp/js.json" 'erro-pausa-descricao'
 esperar "pausa pela tela sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'descricao=Teste' "$g/integracoes/ifood/pausas")" "419"
 pausa_js="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", $d["html"] ?? "", $m)) echo $m[1];' "$tmp/js.json")"

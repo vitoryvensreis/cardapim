@@ -314,7 +314,7 @@ final class IntegracoesController extends BaseGerencia
         $res = $servico->criarPausa($valores['descricao'], $valores['inicio'], $valores['fim']);
         BotaoLojaIfood::esquecer($this->restaurante['id']);
         if ($porJs) {
-            return $this->cardPausas($servico, $res, $res->ok ? IfoodLojaService::novaPausa() : $valores);
+            return $this->cardPausas($servico, $res, $res->ok ? IfoodLojaService::novaPausa($servico->fusoDaLoja()) : $valores);
         }
         if ($res->ok || $res->erros === []) {
             return $this->responder($res, $this->url('integracoes/ifood/minha-loja#pausas'));
@@ -340,7 +340,7 @@ final class IntegracoesController extends BaseGerencia
         $servico = $this->ifoodLojaServico();
         $res = $servico->removerPausa($this->post('pausa'));
         BotaoLojaIfood::esquecer($this->restaurante['id']);
-        return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa());
+        return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa($servico->fusoDaLoja()));
     }
 
     /** Horario no iFood: o do Perfil (padrao) ou um horario diferente so para o iFood. */
@@ -396,6 +396,7 @@ final class IntegracoesController extends BaseGerencia
             'erroLista' => $lista['erro'],
             'eP' => $res->ok ? [] : $res->erros,
             'vP' => $valores,
+            'fusoLoja' => $servico->fusoDaLoja(),
             'nota' => [
                 'tipo' => $res->ok ? ($pendente ? 'pendente' : 'sucesso') : 'erro',
                 'mensagem' => $pendente

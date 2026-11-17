@@ -6,6 +6,7 @@
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
+use Cardapim\Services\Ifood\FusoLojaIfood;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $quando = static function (string $iso): string {
@@ -17,7 +18,8 @@ $det = is_array($p['detalhes']) ? $p['detalhes'] : [];
 $end = is_array($det['address'] ?? null) ? $det['address'] : [];
 $eP = $erros['pausa'] ?? [];
 $eH = $erros['horarios'] ?? [];
-$vP = $valores['pausa'] ?? IfoodLojaService::novaPausa();
+$fusoLoja = $p['fuso'];
+$vP = $valores['pausa'] ?? IfoodLojaService::novaPausa($fusoLoja);
 $form = $valores['horarios'] ?? $p['sugestao'];
 $proprio = (bool) ($valores['horario_proprio'] ?? $p['horario_proprio']);
 $perfil = $p['perfil'];
