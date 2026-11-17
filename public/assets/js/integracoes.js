@@ -110,6 +110,30 @@
       const novo = temp.querySelector("[data-ifood-status]");
       if (novo) destino.replaceWith(novo);
     };
+    const atualizarDisponibilidade = (dados) => {
+      atualizarStatus(dados.html_status);
+      if (dados.situacao_botao && typeof dados.situacao_botao.estado === "string") {
+        document.dispatchEvent(new CustomEvent("ifood:loja-mudou", {
+          detail: { situacao: dados.situacao_botao },
+        }));
+      }
+    };
+    // O iFood pode atualizar a disponibilidade alguns segundos depois de
+    // confirmar a remocao. Revalidar sem bloquear a interface e sem repetir DELETE.
+    const reconferirDepois = async (id, acao, inicio, fim) => {
+      for (const espera of [8000, 15000, 30000]) {
+        await aguardar(espera);
+        if (document.hidden || !document.contains(pausas)) continue;
+        try {
+          const dados = await consultar(id, acao, inicio, fim);
+          if (!dados.lista_consultada || !dados.registro_confirmado) continue;
+          if (typeof dados.html === "string") pausas.innerHTML = dados.html;
+          atualizarDisponibilidade(dados);
+        } catch {
+          // A tela conserva o ultimo estado conhecido e a rotina continua ativa.
+        }
+      }
+    };
     const consultar = async (id, acao, inicio = "", fim = "") => {
       const url = new URL(urlEstado, window.location.href);
       url.searchParams.set("pausa", id);
@@ -183,14 +207,16 @@
             ultimo = dados;
             // Nao substituir a lista por [] quando o GET falhou.
             if (dados.lista_consultada && typeof dados.html === "string") pausas.innerHTML = dados.html;
-            atualizarStatus(dados.html_status);
+            atualizarDisponibilidade(dados);
 
             if (acao === "remover") {
               // A unica confirmacao de remocao e um GET /interruptions com
               // resposta valida em que o ID nao aparece (inclusive lista []).
               if (dados.lista_consultada && dados.registro_confirmado) {
-                document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
-                aviso("Remoção confirmada: a interrupção não aparece mais na lista do iFood. A abertura da loja depende das outras condições de operação.", true);
+                aviso(dados.situacao_consultada
+                  ? "Remoção confirmada. A disponibilidade e o botão da loja foram atualizados com a resposta do iFood."
+                  : "Remoção confirmada, mas o iFood não respondeu à consulta de disponibilidade. Acompanhe o status da loja.", true);
+                void reconferirDepois(id, acao, inicio, fim);
                 return;
               }
               acrescentarPendente(descricao, periodo,
@@ -199,7 +225,6 @@
               continue;
             }
 
-            document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
             if (!dados.registro_confirmado) {
               acrescentarPendente(descricao, periodo, "Aguardando registro no iFood", id);
               continue;
@@ -215,10 +240,12 @@
             // A pausa futura nao exige fechamento antes do inicio programado.
             if (!dados.vigente) {
               aviso("Pausa agendada e horários confirmados no iFood. A disponibilidade foi verificada; a loja não precisa fechar antes do início da pausa.", true);
+              void reconferirDepois(id, acao, inicio, fim);
               return;
             }
             if (dados.disponivel === false) {
               aviso("Pausa registrada com horários corretos e fechamento confirmado pelo iFood.", true);
+              void reconferirDepois(id, acao, inicio, fim);
               return;
             }
             acrescentarPendente(descricao, periodo, "Agendamento confirmado; aguardando fechamento operacional", id);
@@ -287,7 +314,8 @@
           mostrarCard();
           return;
         }
-        document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
+        // Nao atualizar o cabecalho com um snapshot antigo logo apos POST/DELETE.
+        // O GET de confirmacao devolvera o novo estado Merchant.
         const id = dados.id_pausa;
         if (typeof id === "string" && id !== "" && urlEstado) {
           const acao = dados.acao === "remover" ? "remover" : "criar";
