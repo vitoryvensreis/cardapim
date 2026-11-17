@@ -110,7 +110,6 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                 <p>A consulta automática ao iFood não rodou nos últimos minutos<?= $ultimaConsulta !== null ? ' (última às ' . $e(date('H:i', (int) strtotime((string) $integracao['verificado_em']))) . ')' : '' ?>. Use o Gestor de Pedidos do iFood enquanto isso e avise o suporte do <?= marca_html() ?>.</p></div></div>
         <?php endif; ?>
 
-        <?php if (is_array($painel ?? null)): ?>
         <section class="ifood-dashboard-section" id="secao-status" aria-labelledby="ifood-grupo-status">
             <header class="ifood-dashboard-heading">
                 <div><h2 id="ifood-grupo-status"><?= Icon::svg('activity', 'icon-sm') ?> Status da operação</h2><p>Acompanhe a loja e controle suas pausas.</p></div>
@@ -119,9 +118,17 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                     <div><small>Última consulta</small><strong><?= $ultimaConsulta === null ? '-' : ($ultimaConsulta < 60 ? 'Agora há pouco' : $e($data($integracao['verificado_em']))) ?></strong></div>
                 </div>
             </header>
-            <?php require __DIR__ . '/ifood-loja.php'; ?>
+            <?php if (is_array($painel ?? null)): ?>
+                <?php require __DIR__ . '/ifood-loja.php'; ?>
+            <?php else: ?>
+                <div class="bloco" role="status">
+                    <div class="notice notice-warning"><?= Icon::svg('circle-exclamation-point') ?><div>
+                        <strong>Não foi possível consultar a disponibilidade do iFood agora.</strong>
+                        <p>O histórico de pedidos continua disponível. Teste a conexão na seção Loja ou use o Portal do Parceiro para acompanhar o atendimento.</p>
+                    </div></div>
+                </div>
+            <?php endif; ?>
         </section>
-        <?php endif; ?>
 
         <section class="ifood-dashboard-section" id="secao-loja" aria-labelledby="ifood-grupo-loja">
             <header class="ifood-dashboard-heading">
