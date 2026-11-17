@@ -110,7 +110,7 @@ if ($alertaPedido !== null) {
                 <?php if ($botaoIfood !== null): ?>
                     <button class="btn btn-sm painel-ifood" type="button" hidden data-ifood-loja
                             data-situacao="<?= $e($botaoIfood['situacao']) ?>" data-abrir="<?= $e($botaoIfood['abrir']) ?>" data-csrf="<?= $e($csrf) ?>">
-                        <span class="painel-ifood-icones" aria-hidden="true"><?= Icon::svg('store', 'icon-sm ifood-ic-pausada') ?><?= Icon::svg('circle-check', 'icon-sm ifood-ic-aberta') ?><?= Icon::svg('clock', 'icon-sm ifood-ic-fechada') ?><?= Icon::svg('wifi-off', 'icon-sm ifood-ic-erro') ?><?= Icon::svg('loader-circle', 'icon-sm ifood-ic-carregando') ?></span>
+                        <span class="painel-ifood-icones" aria-hidden="true"><?= Icon::svg('store', 'icon-sm ifood-ic-pausada') ?><?= Icon::svg('circle-check', 'icon-sm ifood-ic-aberta') ?><?= Icon::svg('clock', 'icon-sm ifood-ic-fechada') ?><?= Icon::svg('circle-exclamation-point', 'icon-sm ifood-ic-divergente') ?><?= Icon::svg('wifi-off', 'icon-sm ifood-ic-erro') ?><?= Icon::svg('loader-circle', 'icon-sm ifood-ic-carregando') ?></span>
                         <span class="painel-ifood-marca">iFood</span><span class="painel-ifood-texto" data-ifood-loja-texto>Abrir loja</span>
                     </button>
                 <?php endif; ?>
