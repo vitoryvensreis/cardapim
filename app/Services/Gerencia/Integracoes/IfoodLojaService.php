@@ -244,6 +244,31 @@ final class IfoodLojaService extends BaseIntegracao
     }
 
     /**
+     * Apos confirmar a lista de interrupcoes, consulta o GET /status real
+     * e atualiza o snapshot MySQL usado pelo botao do cabecalho.
+     * A falha da disponibilidade nao desfaz uma remocao ja confirmada.
+     * @param list<array<string,mixed>> $pausas Validadas pelo GET /interruptions
+     * @return array{situacao:array, erro:?string}
+     */
+    public function atualizarDisponibilidadeConfirmada(array $pausas): array
+    {
+        try {
+            $conta = $this->conta();
+            if (!$conta->conectada()) {
+                return ['situacao' => [], 'erro' => 'A conexão com o iFood não está ativa.'];
+            }
+            $situacao = $this->api->situacaoLoja($conta->token(), (string) $conta->loja());
+            if ($situacao === []) {
+                return ['situacao' => [], 'erro' => 'O iFood não informou a disponibilidade da loja.'];
+            }
+            EstadoLoja::reconciliar($this->db, (int) $this->idRestaurante, $situacao, $pausas);
+            return ['situacao' => $situacao, 'erro' => null];
+        } catch (IntegracaoErro $erro) {
+            return ['situacao' => [], 'erro' => $erro->getMessage()];
+        }
+    }
+
+    /**
      * Confirma uma alteracao apenas quando o GET do iFood refletir o resultado.
      * Nao altera a lista exibida: serve somente para distinguir sucesso de pendencia visual.
      * @param list<array{id:string, descricao:string, inicio:string, fim:string}> $pausas
