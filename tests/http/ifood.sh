@@ -161,6 +161,7 @@ curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "loja aberta" "$tmp/sit.json" '"estado":"aberta"'
 esperar "pausa valendo agora" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa botao CI' inicio="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')" fim="$(TZ=America/Fortaleza date -d '+60 minutes' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
+echo "DIAG situacao apos POST: $(cat "$tmp/sit.json")"
 contem "gerencia ve a loja pausada" "$tmp/sit.json" '"estado":"pausada"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa ve a loja pausada" "$tmp/sit.json" '"pode_abrir":true'
@@ -173,11 +174,14 @@ curl -s -o /dev/null -H 'Content-Type: application/json' -X POST \
   --data '{"ativa":true}' "$fake/_teste/ifood-status-forcar-aberta"
 rodar
 curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao?novo=1"
+echo "DIAG Merchant direto: $(curl -s -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/merchants/$loja/status")"
+echo "DIAG situacao apos cron: $(cat "$tmp/sit.json")"
 contem "gerencia informa que o Merchant ainda esta aberto" "$tmp/sit.json" '"estado":"divergente"'
 contem "nao chama de loja fechada" "$tmp/sit.json" 'iFood: loja aberta'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao?novo=1"
 contem "caixa tambem detecta a divergencia" "$tmp/sit.json" '"estado":"divergente"'
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
+echo "DIAG divergencia HTML: $(grep -o '.\{0,90\}Pausa vigente.\{0,100\}' "$tmp/pagina.html" | head -n 3)"
 contem "aviso visivel na tela da loja" "$tmp/pagina.html" 'Pausa vigente, mas loja aberta no iFood.'
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
 contem "nao abre checkout local com pausa propria vigente" "$tmp/estado-publico.json" '"fechado_integracao":true'
