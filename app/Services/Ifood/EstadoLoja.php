@@ -30,12 +30,11 @@ final class EstadoLoja
         $pausa = is_array($dados['pausa_sincronizada'] ?? null) ? $dados['pausa_sincronizada'] : null;
         $remoto = is_array($dados['situacao_sincronizada'] ?? null) ? $dados['situacao_sincronizada'] : null;
         $agora = time();
-        // Pausa recém-enviada: protege a janela em que o iFood ainda não propagou o fechamento.
-        // Depois de 120s, a consulta periódica de status passa a ser a fonte para o fechamento remoto.
+        // Fechamento confirmado localmente só expira no fim da pausa ou após reabertura
+        // comprovada pela rotina. Falha na API nunca reabre a loja por timeout.
         $local = $pausa !== null
             && (int) ($pausa['inicio'] ?? 0) <= $agora
-            && (int) ($pausa['fim'] ?? 0) > $agora
-            && (int) ($pausa['criada_em'] ?? 0) + 120 > $agora;
+            && (int) ($pausa['fim'] ?? 0) > $agora;
         $externo = ($remoto['fechado'] ?? false) === true;
         return [
             'fechado' => $local || $externo,
@@ -100,6 +99,12 @@ final class EstadoLoja
             $motivo = 'Loja pausada no iFood.';
         }
         $atual = self::consultar($db, $idRestaurante);
+        // Fechamento removido diretamente no Portal do Parceiro: só descarta a proteção
+        // depois de o Merchant confirmar estado aberto (e dar tempo de propagar a criação).
+        $local = $atual['pausa'];
+        if ($local !== null && !$fechado && (int) ($local['criada_em'] ?? 0) + 120 <= $agora) {
+            self::removerPausa($db, $idRestaurante, (string) ($local['id'] ?? ''));
+        }
         self::escrever($db, $idRestaurante, 'situacao_sincronizada', [
             'fechado' => $fechado, 'pausada' => $pausada, 'motivo' => $fechado ? ($motivo ?: 'Loja indisponível no iFood.') : '',
             'atualizado_em' => $agora,
