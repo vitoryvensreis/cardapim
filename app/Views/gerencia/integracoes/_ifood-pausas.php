@@ -1,0 +1,73 @@
+<?php
+/**
+ * Conteudo do card "Pausas" da Loja no iFood. Usado na tela e devolvido pronto quando a pausa e criada
+ * ou removida sem recarregar a pagina (o aviso aparece aqui dentro do card).
+ * Espera: $pausas (lista do iFood), $erroLista (?string), $eP (erros do formulario), $vP (valores), $nota (?['tipo' => sucesso|erro, 'mensagem']),
+ *         $base, $csrf.
+ */
+use Cardapim\Core\Icon;
+use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
+
+$e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$quandoPausa = static function (string $iso): string {
+    try {
+        return (new DateTimeImmutable($iso))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('d/m/Y \à\s H:i');
+    } catch (Exception) {
+        return $iso;
+    }
+};
+$erroPausa = static fn (string $campo): string => isset($eP[$campo]) ? '<p class="field-msg ficha-erro" id="erro-pausa-' . $e($campo) . '">' . $e($eP[$campo]) . '</p>' : '';
+$ativas = array_column(IfoodLojaService::pausasAtivas($pausas), 'id');
+$geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' => $eP['_geral']] : $nota;
+?>
+<div class="bloco-cabecalho">
+    <h2 id="titulo-pausas"><?= Icon::svg('circle-pause') ?>Pausas</h2>
+    <p>Feche a loja no iFood por um tempo (ex.: falta de entregador, cozinha cheia). Ela volta sozinha no fim da pausa.</p>
+</div>
+<?php if ($geral !== null): ?>
+    <div class="notice <?= $geral['tipo'] === 'sucesso' ? 'notice-success' : 'notice-warning' ?> ifood-pausa-aviso" role="<?= $geral['tipo'] === 'sucesso' ? 'status' : 'alert' ?>" tabindex="-1" data-pausas-aviso>
+        <?= Icon::svg($geral['tipo'] === 'sucesso' ? 'circle-check' : 'circle-exclamation-point') ?><div><p><?= $e($geral['mensagem']) ?></p></div>
+    </div>
+<?php endif; ?>
+<?php if ($erroLista !== null): ?>
+    <div class="notice notice-warning"><?= Icon::svg('circle-exclamation-point') ?><div><p><?= $e($erroLista) ?></p></div></div>
+<?php endif; ?>
+<?php if ($pausas === []): ?>
+    <p class="texto-suave">Nenhuma pausa ativa.</p>
+<?php else: ?>
+    <ul class="ifood-lista">
+        <?php foreach ($pausas as $pausa): $agora = in_array($pausa['id'], $ativas, true); ?>
+            <li class="ifood-lista-item">
+                <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
+                    <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?></small></span>
+                <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Loja fechada agora' : 'Agendada' ?></span>
+                <form method="post" action="<?= $e($base . '/integracoes/ifood/pausas/remover') ?>" data-pausa-form
+                      data-confirm="A loja volta a abrir no iFood conforme o horário de funcionamento." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
+                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                    <input type="hidden" name="pausa" value="<?= $e($pausa['id']) ?>">
+                    <button class="btn btn-outline btn-sm" type="submit" data-submit-label="Removendo..."><?= Icon::svg('circle-play', 'icon-sm') ?><span>Remover pausa</span></button>
+                </form>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+<?php endif; ?>
+<form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-pausa-form>
+    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+    <h3>Nova pausa</h3>
+    <label class="campo-rotulo" for="pausa-descricao">Motivo</label>
+    <input class="campo-simples" id="pausa-descricao" name="descricao" maxlength="100" required value="<?= $e((string) $vP['descricao']) ?>" placeholder="Ex.: Cozinha cheia"<?= isset($eP['descricao']) ? ' aria-invalid="true" aria-describedby="erro-pausa-descricao"' : '' ?>>
+    <?= $erroPausa('descricao') ?>
+    <div class="ifood-datas">
+        <div>
+            <label class="campo-rotulo" for="pausa-inicio">Começa</label>
+            <input class="campo-simples" id="pausa-inicio" type="datetime-local" name="inicio" required value="<?= $e((string) $vP['inicio']) ?>"<?= isset($eP['inicio']) ? ' aria-invalid="true" aria-describedby="erro-pausa-inicio"' : '' ?>>
+            <?= $erroPausa('inicio') ?>
+        </div>
+        <div>
+            <label class="campo-rotulo" for="pausa-fim">Termina</label>
+            <input class="campo-simples" id="pausa-fim" type="datetime-local" name="fim" required value="<?= $e((string) $vP['fim']) ?>"<?= isset($eP['fim']) ? ' aria-invalid="true" aria-describedby="erro-pausa-fim"' : '' ?>>
+            <?= $erroPausa('fim') ?>
+        </div>
+    </div>
+    <div class="bloco-rodape"><button class="btn btn-primary" type="submit" data-submit-label="Criando..."><?= Icon::svg('circle-pause', 'icon-sm') ?><span>Criar pausa</span></button></div>
+</form>

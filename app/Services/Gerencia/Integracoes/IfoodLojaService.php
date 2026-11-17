@@ -25,6 +25,10 @@ final class IfoodLojaService extends BaseIntegracao
     public const NOMES_DIAS = ['MONDAY' => 'Segunda', 'TUESDAY' => 'Terça', 'WEDNESDAY' => 'Quarta', 'THURSDAY' => 'Quinta',
         'FRIDAY' => 'Sexta', 'SATURDAY' => 'Sábado', 'SUNDAY' => 'Domingo'];
 
+    /** Ultima pausa criada/removida aqui: o iFood pode levar alguns segundos para refletir na lista. */
+    private ?array $pausaCriada = null;
+    private ?string $pausaRemovida = null;
+
     public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly IfoodApi $api = new IfoodApi())
     {
         parent::__construct($db, $autor, $idRestaurante);
@@ -87,8 +91,10 @@ final class IfoodLojaService extends BaseIntegracao
         $fi = self::dataHora($fim);
         if ($ini === null) {
             $erros['inicio'] = 'Escolha quando a pausa começa.';
-        } elseif ($ini < new DateTimeImmutable('-5 minutes')) {
+        } elseif ($ini < new DateTimeImmutable('-60 minutes')) {
             $erros['inicio'] = 'A pausa não pode começar no passado.';
+        } elseif ($ini < new DateTimeImmutable()) {
+            $ini = new DateTimeImmutable(); // tela aberta ha alguns minutos: comeca agora
         }
         if ($fi === null) {
             $erros['fim'] = 'Escolha quando a pausa termina.';
@@ -101,10 +107,38 @@ final class IfoodLojaService extends BaseIntegracao
             return Resultado::falha('Confira os campos da pausa.', $erros);
         }
         return $this->executar(function (string $token, string $loja) use ($descricao, $ini, $fi): Resultado {
-            $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
+            $id = $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
+            $this->pausaCriada = ['id' => $id, 'descricao' => $descricao, 'inicio' => $ini->format(DATE_ATOM), 'fim' => $fi->format(DATE_ATOM)];
             $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s.', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i')));
-            return Resultado::sucesso('Pausa criada. A loja fica fechada no iFood de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . '.');
+            return Resultado::sucesso('Pausa criada. A loja fica fechada no iFood de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . ' e aparece na lista abaixo.');
         });
+    }
+
+    /** Valores iniciais do formulario de nova pausa: comeca agora e dura 1 hora. @return array{descricao:string, inicio:string, fim:string} */
+    public static function novaPausa(): array
+    {
+        return ['descricao' => '', 'inicio' => date('Y-m-d\TH:i'), 'fim' => date('Y-m-d\TH:i', time() + 3600)];
+    }
+
+    /**
+     * Pausas do iFood agora, ja com a que acabou de ser criada ou removida aqui (o iFood pode demorar a mostrar).
+     * @return array{pausas: list<array{id:string, descricao:string, inicio:string, fim:string}>, erro: ?string}
+     */
+    public function pausasAgora(): array
+    {
+        $conta = $this->conta();
+        try {
+            $lista = $conta->conectada() ? $this->api->pausas($conta->token(), (string) $conta->loja()) : [];
+        } catch (IntegracaoErro $erro) {
+            return ['pausas' => $this->pausaCriada !== null ? [$this->pausaCriada] : [], 'erro' => $erro->getMessage()];
+        }
+        if ($this->pausaCriada !== null && !in_array($this->pausaCriada['id'], array_column($lista, 'id'), true)) {
+            $lista[] = $this->pausaCriada;
+        }
+        if ($this->pausaRemovida !== null) {
+            $lista = array_values(array_filter($lista, fn (array $p): bool => $p['id'] !== $this->pausaRemovida));
+        }
+        return ['pausas' => $lista, 'erro' => null];
     }
 
     public function removerPausa(string $idPausa): Resultado
@@ -114,6 +148,7 @@ final class IfoodLojaService extends BaseIntegracao
         }
         return $this->executar(function (string $token, string $loja) use ($idPausa): Resultado {
             $this->api->removerPausa($token, $loja, $idPausa);
+            $this->pausaRemovida = $idPausa;
             $this->log('iFood: pausa removida', 'Pausa ' . $idPausa . ' removida.');
             return Resultado::sucesso('Pausa removida. A loja volta a seguir o horário de funcionamento no iFood.');
         });

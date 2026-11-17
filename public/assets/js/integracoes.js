@@ -18,6 +18,61 @@
     chave?.addEventListener("change", trocar);
   }
 
+  /* ---------- Pausas do iFood: criar e remover sem recarregar; o aviso aparece dentro do card ---------- */
+  const pausas = document.querySelector("[data-pausas]");
+  if (pausas) {
+    const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mostrarCard = () => {
+      pausas.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "start" });
+      pausas.querySelector("[data-pausas-aviso]")?.focus({ preventScroll: true });
+    };
+    const avisoErro = (mensagem) => {
+      pausas.querySelector("[data-pausas-aviso]")?.remove();
+      const aviso = document.createElement("div");
+      aviso.className = "notice notice-warning ifood-pausa-aviso";
+      aviso.setAttribute("role", "alert");
+      aviso.tabIndex = -1;
+      aviso.dataset.pausasAviso = "";
+      const texto = document.createElement("p");
+      texto.textContent = mensagem;
+      aviso.append(texto);
+      pausas.querySelector(".bloco-cabecalho")?.after(aviso);
+    };
+
+    pausas.addEventListener("submit", async (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !form.matches("[data-pausa-form]")) return;
+      // Remover pede confirmacao antes (confirmar.js); o envio volta aqui depois do "Remover".
+      if (form.dataset.confirm && form.dataset.confirmado !== "1") return;
+      event.preventDefault();
+      const botao = form.querySelector("[type=submit]");
+      if (!botao || botao.disabled) return;
+      const rotulo = botao.querySelector("span");
+      const original = rotulo ? rotulo.textContent : "";
+      botao.disabled = true;
+      botao.setAttribute("aria-busy", "true");
+      if (rotulo && botao.dataset.submitLabel) rotulo.textContent = botao.dataset.submitLabel;
+      try {
+        const resposta = await fetch(form.action, {
+          method: "POST",
+          body: new FormData(form),
+          credentials: "same-origin",
+          headers: { Accept: "application/json", "X-Requested-With": "fetch" },
+        });
+        const dados = await resposta.json().catch(() => ({}));
+        if (typeof dados.html !== "string") throw new Error(dados.mensagem || "");
+        pausas.innerHTML = dados.html;
+      } catch (erro) {
+        botao.disabled = false;
+        botao.removeAttribute("aria-busy");
+        if (rotulo) rotulo.textContent = original;
+        delete form.dataset.confirmado;
+        avisoErro(erro.message || "Não foi possível falar com o servidor. Confira a internet e tente de novo.");
+      }
+      mostrarCard();
+    });
+  }
+
   /* ---------- Copiar e mostrar ---------- */
   document.querySelectorAll("[data-copiar]").forEach((botao) => {
     botao.addEventListener("click", async () => {

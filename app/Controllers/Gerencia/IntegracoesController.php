@@ -298,26 +298,48 @@ final class IntegracoesController extends BaseGerencia
         return $this->telaLojaIfood([], []);
     }
 
+    /** Cria pausa. Pela tela (fetch) devolve o card de pausas pronto, com o aviso dentro dele; sem JS, volta para a pagina. */
     public function ifoodPausaCriar(string $slug): Response
     {
-        if ($r = $this->entrar($slug, true)) {
-            return $r;
+        $porJs = self::pedidoPorJs();
+        if ($r = $this->entrar($slug, !$porJs)) {
+            return $porJs ? BotaoLojaIfood::semSessao() : $r;
         }
-        $res = $this->ifoodLojaServico()->criarPausa($this->post('descricao'), $this->post('inicio'), $this->post('fim'));
+        if ($porJs && !\Cardapim\Core\Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return Response::json(['ok' => false, 'mensagem' => 'Sua sessão expirou. Recarregue a página.'], 419);
+        }
+        $valores = ['descricao' => $this->post('descricao'), 'inicio' => $this->post('inicio'), 'fim' => $this->post('fim')];
+        $servico = $this->ifoodLojaServico();
+        $res = $servico->criarPausa($valores['descricao'], $valores['inicio'], $valores['fim']);
         BotaoLojaIfood::esquecer($this->restaurante['id']);
+        if ($porJs) {
+            return $this->cardPausas($servico, $res, $res->ok ? IfoodLojaService::novaPausa() : $valores);
+        }
         if ($res->ok || $res->erros === []) {
             return $this->responder($res, $this->url('integracoes/ifood/minha-loja#pausas'));
         }
-        return $this->telaLojaIfood(['pausa' => $res->erros + ['_geral' => $res->mensagem]],
-            ['pausa' => ['descricao' => $this->post('descricao'), 'inicio' => $this->post('inicio'), 'fim' => $this->post('fim')]], 422);
+        return $this->telaLojaIfood(['pausa' => $res->erros + ['_geral' => $res->mensagem]], ['pausa' => $valores], 422);
     }
 
     public function ifoodPausaRemover(string $slug): Response
     {
-        return $this->acao($slug, function (): Resultado {
-            BotaoLojaIfood::esquecer($this->restaurante['id']);
-            return $this->ifoodLojaServico()->removerPausa($this->post('pausa'));
-        }, 'integracoes/ifood/minha-loja#pausas');
+        $porJs = self::pedidoPorJs();
+        if (!$porJs) {
+            return $this->acao($slug, function (): Resultado {
+                BotaoLojaIfood::esquecer($this->restaurante['id']);
+                return $this->ifoodLojaServico()->removerPausa($this->post('pausa'));
+            }, 'integracoes/ifood/minha-loja#pausas');
+        }
+        if ($this->entrar($slug)) {
+            return BotaoLojaIfood::semSessao();
+        }
+        if (!\Cardapim\Core\Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return Response::json(['ok' => false, 'mensagem' => 'Sua sessão expirou. Recarregue a página.'], 419);
+        }
+        $servico = $this->ifoodLojaServico();
+        $res = $servico->removerPausa($this->post('pausa'));
+        BotaoLojaIfood::esquecer($this->restaurante['id']);
+        return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa());
     }
 
     /** Horario no iFood: o do Perfil (padrao) ou um horario diferente so para o iFood. */
@@ -356,6 +378,28 @@ final class IntegracoesController extends BaseGerencia
     }
 
     /* ---------- Internos ---------- */
+
+    /** Envio feito pelo JS da tela (fetch com X-Requested-With: fetch). */
+    private static function pedidoPorJs(): bool
+    {
+        return ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'fetch';
+    }
+
+    /** JSON com o card de pausas atualizado e o aviso dentro dele. @param array<string,string> $valores */
+    private function cardPausas(IfoodLojaService $servico, Resultado $res, array $valores): Response
+    {
+        $lista = $servico->pausasAgora();
+        $html = \Cardapim\Core\View::render('gerencia/integracoes/_ifood-pausas', [
+            'pausas' => $lista['pausas'],
+            'erroLista' => $lista['erro'],
+            'eP' => $res->ok ? [] : $res->erros,
+            'vP' => $valores,
+            'nota' => ['tipo' => $res->ok ? 'sucesso' : 'erro', 'mensagem' => $res->ok || $res->erros === [] ? $res->mensagem : 'Confira os campos destacados.'],
+            'base' => $this->url(),
+            'csrf' => \Cardapim\Core\Session::tokenCsrf(),
+        ], 'layouts/fragmento');
+        return \Cardapim\Services\Auth\Guard::semCache(Response::json(['ok' => $res->ok, 'mensagem' => $res->mensagem, 'html' => $html], $res->ok ? 200 : 422));
+    }
 
     /** @param array<string,array<string,string>> $erros @param array<string,mixed> $valores */
     private function telaLojaIfood(array $erros, array $valores, int $status = 200): Response
