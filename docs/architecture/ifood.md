@@ -66,10 +66,9 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 - **Lojas vinculadas** (`GET /merchant/v1.0/merchants`), marcando a ligada ao restaurante.
 - **Dados da loja** (`GET /merchants/{id}`): nome, razão social, endereço, operações e canais, e a resposta completa do iFood.
 - **Disponibilidade agora** (`GET /merchants/{id}/status`) por operação, com as validações do iFood.
-- **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo obrigatório de até **255 caracteres**, duração de **1 minuto a 7 dias**, e início estritamente anterior ao fim. A documentação não estabelece **antecedência mínima** para começar: há opção **Começar imediatamente**, usando o instante real do servidor no momento do POST, ou agendar para o futuro. O iFood aplica a interrupção assincronamente; "imediata" não significa fechamento confirmado instantaneamente.
-  O formulário `datetime-local` usa o **fuso da loja**, não o do servidor: por padrão, obtido do endereço retornado pelo Merchant (ex.: Acre = `America/Rio_Branco`, UTC-05), com escolha explícita para casos especiais. A escolha é isolada por `restaurante_id` e `loja_id` no JSON `fuso_loja` da integração.
-  O backend converte o instante local para ISO 8601 UTC com `Z`, como nos exemplos do contrato e conforme a normalização observada no Postman. O iFood avisa que considera o fuso configurado para a loja e pode ignorar o offset informado; por isso, sempre verificar no `POST` e no `GET` os horários efetivamente aceitos. O GET da loja de teste observado devolve datas UTC sem sufixo: `IfoodApi::data()` as interpreta em UTC e a tela as apresenta no **fuso selecionado da loja**. O relógio do navegador ou servidor não determina os horários exibidos.
-  Antes do POST, consultamos as interrupções existentes e recusamos sobreposição, sem depender de o ambiente de homologação implementar `409 InterruptionOverlap`. `409` retornado pela API permanece tratado como falha. Não repetir POST automaticamente após timeout ou resposta inconclusiva, para evitar duplicações.
+- **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até **7 dias**, limite oficial).
+  Datas enviadas em UTC com "Z"; o iFood devolve em UTC, às vezes sem o fuso: `IfoodApi::data()` lê sem fuso como UTC
+  (também nas datas dos pedidos) e mostra no fuso do sistema.
   O POST envia somente `description`, `start` e `end` e exige **HTTP 201 com ID devolvido pelo iFood**;
   não se inventa ID localmente. O DELETE exige **HTTP 204**. Depois de cada comando a tela consulta
   novamente `GET /interruptions` e mostra apenas o que a API retornou, sem inserir ou ocultar pausas
