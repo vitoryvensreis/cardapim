@@ -26,6 +26,9 @@ final class IfoodLojaService extends BaseIntegracao
     public const NOMES_DIAS = ['MONDAY' => 'Segunda', 'TUESDAY' => 'Terça', 'WEDNESDAY' => 'Quarta', 'THURSDAY' => 'Quinta',
         'FRIDAY' => 'Sexta', 'SATURDAY' => 'Sábado', 'SUNDAY' => 'Domingo'];
 
+    private ?string $ultimaCriadaId = null;
+    private ?string $ultimaRemovidaId = null;
+
     public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly IfoodApi $api = new IfoodApi())
     {
         parent::__construct($db, $autor, $idRestaurante);
@@ -105,6 +108,7 @@ final class IfoodLojaService extends BaseIntegracao
         }
         return $this->executar(function (string $token, string $loja) use ($descricao, $ini, $fi): Resultado {
             $id = $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
+            $this->ultimaCriadaId = $id;
             EstadoLoja::criarPausa($this->db, (int) $this->idRestaurante, $id, $ini, $fi);
             $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s.', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i')));
             return Resultado::sucesso('O iFood recebeu a solicitação de pausa de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . '. A disponibilidade foi protegida no Deliveryzim. Aguarde a confirmação na lista do iFood e atualize a página em alguns segundos.');
@@ -133,6 +137,23 @@ final class IfoodLojaService extends BaseIntegracao
         return ['pausas' => $lista, 'erro' => null];
     }
 
+    /**
+     * Confirma uma alteracao apenas quando o GET do iFood refletir o resultado.
+     * Nao altera a lista exibida: serve somente para distinguir sucesso de pendencia visual.
+     * @param list<array{id:string, descricao:string, inicio:string, fim:string}> $pausas
+     */
+    public function alteracaoConfirmada(array $pausas): bool
+    {
+        $ids = array_column($pausas, 'id');
+        if ($this->ultimaCriadaId !== null) {
+            return in_array($this->ultimaCriadaId, $ids, true);
+        }
+        if ($this->ultimaRemovidaId !== null) {
+            return !in_array($this->ultimaRemovidaId, $ids, true);
+        }
+        return true;
+    }
+
     public function removerPausa(string $idPausa): Resultado
     {
         if (preg_match('/\A[A-Za-z0-9-]{1,64}\z/', $idPausa) !== 1) {
@@ -140,6 +161,7 @@ final class IfoodLojaService extends BaseIntegracao
         }
         return $this->executar(function (string $token, string $loja) use ($idPausa): Resultado {
             $this->api->removerPausa($token, $loja, $idPausa);
+            $this->ultimaRemovidaId = $idPausa;
             EstadoLoja::removerPausa($this->db, (int) $this->idRestaurante, $idPausa);
             $this->log('iFood: pausa removida', 'Pausa ' . $idPausa . ' removida.');
             return Resultado::sucesso('O iFood recebeu a solicitação de remoção. Aguarde a confirmação na lista e no estado da loja; a reabertura depende do horário e das demais restrições.');
