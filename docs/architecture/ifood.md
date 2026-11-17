@@ -36,6 +36,29 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
   coleta, pagamento ("Pago pelo app do iFood", "Cobrar na entrega: Dinheiro, troco para R$ 100,00", "O cliente paga ao
   entregador do iFood") e cancelamento com motivo do iFood.
 
+## Cardápio publicado pelo sistema (módulo Catalog)
+
+`Gerência > Integrações > iFood > Publicar cardápio no iFood` (`/integracoes/ifood/publicar`). O Deliveryzim é a fonte:
+
+- **Publicar** (produtos marcados): cria a categoria no iFood na primeira vez (`POST /catalog/v2.0/merchants/{id}/catalogs/{catalogo}/categories`;
+  produto sem categoria vai para "Outros"), envia as fotos (`POST .../image/upload`, JPG gerado da foto daqui) e o item completo
+  (`PUT .../items`: item, produto, grupos de complementos com mínimo/máximo e complementos com foto e preço). Ids do iFood (UUID)
+  criados aqui e guardados antes do envio em `ifood_catalogo_vinculos` (nunca duplica).
+- **Depois de publicado** (rotina `bin/ifood.php` a cada minuto ou botão "Enviar mudanças agora"):
+  preço do item só por `PATCH /items/price`; preço do complemento por `PATCH /options/price`; pausa do complemento (manual ou sem
+  insumo) por `PATCH /options/status`; nome, descrição, foto e grupos pelo cadastro do item (`PUT /items`, com o preço do último
+  envio, seguido do PATCH do preço novo). Pausa do item segue o estoque (`PATCH /items/status`, `IfoodCatalogo`).
+- O item publicado entra em `ifood_itens` ligado ao produto: pedido do iFood baixa o estoque e a disponibilidade segue o estoque.
+- Falha fica na tela com a resposta do iFood e é tentada de novo com espera crescente (1, 2, 4... até 60 min).
+- Produto por quilo/litro não é publicado por aqui (vende pelo Portal do Parceiro).
+- Pendência: complementos que chegam nos pedidos do iFood ainda entram na observação do item (não baixam o estoque do complemento).
+
+| Método | Rota | O que faz |
+| --- | --- | --- |
+| GET | `/{slug}/gerencia/integracoes/ifood/publicar` | Produtos por categoria com a situação no iFood |
+| POST | `/{slug}/gerencia/integracoes/ifood/publicar` | Publica `produtos[]` (até 50) |
+| POST | `/{slug}/gerencia/integracoes/ifood/publicar/sincronizar` | Envia agora as mudanças dos publicados |
+
 ## Loja no iFood (módulo Merchant)
 
 `Gerência > Integrações > iFood > Loja no iFood` (`/integracoes/ifood/minha-loja`), lido do iFood na hora (nada guardado aqui):

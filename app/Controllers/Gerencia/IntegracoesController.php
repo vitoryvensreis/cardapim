@@ -256,6 +256,37 @@ final class IntegracoesController extends BaseGerencia
         return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->sincronizarAgora(), 'integracoes/ifood/cardapio');
     }
 
+    /* ---------- Cardapio publicado no iFood (Catalog) ---------- */
+
+    public function ifoodPublicar(string $slug): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
+        if (!$conta->conectada()) {
+            return $this->voltar($this->url('integracoes/ifood'), 'erro', 'Conecte o iFood primeiro.');
+        }
+        $pronto = \Cardapim\Services\Ifood\IfoodPublicacao::disponivel($this->db);
+        return $this->tela('gerencia/integracoes/ifood-publicar', 'integracoes', 'Publicar no iFood', [
+            'pronto' => $pronto,
+            'categorias' => $pronto ? (new \Cardapim\Services\Ifood\IfoodPublicacao($this->db, (int) $this->restaurante['id']))->painel() : [],
+            'pageStyles' => ['css/ifood.css'],
+            'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
+        ]);
+    }
+
+    public function ifoodPublicarEnviar(string $slug): Response
+    {
+        $ids = is_array($_POST['produtos'] ?? null) ? array_values($_POST['produtos']) : [];
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->publicarCardapio($ids), 'integracoes/ifood/publicar');
+    }
+
+    public function ifoodPublicarSincronizar(string $slug): Response
+    {
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->sincronizarPublicacao(), 'integracoes/ifood/publicar');
+    }
+
     /* ---------- Loja no iFood (Merchant): dados, pausas e horarios ---------- */
 
     public function ifoodMinhaLoja(string $slug): Response

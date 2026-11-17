@@ -145,7 +145,7 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
         <section class="bloco" aria-labelledby="titulo-cardapio-ifood">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-cardapio-ifood"><?= Icon::svg('list-checks') ?>Cardápio e estoque</h2>
-                <p>Ligue cada item do iFood a um produto daqui. A venda no iFood baixa o estoque, e o produto que acabar ou for pausado aqui fica indisponível no iFood sozinho.</p>
+                <p>Publique o cardápio daqui no iFood (com fotos e complementos) ou ligue os itens que já existem no iFood aos produtos daqui. A venda no iFood baixa o estoque, e o produto que acabar ou for pausado aqui fica indisponível no iFood sozinho.</p>
             </div>
             <div class="resumo-assinatura">
                 <div class="resumo-linha"><span>Itens do iFood ligados a produtos</span><strong><?= (int) $resumoCardapio['ligados'] ?> de <?= (int) $resumoCardapio['total'] ?></strong></div>
@@ -154,7 +154,10 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             <?php if ($resumoCardapio['total'] > $resumoCardapio['ligados']): ?>
                 <p class="texto-suave"><?= $resumoCardapio['total'] === 0 ? 'Busque o cardápio do iFood para começar.' : 'Itens sem ligação entram no pedido, mas não baixam o estoque.' ?></p>
             <?php endif; ?>
-            <div class="bloco-rodape"><a class="btn btn-primary" href="<?= $e($base . '/integracoes/ifood/cardapio') ?>"><?= Icon::svg('link', 'icon-sm') ?>Ligar itens do cardápio</a></div>
+            <div class="bloco-rodape">
+                <a class="btn btn-primary" href="<?= $e($base . '/integracoes/ifood/publicar') ?>"><?= Icon::svg('send', 'icon-sm') ?>Publicar cardápio no iFood</a>
+                <a class="btn btn-outline" href="<?= $e($base . '/integracoes/ifood/cardapio') ?>"><?= Icon::svg('link', 'icon-sm') ?>Ligar itens do cardápio</a>
+            </div>
         </section>
 
         <section class="bloco" aria-labelledby="titulo-opcoes-ifood">

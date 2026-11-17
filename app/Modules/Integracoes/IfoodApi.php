@@ -324,6 +324,67 @@ class IfoodApi
         $this->exigirOk($r, 'mudar a disponibilidade do item');
     }
 
+    /* ---------- Cardapio publicado pelo sistema (categoria, item, grupos, complementos, foto, preco e status) ---------- */
+
+    /** Cria a categoria no cardapio do iFood. @return string id da categoria no iFood */
+    public function criarCategoria(string $token, string $idLoja, string $idCatalogo, string $nome, string $codigo, int $ordem): string
+    {
+        $r = $this->requisicao('POST', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/catalogs/' . self::id($idCatalogo) . '/categories', $token,
+            ['name' => $nome, 'status' => 'AVAILABLE', 'template' => 'DEFAULT', 'externalCode' => $codigo, 'index' => $ordem]);
+        $d = $this->exigirOk($r, 'criar a categoria');
+        $id = (string) ($d['id'] ?? $d['categoryId'] ?? '');
+        if ($id === '') {
+            throw new IntegracaoErro('O iFood não devolveu o código da categoria criada.');
+        }
+        return mb_substr($id, 0, 64);
+    }
+
+    /** Envia uma foto (JPG) para o iFood. @return string caminho da imagem no iFood (usado em imagePath) */
+    public function enviarImagem(string $token, string $idLoja, string $jpeg): string
+    {
+        $r = $this->requisicao('POST', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/image/upload', $token,
+            ['image' => 'data:image/jpeg;base64,' . base64_encode($jpeg)]);
+        $d = $this->exigirOk($r, 'enviar a foto');
+        $caminho = (string) ($d['path'] ?? $d['imagePath'] ?? '');
+        if ($caminho === '') {
+            throw new IntegracaoErro('O iFood não devolveu o endereço da foto enviada.');
+        }
+        return mb_substr($caminho, 0, 500);
+    }
+
+    /**
+     * Cria ou atualiza um item completo (item, produtos, grupos de complementos e complementos) no iFood.
+     * @param array{item:array<string,mixed>, products:list<array<string,mixed>>, optionGroups:list<array<string,mixed>>, options:list<array<string,mixed>>} $cadastro
+     */
+    public function salvarItem(string $token, string $idLoja, array $cadastro): void
+    {
+        $this->exigirOk($this->requisicao('PUT', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/items', $token, $cadastro), 'salvar o item no cardápio');
+    }
+
+    /** Preco do item (PATCH /items/price). */
+    public function precoItem(string $token, string $idLoja, string $idItem, float $valor): void
+    {
+        $r = $this->requisicao('PATCH', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/items/price', $token,
+            ['itemId' => $idItem, 'price' => ['value' => round($valor, 2), 'originalValue' => round($valor, 2)]]);
+        $this->exigirOk($r, 'mudar o preço do item');
+    }
+
+    /** Preco do complemento (PATCH /options/price). */
+    public function precoComplemento(string $token, string $idLoja, string $idOpcao, float $valor): void
+    {
+        $r = $this->requisicao('PATCH', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/options/price', $token,
+            ['optionId' => $idOpcao, 'price' => ['value' => round($valor, 2), 'originalValue' => round($valor, 2)]]);
+        $this->exigirOk($r, 'mudar o preço do complemento');
+    }
+
+    /** Pausa ou libera o complemento (PATCH /options/status). */
+    public function statusComplemento(string $token, string $idLoja, string $idOpcao, bool $disponivel): void
+    {
+        $r = $this->requisicao('PATCH', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/options/status', $token,
+            ['optionId' => $idOpcao, 'status' => $disponivel ? 'AVAILABLE' : 'UNAVAILABLE']);
+        $this->exigirOk($r, 'mudar a disponibilidade do complemento');
+    }
+
     /** Quantidade em estoque do produto no iFood (no zero o iFood para de vender sozinho). */
     public function estoqueProduto(string $token, string $idLoja, string $idProduto, int $quantidade): void
     {

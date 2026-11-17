@@ -32,9 +32,14 @@ final class RotinaIfood
             $resumo['avisos'] = $eventos->receber($token);
             $resumo['tratados'] = $eventos->tratarPendentes($token);
             $resumo['acoes'] = (new IfoodAcoes())->enviar($this->db, $conta);
+            // Cardapio publicado por aqui: nome, foto e grupos pelo cadastro; preco e pausa de complemento por PATCH.
+            if (IfoodPublicacao::disponivel($this->db)) {
+                $pub = (new IfoodPublicacao($this->db, $idRestaurante))->sincronizar($conta);
+                $resumo['itens'] += $pub['enviados'];
+            }
             if ($conta->opcao('sincronizar_estoque')) {
                 $sinc = (new IfoodCatalogo($this->db, $idRestaurante))->sincronizar($conta);
-                $resumo['itens'] = $sinc['enviados'];
+                $resumo['itens'] += $sinc['enviados'];
             }
             $conta->registrarConsulta();
         } catch (IntegracaoErro $erro) {

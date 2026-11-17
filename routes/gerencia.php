@@ -165,6 +165,10 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/ifood/cardapio/buscar', [IntegracoesController::class, 'ifoodCardapioBuscar']);
     $router->post($g . '/integracoes/ifood/cardapio/ligar', [IntegracoesController::class, 'ifoodCardapioLigar']);
     $router->post($g . '/integracoes/ifood/cardapio/sincronizar', [IntegracoesController::class, 'ifoodSincronizar']);
+    // Cardapio publicado no iFood (Catalog): categoria, item, foto, complementos; preco e pausa por PATCH.
+    $router->get($g . '/integracoes/ifood/publicar', [IntegracoesController::class, 'ifoodPublicar']);
+    $router->post($g . '/integracoes/ifood/publicar', [IntegracoesController::class, 'ifoodPublicarEnviar']);
+    $router->post($g . '/integracoes/ifood/publicar/sincronizar', [IntegracoesController::class, 'ifoodPublicarSincronizar']);
     // Loja no iFood (Merchant): dados, situacao, pausas e horarios.
     $router->get($g . '/integracoes/ifood/minha-loja', [IntegracoesController::class, 'ifoodMinhaLoja']);
     $router->post($g . '/integracoes/ifood/pausas', [IntegracoesController::class, 'ifoodPausaCriar']);

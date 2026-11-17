@@ -247,6 +247,53 @@ contem "pedidos do iFood hoje" "$tmp/pagina.html" 'Pedidos do iFood hoje'
 nao_contem "rotina rodando (sem alerta de parada)" "$tmp/pagina.html" 'não estão chegando agora'
 contem "itens ligados no resumo" "$tmp/pagina.html" '2 de'
 
+echo "Publicar o cardapio no iFood (Catalog)"
+r5="$(printf '%05d' $((RANDOM % 100000)))"
+php -r '$i = imagecreatetruecolor(400, 320); imagefill($i, 0, 0, imagecolorallocate($i, 200, 60, 40)); imagepng($i, $argv[1]);' "$tmp/foto.png"
+multipart() { # jar url pagina-do-token [-F campo=valor ...] -> "codigo location"
+  local jar="$1" url="$2" pag="$3" t
+  shift 3
+  t="$(token "$jar" "$pag")"
+  curl -s -o "$tmp/resp.html" -c "$jar" -b "$jar" -w '%{http_code} %{redirect_url}' -F "_csrf=$t" "$@" "$url"
+}
+grupo_nome="CI Adicionais iFood $r5"
+esperar "grupo de complementos com fotos" "$(multipart "$gj" "$g/estoque/complementos" "$g/estoque/complementos/novo" -F "nome=$grupo_nome" -F minimo=0 -F maximo=2 \
+  -F 'opcoes[0][nome]=Bacon iFood' -F 'opcoes[0][preco]=4,50' -F 'opcoes[0][disponivel]=1' -F "opcao_foto[0]=@$tmp/foto.png;type=image/png" \
+  -F 'opcoes[1][nome]=Cheddar iFood' -F 'opcoes[1][preco]=3,00' -F 'opcoes[1][disponivel]=1' -F "opcao_foto[1]=@$tmp/foto.png;type=image/png" | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/estoque/complementos" >/dev/null
+grupo_ifood="$(php -r 'if (preg_match("~" . preg_quote($argv[2], "~") . ".*?estoque/complementos/(\d+)\"~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$grupo_nome")"
+bacon="$(php -r 'if (preg_match("~<strong>Bacon iFood</strong>.*?opcoes/(\d+)/pausar~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
+contem "foto do complemento salva" "$tmp/pagina.html" '/midia/cardapio/'
+prod_nome="Produto Teste $r5"
+esperar "produto com foto, categoria nova e complementos" "$(multipart "$gj" "$g/estoque/produtos" "$g/estoque/produtos/novo" -F "nome=$prod_nome" -F unidade_venda=un -F 'preco=29,90' \
+  -F controle=livre -F disponivel=1 -F categoria=nova -F "nova_categoria=Teste Homologacao $r5" -F "grupos[]=$grupo_ifood" -F "foto=@$tmp/foto.png;type=image/png" | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood/publicar" >/dev/null
+contem "tela de publicar" "$tmp/pagina.html" 'Publicar cardápio no iFood'
+contem "produto listado para publicar" "$tmp/pagina.html" "$prod_nome"
+pub="$(php -r 'if (preg_match("~id=\"pub-(\d+)\"[^>]*>(?:(?!</li>).)*?" . preg_quote($argv[2], "~") . "~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$prod_nome")"
+[[ -n "$pub" ]] && ok "produto encontrado ($pub)" || falha "produto nao encontrado na tela de publicar"
+esperar "publicar sem marcar recusado" "$(enviar "$gj" "$g/integracoes/ifood/publicar" "$g/integracoes/ifood/publicar" | cut -d' ' -f1)" "303"
+esperar "aviso de marcar" "$(aviso "$gj" "$g/integracoes/ifood/publicar")" 'Marque os produtos que vão para o iFood.'
+enviar "$gj" "$g/integracoes/ifood/publicar" "$g/integracoes/ifood/publicar" "produtos[]=$pub" >/dev/null
+esperar "publicado" "$(aviso "$gj" "$g/integracoes/ifood/publicar")" 'Produto publicado no iFood. Confira no Portal do Parceiro.'
+contem "situacao no iFood" "$tmp/aviso.html" 'No iFood'
+no_registro "categoria criada no iFood" "categoria Teste Homologacao $r5"
+no_registro "foto enviada ao iFood" "foto"
+no_registro "item com grupo, 2 complementos e foto" "item $prod_nome preco 29.9 grupos 1 opcoes 2 foto"
+enviar "$gj" "$g/integracoes/ifood/publicar/sincronizar" "$g/integracoes/ifood/publicar" >/dev/null
+esperar "nada mudou" "$(aviso "$gj" "$g/integracoes/ifood/publicar")" 'Tudo igual: o cardápio do iFood já está atualizado.'
+pagina "$gj" "$g/estoque/produtos/$pub" >/dev/null
+esperar "muda nome e preco do item" "$(multipart "$gj" "$g/estoque/produtos/$pub" "$g/estoque/produtos/$pub" -F "nome=$prod_nome Novo" -F unidade_venda=un -F 'preco=34,90' \
+  -F controle=livre -F disponivel=1 -F "grupos[]=$grupo_ifood" -F "foto=@$tmp/foto.png;type=image/png" \
+  -F "categoria=$(php -r 'if (preg_match("~<option value=\"(\d+)\" selected~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")" | cut -d' ' -f1)" "303"
+esperar "pausa o complemento" "$(enviar "$gj" "$g/estoque/complementos/opcoes/$bacon/pausar" "$g/estoque/complementos" | cut -d' ' -f1)" "303"
+enviar "$gj" "$g/integracoes/ifood/publicar/sincronizar" "$g/integracoes/ifood/publicar" >/dev/null
+aviso "$gj" "$g/integracoes/ifood/publicar" >/dev/null
+contem "mudancas enviadas" "$tmp/aviso.html" 'Mudanças enviadas ao iFood'
+no_registro "nome novo pelo cadastro, com o preco antigo" "item $prod_nome Novo preco 29.9"
+no_registro "preco do item por PATCH" "item-price .* 34.9"
+no_registro "complemento pausado por PATCH" "opcao-status .* UNAVAILABLE"
+
 enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/desconectar" >/dev/null
 if (( falhas > 0 )); then
   echo "FALHOU: $falhas verificacao(oes) do iFood."
