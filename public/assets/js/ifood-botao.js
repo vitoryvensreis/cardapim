@@ -101,12 +101,16 @@
     consultar(true);
   });
 
-  // Pausa criada ou removida na tela Loja no iFood: o botao muda na hora e confere de novo em alguns
-  // segundos (o iFood pode demorar a refletir a mudanca).
+  // Usa o estado validado pelo mesmo GET Merchant que atualiza "Disponibilidade agora".
+  // O refresh posterior cobre a propagacao assincrona e os eventos do cron.
   let conferir = null;
-  document.addEventListener("ifood:loja-mudou", () => {
-    botao.dataset.estado = "carregando";
-    consultar(true);
+  document.addEventListener("ifood:loja-mudou", (event) => {
+    if (event.detail?.situacao && typeof event.detail.situacao.estado === "string") {
+      mostrar(event.detail.situacao);
+    } else {
+      botao.dataset.estado = "carregando";
+      consultar(true);
+    }
     clearTimeout(conferir);
     conferir = setTimeout(() => consultar(true), 8000);
     agendar();
