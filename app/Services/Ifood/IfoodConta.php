@@ -30,6 +30,7 @@ final class IfoodConta
     public function __construct(private readonly PDO $db, public readonly int $idRestaurante, private readonly IfoodApi $api = new IfoodApi())
     {
         $this->integracoes = new IntegracaoRepository($db);
+        $this->api->identificarRestaurante($idRestaurante);
     }
 
     /** @return list<int> restaurantes com o iFood conectado e loja escolhida */

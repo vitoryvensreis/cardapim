@@ -113,6 +113,22 @@ $campoErro = static fn (array $lista, string $campo): string => isset($lista[$ca
         <?php $pausas = $p['pausas']; $erroLista = $p['erros']['pausas'] ?? null; $nota = null; require __DIR__ . '/_ifood-pausas.php'; ?>
     </section>
 
+    <section class="bloco" aria-labelledby="titulo-diagnostico-merchant">
+        <div class="bloco-cabecalho">
+            <h2 id="titulo-diagnostico-merchant"><?= Icon::svg('activity') ?>Diagnóstico da comunicação com o iFood</h2>
+            <p>Respostas reais da API Merchant para pausas, disponibilidade e horários. Não inclui tokens ou senhas. Somente os dados desta loja.</p>
+        </div>
+        <?php if ($diagnosticoMerchant === []): ?>
+            <p class="texto-suave">Ainda não há registros. Crie ou remova uma pausa e clique em Atualizar no topo para ver as respostas.</p>
+        <?php else: ?>
+            <p class="texto-suave">Últimas <?= count($diagnosticoMerchant) ?> chamadas, da mais recente para a mais antiga. Atualize a página para ver novas consultas.</p>
+            <details class="manual">
+                <summary>Ver respostas e códigos HTTP do iFood</summary>
+                <pre class="ifood-json"><?= $e((string) json_encode($diagnosticoMerchant, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE)) ?></pre>
+            </details>
+        <?php endif; ?>
+    </section>
+
     <section class="bloco" id="horarios" aria-labelledby="titulo-horarios">
         <div class="bloco-cabecalho">
             <h2 id="titulo-horarios"><?= Icon::svg('clock') ?>Horário de funcionamento no iFood</h2>

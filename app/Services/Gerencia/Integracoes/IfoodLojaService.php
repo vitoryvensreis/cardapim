@@ -32,6 +32,9 @@ final class IfoodLojaService extends BaseIntegracao
     public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly IfoodApi $api = new IfoodApi())
     {
         parent::__construct($db, $autor, $idRestaurante);
+        if ($idRestaurante !== null) {
+            $this->api->identificarRestaurante($idRestaurante);
+        }
     }
 
     /**

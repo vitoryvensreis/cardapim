@@ -19,6 +19,7 @@ use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Ifood\BotaoLojaIfood;
 use Cardapim\Services\Ifood\IfoodCatalogo;
 use Cardapim\Services\Ifood\IfoodConta;
+use Cardapim\Services\Ifood\IfoodDiagnostico;
 use Cardapim\Shared\Seguranca\Cripto;
 
 /** Aba Integracoes: iFood, WhatsApp (WPPConnect) e Asaas. Rotas em /{slug}/gerencia/integracoes/... */
@@ -416,6 +417,7 @@ final class IntegracoesController extends BaseGerencia
         }
         return $this->tela('gerencia/integracoes/ifood-loja', 'integracoes', 'Loja no iFood', [
             'painel' => $painel,
+            'diagnosticoMerchant' => IfoodDiagnostico::recentes((int) $this->restaurante['id'], 30),
             'erros' => $erros,
             'valores' => $valores,
             'pageStyles' => ['css/ifood.css'],
