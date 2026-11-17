@@ -26,10 +26,6 @@ final class IfoodLojaService extends BaseIntegracao
     public const NOMES_DIAS = ['MONDAY' => 'Segunda', 'TUESDAY' => 'Terça', 'WEDNESDAY' => 'Quarta', 'THURSDAY' => 'Quinta',
         'FRIDAY' => 'Sexta', 'SATURDAY' => 'Sábado', 'SUNDAY' => 'Domingo'];
 
-    /** Ultima pausa criada/removida aqui: o iFood pode levar alguns segundos para refletir na lista. */
-    private ?array $pausaCriada = null;
-    private ?string $pausaRemovida = null;
-
     public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly IfoodApi $api = new IfoodApi())
     {
         parent::__construct($db, $autor, $idRestaurante);
@@ -109,10 +105,9 @@ final class IfoodLojaService extends BaseIntegracao
         }
         return $this->executar(function (string $token, string $loja) use ($descricao, $ini, $fi): Resultado {
             $id = $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
-            $this->pausaCriada = ['id' => $id, 'descricao' => $descricao, 'inicio' => self::utc($ini), 'fim' => self::utc($fi)];
             EstadoLoja::criarPausa($this->db, (int) $this->idRestaurante, $id, $ini, $fi);
             $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s.', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i')));
-            return Resultado::sucesso('Pausa criada no iFood; disponibilidade atualizada no Deliveryzim. A confirmação final pode levar alguns segundos: de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . ' e aparece na lista abaixo.');
+            return Resultado::sucesso('O iFood recebeu a solicitação de pausa de ' . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i') . '. A disponibilidade foi protegida no Deliveryzim. Aguarde a confirmação na lista do iFood e atualize a página em alguns segundos.');
         });
     }
 
@@ -123,7 +118,8 @@ final class IfoodLojaService extends BaseIntegracao
     }
 
     /**
-     * Pausas do iFood agora, ja com a que acabou de ser criada ou removida aqui (o iFood pode demorar a mostrar).
+     * Consulta apenas as pausas devolvidas pelo iFood: jamais adicionar/remover
+     * linhas artificialmente antes da confirmação externa.
      * @return array{pausas: list<array{id:string, descricao:string, inicio:string, fim:string}>, erro: ?string}
      */
     public function pausasAgora(): array
@@ -132,13 +128,7 @@ final class IfoodLojaService extends BaseIntegracao
         try {
             $lista = $conta->conectada() ? $this->api->pausas($conta->token(), (string) $conta->loja()) : [];
         } catch (IntegracaoErro $erro) {
-            return ['pausas' => $this->pausaCriada !== null ? [$this->pausaCriada] : [], 'erro' => $erro->getMessage()];
-        }
-        if ($this->pausaCriada !== null && !in_array($this->pausaCriada['id'], array_column($lista, 'id'), true)) {
-            $lista[] = $this->pausaCriada;
-        }
-        if ($this->pausaRemovida !== null) {
-            $lista = array_values(array_filter($lista, fn (array $p): bool => $p['id'] !== $this->pausaRemovida));
+            return ['pausas' => [], 'erro' => $erro->getMessage()];
         }
         return ['pausas' => $lista, 'erro' => null];
     }
@@ -150,10 +140,9 @@ final class IfoodLojaService extends BaseIntegracao
         }
         return $this->executar(function (string $token, string $loja) use ($idPausa): Resultado {
             $this->api->removerPausa($token, $loja, $idPausa);
-            $this->pausaRemovida = $idPausa;
             EstadoLoja::removerPausa($this->db, (int) $this->idRestaurante, $idPausa);
             $this->log('iFood: pausa removida', 'Pausa ' . $idPausa . ' removida.');
-            return Resultado::sucesso('Pausa removida. A loja volta a seguir o horário de funcionamento no iFood.');
+            return Resultado::sucesso('O iFood recebeu a solicitação de remoção. Aguarde a confirmação na lista e no estado da loja; a reabertura depende do horário e das demais restrições.');
         });
     }
 
