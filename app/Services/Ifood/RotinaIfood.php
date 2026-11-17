@@ -28,6 +28,17 @@ final class RotinaIfood
         }
         try {
             $token = $conta->token();
+            // A rotina já roda a cada 30s. O painel consulta SOMENTE o snapshot no MySQL.
+            // Uma falha do Merchant não interrompe a recepção/ack dos pedidos.
+            try {
+                $operacoes = $conta->api()->situacaoLoja($token, (string) $conta->loja());
+                $pausas = $conta->api()->pausas($token, (string) $conta->loja());
+                EstadoLoja::reconciliar($this->db, $idRestaurante, $operacoes, $pausas);
+            } catch (IntegracaoErro $erroMerchant) {
+                error_log('[Cardapim] Estado iFood nao atualizado, mantendo ultimo estado conhecido: ' . $idRestaurante . ' ' . get_class($erroMerchant));
+            } catch (Throwable $erroMerchant) {
+                error_log('[Cardapim] Falha ao reconciliar disponibilidade iFood: ' . $idRestaurante . ' ' . get_class($erroMerchant));
+            }
             $eventos = new EventosIfood($this->db, $conta);
             $resumo['avisos'] = $eventos->receber($token);
             $resumo['tratados'] = $eventos->tratarPendentes($token);
