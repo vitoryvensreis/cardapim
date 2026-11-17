@@ -36,6 +36,26 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
   coleta, pagamento ("Pago pelo app do iFood", "Cobrar na entrega: Dinheiro, troco para R$ 100,00", "O cliente paga ao
   entregador do iFood") e cancelamento com motivo do iFood.
 
+## Loja no iFood (módulo Merchant)
+
+`Gerência > Integrações > iFood > Loja no iFood` (`/integracoes/ifood/minha-loja`), lido do iFood na hora (nada guardado aqui):
+
+- **Lojas vinculadas** (`GET /merchant/v1.0/merchants`), marcando a ligada ao restaurante.
+- **Dados da loja** (`GET /merchants/{id}`): nome, razão social, endereço, operações e canais, e a resposta completa do iFood.
+- **Disponibilidade agora** (`GET /merchants/{id}/status`) por operação, com as validações do iFood.
+- **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até 30 dias).
+- **Horário de funcionamento** (`GET|PUT /merchants/{id}/opening-hours`, turnos `dayOfWeek` + `start` + `duration` em minutos):
+  até 4 horários por dia, sem sobreposição, 00:00 = meia-noite. Sem horário no iFood, o formulário vem com os horários do Perfil.
+  Não altera os horários do Perfil (que aceitam 2 turnos por dia).
+- Cada parte é buscada separada: se uma falhar, as outras aparecem e a falha vira aviso com a resposta do iFood.
+
+| Método | Rota | O que faz |
+| --- | --- | --- |
+| GET | `/{slug}/gerencia/integracoes/ifood/minha-loja` | Tela da loja no iFood |
+| POST | `/{slug}/gerencia/integracoes/ifood/pausas` | Cria pausa (`descricao`, `inicio`, `fim` em `Y-m-d\TH:i`) |
+| POST | `/{slug}/gerencia/integracoes/ifood/pausas/remover` | Remove pausa (`pausa` = id) |
+| POST | `/{slug}/gerencia/integracoes/ifood/horarios` | Envia horários (`h[MONDAY][0][abre]`, `h[MONDAY][0][fecha]`...) |
+
 ## Rotas novas (gerência, CSRF, só gerente)
 
 | Método | Rota | O que faz |

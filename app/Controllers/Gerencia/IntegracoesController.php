@@ -12,6 +12,7 @@ use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Services\Auth\Guard;
 use Cardapim\Services\Gerencia\Integracoes\AsaasService;
 use Cardapim\Services\Gerencia\Integracoes\BaseIntegracao;
+use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
 use Cardapim\Services\Gerencia\Integracoes\IfoodService;
 use Cardapim\Services\Gerencia\Integracoes\WhatsAppService;
 use Cardapim\Services\Gerencia\Resultado;
@@ -255,7 +256,70 @@ final class IntegracoesController extends BaseGerencia
         return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->sincronizarAgora(), 'integracoes/ifood/cardapio');
     }
 
+    /* ---------- Loja no iFood (Merchant): dados, pausas e horarios ---------- */
+
+    public function ifoodMinhaLoja(string $slug): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        return $this->telaLojaIfood([], []);
+    }
+
+    public function ifoodPausaCriar(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = $this->ifoodLojaServico()->criarPausa($this->post('descricao'), $this->post('inicio'), $this->post('fim'));
+        if ($res->ok || $res->erros === []) {
+            return $this->responder($res, $this->url('integracoes/ifood/minha-loja#pausas'));
+        }
+        return $this->telaLojaIfood(['pausa' => $res->erros + ['_geral' => $res->mensagem]],
+            ['pausa' => ['descricao' => $this->post('descricao'), 'inicio' => $this->post('inicio'), 'fim' => $this->post('fim')]], 422);
+    }
+
+    public function ifoodPausaRemover(string $slug): Response
+    {
+        return $this->acao($slug, fn (): Resultado => $this->ifoodLojaServico()->removerPausa($this->post('pausa')), 'integracoes/ifood/minha-loja#pausas');
+    }
+
+    public function ifoodHorarios(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $entrada = is_array($_POST['h'] ?? null) ? $_POST['h'] : [];
+        $res = $this->ifoodLojaServico()->salvarHorarios($entrada);
+        if ($res->ok || $res->erros === []) {
+            return $this->responder($res, $this->url('integracoes/ifood/minha-loja#horarios'));
+        }
+        return $this->telaLojaIfood(['horarios' => $res->erros + ['_geral' => $res->mensagem]], ['horarios' => $entrada], 422);
+    }
+
     /* ---------- Internos ---------- */
+
+    /** @param array<string,array<string,string>> $erros @param array<string,mixed> $valores */
+    private function telaLojaIfood(array $erros, array $valores, int $status = 200): Response
+    {
+        $painel = $this->ifoodLojaServico()->painel();
+        if (!$painel['conectada']) {
+            return $this->voltar($this->url('integracoes/ifood'), 'erro', 'Conecte o iFood primeiro.');
+        }
+        return $this->tela('gerencia/integracoes/ifood-loja', 'integracoes', 'Loja no iFood', [
+            'painel' => $painel,
+            'erros' => $erros,
+            'valores' => $valores,
+            'pageStyles' => ['css/ifood.css'],
+            'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
+        ], $status);
+    }
+
+    private function ifoodLojaServico(): IfoodLojaService
+    {
+        return new IfoodLojaService($this->db, $this->usuario, $this->restaurante['id']);
+    }
+
 
     /** POST simples: CSRF, executa e volta com o aviso. @param callable():Resultado $executar */
     private function acao(string $slug, callable $executar, string $voltarPara): Response
