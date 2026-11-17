@@ -127,7 +127,8 @@
         try {
           const dados = await consultar(id, acao, inicio, fim);
           if (!dados.lista_consultada || !dados.registro_confirmado) continue;
-          if (typeof dados.html === "string") pausas.innerHTML = dados.html;
+          // O card de pausas ja foi confirmado; nao apagar campos que o gerente
+          // possa estar preenchendo enquanto o status e revalidado.
           atualizarDisponibilidade(dados);
         } catch {
           // A tela conserva o ultimo estado conhecido e a rotina continua ativa.
