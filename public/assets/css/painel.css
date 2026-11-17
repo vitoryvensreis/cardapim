@@ -76,6 +76,31 @@
 .painel-breadcrumb-rest { display: none; }
 .painel-caixa { margin-left: auto; }
 
+/* Botao "Abrir loja no iFood" (ao lado do Abrir caixa). Estado em data-estado; so "pausada" e clicavel. */
+.painel-ifood { margin-left: auto; border: 1px solid var(--c-line); background: var(--c-white); color: var(--c-wine); }
+.painel-ifood[hidden] { display: none; }
+.painel-ifood:not([hidden]) + .painel-caixa, .alerta-som + .painel-ifood { margin-left: 0; }
+.painel-ifood-marca { padding: .05rem .4rem; border-radius: var(--r-pill); background: var(--c-wine); color: var(--c-white); font-size: .7rem; font-weight: 700; letter-spacing: .02em; }
+.painel-ifood-icones { display: inline-flex; }
+.painel-ifood-icones .icon { display: none; }
+.painel-ifood[data-estado="pausada"] .ifood-ic-pausada,
+.painel-ifood[data-estado="aberta"] .ifood-ic-aberta,
+.painel-ifood[data-estado="fechada"] .ifood-ic-fechada,
+.painel-ifood[data-estado="erro"] .ifood-ic-erro,
+.painel-ifood[data-estado="carregando"] .ifood-ic-carregando { display: inline-block; }
+.painel-ifood[data-estado="pausada"] { border-color: var(--c-orange); background: var(--c-orange); color: var(--c-white); }
+.painel-ifood[data-estado="pausada"]:hover { background: var(--c-orange-700); border-color: var(--c-orange-700); }
+.painel-ifood[data-estado="pausada"] .painel-ifood-marca { background: var(--c-white); color: var(--c-orange-700); }
+.painel-ifood[data-estado="aberta"] { border-color: #b9e3cb; background: var(--c-success-bg); color: #14532d; }
+.painel-ifood[data-estado="fechada"], .painel-ifood[data-estado="erro"] { color: var(--c-muted); }
+.painel-ifood:disabled { cursor: default; opacity: 1; }
+.painel-ifood:focus-visible { outline: 2px solid var(--c-wine); outline-offset: 2px; }
+.painel-ifood[data-estado="carregando"] .ifood-ic-carregando { animation: ifood-girar 1s linear infinite; }
+@keyframes ifood-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .painel-ifood[data-estado="carregando"] .ifood-ic-carregando { animation: none; } }
+.ifood-flash.painel-flash-sucesso .ifood-flash-erro, .ifood-flash.painel-flash-erro .ifood-flash-ok { display: none; }
+.ifood-flash[hidden] { display: none; }
+
 /* Avisos de atualizacao mantidos; sem indicador permanente no topo. */
 .tempo-real-aviso { align-items: center; }
 .tempo-real-aviso .btn { flex: 0 0 auto; }
@@ -112,6 +137,8 @@
   .painel-breadcrumb .icon { display: none; }
   .painel-caixa { width: 2.75rem; min-height: 2.75rem; padding: 0; font-size: 0; gap: 0; }
   .painel-caixa .icon { width: 1.2rem; height: 1.2rem; }
+  .painel-ifood { min-height: 2.75rem; padding: 0 .6rem; gap: .35rem; }
+  .painel-ifood-texto { display: none; }
 }
 @media (min-width: 40rem) {
   .painel-breadcrumb-rest { display: inline; }

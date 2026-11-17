@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cardapim\Controllers\Gerencia;
 
+use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
+use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Core\Response;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
 use Cardapim\Repositories\Gerencia\PerfilRepository;
@@ -58,7 +60,14 @@ final class PerfilController extends BaseGerencia
         }
         $resultado = $this->servico()->salvarHorarios($_POST);
         if ($resultado->ok) {
-            return $this->voltar($this->url('perfil') . '#horarios', 'sucesso', $resultado->mensagem);
+            // Se o iFood segue o horario do Perfil, ele recebe o horario novo agora (falha vira aviso, o Perfil ja foi salvo).
+            try {
+                $ifood = (new IfoodLojaService($this->db, $this->usuario, $this->restaurante['id']))->acompanharPerfil();
+            } catch (\Throwable) {
+                $ifood = Resultado::falha('O horário foi salvo aqui, mas não deu para enviar ao iFood agora. Envie em Integrações > iFood > Loja no iFood.');
+            }
+            return $this->voltar($this->url('perfil') . '#horarios', $ifood !== null && !$ifood->ok ? 'aviso' : 'sucesso',
+                $resultado->mensagem . ($ifood !== null ? ' ' . $ifood->mensagem : ''));
         }
         return $this->pagina(['horarios' => $resultado->erros], ['horarios' => $_POST], 422);
     }

@@ -5,6 +5,19 @@
   const resumoErros = document.querySelector("[data-erros-form]");
   if (resumoErros) resumoErros.focus();
 
+  /* ---------- Horario no iFood: o do Perfil ou um diferente ---------- */
+  const horario = document.querySelector("[data-ifood-horario]");
+  if (horario) {
+    const chave = horario.querySelector("[data-ifood-horario-proprio]");
+    const perfil = horario.querySelector("[data-ifood-horario-perfil]");
+    const proprio = horario.querySelector("[data-ifood-horario-form]");
+    const trocar = () => {
+      if (perfil) perfil.hidden = chave.checked;
+      if (proprio) proprio.hidden = !chave.checked;
+    };
+    chave?.addEventListener("change", trocar);
+  }
+
   /* ---------- Copiar e mostrar ---------- */
   document.querySelectorAll("[data-copiar]").forEach((botao) => {
     botao.addEventListener("click", async () => {

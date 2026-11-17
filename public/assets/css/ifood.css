@@ -57,3 +57,13 @@
   .ifood-publicar-item { grid-template-columns: auto auto minmax(0, 1fr) auto; }
   .ifood-publicar-item .etiqueta { grid-column: auto; justify-self: end; }
 }
+
+/* Horario no iFood: resumo do Perfil (padrao) ou horario diferente so para o iFood */
+.ifood-horario-perfil { display: grid; gap: .6rem; margin-bottom: 1rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-cream); }
+.ifood-horario-perfil[hidden], .ifood-horario-proprio[hidden] { display: none; }
+.ifood-horario-perfil-rotulo { display: flex; align-items: center; gap: .4rem; margin: 0; color: var(--c-wine); font-weight: 700; }
+.ifood-horario-resumo { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+.ifood-horario-resumo li { display: flex; justify-content: space-between; gap: 1rem; padding: .3rem 0; border-bottom: 1px dashed var(--c-line); }
+.ifood-horario-resumo li:last-child { border-bottom: 0; }
+.ifood-horario-resumo span { color: var(--c-muted); text-align: right; }
+.ifood-horario-proprio { display: grid; gap: .75rem; margin-top: 1rem; }

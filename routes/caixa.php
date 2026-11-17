@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cardapim\Controllers\Caixa\CaixaController;
 use Cardapim\Controllers\Caixa\ComandaController;
 use Cardapim\Controllers\Caixa\DeliveryController;
+use Cardapim\Controllers\Caixa\IfoodController;
 use Cardapim\Controllers\Caixa\MesasController;
 use Cardapim\Core\Router;
 
@@ -21,6 +22,10 @@ return static function (Router $router): void {
     $router->post($c . '/movimentos', [CaixaController::class, 'registrarMovimento']);
     $router->get($c . '/historico', [CaixaController::class, 'historico']);
     $router->get($c . '/historico/{id}', [CaixaController::class, 'historicoVer']);
+
+    // Botao "Abrir loja no iFood" do topo (JSON)
+    $router->get($c . '/ifood/situacao', [IfoodController::class, 'situacao']);
+    $router->post($c . '/ifood/abrir', [IfoodController::class, 'abrir']);
 
     // Mesas: mapa e cadastro
     $router->get($c . '/mesas', [MesasController::class, 'mapa']);

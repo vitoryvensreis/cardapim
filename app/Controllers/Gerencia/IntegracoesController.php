@@ -16,6 +16,7 @@ use Cardapim\Services\Gerencia\Integracoes\IfoodLojaService;
 use Cardapim\Services\Gerencia\Integracoes\IfoodService;
 use Cardapim\Services\Gerencia\Integracoes\WhatsAppService;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Ifood\BotaoLojaIfood;
 use Cardapim\Services\Ifood\IfoodCatalogo;
 use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Shared\Seguranca\Cripto;
@@ -303,6 +304,7 @@ final class IntegracoesController extends BaseGerencia
             return $r;
         }
         $res = $this->ifoodLojaServico()->criarPausa($this->post('descricao'), $this->post('inicio'), $this->post('fim'));
+        BotaoLojaIfood::esquecer($this->restaurante['id']);
         if ($res->ok || $res->erros === []) {
             return $this->responder($res, $this->url('integracoes/ifood/minha-loja#pausas'));
         }
@@ -312,20 +314,45 @@ final class IntegracoesController extends BaseGerencia
 
     public function ifoodPausaRemover(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodLojaServico()->removerPausa($this->post('pausa')), 'integracoes/ifood/minha-loja#pausas');
+        return $this->acao($slug, function (): Resultado {
+            BotaoLojaIfood::esquecer($this->restaurante['id']);
+            return $this->ifoodLojaServico()->removerPausa($this->post('pausa'));
+        }, 'integracoes/ifood/minha-loja#pausas');
     }
 
+    /** Horario no iFood: o do Perfil (padrao) ou um horario diferente so para o iFood. */
     public function ifoodHorarios(string $slug): Response
     {
         if ($r = $this->entrar($slug, true)) {
             return $r;
+        }
+        if (($_POST['horario_proprio'] ?? '') !== '1') {
+            return $this->responder($this->ifoodLojaServico()->usarHorarioDoPerfil(), $this->url('integracoes/ifood/minha-loja#horarios'));
         }
         $entrada = is_array($_POST['h'] ?? null) ? $_POST['h'] : [];
         $res = $this->ifoodLojaServico()->salvarHorarios($entrada);
         if ($res->ok || $res->erros === []) {
             return $this->responder($res, $this->url('integracoes/ifood/minha-loja#horarios'));
         }
-        return $this->telaLojaIfood(['horarios' => $res->erros + ['_geral' => $res->mensagem]], ['horarios' => $entrada], 422);
+        return $this->telaLojaIfood(['horarios' => $res->erros + ['_geral' => $res->mensagem]], ['horarios' => $entrada, 'horario_proprio' => true], 422);
+    }
+
+    /** Botao "Abrir loja no iFood" do topo: situacao (JSON). */
+    public function ifoodBotaoSituacao(string $slug): Response
+    {
+        if ($this->entrar($slug)) {
+            return BotaoLojaIfood::semSessao();
+        }
+        return BotaoLojaIfood::situacao($this->db, $this->usuario, $this->restaurante['id']);
+    }
+
+    /** Botao "Abrir loja no iFood" do topo: abre a loja (JSON, X-CSRF-Token). */
+    public function ifoodBotaoAbrir(string $slug): Response
+    {
+        if ($this->entrar($slug)) {
+            return BotaoLojaIfood::semSessao();
+        }
+        return BotaoLojaIfood::abrir($this->db, $this->usuario, $this->restaurante['id']);
     }
 
     /* ---------- Internos ---------- */

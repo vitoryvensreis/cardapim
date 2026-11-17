@@ -68,8 +68,12 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 - **Disponibilidade agora** (`GET /merchants/{id}/status`) por operação, com as validações do iFood.
 - **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até 30 dias).
 - **Horário de funcionamento** (`GET|PUT /merchants/{id}/opening-hours`, turnos `dayOfWeek` + `start` + `duration` em minutos):
-  até 4 horários por dia, sem sobreposição, 00:00 = meia-noite. Sem horário no iFood, o formulário vem com os horários do Perfil.
-  Não altera os horários do Perfil (que aceitam 2 turnos por dia).
+  - **Padrão: o iFood segue o horário do Perfil.** Ao salvar o horário no Perfil, o iFood recebe o horário novo na hora
+    (`IfoodLojaService::acompanharPerfil`, chamado pelo `PerfilController`; falha vira aviso, o Perfil já fica salvo).
+    Turno que passa da meia-noite vira dois (até 24:00 e a partir de 00:00 do dia seguinte); "sempre aberto" = 24 h todo dia.
+  - **"Horário diferente para o iFood"** (alternador): mostra o formulário com até 4 horários por dia, sem sobreposição,
+    00:00 = meia-noite. Salvar marca `integracoes.dados.horario_proprio = true` e o Perfil deixa de mudar o iFood.
+    Desligar e salvar volta ao horário do Perfil e o envia ao iFood. Nunca altera o Perfil (que aceita 2 turnos por dia).
 - Cada parte é buscada separada: se uma falhar, as outras aparecem e a falha vira aviso com a resposta do iFood.
 
 | Método | Rota | O que faz |
@@ -77,7 +81,29 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 | GET | `/{slug}/gerencia/integracoes/ifood/minha-loja` | Tela da loja no iFood |
 | POST | `/{slug}/gerencia/integracoes/ifood/pausas` | Cria pausa (`descricao`, `inicio`, `fim` em `Y-m-d\TH:i`) |
 | POST | `/{slug}/gerencia/integracoes/ifood/pausas/remover` | Remove pausa (`pausa` = id) |
-| POST | `/{slug}/gerencia/integracoes/ifood/horarios` | Envia horários (`h[MONDAY][0][abre]`, `h[MONDAY][0][fecha]`...) |
+| POST | `/{slug}/gerencia/integracoes/ifood/horarios` | Sem `horario_proprio`: usa o horário do Perfil. Com `horario_proprio=1`: envia `h[MONDAY][0][abre]`, `h[MONDAY][0][fecha]`... |
+
+### Botão "Abrir loja no iFood" (topo da gerência e do modo caixa)
+
+Ao lado do "Abrir caixa", só quando o iFood está conectado (`BotaoLojaIfood::config`). Funciona por JSON, sem recarregar
+(`public/assets/js/ifood-botao.js`): consulta a situação ao abrir a tela, a cada minuto e quando a aba volta a ficar visível
+(guardada 20 s na sessão para não chamar o iFood a cada troca de tela).
+
+| Estado | Botão | Quando |
+| --- | --- | --- |
+| `aberta` | Desativado, "Loja aberta" (verde) | O iFood diz que a loja está recebendo pedidos |
+| `pausada` | Ativo, "Abrir loja" (laranja) | Há pausa valendo agora: o clique remove as pausas ativas |
+| `fechada` | Desativado, "Fora do horário" | Sem pausa, mas fechada pelo horário (ou outro motivo do iFood, mostrado na dica) |
+| `erro` | Desativado, "Sem resposta" | O iFood não respondeu |
+
+O iFood não tem um comando "abrir": a loja abre sozinha no horário de funcionamento; o que dá para fazer é tirar a pausa.
+
+| Método | Rota | Quem |
+| --- | --- | --- |
+| GET | `/{slug}/gerencia/integracoes/ifood/botao-loja/situacao` | Gerente |
+| POST | `/{slug}/gerencia/integracoes/ifood/botao-loja/abrir` (header `X-CSRF-Token`) | Gerente |
+| GET | `/{slug}/caixa/ifood/situacao` | Caixa, gerente |
+| POST | `/{slug}/caixa/ifood/abrir` (header `X-CSRF-Token`) | Caixa, gerente |
 
 ## Rotas novas (gerência, CSRF, só gerente)
 
