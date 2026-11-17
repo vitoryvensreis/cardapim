@@ -333,11 +333,16 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
             if (trim((string) ($json['description'] ?? '')) === '' || strtotime((string) ($json['end'] ?? '')) <= strtotime((string) ($json['start'] ?? ''))) {
                 $responder(400, ['message' => 'Interrupcao invalida']);
             }
+            // O ID da interrupcao vem do iFood; o cliente nao pode inventa-lo.
+            if (array_key_exists('id', $json)) {
+                $responder(400, ['message' => 'Nao envie id na criacao da interrupcao']);
+            }
+            $id = bin2hex(random_bytes(16));
             // Como o iFood: guarda em UTC e devolve sem o fuso.
-            $pausas[$json['id']] = ['id' => $json['id'], 'description' => $json['description'],
+            $pausas[$id] = ['id' => $id, 'description' => $json['description'],
                 'start' => gmdate('Y-m-d\TH:i:s', strtotime((string) $json['start'])), 'end' => gmdate('Y-m-d\TH:i:s', strtotime((string) $json['end']))];
             $guardar('ifood-pausas.json', $pausas);
-            $responder(201, $pausas[$json['id']]);
+            $responder(201, $pausas[$id]);
         }
         $responder(200, array_values($pausas));
     }
