@@ -69,7 +69,7 @@ final class IfoodLojaService extends BaseIntegracao
             }
         };
         $detalhes = $buscar('detalhes', fn (): array => $this->api->detalhesLoja($token, $loja), null);
-        $fuso = $conta->fusoInterrupcoes() ?? FusoLojaIfood::sugerir(is_array($detalhes) ? $detalhes : []);
+        $fuso = FusoLojaIfood::PADRAO;
         $horarios = $buscar('horarios', fn (): array => $this->api->horarios($token, $loja), []);
         $situacao = $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []);
         $pausas = $buscar('pausas', fn (): array => $this->api->pausas($token, $loja, $fuso), []);
@@ -93,8 +93,8 @@ final class IfoodLojaService extends BaseIntegracao
     }
 
     /**
-     * Cria interrupcao. O datetime-local e interpretado no fuso da loja Merchant
-     * (inferido do endereco, pois o endpoint nao informa o timezone configurado).
+     * Cria interrupcao. O datetime-local e interpretado em America/Sao_Paulo;
+     * a API Merchant continua recebendo a hora de parede esperada pelo iFood.
      * A API trabalha com instantes ISO8601 UTC e responde de forma assincrona.
      */
     public function criarPausa(string $descricao, string $inicio, string $fim): Resultado
@@ -108,7 +108,7 @@ final class IfoodLojaService extends BaseIntegracao
 
         return $this->executar(function (string $token, string $loja) use ($descricao, $inicio, $fim): Resultado {
             $detalhes = $this->api->detalhesLoja($token, $loja);
-            $fuso = $this->conta()->fusoInterrupcoes() ?? FusoLojaIfood::sugerir($detalhes);
+            $fuso = FusoLojaIfood::PADRAO;
             $zona = new DateTimeZone($fuso);
             $ini = self::dataHora($inicio, $zona);
             $fi = self::dataHora($fim, $zona);
@@ -159,11 +159,11 @@ final class IfoodLojaService extends BaseIntegracao
             ));
             return Resultado::sucesso('O iFood recebeu a solicitação de pausa de '
                 . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i')
-                . ' (fuso da loja). Aguarde a confirmação na lista e no status operacional do iFood.');
+                . ' (horário de Brasília). Aguarde a confirmação na lista e no status operacional do iFood.');
         });
     }
 
-    /** Valores iniciais no fuso inferido para o estabelecimento. */
+    /** Valores iniciais no fuso fixo de Brasilia. */
     public static function novaPausa(string $fuso = 'America/Sao_Paulo'): array
     {
         $agora = new DateTimeImmutable('now', FusoLojaIfood::timezone($fuso));
@@ -171,33 +171,10 @@ final class IfoodLojaService extends BaseIntegracao
             'fim' => $agora->modify('+1 hour')->format('Y-m-d\TH:i')];
     }
 
-    /** Fuso estimado pelo endereço da loja Merchant; não existe campo timezone no endpoint. */
+    /** Toda operacao Merchant usa o horario oficial de Brasilia, independente do endereco. */
     public function fusoDaLoja(): string
     {
-        $conta = $this->conta();
-        if (!$conta->conectada()) {
-            return 'America/Sao_Paulo';
-        }
-        try {
-            return $conta->fusoInterrupcoes() ?? FusoLojaIfood::sugerir($this->api->detalhesLoja($conta->token(), (string) $conta->loja()));
-        } catch (IntegracaoErro) {
-            return 'America/Sao_Paulo';
-        }
-    }
-
-    /** Ajuste de homologacao; nunca altera o fuso de outros estabelecimentos. */
-    public function definirFusoInterrupcoes(string $fuso): Resultado
-    {
-        if (!FusoLojaIfood::valido($fuso)) {
-            return Resultado::falha('Selecione um fuso horario valido.');
-        }
-        $conta = $this->conta();
-        if (!$conta->conectada()) {
-            return Resultado::falha('Conecte a loja ao iFood primeiro.');
-        }
-        $conta->salvarFusoInterrupcoes($fuso);
-        $this->log('iFood: fuso operacional das pausas', 'loja=' . $conta->loja() . '; fuso=' . $fuso);
-        return Resultado::sucesso('Fuso das pausas atualizado. Confira os horarios das proximas interrupcoes no iFood.');
+        return FusoLojaIfood::PADRAO;
     }
 
     /**
