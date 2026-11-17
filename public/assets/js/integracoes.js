@@ -135,60 +135,113 @@
     };
     const aguardar = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+    // Se o iFood demorar ou ficar fora do ar, nao declarar remocao nem
+    // esconder automaticamente o overlay: permitir retomar o GET ou sair
+    // explicitamente sem confirmacao. O DELETE nunca e reenviado.
+    const decisaoRemocao = () => new Promise((resolve) => {
+      const conteudo = overlay?.querySelector(".ifood-aguardando-conteudo");
+      if (!conteudo) { resolve(false); return; }
+      mostrarOverlay(true, "Remoção ainda não confirmada",
+        "O iFood ainda não confirmou que a interrupção desapareceu da lista. Não envie outra remoção. Você pode continuar verificando ou sair sem confirmação.");
+      overlay.setAttribute("aria-busy", "false");
+      const acoes = document.createElement("div");
+      acoes.className = "ifood-confirmacao-acoes";
+      const novamente = document.createElement("button");
+      novamente.type = "button";
+      novamente.className = "btn btn-primary";
+      novamente.textContent = "Verificar novamente";
+      const sair = document.createElement("button");
+      sair.type = "button";
+      sair.className = "btn btn-outline";
+      sair.textContent = "Sair sem confirmação";
+      const escolher = (continuar) => {
+        acoes.remove();
+        overlay.setAttribute("aria-busy", "true");
+        resolve(continuar);
+      };
+      novamente.addEventListener("click", () => escolher(true), { once: true });
+      sair.addEventListener("click", () => escolher(false), { once: true });
+      acoes.append(novamente, sair);
+      conteudo.append(acoes);
+      novamente.focus();
+    });
+
     const acompanhar = async (id, acao, descricao, periodo, inicio = "", fim = "") => {
       const intervalos = [1500, 3500, 6000, 9000, 12000, 15000];
       let ultimo = null;
-      for (let tentativa = 0; tentativa < intervalos.length; tentativa += 1) {
-        mostrarOverlay(true, "Confirmando no iFood",
-          "Verificando o registro da interrupção, os horários e a disponibilidade da loja (" + (tentativa + 1) + "/" + intervalos.length + ").");
-        await aguardar(intervalos[tentativa]);
-        try {
-          const dados = await consultar(id, acao, inicio, fim);
-          ultimo = dados;
-          if (typeof dados.html === "string") pausas.innerHTML = dados.html;
-          atualizarStatus(dados.html_status);
-          document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
+      // A remocao repete apenas o GET ate o usuario encerrar ou o iFood
+      // devolver uma lista valida sem o ID removido.
+      while (true) {
+        for (let tentativa = 0; tentativa < intervalos.length; tentativa += 1) {
+          const detalhe = acao === "remover"
+            ? "Consultando as interrupções do iFood até que esta pausa desapareça da lista."
+            : "Verificando o registro da interrupção, os horários e a disponibilidade da loja.";
+          mostrarOverlay(true, "Confirmando no iFood", detalhe + " (" + (tentativa + 1) + "/" + intervalos.length + ").");
+          await aguardar(intervalos[tentativa]);
+          try {
+            const dados = await consultar(id, acao, inicio, fim);
+            ultimo = dados;
+            // Nao substituir a lista por [] quando o GET falhou.
+            if (dados.lista_consultada && typeof dados.html === "string") pausas.innerHTML = dados.html;
+            atualizarStatus(dados.html_status);
 
-          if (!dados.registro_confirmado) {
-            acrescentarPendente(descricao, periodo, acao === "criar" ? "Aguardando registro no iFood" : "Aguardando remoção no iFood", id, acao);
-            continue;
+            if (acao === "remover") {
+              // A unica confirmacao de remocao e um GET /interruptions com
+              // resposta valida em que o ID nao aparece (inclusive lista []).
+              if (dados.lista_consultada && dados.registro_confirmado) {
+                document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
+                aviso("Remoção confirmada: a interrupção não aparece mais na lista do iFood. A abertura da loja depende das outras condições de operação.", true);
+                return;
+              }
+              acrescentarPendente(descricao, periodo,
+                dados.lista_consultada ? "Aguardando a interrupção desaparecer do iFood" : "Aguardando resposta válida do iFood",
+                id, acao);
+              continue;
+            }
+
+            document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
+            if (!dados.registro_confirmado) {
+              acrescentarPendente(descricao, periodo, "Aguardando registro no iFood", id);
+              continue;
+            }
+            if (!dados.situacao_consultada) {
+              acrescentarPendente(descricao, periodo, "Registro confirmado; verificando a disponibilidade", id);
+              continue;
+            }
+            if (!dados.periodo_confirmado) {
+              acrescentarPendente(descricao, periodo, "Conferindo os horários devolvidos pelo iFood", id);
+              continue;
+            }
+            // A pausa futura nao exige fechamento antes do inicio programado.
+            if (!dados.vigente) {
+              aviso("Pausa agendada e horários confirmados no iFood. A disponibilidade foi verificada; a loja não precisa fechar antes do início da pausa.", true);
+              return;
+            }
+            if (dados.disponivel === false) {
+              aviso("Pausa registrada com horários corretos e fechamento confirmado pelo iFood.", true);
+              return;
+            }
+            acrescentarPendente(descricao, periodo, "Agendamento confirmado; aguardando fechamento operacional", id);
+          } catch {
+            // Falha no GET nao significa falha no DELETE/POST. Sem reenviar.
+            acrescentarPendente(descricao, periodo, "Aguardando nova consulta ao iFood", id, acao);
           }
-          if (!dados.situacao_consultada) {
-            acrescentarPendente(descricao, periodo, "Registro confirmado; verificando a disponibilidade", id, acao);
-            continue;
-          }
-          if (acao === "remover") {
-            aviso(dados.disponivel === true
-              ? "Remoção confirmada no iFood. A disponibilidade da loja também foi consultada: aberta."
-              : "Remoção confirmada no iFood. A disponibilidade foi consultada, mas a loja ainda está indisponível por outra condição.", true);
-            return;
-          }
-          if (!dados.periodo_confirmado) {
-            acrescentarPendente(descricao, periodo, "Conferindo os horários devolvidos pelo iFood", id);
-            continue;
-          }
-          // Interrupcao futura e agendamento correto: nao exigir fechar a loja antes do inicio.
-          if (!dados.vigente) {
-            aviso("Pausa agendada e horários confirmados no iFood. A disponibilidade foi verificada; a loja não precisa fechar antes do início da pausa.", true);
-            return;
-          }
-          if (dados.disponivel === false) {
-            aviso("Pausa registrada com horários corretos e fechamento confirmado pelo iFood.", true);
-            return;
-          }
-          acrescentarPendente(descricao, periodo, "Agendamento confirmado; aguardando fechamento operacional", id);
-        } catch {
-          // Falha na consulta nao prova falha na criacao. Nunca reenviar automaticamente.
-          acrescentarPendente(descricao, periodo, "Aguardando nova consulta ao iFood", id, acao);
         }
-      }
 
-      if (ultimo?.registro_confirmado && ultimo.periodo_confirmado && ultimo.situacao_consultada) {
-        aviso("O iFood confirmou o agendamento e os horários, mas a operação ainda não confirmou o fechamento. Confira a disponibilidade antes de considerar a loja pausada.");
-      } else if (ultimo?.registro_confirmado && !ultimo.periodo_confirmado && acao === "criar") {
-        aviso("O iFood registrou a pausa, mas os horários devolvidos não coincidem com os enviados. Confira o agendamento no Portal do Parceiro.");
-      } else {
-        aviso("Não foi possível confirmar o registro e a disponibilidade no prazo de verificação. A solicitação pode ter sido aceita. Consulte o Portal do Parceiro antes de tentar novamente.");
+        if (acao === "remover") {
+          const continuar = await decisaoRemocao();
+          if (continuar) continue;
+          aviso("A remoção não foi confirmada: a interrupção ainda pode existir no iFood. Consulte a lista antes de tentar outra operação.");
+          return;
+        }
+        if (ultimo?.registro_confirmado && ultimo.periodo_confirmado && ultimo.situacao_consultada) {
+          aviso("O iFood confirmou o agendamento e os horários, mas a operação ainda não confirmou o fechamento. Confira a disponibilidade antes de considerar a loja pausada.");
+        } else if (ultimo?.registro_confirmado && !ultimo.periodo_confirmado) {
+          aviso("O iFood registrou a pausa, mas os horários devolvidos não coincidem com os enviados. Confira o agendamento no Portal do Parceiro.");
+        } else {
+          aviso("Não foi possível confirmar o registro e a disponibilidade no prazo de verificação. A solicitação pode ter sido aceita. Consulte o Portal do Parceiro antes de tentar novamente.");
+        }
+        return;
       }
     };
 
@@ -216,7 +269,9 @@
       botao.setAttribute("aria-busy", "true");
       if (rotulo && botao.dataset.submitLabel) rotulo.textContent = botao.dataset.submitLabel;
       if (criando) acrescentarPendente(descricao, periodo, "Aguardando resposta do iFood");
-      mostrarOverlay(true, "Enviando ao iFood", "Enviando a solicitação. Em seguida, vamos confirmar o registro e a disponibilidade.");
+      mostrarOverlay(true, "Enviando ao iFood", criando
+        ? "Enviando a solicitação. Em seguida, vamos confirmar o registro e a disponibilidade."
+        : "Solicitando a remoção. Vamos aguardar até a interrupção desaparecer da lista do iFood.");
       const controlador = new AbortController();
       const limite = window.setTimeout(() => controlador.abort(), 25000);
       try {

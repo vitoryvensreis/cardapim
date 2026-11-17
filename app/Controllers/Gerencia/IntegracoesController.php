@@ -385,7 +385,7 @@ final class IntegracoesController extends BaseGerencia
         return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa($servico->fusoDaLoja()));
     }
 
-    /** Consulta pontual apos o POST/DELETE: registro e disponibilidade sao confirmacoes diferentes. */
+    /** GET de confirmacao: remover depende somente da ausencia do ID em GET /interruptions. */
     public function ifoodPausaEstado(string $slug): Response
     {
         if ($this->entrar($slug)) {
@@ -397,12 +397,14 @@ final class IntegracoesController extends BaseGerencia
             return Response::json(['ok' => false, 'mensagem' => 'Identificador da pausa inválido.'], 422);
         }
         $servico = $this->ifoodLojaServico();
-        $estado = $servico->acompanharPausa();
+        $estado = $servico->acompanharPausa($acao !== 'remover');
         $lista = $estado['pausas'];
         $erros = $estado['erros'];
         $presente = in_array($id, array_column($lista, 'id'), true);
-        $registroConfirmado = !isset($erros['pausas']) && !isset($erros['geral'])
-            && ($acao === 'criar' ? $presente : !$presente);
+        // [] devolvido com HTTP OK confirma que nao ha interrupcoes.
+        // [] por falha na API NAO confirma exclusao.
+        $listaConsultada = !isset($erros['pausas']) && !isset($erros['geral']);
+        $registroConfirmado = $listaConsultada && ($acao === 'criar' ? $presente : !$presente);
         $pausaVigente = false;
         foreach ($lista as $pausa) {
             if ($pausa['id'] !== $id) {
@@ -450,11 +452,14 @@ final class IntegracoesController extends BaseGerencia
         $escape = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $aviso = static fn (?string $msg): string => $msg
             ? '<div class="notice notice-warning"><div><p>' . htmlspecialchars($msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p></div></div>' : '';
-        $htmlStatus = \Cardapim\Core\View::render('gerencia/integracoes/_ifood-situacao', [
-            'p' => $estado, 'e' => $escape, 'aviso' => $aviso,
-        ], 'layouts/fragmento');
+        // A consulta de remocao nao faz GET /status e nao sobrescreve a disponibilidade.
+        $htmlStatus = $acao === 'criar'
+            ? \Cardapim\Core\View::render('gerencia/integracoes/_ifood-situacao', [
+                'p' => $estado, 'e' => $escape, 'aviso' => $aviso,
+            ], 'layouts/fragmento')
+            : null;
         return \Cardapim\Services\Auth\Guard::semCache(Response::json([
-            'ok' => true, 'registro_confirmado' => $registroConfirmado,
+            'ok' => true, 'lista_consultada' => $listaConsultada, 'registro_confirmado' => $registroConfirmado,
             'vigente' => $pausaVigente,
             'periodo_confirmado' => $periodoConfirmado,
             'situacao_consultada' => $situacaoConsultada,
