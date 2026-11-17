@@ -72,7 +72,7 @@ opcao_id() { php -r 'if (preg_match("~<strong>" . preg_quote($argv[2], "~") . "<
 cat_op="$(opcao_id 'Catupiry CI')"; sem_op="$(opcao_id 'Sem borda CI')"
 [[ -n "$grupo" && -n "$cat_op" && -n "$sem_op" ]] && ok "ids do grupo e das opcoes ($grupo, $cat_op, $sem_op)" || falha "ids do grupo/opcoes nao encontrados"
 pagina "$gj" "$g/estoque/complementos/$grupo" >/dev/null
-contem "edicao traz a ficha da opcao" "$tmp/pagina.html" 'value="0,050"'
+contem "edicao traz a ficha da opcao" "$tmp/pagina.html" 'value="0,05"'
 
 nome="CI Pizza $r4"
 esperar "cadastra produto com a borda" "$(enviar "$gj" "$g/estoque/produtos" "$g/estoque/produtos/novo" nome="$nome" unidade_venda=un preco='40,00' controle=livre disponivel=1 categoria= "grupos[]=$grupo" "ordem_grupo[$grupo]=1" | cut -d' ' -f1)" "303"

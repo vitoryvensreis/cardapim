@@ -99,6 +99,7 @@ try {
     $c = LinhasSacola::completar($db, $a, $linhas);
     $exigir(!$c['invalida'] && $c['linhas'][0]['centavos'] === 4800 && $c['linhas'][0]['total'] === 9600, 'Preco com complemento: 2 x (40 + 8).');
     $exigir($c['linhas'][0]['complementos_texto'] === 'Borda: Catupiry', 'Texto do complemento.');
+    $exigir(($c['linhas'][0]['complementos'][0] ?? []) === ['id' => $catOp, 'grupo' => 'Borda', 'nome' => 'Catupiry', 'centavos' => 800, 'quantidade' => 1], 'Copia conferida do complemento na linha.');
     $exigir($c['linhas'][0]['insumos_complementos'] === [$catupiry => 100], 'Consumo do complemento x 2.');
     $sem = LinhasSacola::completar($db, $a, LinhasSacola::formato([['id' => $pizza, 'quantidade' => 1]], 10));
     $exigir($sem['invalida'] && str_contains((string) $sem['mensagem'], 'Borda'), 'Borda obrigatoria sem escolha recusada.');

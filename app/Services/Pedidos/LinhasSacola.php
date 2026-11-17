@@ -108,7 +108,8 @@ final class LinhasSacola
                 }
             }
             $unitario = $centavos + $conf['centavos'];
-            $saida[] = $l + [
+            // array_replace: 'complementos' passa a ser a copia conferida (grupo, nome, preco), no lugar dos ids enviados.
+            $saida[] = array_replace($l, [
                 'nome' => (string) $p['nome'],
                 'unidade' => $unidade,
                 'centavos' => $unitario,
@@ -117,7 +118,7 @@ final class LinhasSacola
                 'complementos' => $conf['itens'],
                 'complementos_texto' => $conf['texto'],
                 'insumos_complementos' => Complementos::consumoDaLinha($conf['insumos'], intdiv($milesimos, 1000)),
-            ];
+            ]);
         }
         return ['linhas' => $saida, 'ausentes' => array_values(array_diff($ids, array_keys($produtos))), 'invalida' => $invalida, 'mensagem' => $mensagem];
     }
