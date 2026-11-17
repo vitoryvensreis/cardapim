@@ -62,6 +62,8 @@
         const dados = await resposta.json().catch(() => ({}));
         if (typeof dados.html !== "string") throw new Error(dados.mensagem || "");
         pausas.innerHTML = dados.html;
+        // Avisa o botao "Abrir loja no iFood" do topo para mostrar a situacao nova.
+        if (dados.ok) document.dispatchEvent(new CustomEvent("ifood:loja-mudou"));
       } catch (erro) {
         botao.disabled = false;
         botao.removeAttribute("aria-busy");
