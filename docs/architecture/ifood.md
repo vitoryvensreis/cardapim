@@ -61,12 +61,12 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 
 ## Loja no iFood (módulo Merchant)
 
-`Gerência > Integrações > iFood > Loja no iFood` (`/integracoes/ifood/minha-loja`), lido do iFood na hora (nada guardado aqui):
+`Gerência > Integrações > iFood > Loja no iFood` (`/integracoes/ifood/minha-loja`): os detalhes, pausas e horários vêm da API; o último status operacional também é armazenado no MySQL para consultas rápidas sem sobrecarga ao iFood:
 
 - **Lojas vinculadas** (`GET /merchant/v1.0/merchants`), marcando a ligada ao restaurante.
 - **Dados da loja** (`GET /merchants/{id}`): nome, razão social, endereço, operações e canais, e a resposta completa do iFood.
 - **Disponibilidade agora** (`GET /merchants/{id}/status`) por operação, com as validações do iFood.
-- **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até 30 dias).
+- **Pausas** (`GET|POST /merchants/{id}/interruptions`, `DELETE .../interruptions/{id}`): motivo, início e fim (até **7 dias**, limite oficial).
   Datas enviadas em UTC com "Z"; o iFood devolve em UTC, às vezes sem o fuso: `IfoodApi::data()` lê sem fuso como UTC
   (também nas datas dos pedidos) e mostra no fuso do sistema.
 - **Horário de funcionamento** (`GET|PUT /merchants/{id}/opening-hours`, turnos `dayOfWeek` + `start` + `duration` em minutos):
@@ -88,17 +88,16 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 ### Botão "Abrir loja no iFood" (topo da gerência e do modo caixa)
 
 Ao lado do "Abrir caixa", só quando o iFood está conectado (`BotaoLojaIfood::config`). Funciona por JSON, sem recarregar
-(`public/assets/js/ifood-botao.js`): consulta a situação ao abrir a tela, a cada minuto e quando a aba volta a ficar visível
-(guardada 20 s na sessão para não chamar o iFood a cada troca de tela).
+(`public/assets/js/ifood-botao.js`): consulta o estado compartilhado no MySQL a cada 10 segundos, imediatamente após mudanças e ao voltar à aba. A consulta ao iFood é centralizada no cron a cada 30 segundos. Há cache de sessão de até 20 segundos.
 
 | Estado | Botão | Quando |
 | --- | --- | --- |
 | `aberta` | Desativado, "Loja aberta" (verde) | O iFood diz que a loja está recebendo pedidos |
-| `pausada` | Ativo, "Abrir loja" (laranja) | Há pausa valendo agora (vale mais que a situação do iFood, que pode demorar a mudar): o clique remove as pausas ativas |
-| `fechada` | Desativado, "Fora do horário" | Sem pausa, mas fechada pelo horário (ou outro motivo do iFood, mostrado na dica) |
+| `pausada` | Ativo, "Abrir loja" (laranja) | Há pausa valendo agora (vale mais que a situação do iFood, que pode demorar a mudar): o clique remove apenas a pausa criada pelo próprio Deliveryzim, sem excluir outras restrições |
+| `fechada` | Desativado, "Loja fechada" | Sem pausa, mas fechada pelo horário (ou outro motivo do iFood, mostrado na dica) |
 | `erro` | Desativado, "Sem resposta" | O iFood não respondeu |
 
-O iFood não tem um comando "abrir": a loja abre sozinha no horário de funcionamento; o que dá para fazer é tirar a pausa.
+O iFood não tem um comando "abrir": o botão remove a pausa criada pelo Deliveryzim e aguarda a confirmação externa, sem inventar o estado aberto. Pausas externas podem ser removidas explicitamente na lista de interrupções. Bloqueios administrativos nunca são removidos automaticamente.
 
 | Método | Rota | Quem |
 | --- | --- | --- |
@@ -106,6 +105,16 @@ O iFood não tem um comando "abrir": a loja abre sozinha no horário de funciona
 | POST | `/{slug}/gerencia/integracoes/ifood/botao-loja/abrir` (header `X-CSRF-Token`) | Gerente |
 | GET | `/{slug}/caixa/ifood/situacao` | Caixa, gerente |
 | POST | `/{slug}/caixa/ifood/abrir` (header `X-CSRF-Token`) | Caixa, gerente |
+
+### Sincronização de disponibilidade Deliveryzim ↔ iFood
+
+- **Criar pausa:** após resposta de sucesso ao `POST /interruptions`, o Deliveryzim grava a pausa com início/fim/ID em `integracoes.dados.pausa_sincronizada`. Se já começou, o cardápio público e o checkout passam a bloquear **novos** pedidos. Pedidos existentes não são cancelados. A tela de gerência e caixa recebe evento no canal `geral` (outbox/WebSocket), e outras abas atualizam pelo endpoint local.
+- **iFood → Deliveryzim:** `RotinaIfood`, executada a cada 30s, lê `GET /status` e `GET /interruptions` e grava `integracoes.dados.situacao_sincronizada`. Se nenhuma operação está disponível, o cardápio público é fechado. Um erro de comunicação não zera o último fechamento (fail-closed). A reabertura só ocorre após atualização confirmada ou fim de pausa local acompanhado da disponibilidade externa.
+- **Atualização das telas:** botões de gerência/caixa consultam o banco a cada 10s, sem chamadas externas por navegador. O cliente no cardápio usa `GET /api/v1/restaurantes/{slug}/situacao` a cada 10s para atualizar o selo e o aviso de loja fechada. A criação de pedidos sempre confere o bloqueio no servidor, **inclusive dentro da transação** após bloquear a linha do restaurante.
+- **Concorrência e isolamento:** as chaves de disponibilidade são atualizadas por `JSON_SET` atomicamente em `integracoes.dados`, com `id_restaurante` e `loja_id` para isolar a unidade. Não há migração nova. A escrita trava a linha do restaurante para serializar com o checkout. Alterar opções de integração não sobrescreve o snapshot.
+- **Limitação da API:** alterações feitas no Portal do iFood são detectadas na próxima consulta (até ~30s mais processamento externo); não se promete sincronização instantânea com servidor remoto. Um `DELETE /interruptions` aceito não equivale a loja aberta: status/horários/validações continuam sendo a fonte externa.
+- **Atenção:** modo `horario_proprio` continua configurando turnos independentes, mas um fechamento efetivo do iFood também bloqueia o cardápio público local, conforme política de sincronização bidirecional.
+- Falhas do Merchant são registradas separadamente, não interrompendo o polling/ack dos pedidos iFood. É necessário manter o cron `bin/ifood.php` ativo.
 
 ## Rotas novas (gerência, CSRF, só gerente)
 
