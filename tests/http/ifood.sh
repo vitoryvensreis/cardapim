@@ -99,6 +99,7 @@ esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/m
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
 esperar "pausa sem motivo recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
 esperar "pausa com fim antes do inicio recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia' inicio="$fim" fim="$ini" | cut -d' ' -f1)" "422"
+esperar "pausa maior que 7 dias recusada" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Prazo invalido' inicio="$ini" fim="$(date -d '+9 days' '+%Y-%m-%dT%H:%M')" | cut -d' ' -f1)" "422"
 esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'
@@ -163,10 +164,18 @@ curl -s -b "$gj" -o "$tmp/sit.json" "$g/integracoes/ifood/botao-loja/situacao"
 contem "gerencia ve a loja pausada" "$tmp/sit.json" '"estado":"pausada"'
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa ve a loja pausada" "$tmp/sit.json" '"pode_abrir":true'
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "cardapio publico bloqueia novos pedidos imediatamente" "$tmp/estado-publico.json" '"fechado_integracao":true'
+esperar "cardapio mostra fechamento temporario" "$(pagina "$gj" "$base/$slug")" "200"
+contem "cardapio informa pausa do restaurante" "$tmp/pagina.html" 'Fechado temporariamente'
 esperar "abrir sem token recusado" "$(curl -s -o /dev/null -w '%{http_code}' -b "$cx" -X POST "$c/ifood/abrir")" "419"
 t="$(token "$cx" "$c")"
 esperar "caixa abre a loja" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b "$cx" -c "$cx" -X POST -H "X-CSRF-Token: $t" "$c/ifood/abrir")" "200"
-contem "loja aberta depois do clique" "$tmp/abrir.json" '"estado":"aberta"'
+# Remover pausa é assíncrono no iFood: não declarar sucesso pelo comando DELETE.
+contem "resposta do botao informa estado real" "$tmp/abrir.json" '"situacao":'
+rodar
+curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "cardapio reabre somente depois de confirmar no Merchant" "$tmp/estado-publico.json" '"fechado_integracao":false'
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa removida pelo botao" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 t="$(token "$cx" "$c")"
