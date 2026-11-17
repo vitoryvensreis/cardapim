@@ -69,7 +69,7 @@ final class IfoodLojaService extends BaseIntegracao
             }
         };
         $detalhes = $buscar('detalhes', fn (): array => $this->api->detalhesLoja($token, $loja), null);
-        $fuso = FusoLojaIfood::sugerir(is_array($detalhes) ? $detalhes : []);
+        $fuso = $conta->fusoHorario() ?? FusoLojaIfood::sugerir(is_array($detalhes) ? $detalhes : []);
         $horarios = $buscar('horarios', fn (): array => $this->api->horarios($token, $loja), []);
         $situacao = $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []);
         $pausas = $buscar('pausas', fn (): array => $this->api->pausas($token, $loja), []);
@@ -114,7 +114,7 @@ final class IfoodLojaService extends BaseIntegracao
         return $this->executar(function (string $token, string $loja) use ($descricao, $inicio, $fim, $fuso, $imediata): Resultado {
             // Compatibilidade com requisições antigas: obter a região da loja, em vez de
             // supor o horário local do servidor.
-            $fuso = $fuso !== '' ? $fuso : FusoLojaIfood::sugerir($this->api->detalhesLoja($token, $loja));
+            $fuso = $fuso !== '' ? $fuso : ($this->conta()->fusoHorario() ?? FusoLojaIfood::sugerir($this->api->detalhesLoja($token, $loja)));
             $zona = new DateTimeZone($fuso);
             $agora = new DateTimeImmutable('now', $zona);
             $ini = $imediata ? $agora : self::dataHora($inicio, $zona);
@@ -159,6 +159,12 @@ final class IfoodLojaService extends BaseIntegracao
 
             $id = $this->api->criarPausa($token, $loja, $descricao, $ini, $fi);
             $this->ultimaCriadaId = $id;
+            try {
+                $this->conta()->salvarFusoHorario($fuso);
+            } catch (\Throwable) {
+                // Não transformar POST 201 bem-sucedido em erro e induzir repetição da pausa.
+                error_log('[Cardapim] Nao foi possivel salvar o fuso de preferencia do iFood.');
+            }
             EstadoLoja::criarPausa($this->db, (int) $this->idRestaurante, $id, $ini, $fi);
             $this->log('iFood: pausa criada', sprintf('"%s" de %s até %s (%s).', $descricao, $ini->format('d/m H:i'), $fi->format('d/m H:i'), $fuso));
             return Resultado::sucesso('Solicitação recebida pelo iFood: de ' . $ini->format('d/m \à\s H:i') . ' até '
