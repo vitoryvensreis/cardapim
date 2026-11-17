@@ -259,7 +259,7 @@ final class IntegracoesController extends BaseGerencia
 
     public function ifoodOpcoes(string $slug): Response
     {
-        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->salvarOpcoes(isset($_POST['aceitar_automatico']), isset($_POST['sincronizar_estoque'])), 'integracoes/ifood/cardapio/vinculos');
+        return $this->acao($slug, fn (): Resultado => $this->ifoodServico()->salvarOpcoes(isset($_POST['aceitar_automatico']), isset($_POST['sincronizar_estoque'])), 'integracoes/ifood/cardapio');
     }
 
     /** Cardapio do iFood: cada item ligado a um produto (estoque e disponibilidade). */
