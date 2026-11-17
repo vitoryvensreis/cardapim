@@ -156,3 +156,22 @@ body.ifood-aguardando-ativo { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .ifood-aguardando-conteudo .icon, .ifood-estado-pendente .icon { animation: none; }
 }
+
+/* Navegacao por rotas: quatro categorias, uma por tela. */
+.ifood-abas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; margin: 1.1rem 0 1.5rem; padding: .35rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.ifood-aba { display: flex; align-items: center; justify-content: center; gap: .5rem; min-height: 3rem; padding: .7rem .45rem; border: 1px solid transparent; border-radius: var(--r-sm); color: var(--c-muted); text-decoration: none; font-weight: 700; font-size: .9rem; white-space: nowrap; transition: background-color .15s ease, color .15s ease; }
+.ifood-aba .icon { flex: 0 0 auto; }
+.ifood-aba:hover { color: var(--c-wine); background: #fbf5f6; }
+.ifood-aba.is-active, .ifood-aba[aria-current="page"] { color: var(--c-wine); background: #f9eded; border-color: #ead4da; }
+.ifood-aba:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+@media (max-width: 36rem) {
+  .ifood-abas { gap: .15rem; padding: .2rem; }
+  .ifood-aba { gap: .3rem; padding: .7rem .15rem; min-height: 3rem; font-size: .79rem; }
+  .ifood-aba .icon { width: .95rem; height: .95rem; }
+}
+@media (max-width: 22rem) {
+  .ifood-aba { flex-direction: column; gap: .2rem; padding: .45rem .1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ifood-aba { transition: none; }
+}
