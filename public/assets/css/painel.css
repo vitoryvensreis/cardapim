@@ -86,6 +86,7 @@
 .painel-ifood[data-estado="pausada"] .ifood-ic-pausada,
 .painel-ifood[data-estado="aberta"] .ifood-ic-aberta,
 .painel-ifood[data-estado="fechada"] .ifood-ic-fechada,
+.painel-ifood[data-estado="divergente"] .ifood-ic-divergente,
 .painel-ifood[data-estado="erro"] .ifood-ic-erro,
 .painel-ifood[data-estado="carregando"] .ifood-ic-carregando { display: inline-block; }
 .painel-ifood[data-estado="pausada"] { border-color: var(--c-orange); background: var(--c-orange); color: var(--c-white); }
