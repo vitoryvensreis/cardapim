@@ -84,10 +84,21 @@
     };
     const sinalizar = (card, situacao, mensagem) => {
       if (!card) return;
+      card.classList.add("ifood-pausa-otimista");
       card.dataset.estado = situacao;
-      const status = card.querySelector(".ifood-pausa-carregando");
-      if (!status) return;
-      status.querySelector("span")?.replaceChildren(document.createTextNode(mensagem));
+      let status = card.querySelector(".ifood-pausa-carregando");
+      if (!status) {
+        status = document.createElement("span");
+        status.className = "ifood-pausa-carregando";
+        status.setAttribute("role", "status");
+        const icone = overlay?.querySelector("svg")?.cloneNode(true);
+        if (icone) status.append(icone);
+        const rotulo = document.createElement("span");
+        status.append(rotulo);
+        card.append(status);
+      }
+      const texto = status.querySelector("span");
+      if (texto) texto.textContent = mensagem;
     };
     const confirmar = async (id, card) => {
       const endereco = pausas.dataset.pausasConsulta;
@@ -151,8 +162,6 @@
         const dados = await resposta.json().catch(() => ({}));
         if (typeof dados.html !== "string") throw new Error(dados.mensagem || "Resposta inesperada do servidor.");
         pausas.innerHTML = dados.html;
-        const consulta = pausas.dataset.pausasConsulta;
-        if (consulta) pausas.dataset.pausasConsulta = consulta;
         if (!dados.ok) {
           aviso(dados.mensagem || "O iFood recusou a operação. Confira os campos.", true);
           return;
@@ -161,11 +170,8 @@
         if (criar && dados.pausa_id) {
           const visivel = [...pausas.querySelectorAll("[data-pausa-id]")]
             .find((linha) => linha.dataset.pausaId === dados.pausa_id);
-          let pendente = null;
-          if (!visivel) {
-            pendente = otimista(form);
-            if (pendente) sinalizar(pendente, "registrada", "Cadastrada; verificando iFood");
-          }
+          const pendente = visivel || otimista(form);
+          sinalizar(pendente, "enviando", "Consultando o iFood");
           atualizarOverlay("Pausa cadastrada. Consultando o status operacional do iFood.");
           const estado = await confirmar(dados.pausa_id, pendente);
           if (estado === "fechada" || estado === "agendada") {
