@@ -401,8 +401,10 @@ final class IntegracoesController extends BaseGerencia
         $lista = $estado['pausas'];
         $erros = $estado['erros'];
         $presente = in_array($id, array_column($lista, 'id'), true);
-        $registroConfirmado = !isset($erros['pausas']) && !isset($erros['geral'])
-            && ($acao === 'criar' ? $presente : !$presente);
+        // [] devolvido com HTTP OK confirma que nao ha interrupcoes.
+        // [] por falha na API NAO confirma exclusao.
+        $listaConsultada = !isset($erros['pausas']) && !isset($erros['geral']);
+        $registroConfirmado = $listaConsultada && ($acao === 'criar' ? $presente : !$presente);
         $pausaVigente = false;
         foreach ($lista as $pausa) {
             if ($pausa['id'] !== $id) {
@@ -457,7 +459,7 @@ final class IntegracoesController extends BaseGerencia
             ], 'layouts/fragmento')
             : null;
         return \Cardapim\Services\Auth\Guard::semCache(Response::json([
-            'ok' => true, 'registro_confirmado' => $registroConfirmado,
+            'ok' => true, 'lista_consultada' => $listaConsultada, 'registro_confirmado' => $registroConfirmado,
             'vigente' => $pausaVigente,
             'periodo_confirmado' => $periodoConfirmado,
             'situacao_consultada' => $situacaoConsultada,
