@@ -155,9 +155,30 @@ contem "endpoint traz status operacional" "$tmp/estado-pausa.json" '"html_status
 contem "endpoint traz card atualizado" "$tmp/estado-pausa.json" '"html":'
 esperar "endpoint de confirmacao exige login" "$(curl -s -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?pausa=$pausa&acao=criar")" "401"
 esperar "endpoint rejeita ID invalido" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code}' "$g/integracoes/ifood/pausas/estado?pausa=invalido!&acao=criar")" "422"
+# A resposta GET valida, nao o DELETE isolado, controla o fim do overlay.
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remover' "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-remocao-pendente.json"
+contem "ID ainda listado nao confirma remocao" "$tmp/estado-remocao-pendente.json" '"registro_confirmado":false'
+contem "GET de interrupcoes consultado" "$tmp/estado-remocao-pendente.json" '"lista_consultada":true'
+nao_contem "remocao nao depende de GET status" "$tmp/estado-remocao-pendente.json" '"situacao_consultada":true'
+# Um outro ID pode permanecer na lista sem impedir a confirmacao da remocao alvo.
+extra_ini="$(TZ=America/Fortaleza date -d '+3 days' '+%Y-%m-%dT%H:%M:00')"
+extra_fim="$(TZ=America/Fortaleza date -d '+3 days 20 minutes' '+%Y-%m-%dT%H:%M:00')"
+curl -s -H 'Authorization: Bearer acc-ci' -H 'Content-Type: application/json' \
+  --data "{\"description\":\"Outra pausa CI\",\"start\":\"$extra_ini\",\"end\":\"$extra_fim\"}" \
+  "$fake/merchant/v1.0/merchants/$loja/interruptions" > "$tmp/extra-pausa.json"
+extra_id="$(php -r '$d=json_decode(file_get_contents($argv[1]),true); echo $d["id"]??"";' "$tmp/extra-pausa.json")"
+[[ -n "$extra_id" ]] && ok "outra pausa inserida no fake" || falha "falhou ao criar outra pausa no fake"
 esperar "remover pausa" "$(enviar "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/remover" pausa="$pausa" | cut -d' ' -f1)" "303"
-curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remover'     "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa.json"
-contem "endpoint confirma remocao no iFood" "$tmp/estado-pausa.json" '"registro_confirmado":true'
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remover' "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa.json"
+contem "endpoint confirma remocao mesmo com outra pausa" "$tmp/estado-pausa.json" '"registro_confirmado":true'
+contem "GET da lista confirma remocao" "$tmp/estado-pausa.json" '"lista_consultada":true'
+contem "outra pausa ainda existe" "$tmp/estado-pausa.json" 'Outra pausa CI'
+contem "status nao condiciona remocao" "$tmp/estado-pausa.json" '"situacao_consultada":false'
+contem "nao substitui status da loja sem consultar" "$tmp/estado-pausa.json" '"html_status":null'
+curl -s -X DELETE -H 'Authorization: Bearer acc-ci' -o /dev/null "$fake/merchant/v1.0/merchants/$loja/interruptions/$extra_id"
+curl -s -b "$gj" -G --data-urlencode "pausa=$pausa" --data-urlencode 'acao=remover' "$g/integracoes/ifood/pausas/estado" > "$tmp/estado-pausa-vazia.json"
+contem "lista vazia valida confirma remocao" "$tmp/estado-pausa-vazia.json" '"registro_confirmado":true'
+contem "GET vazio foi consultado com sucesso" "$tmp/estado-pausa-vazia.json" '"lista_consultada":true'
 pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "sem pausas depois de remover" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 # Pela tela (JS): a resposta traz o card de pausas pronto, com o aviso dentro dele.
