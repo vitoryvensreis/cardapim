@@ -8,7 +8,7 @@ use Cardapim\Shared\Validation\Documento;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $aberto = $info['aberto'];
-$status = !$info['horario_informado'] ? ['neutro', 'clock', 'Horário não informado'] : ($aberto ? ['aberto', 'circle-check', 'Aberto agora'] : ['fechado', 'clock', 'Fechado agora']);
+$status = ($info['fechado_integracao'] ?? false) ? ['fechado', 'circle-pause', 'Fechado temporariamente'] : (!$info['horario_informado'] ? ['neutro', 'clock', 'Horário não informado'] : ($aberto ? ['aberto', 'circle-check', 'Aberto agora'] : ['fechado', 'clock', 'Fechado agora']));
 $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
 ?>
 <section class="cd-hero" aria-labelledby="cd-nome">
@@ -52,7 +52,7 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
             <?php endif; ?>
         </div>
     </details>
-    <?php if ($info['horario_informado'] && !$aberto && $totalProdutos > 0): ?>
+    <?php if (($info['horario_informado'] || ($info['fechado_integracao'] ?? false)) && !$aberto && $totalProdutos > 0): ?>
         <p class="cd-aviso" role="status"><?= Icon::svg('clock', 'icon-sm') ?>O restaurante está fechado agora. Você pode montar sua sacola e pedir quando ele abrir.</p>
     <?php endif; ?>
     <div class="cd-ativos" data-pedidos-ativos aria-live="polite" hidden></div>
