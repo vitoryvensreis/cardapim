@@ -172,6 +172,7 @@ return static function (Router $router): void {
     // Loja no iFood (Merchant): dados, situacao, pausas e horarios.
     $router->get($g . '/integracoes/ifood/minha-loja', [IntegracoesController::class, 'ifoodMinhaLoja']);
     $router->post($g . '/integracoes/ifood/pausas', [IntegracoesController::class, 'ifoodPausaCriar']);
+    $router->get($g . '/integracoes/ifood/pausas/estado', [IntegracoesController::class, 'ifoodPausaEstado']);
     $router->post($g . '/integracoes/ifood/pausas/remover', [IntegracoesController::class, 'ifoodPausaRemover']);
     $router->post($g . '/integracoes/ifood/horarios', [IntegracoesController::class, 'ifoodHorarios']);
     $router->post($g . '/integracoes/ifood/fuso', [IntegracoesController::class, 'ifoodFuso']);
