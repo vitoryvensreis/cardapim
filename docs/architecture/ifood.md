@@ -94,7 +94,7 @@ Ao lado do "Abrir caixa", só quando o iFood está conectado (`BotaoLojaIfood::c
 | Estado | Botão | Quando |
 | --- | --- | --- |
 | `aberta` | Desativado, "Loja aberta" (verde) | O iFood diz que a loja está recebendo pedidos |
-| `pausada` | Ativo, "Abrir loja" (laranja) | Há pausa valendo agora: o clique remove as pausas ativas |
+| `pausada` | Ativo, "Abrir loja" (laranja) | Há pausa valendo agora (vale mais que a situação do iFood, que pode demorar a mudar): o clique remove as pausas ativas |
 | `fechada` | Desativado, "Fora do horário" | Sem pausa, mas fechada pelo horário (ou outro motivo do iFood, mostrado na dica) |
 | `erro` | Desativado, "Sem resposta" | O iFood não respondeu |
 
