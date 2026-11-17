@@ -115,7 +115,7 @@ final class IfoodLojaService extends BaseIntegracao
             $agora = new DateTimeImmutable('now', $zona);
             $campos = [];
             if ($ini === null) {
-                $campos['inicio'] = 'Informe o início no horário da loja.';
+                $campos['inicio'] = 'Informe o início no horário de Brasília.';
             } elseif ($ini->getTimestamp() < $agora->getTimestamp() - 60) {
                 $campos['inicio'] = 'O início da pausa não pode ficar no passado.';
             } elseif ($ini < $agora) {
@@ -123,7 +123,7 @@ final class IfoodLojaService extends BaseIntegracao
                 $ini = $agora;
             }
             if ($fi === null) {
-                $campos['fim'] = 'Informe o término no horário da loja.';
+                $campos['fim'] = 'Informe o término no horário de Brasília.';
             } elseif ($ini !== null) {
                 $duracao = $fi->getTimestamp() - $ini->getTimestamp();
                 if ($duracao < 60) {
@@ -163,12 +163,12 @@ final class IfoodLojaService extends BaseIntegracao
         });
     }
 
-    /** Valores iniciais no fuso fixo de Brasilia. */
+    /** Valores iniciais em Brasilia: 10 segundos no futuro, ate o JS assumir o relogio. */
     public static function novaPausa(string $fuso = 'America/Sao_Paulo'): array
     {
-        $agora = new DateTimeImmutable('now', FusoLojaIfood::timezone($fuso));
-        return ['descricao' => '', 'inicio' => $agora->format('Y-m-d\TH:i'),
-            'fim' => $agora->modify('+1 hour')->format('Y-m-d\TH:i')];
+        $inicio = (new DateTimeImmutable('now', FusoLojaIfood::timezone($fuso)))->modify('+10 seconds');
+        return ['descricao' => '', 'inicio' => $inicio->format('Y-m-d\TH:i:s'),
+            'fim' => $inicio->modify('+1 hour')->format('Y-m-d\TH:i:s')];
     }
 
     /** Toda operacao Merchant usa o horario oficial de Brasilia, independente do endereco. */
@@ -642,7 +642,12 @@ final class IfoodLojaService extends BaseIntegracao
 
     private static function dataHora(string $valor, DateTimeZone $zona): ?DateTimeImmutable
     {
-        $d = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', trim($valor), $zona);
-        return $d !== false && $d->format('Y-m-d\TH:i') === trim($valor) ? $d : null;
+        // Compatibilidade com formularios existentes (minutos) e novo modo
+        // automatico do datetime-local (segundos exatos).
+        $valor = trim($valor);
+        $formato = preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\z/', $valor) === 1
+            ? 'Y-m-d\TH:i:s' : 'Y-m-d\TH:i';
+        $d = DateTimeImmutable::createFromFormat('!' . $formato, $valor, $zona);
+        return $d !== false && $d->format($formato) === $valor ? $d : null;
     }
 }
