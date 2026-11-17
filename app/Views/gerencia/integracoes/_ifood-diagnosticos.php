@@ -1,3 +1,7 @@
+<?php
+use Cardapim\Core\Icon;
+use Cardapim\Services\Ifood\FusoLojaIfood;
+?>
     <details class="ifood-secao-recolhivel ifood-secao-tecnica" id="diagnosticos">
         <summary><?= Icon::svg('wrench', 'icon-sm') ?> Dados e diagnósticos da integração <span class="texto-suave">Informações para homologação e suporte</span></summary>
     <section class="bloco" aria-labelledby="titulo-fuso-ifood">
