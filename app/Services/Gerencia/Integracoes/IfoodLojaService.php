@@ -155,7 +155,7 @@ final class IfoodLojaService extends BaseIntegracao
             $this->log('iFood: pausa criada', sprintf(
                 '"%s" | loja=%s | fuso=%s | de=%s ate=%s | UTC=%s ate=%s',
                 $descricao, $loja, $fuso, $ini->format('d/m/Y H:i:s'), $fi->format('d/m/Y H:i:s'),
-                IfoodApi::data(self::utc($ini))?->format(DATE_ATOM), IfoodApi::data(self::utc($fi))?->format(DATE_ATOM)
+                self::utc($ini), self::utc($fi)
             ));
             return Resultado::sucesso('O iFood recebeu a solicitação de pausa de '
                 . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i')
@@ -169,6 +169,20 @@ final class IfoodLojaService extends BaseIntegracao
         $agora = new DateTimeImmutable('now', FusoLojaIfood::timezone($fuso));
         return ['descricao' => '', 'inicio' => $agora->format('Y-m-d\TH:i'),
             'fim' => $agora->modify('+1 hour')->format('Y-m-d\TH:i')];
+    }
+
+    /** Fuso estimado pelo endereço da loja Merchant; não existe campo timezone no endpoint. */
+    public function fusoDaLoja(): string
+    {
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return 'America/Sao_Paulo';
+        }
+        try {
+            return FusoLojaIfood::sugerir($this->api->detalhesLoja($conta->token(), (string) $conta->loja()));
+        } catch (IntegracaoErro) {
+            return 'America/Sao_Paulo';
+        }
     }
 
     /**
