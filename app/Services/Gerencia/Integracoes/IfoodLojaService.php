@@ -69,7 +69,7 @@ final class IfoodLojaService extends BaseIntegracao
             }
         };
         $detalhes = $buscar('detalhes', fn (): array => $this->api->detalhesLoja($token, $loja), null);
-        $fuso = FusoLojaIfood::sugerir(is_array($detalhes) ? $detalhes : []);
+        $fuso = $conta->fusoInterrupcoes() ?? FusoLojaIfood::sugerir(is_array($detalhes) ? $detalhes : []);
         $horarios = $buscar('horarios', fn (): array => $this->api->horarios($token, $loja), []);
         $situacao = $buscar('situacao', fn (): array => $this->api->situacaoLoja($token, $loja), []);
         $pausas = $buscar('pausas', fn (): array => $this->api->pausas($token, $loja, $fuso), []);
@@ -108,7 +108,7 @@ final class IfoodLojaService extends BaseIntegracao
 
         return $this->executar(function (string $token, string $loja) use ($descricao, $inicio, $fim): Resultado {
             $detalhes = $this->api->detalhesLoja($token, $loja);
-            $fuso = FusoLojaIfood::sugerir($detalhes);
+            $fuso = $this->conta()->fusoInterrupcoes() ?? FusoLojaIfood::sugerir($detalhes);
             $zona = new DateTimeZone($fuso);
             $ini = self::dataHora($inicio, $zona);
             $fi = self::dataHora($fim, $zona);
@@ -179,10 +179,25 @@ final class IfoodLojaService extends BaseIntegracao
             return 'America/Sao_Paulo';
         }
         try {
-            return FusoLojaIfood::sugerir($this->api->detalhesLoja($conta->token(), (string) $conta->loja()));
+            return $conta->fusoInterrupcoes() ?? FusoLojaIfood::sugerir($this->api->detalhesLoja($conta->token(), (string) $conta->loja()));
         } catch (IntegracaoErro) {
             return 'America/Sao_Paulo';
         }
+    }
+
+    /** Ajuste de homologacao; nunca altera o fuso de outros estabelecimentos. */
+    public function definirFusoInterrupcoes(string $fuso): Resultado
+    {
+        if (!FusoLojaIfood::valido($fuso)) {
+            return Resultado::falha('Selecione um fuso horario valido.');
+        }
+        $conta = $this->conta();
+        if (!$conta->conectada()) {
+            return Resultado::falha('Conecte a loja ao iFood primeiro.');
+        }
+        $conta->salvarFusoInterrupcoes($fuso);
+        $this->log('iFood: fuso operacional das pausas', 'loja=' . $conta->loja() . '; fuso=' . $fuso);
+        return Resultado::sucesso('Fuso das pausas atualizado. Confira os horarios das proximas interrupcoes no iFood.');
     }
 
     /**
