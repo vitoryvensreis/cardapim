@@ -82,31 +82,6 @@ final class IfoodConta
         $this->cache = null;
     }
 
-    /** Preferencia de fuso da API de pausas: amarrada ao restaurante e ao merchant. */
-    public function fusoInterrupcoes(): ?string
-    {
-        $dados = $this->integracao()['dados'];
-        $valor = $dados['fuso_interrupcoes'] ?? null;
-        if (!is_array($valor) || ($valor['loja'] ?? null) !== $this->loja()) {
-            return null;
-        }
-        $zona = $valor['zona'] ?? null;
-        return is_string($zona) && FusoLojaIfood::valido($zona) ? $zona : null;
-    }
-
-    public function salvarFusoInterrupcoes(string $fuso): void
-    {
-        if (!FusoLojaIfood::valido($fuso) || !$this->conectada()) {
-            throw new \InvalidArgumentException('Fuso horario da loja invalido.');
-        }
-        $valor = json_encode(['loja' => $this->loja(), 'zona' => $fuso], JSON_THROW_ON_ERROR);
-        $this->db->prepare("UPDATE integracoes SET dados = JSON_SET(
-            COALESCE(NULLIF(dados, ''), '{}'), '$.fuso_interrupcoes', CAST(? AS JSON)
-        ) WHERE id_restaurante = ? AND provedor = 'ifood'")
-            ->execute([$valor, $this->idRestaurante]);
-        $this->cache = null;
-    }
-
     /** Acesso valido para chamar o iFood (renova quando vence). */
     public function token(): string
     {
