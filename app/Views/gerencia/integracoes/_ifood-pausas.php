@@ -16,7 +16,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 ?>
 <div class="bloco-cabecalho">
     <h2 id="titulo-pausas"><?= Icon::svg('circle-pause') ?>Pausas</h2>
-    <p>Feche a loja no iFood por um tempo (ex.: falta de entregador, cozinha cheia). Ela volta sozinha no fim da pausa.</p>
+    <p>Cadastre uma interrupção temporária (ex.: cozinha cheia). Uma pausa vigente não confirma sozinha o fechamento; confira a disponibilidade do iFood acima.</p>
 </div>
 <?php if ($geral !== null): ?>
     <div class="notice <?= $geral['tipo'] === 'sucesso' ? 'notice-success' : 'notice-warning' ?> ifood-pausa-aviso" role="<?= $geral['tipo'] === 'erro' ? 'alert' : 'status' ?>" tabindex="-1" data-pausas-aviso>
@@ -34,9 +34,9 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
             <li class="ifood-lista-item">
                 <span><strong><?= $e($pausa['descricao'] !== '' ? $pausa['descricao'] : 'Pausa') ?></strong>
                     <small>De <?= $e($quandoPausa($pausa['inicio'])) ?> até <?= $e($quandoPausa($pausa['fim'])) ?></small></span>
-                <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Valendo agora' : ($encerrada ? 'Encerrada' : 'Agendada') ?></span>
+                <span class="etiqueta <?= $agora ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($agora ? 'circle-pause' : 'clock') ?><?= $agora ? 'Horário vigente' : ($encerrada ? 'Encerrada' : 'Agendada') ?></span>
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/pausas/remover') ?>" data-pausa-form
-                      data-confirm="A loja volta a abrir no iFood conforme o horário de funcionamento." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
+                      data-confirm="Solicitar remoção da pausa ao iFood? Confira o status da loja depois da atualização." data-confirm-titulo="Remover esta pausa?" data-confirm-acao="Remover">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <input type="hidden" name="pausa" value="<?= $e($pausa['id']) ?>">
                     <button class="btn btn-outline btn-sm" type="submit" data-submit-label="Removendo..."><?= Icon::svg('circle-play', 'icon-sm') ?><span>Remover pausa</span></button>
