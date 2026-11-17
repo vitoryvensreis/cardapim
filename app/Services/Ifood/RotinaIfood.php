@@ -32,11 +32,9 @@ final class RotinaIfood
             // Uma falha do Merchant não interrompe a recepção/ack dos pedidos.
             try {
                 $operacoes = $conta->api()->situacaoLoja($token, (string) $conta->loja());
-                // A API de pausas pode retornar horario local sem offset; diferenciar de UTC
-                // em todo o modulo Merchant, inclusive no cron.
-                $detalhes = $conta->api()->detalhesLoja($token, (string) $conta->loja());
-                $fuso = $conta->fusoInterrupcoes() ?? FusoLojaIfood::sugerir($detalhes);
-                $pausas = $conta->api()->pausas($token, (string) $conta->loja(), $fuso);
+                // O cron e a interface usam exclusivamente o horario de Brasilia
+                // para normalizar interrupcoes sem offset (nunca altera datas de pedidos).
+                $pausas = $conta->api()->pausas($token, (string) $conta->loja(), FusoLojaIfood::PADRAO);
                 EstadoLoja::reconciliar($this->db, $idRestaurante, $operacoes, $pausas);
             } catch (IntegracaoErro $erroMerchant) {
                 error_log('[Cardapim] Estado iFood nao atualizado, mantendo ultimo estado conhecido: ' . $idRestaurante . ' ' . get_class($erroMerchant));
