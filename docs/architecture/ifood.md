@@ -91,6 +91,18 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 | POST | `/{slug}/gerencia/integracoes/ifood/pausas/remover` | Remove pausa (`pausa` = id) |
 | POST | `/{slug}/gerencia/integracoes/ifood/horarios` | Sem `horario_proprio`: usa o horário do Perfil. Com `horario_proprio=1`: envia `h[MONDAY][0][abre]`, `h[MONDAY][0][fecha]`... |
 
+### Diagnóstico das respostas da API Merchant
+
+Na tela **Loja no iFood**, o gerente encontra **Diagnóstico da comunicação com o iFood**. Os últimos 30 registros podem ser consultados nessa própria tela depois de atualizá-la. São mostrados apenas os registros do restaurante logado, com controle de acesso já existente na gerência. O log inclui:
+
+- Horário UTC, origem (cron ou painel), restaurante e loja, método, rota, ID da pausa (quando aplicável), tempo de resposta e **código HTTP real**.
+- Corpo de envio seguro e resposta JSON sanitizada de `GET /status`, `GET /interruptions`, `POST /interruptions`, `DELETE /interruptions/{id}` e `GET|PUT /opening-hours`.
+- Em falha de rede, o motivo genérico, sem token. Nenhuma chamada OAuth, pedido, dados do cliente, bearer ou credencial é registrada.
+- Arquivos persistidos fora de `public/`: `storage/logs/ifood-merchant/restaurante-{id}-AAAA-MM-DD.jsonl`. Em produção, `storage/` é compartilhado entre releases. Permissões 0700 no diretório criado e 0600 nos arquivos novos. Logs anteriores a 14 dias são apagados automaticamente.
+- A API informa **201** no POST e **204** no DELETE; a disponibilidade não é garantida por isso. Compare com os GET subsequentes e com `state`, `available`, `validations` e `reopenable`. Nunca considerar a loja aberta ou fechada sem a confirmação do Merchant.
+
+**Diagnóstico de homologação:** se o POST retorna 201 com ID mas a interrupção não aparece no GET ou o status permanece OK, registrar a sequência e verificar no Portal do Parceiro. O iFood documenta processamento assíncrono; investigar autorizações e merchantId se persistir por mais de um ciclo de polling. A disponibilidade na loja de testes pode diferir da loja real. Não repetir POST indiscriminadamente (risco de pausa duplicada).
+
 ### Botão "Abrir loja no iFood" (topo da gerência e do modo caixa)
 
 Ao lado do "Abrir caixa", só quando o iFood está conectado (`BotaoLojaIfood::config`). Funciona por JSON, sem recarregar
