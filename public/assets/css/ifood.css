@@ -154,5 +154,5 @@ body.ifood-aguardando-ativo { overflow: hidden; }
 .ifood-pausa-temporaria[data-resultado="registrada"] .icon { animation: none; }
 @keyframes ifood-girar { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .ifood-aguardando-conteudo .icon, .ifood-estado-pendente .icon { animation-duration: 2.5s; }
+  .ifood-aguardando-conteudo .icon, .ifood-estado-pendente .icon { animation: none; }
 }
