@@ -331,6 +331,18 @@ final class IntegracoesController extends BaseGerencia
         return $this->telaLojaIfood(['pausa' => $res->erros + ['_geral' => $res->mensagem]], ['pausa' => $valores], 422);
     }
 
+    /** Consulta apenas a pausa desta loja e a disponibilidade que o iFood confirmou. */
+    public function ifoodPausaEstado(string $slug): Response
+    {
+        if ($this->entrar($slug)) {
+            return BotaoLojaIfood::semSessao();
+        }
+        $id = (string) ($_GET['id'] ?? '');
+        return \Cardapim\Services\Auth\Guard::semCache(
+            Response::json($this->ifoodLojaServico()->consultarConfirmacaoPausa($id))
+        );
+    }
+
     public function ifoodPausaRemover(string $slug): Response
     {
         $porJs = self::pedidoPorJs();
@@ -427,7 +439,12 @@ final class IntegracoesController extends BaseGerencia
             'base' => $this->url(),
             'csrf' => \Cardapim\Core\Session::tokenCsrf(),
         ], 'layouts/fragmento');
-        return \Cardapim\Services\Auth\Guard::semCache(Response::json(['ok' => $res->ok, 'mensagem' => $res->mensagem, 'html' => $html], $res->ok ? 200 : 422));
+        return \Cardapim\Services\Auth\Guard::semCache(Response::json([
+            'ok' => $res->ok,
+            'mensagem' => $res->mensagem,
+            'html' => $html,
+            'pausa_id' => $res->ok ? $servico->ultimaCriadaId() : null,
+        ], $res->ok ? 200 : 422));
     }
 
     /** @param array<string,array<string,string>> $erros @param array<string,mixed> $valores */
