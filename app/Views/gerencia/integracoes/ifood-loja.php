@@ -62,6 +62,9 @@ $campoErro = static fn (array $lista, string $campo): string => isset($lista[$ca
         <div class="bloco-cabecalho"><h2 id="titulo-dados"><?= Icon::svg('info') ?>Dados da loja</h2></div>
         <?= $aviso($p['erros']['detalhes'] ?? null) ?>
         <?php if ($det !== []): ?>
+            <?php if (($det['test'] ?? '') === 'TEST' && ($det['status'] ?? '') === 'DISABLED'): ?>
+                <div class="notice notice-warning"><?= Icon::svg('info') ?><div><p>Este é um estabelecimento de teste com cadastro desabilitado. Isso não equivale ao status operacional: confira a seção Disponibilidade agora para saber se o iFood considera a loja aberta.</p></div></div>
+            <?php endif; ?>
             <div class="resumo-assinatura">
                 <div class="resumo-linha"><span>Nome</span><strong><?= $e((string) ($det['name'] ?? '-')) ?></strong></div>
                 <div class="resumo-linha"><span>Razão social</span><strong><?= $e((string) ($det['corporateName'] ?? '-')) ?></strong></div>
@@ -94,6 +97,9 @@ $campoErro = static fn (array $lista, string $campo): string => isset($lista[$ca
             <p>Se a loja está recebendo pedidos no iFood em cada tipo de operação.</p>
         </div>
         <?= $aviso($p['erros']['situacao'] ?? null) ?>
+        <?php if (($p['divergencia'] ?? false) === true): ?>
+            <div class="notice notice-warning" role="status"><?= Icon::svg('circle-exclamation-point') ?><div><p><strong>Pausa vigente, mas loja aberta no iFood.</strong> O iFood cadastrou uma interrupção, porém confirma que a operação continua disponível para pedidos. Verifique as condições da loja de teste e acompanhe a confirmação no Portal do Parceiro. O Deliveryzim pode manter um bloqueio preventivo de novos pedidos feitos diretamente por seu cardápio.</p></div></div>
+        <?php endif; ?>
         <?php if ($p['situacao'] === [] && !isset($p['erros']['situacao'])): ?>
             <p class="texto-suave">O iFood não informou a situação da loja.</p>
         <?php endif; ?>
