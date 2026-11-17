@@ -24,7 +24,7 @@ $statusIfood = static fn (?string $s): array => match ($s) {
 <div class="painel-page">
     <header class="painel-cabecalho">
         <div>
-            <a class="voltar-link" href="<?= $e($base . '/integracoes/ifood') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>iFood</a>
+            <a class="voltar-link" href="<?= $e($base . '/integracoes/ifood/cardapio') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>iFood</a>
             <h1>Cardápio do iFood</h1>
             <p>Escolha qual produto daqui corresponde a cada item do iFood. A venda no iFood baixa o estoque desse produto e a disponibilidade dele vai para o iFood.</p>
         </div>
@@ -43,7 +43,7 @@ $statusIfood = static fn (?string $s): array => match ($s) {
     </header>
 
     <?php if (!$sincronizar): ?>
-        <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>O envio automático da disponibilidade está desligado nas <a href="<?= $e($base . '/integracoes/ifood') ?>#titulo-opcoes-ifood">opções do iFood</a>. As vendas do iFood continuam baixando o estoque.</p></div></div>
+        <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>O envio automático da disponibilidade está desligado nas <a href="<?= $e($base . '/integracoes/ifood/cardapio') ?>#titulo-opcoes-ifood">opções do iFood</a>. As vendas do iFood continuam baixando o estoque.</p></div></div>
     <?php endif; ?>
 
     <?php if ($itens === []): ?>
@@ -57,7 +57,7 @@ $statusIfood = static fn (?string $s): array => match ($s) {
     <?php else: ?>
         <nav class="filtros ifood-filtros" aria-label="Filtrar itens">
             <?php foreach ($filtros as $chave => [$rotulo, $qtd]): ?>
-                <a href="<?= $e($base . '/integracoes/ifood/cardapio' . ($chave === 'todos' ? '' : '?filtro=' . $chave)) ?>"<?= $filtro === $chave ? ' aria-current="true"' : '' ?>><?= $e($rotulo) ?> (<?= (int) $qtd ?>)</a>
+                <a href="<?= $e($base . '/integracoes/ifood/cardapio/vinculos' . ($chave === 'todos' ? '' : '?filtro=' . $chave)) ?>"<?= $filtro === $chave ? ' aria-current="true"' : '' ?>><?= $e($rotulo) ?> (<?= (int) $qtd ?>)</a>
             <?php endforeach; ?>
         </nav>
 
