@@ -123,7 +123,7 @@ por_js() { # jar pagina-do-token url [campo=valor ...] -> codigo (corpo em $tmp/
 agora_local="$(TZ=America/Fortaleza date '+%Y-%m-%dT%H:%M')"; depois_local="$(TZ=America/Fortaleza date -d '+30 minutes' '+%Y-%m-%dT%H:%M')"
 esperar "pausa pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Pausa tela CI' inicio="$agora_local" fim="$depois_local")" "200"
 contem "aviso dentro do card" "$tmp/js.json" 'data-pausas-aviso'
-contem "aviso de pausa criada" "$tmp/js.json" 'recebeu a solicitação de pausa'
+contem "aviso de pausa criada" "$tmp/js.json" 'Solicitação recebida pelo iFood'
 contem "pausa nova ja na lista" "$tmp/js.json" 'Pausa tela CI'
 contem "horario da pausa identificado" "$tmp/js.json" 'Horário vigente'
 esperar "pausa invalida pela tela" "$(por_js "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao= inicio="$agora_local" fim="$depois_local")" "422"
