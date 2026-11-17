@@ -19,7 +19,7 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
         <div>
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
             <h1>iFood</h1>
-            <p>Ligue a sua loja do iFood ao <?= marca_html() ?>.</p>
+            <p><?= $statusIntegracao === 'conectado' ? 'Controle sua loja, pausas e pedidos do iFood em um só lugar.' : 'Conecte sua loja para gerenciar tudo por aqui.' ?></p>
         </div>
         <?php require __DIR__ . '/_status.php'; ?>
     </header>
@@ -110,7 +110,7 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                 <p>A consulta automática ao iFood não rodou nos últimos minutos<?= $ultimaConsulta !== null ? ' (última às ' . $e(date('H:i', (int) strtotime((string) $integracao['verificado_em']))) . ')' : '' ?>. Use o Gestor de Pedidos do iFood enquanto isso e avise o suporte do <?= marca_html() ?>.</p></div></div>
         <?php endif; ?>
         <section class="bloco" aria-labelledby="titulo-conectado">
-            <div class="bloco-cabecalho"><h2 id="titulo-conectado"><?= Icon::svg('shopping-bag') ?>Loja conectada</h2></div>
+            <div class="bloco-cabecalho"><h2 id="titulo-conectado"><?= Icon::svg('shopping-bag') ?>Conexão com o iFood</h2></div>
             <?php if ($integracao['ultimo_erro']): ?>
                 <div class="notice notice-warning"><?= Icon::svg('circle-exclamation-point') ?><div><p><?= $e((string) $integracao['ultimo_erro']) ?></p></div></div>
             <?php endif; ?>
@@ -118,9 +118,8 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                 <div class="resumo-linha"><span>Loja no iFood</span><strong><?= $e((string) ($d['loja_nome'] ?? '-')) ?></strong></div>
                 <div class="resumo-linha"><span>Pedidos do iFood hoje</span><strong><?= (int) $pedidosHoje ?></strong></div>
                 <div class="resumo-linha"><span>Última consulta ao iFood</span><strong><?= $ultimaConsulta === null ? '-' : ($ultimaConsulta < 60 ? 'agora há pouco' : $e($data($integracao['verificado_em']))) ?></strong></div>
-                <div class="resumo-linha"><span>Conectada em</span><strong><?= $e($data($integracao['conectado_em'])) ?></strong></div>
             </div>
-            <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>Os pedidos do iFood chegam sozinhos no Delivery do caixa, com o aviso de pedido novo. Aceitar, marcar como pronto, despachar e cancelar por lá também atualiza o iFood.</p></div></div>
+            <p class="texto-suave">Os pedidos chegam automaticamente no Delivery do caixa, onde você também pode aceitar e acompanhar o preparo.</p>
             <div class="acoes-2fa">
                 <form method="post" action="<?= $e($base . '/integracoes/ifood/testar') ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
@@ -134,13 +133,9 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
             </div>
         </section>
 
-        <section class="bloco" aria-labelledby="titulo-loja-ifood">
-            <div class="bloco-cabecalho">
-                <h2 id="titulo-loja-ifood"><?= Icon::svg('store') ?>Loja no iFood</h2>
-                <p>Dados da loja, disponibilidade agora, pausas e horário de funcionamento no iFood.</p>
-            </div>
-            <div class="bloco-rodape"><a class="btn btn-outline" href="<?= $e($base . '/integracoes/ifood/minha-loja') ?>"><?= Icon::svg('settings', 'icon-sm') ?>Abrir loja no iFood</a></div>
-        </section>
+        <?php if (is_array($painel ?? null)): ?>
+            <?php require __DIR__ . '/ifood-loja.php'; ?>
+        <?php endif; ?>
 
         <section class="bloco" aria-labelledby="titulo-cardapio-ifood">
             <div class="bloco-cabecalho">

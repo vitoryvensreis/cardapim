@@ -46,6 +46,13 @@ $verificar(IfoodLojaService::utc($horaFortaleza) === '2026-11-17T18:40:00Z', 'ho
 $horaAcre = new DateTimeImmutable('2026-11-17T15:40:00', FusoLojaIfood::timezone('America/Rio_Branco'));
 $verificar(IfoodLojaService::utc($horaAcre) === '2026-11-17T20:40:00Z', 'hora Acre se normaliza para UTC com +5 horas');
 
+$localCru = '2026-11-17T16:52:20';
+$normalizado = IfoodApi::normalizarPausa($localCru, 'America/Sao_Paulo');
+$verificar($normalizado === '2026-11-17T16:52:20-03:00', 'GET sem fuso fica horario local do Merchant');
+$verificar(IfoodApi::normalizarPausa('2026-11-17T19:52:20Z', 'America/Sao_Paulo') === '2026-11-17T19:52:20Z', 'GET com Z nao e convertido duas vezes');
+$verificar(IfoodApi::normalizarPausa($localCru, null) === $localCru, 'sem referencia de fuso preserva valor bruto');
+$verificar(IfoodApi::data($normalizado)?->getTimestamp() === strtotime('2026-11-17T19:52:20Z'), 'hora local e UTC representam mesmo instante');
+
 if ($erros !== 0) {
     exit(1);
 }

@@ -86,9 +86,13 @@ pagina "$gj" "$g/integracoes/ifood" >/dev/null
 contem "resumo do cardapio" "$tmp/pagina.html" '0 de 2'
 contem "opcoes do iFood" "$tmp/pagina.html" 'Aceitar pedidos do iFood sozinho'
 contem "link para ligar os itens" "$tmp/pagina.html" '/integracoes/ifood/cardapio'
+contem "painel unico: disponibilidade na pagina principal" "$tmp/pagina.html" 'Disponibilidade agora'
+contem "painel unico: pausas na pagina principal" "$tmp/pagina.html" 'Nova pausa'
+contem "painel unico: horarios recolhiveis" "$tmp/pagina.html" 'ifood-secao-recolhivel'
+contem "diagnosticos mantidos" "$tmp/pagina.html" 'Dados e diagnósticos da integração'
 
 echo "Loja no iFood (Merchant): lojas, dados, disponibilidade, pausas e horarios"
-contem "link da loja no iFood" "$tmp/pagina.html" '/integracoes/ifood/minha-loja'
+contem "acesso direto as pausas" "$tmp/pagina.html" 'id="pausas"'
 esperar "pagina da loja no iFood" "$(pagina "$gj" "$g/integracoes/ifood/minha-loja")" "200"
 contem "lista as lojas vinculadas" "$tmp/pagina.html" 'Loja CI Praia'
 contem "marca a loja ligada" "$tmp/pagina.html" 'Ligada a este restaurante'
@@ -97,11 +101,16 @@ contem "endereco nos dados" "$tmp/pagina.html" 'Rua CI, 10, Centro, Fortaleza - 
 contem "disponibilidade" "$tmp/pagina.html" 'Loja aberta no iFood'
 contem "fuso da loja no formulario" "$tmp/pagina.html" 'Brasília / Fortaleza'
 contem "motivo no limite Merchant" "$tmp/pagina.html" 'maxlength="255"'
-contem "dois relogios no formulario" "$tmp/pagina.html" 'data-ifood-relogios'
-contem "fuso do Merchant para o relogio" "$tmp/pagina.html" 'data-fuso-loja="America/Sao_Paulo"'
-contem "relogio da loja" "$tmp/pagina.html" 'data-relogio-loja'
-contem "relogio do dispositivo" "$tmp/pagina.html" 'data-relogio-dispositivo'
+nao_contem "relogios removidos" "$tmp/pagina.html" 'data-ifood-relogios'
+nao_contem "relogio da loja removido" "$tmp/pagina.html" 'data-relogio-loja'
+nao_contem "relogio do dispositivo removido" "$tmp/pagina.html" 'data-relogio-dispositivo'
 contem "campos expressos no fuso da loja" "$tmp/pagina.html" 'Começa (horário da loja)'
+esperar "salvar fuso operacional de loja" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/fuso" fuso=America/Manaus | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood" >/dev/null
+contem "fuso operacional salvo por loja" "$tmp/pagina.html" 'value="America/Manaus" selected'
+esperar "restaurar fuso da loja CI" "$(enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/fuso" fuso=America/Sao_Paulo | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/integracoes/ifood" >/dev/null
+contem "fuso CE restaurado" "$tmp/pagina.html" 'value="America/Sao_Paulo" selected'
 nao_contem "sem modo de inicio imediato" "$tmp/pagina.html" 'name="inicio_agora"'
 esperar "caixa nao abre a loja no iFood" "$(pagina "$cx" "$g/integracoes/ifood/minha-loja" | sed 's/302/403/')" "403"
 ini="$(date -d '+10 minutes' '+%Y-%m-%dT%H:%M')"; fim="$(date -d '+70 minutes' '+%Y-%m-%dT%H:%M')"
@@ -111,8 +120,9 @@ esperar "pausa maior que 7 dias recusada" "$(enviar "$gj" "$g/integracoes/ifood/
 esperar "duracao minima 1 min" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Muito curta' inicio="$ini" fim="$ini" | cut -d' ' -f1)" "422"
 esperar "criar pausa" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Cozinha cheia CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "303"
 curl -s "$fake/_teste/ultimo-payload-pausa" > "$tmp/payload-pausa.json"
-contem "POST envia hora local com offset explicito da loja" "$tmp/payload-pausa.json" '-03:00'
-nao_contem "POST nao converte o horario local em Z" "$tmp/payload-pausa.json" 'Z"'
+nao_contem "POST mantem hora local sem offset" "$tmp/payload-pausa.json" '-03:00'
+nao_contem "POST nao envia UTC Z" "$tmp/payload-pausa.json" 'Z"'
+contem "POST devolve valor de relogio original" "$tmp/payload-pausa.json" "$ini"
 esperar "sobreposicao tratada no backend" "$(enviar "$gj" "$g/integracoes/ifood/minha-loja" "$g/integracoes/ifood/pausas" descricao='Sobreposta CI' inicio="$ini" fim="$fim" | cut -d' ' -f1)" "422"
 pagina "$gj" "$g/integracoes/ifood/minha-loja" >/dev/null
 contem "pausa ativa listada" "$tmp/pagina.html" 'Cozinha cheia CI'

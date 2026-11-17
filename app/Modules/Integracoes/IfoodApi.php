@@ -227,7 +227,7 @@ class IfoodApi
     }
 
     /** Pausas (interrupcoes) da loja. @return list<array{id:string, descricao:string, inicio:string, fim:string}> */
-    public function pausas(string $token, string $idLoja): array
+    public function pausas(string $token, string $idLoja, ?string $fusoLocal = null): array
     {
         $d = $this->exigirOk($this->requisicao('GET', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions', $token), 'listar as pausas');
         $saida = [];
@@ -236,12 +236,29 @@ class IfoodApi
                 $saida[] = [
                     'id' => mb_substr($p['id'], 0, 64),
                     'descricao' => mb_substr((string) ($p['description'] ?? ''), 0, 200),
-                    'inicio' => (string) ($p['start'] ?? ''),
-                    'fim' => (string) ($p['end'] ?? ''),
+                    'inicio' => self::normalizarPausa((string) ($p['start'] ?? ''), $fusoLocal),
+                    'fim' => self::normalizarPausa((string) ($p['end'] ?? ''), $fusoLocal),
                 ];
             }
         }
         return $saida;
+    }
+
+    /**
+     * Datas sem offset no GET de interrupcoes sao tratadas como horario de
+     * parede da loja, apenas quando seu fuso e conhecido. Datas com Z/offset
+     * continuam representando instantes universais. Nunca afetar datas de pedidos.
+     */
+    public static function normalizarPausa(string $iso, ?string $fusoLocal): string
+    {
+        if ($fusoLocal === null || $iso === '' || preg_match('/(Z|[+-]\\d{2}:?\\d{2})\\z/i', $iso)) {
+            return $iso;
+        }
+        try {
+            return (new \DateTimeImmutable($iso, new \DateTimeZone($fusoLocal)))->format('Y-m-d\\TH:i:sP');
+        } catch (\Throwable) {
+            return $iso;
+        }
     }
 
     /** Cria uma pausa na loja (fecha no iFood entre inicio e fim). @return string id da pausa */
@@ -249,11 +266,10 @@ class IfoodApi
     {
         $r = $this->requisicao('POST', '/merchant/v1.0/merchants/' . self::id($idLoja) . '/interruptions', $token, [
             'description' => $descricao,
-            // ISO 8601 no horario da loja, com offset explicito.
-            // Nao converter o horario de parede para UTC antes do envio:
-            // o iFood informa que pode ignorar o offset e usar o fuso configurado na loja.
-            'start' => $inicio->format('Y-m-d\TH:i:sP'),
-            'end' => $fim->format('Y-m-d\TH:i:sP'),
+            // Confirmado na loja de homologacao: a API aceita o horario local ISO 8601
+            // sem offset e aplica a interrupcao. Nao somar ou subtrair horas ao relogio.
+            'start' => $inicio->format('Y-m-d\TH:i:s'),
+            'end' => $fim->format('Y-m-d\TH:i:s'),
         ]);
         $d = $this->exigirOk($r, 'criar a pausa');
         if ($r->status !== 201) {

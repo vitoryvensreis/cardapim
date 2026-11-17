@@ -165,6 +165,12 @@ final class IntegracoesController extends BaseGerencia
         if ($r = $this->entrar($slug)) {
             return $r;
         }
+        return $this->telaIfood();
+    }
+
+    /** Tela unica de operacao e configuracao iFood, incluindo os formularios com erro. */
+    private function telaIfood(array $erros = [], array $valores = [], int $status = 200): Response
+    {
         $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
         $itens = $conta->conectada() ? (new IfoodCatalogo($this->db, (int) $this->restaurante['id']))->itens() : [];
         $hoje = $this->db->prepare("SELECT COUNT(*) FROM pedidos WHERE id_restaurante = ? AND origem = 'ifood' AND criado_em >= ?");
@@ -179,8 +185,13 @@ final class IntegracoesController extends BaseGerencia
                 'erros' => count(array_filter($itens, static fn (array $i): bool => $i['ultimo_erro'] !== null)),
             ],
             'pedidosHoje' => (int) $hoje->fetchColumn(),
-            'pageScripts' => ['js/integracoes.js'],
-        ]);
+            'painel' => $conta->conectada() ? $this->ifoodLojaServico()->painel() : null,
+            'diagnosticoMerchant' => $conta->conectada() ? IfoodDiagnostico::recentes((int) $this->restaurante['id'], 30) : [],
+            'erros' => $erros,
+            'valores' => $valores,
+            'pageStyles' => ['css/ifood.css'],
+            'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
+        ], $status);
     }
 
     public function ifoodIniciar(string $slug): Response
@@ -293,10 +304,8 @@ final class IntegracoesController extends BaseGerencia
 
     public function ifoodMinhaLoja(string $slug): Response
     {
-        if ($r = $this->entrar($slug)) {
-            return $r;
-        }
-        return $this->telaLojaIfood([], []);
+        // Compatibilidade com links antigos: a mesma pagina unica, sem painel duplicado.
+        return $this->ifood($slug);
     }
 
     /** Cria pausa. Pela tela (fetch) devolve o card de pausas pronto, com o aviso dentro dele; sem JS, volta para a pagina. */
@@ -360,6 +369,18 @@ final class IntegracoesController extends BaseGerencia
         return $this->telaLojaIfood(['horarios' => $res->erros + ['_geral' => $res->mensagem]], ['horarios' => $entrada, 'horario_proprio' => true], 422);
     }
 
+    /** Ajuste por restaurante e merchant do fuso operacional de interrupcoes (homologacao). */
+    public function ifoodFuso(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        return $this->responder(
+            $this->ifoodLojaServico()->definirFusoInterrupcoes($this->post('fuso')),
+            $this->url('integracoes/ifood#diagnosticos')
+        );
+    }
+
     /** Botao "Abrir loja no iFood" do topo: situacao (JSON). */
     public function ifoodBotaoSituacao(string $slug): Response
     {
@@ -412,18 +433,7 @@ final class IntegracoesController extends BaseGerencia
     /** @param array<string,array<string,string>> $erros @param array<string,mixed> $valores */
     private function telaLojaIfood(array $erros, array $valores, int $status = 200): Response
     {
-        $painel = $this->ifoodLojaServico()->painel();
-        if (!$painel['conectada']) {
-            return $this->voltar($this->url('integracoes/ifood'), 'erro', 'Conecte o iFood primeiro.');
-        }
-        return $this->tela('gerencia/integracoes/ifood-loja', 'integracoes', 'Loja no iFood', [
-            'painel' => $painel,
-            'diagnosticoMerchant' => IfoodDiagnostico::recentes((int) $this->restaurante['id'], 30),
-            'erros' => $erros,
-            'valores' => $valores,
-            'pageStyles' => ['css/ifood.css'],
-            'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
-        ], $status);
+        return $this->telaIfood($erros, $valores, $status);
     }
 
     private function ifoodLojaServico(): IfoodLojaService

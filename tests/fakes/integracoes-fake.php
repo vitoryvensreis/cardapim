@@ -325,8 +325,18 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
     }
     if (preg_match('~/merchants/[0-9a-f-]+/status\z~', $caminho)) {
         // Pausa valendo agora fecha a loja (como no iFood).
+        // Pausas sem offset representam o horario local do merchant fake (Fortaleza);
+        // registros com Z preservam instante UTC (como documentacao oficial).
+        $instante = static function (string $iso): int {
+            try {
+                return (new \DateTimeImmutable($iso, new \DateTimeZone('America/Fortaleza')))->getTimestamp();
+            } catch (\Throwable) {
+                return 0;
+            }
+        };
         $pausada = ($ler('ifood-status-forcar-aberta.json') !== true)
-            && array_filter($ler('ifood-pausas.json') ?? [], static fn (array $p): bool => strtotime($p['start'] . 'Z') <= time() && strtotime($p['end'] . 'Z') > time()) !== [];
+            && array_filter($ler('ifood-pausas.json') ?? [], static fn (array $p): bool =>
+                $instante((string) $p['start']) <= time() && $instante((string) $p['end']) > time()) !== [];
         $responder(200, [$pausada
             ? ['operation' => 'delivery', 'available' => false, 'state' => 'CLOSED', 'message' => ['title' => 'Loja pausada']]
             : ['operation' => 'delivery', 'available' => true, 'state' => 'OK', 'message' => ['title' => 'Loja aberta no iFood']]]);
@@ -349,9 +359,9 @@ if (str_starts_with($caminho, '/ifood/merchant/v1.0/merchants')) {
                 $responder(400, ['message' => 'Nao envie id na criacao da interrupcao']);
             }
             $id = bin2hex(random_bytes(16));
-            // Como o iFood: guarda em UTC e devolve sem o fuso.
+            // Como observado no Postman: sem offset, devolve a mesma hora local.
             $pausas[$id] = ['id' => $id, 'description' => $json['description'],
-                'start' => gmdate('Y-m-d\TH:i:s', strtotime((string) $json['start'])), 'end' => gmdate('Y-m-d\TH:i:s', strtotime((string) $json['end']))];
+                'start' => (string) $json['start'], 'end' => (string) $json['end']];
             $guardar('ifood-pausas.json', $pausas);
             $responder(201, $pausas[$id]);
         }

@@ -50,21 +50,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-pausa-form>
     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
     <h3>Nova pausa</h3>
-    <p class="texto-suave">Fuso estimado pelo endereço da loja no iFood: <?= $e(FusoLojaIfood::OPCOES[$fusoLoja]) ?>. A API Merchant não informa o fuso interno da conta.</p>
-    <div class="ifood-relogios" data-ifood-relogios data-fuso-loja="<?= $e($fusoLoja) ?>" aria-label="Relógios da loja e do dispositivo">
-        <div class="ifood-relogio ifood-relogio-loja">
-            <span class="ifood-relogio-titulo"><?= Icon::svg('store', 'icon-sm') ?> Horário da loja</span>
-            <time class="ifood-relogio-hora" data-relogio-loja aria-live="off"><?= $e((new \DateTimeImmutable('now', FusoLojaIfood::timezone($fusoLoja)))->format('H:i:s')) ?></time>
-            <span class="ifood-relogio-data" data-data-loja><?= $e((new \DateTimeImmutable('now', FusoLojaIfood::timezone($fusoLoja)))->format('d/m/Y')) ?></span>
-            <small><?= $e(FusoLojaIfood::OPCOES[$fusoLoja]) ?> (por endereço)</small>
-        </div>
-        <div class="ifood-relogio">
-            <span class="ifood-relogio-titulo"><?= Icon::svg('monitor', 'icon-sm') ?> Horário do dispositivo</span>
-            <time class="ifood-relogio-hora" data-relogio-dispositivo aria-live="off">--:--:--</time>
-            <span class="ifood-relogio-data" data-data-dispositivo>Detectando...</span>
-            <small data-fuso-dispositivo>Fuso do navegador</small>
-        </div>
-    </div>
+    <p class="texto-suave">Horário de referência do iFood: <?= $e(FusoLojaIfood::OPCOES[$fusoLoja]) ?>. Se estiver diferente do Portal, ajuste em Dados e diagnósticos.</p>
     <label class="campo-rotulo" for="pausa-descricao">Motivo</label>
     <input class="campo-simples" id="pausa-descricao" name="descricao" maxlength="255" required value="<?= $e((string) $vP['descricao']) ?>" placeholder="Ex.: Cozinha cheia"<?= isset($eP['descricao']) ? ' aria-invalid="true" aria-describedby="erro-pausa-descricao"' : '' ?>>
     <?= $erroPausa('descricao') ?>
