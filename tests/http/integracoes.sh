@@ -33,7 +33,7 @@ flash() { curl -s -b "$1" "$2" | grep -o 'painel-flash-[a-z]*' | head -1; }
 
 gj="$tmp/g"
 esperar "gerente entra" "$(login "$gj" ci_gerente)" "303"
-for caminho in /integracoes /integracoes/asaas /integracoes/whatsapp /integracoes/ifood; do
+for caminho in /integracoes /integracoes/asaas /integracoes/whatsapp /integracoes/ifood/status; do
   esperar "GET $caminho" "$(pagina "$gj" "$g$caminho")" "200"
 done
 cj="$tmp/c"; login "$cj" ci_caixa >/dev/null
@@ -87,25 +87,25 @@ estado="$(curl -s -b "$gj" "$g/integracoes/whatsapp/estado")"
 [[ "$estado" == *'"estado":"desconectado"'* ]] && ok "desconectado" || falha "continua conectado: $estado"
 
 echo "iFood"
-esperar "gerar codigo de vinculo" "$(enviar "$gj" /integracoes/ifood/iniciar)" "303 $g/integracoes/ifood"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+esperar "gerar codigo de vinculo" "$(enviar "$gj" /integracoes/ifood/iniciar)" "303 $g/integracoes/ifood/status"
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "codigo de vinculo na tela" "$tmp/pagina.html" 'ABCD-EFGH'
 contem "link do Portal do Parceiro" "$tmp/pagina.html" 'portal.ifood.com.br/apps/code'
 esperar "codigo de autorizacao errado" "$(enviar "$gj" /integracoes/ifood/concluir codigo='ERRADO-1' | cut -d' ' -f1)" "303"
-esperar "aviso do codigo errado" "$(flash "$gj" "$g/integracoes/ifood")" "painel-flash-erro"
-esperar "codigo de autorizacao certo" "$(enviar "$gj" /integracoes/ifood/concluir codigo='auth-ci-ok')" "303 $g/integracoes/ifood"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+esperar "aviso do codigo errado" "$(flash "$gj" "$g/integracoes/ifood/status")" "painel-flash-erro"
+esperar "codigo de autorizacao certo" "$(enviar "$gj" /integracoes/ifood/concluir codigo='auth-ci-ok')" "303 $g/integracoes/ifood/status"
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "escolher entre as lojas" "$tmp/pagina.html" 'Loja CI Praia'
 esperar "loja de fora da lista recusada" "$(enviar "$gj" /integracoes/ifood/loja loja='99999999-0000-0000-0000-000000000000' | cut -d' ' -f1)" "303"
-esperar "aviso da loja invalida" "$(flash "$gj" "$g/integracoes/ifood")" "painel-flash-erro"
-esperar "escolher loja" "$(enviar "$gj" /integracoes/ifood/loja loja='66666666-7777-8888-9999-000000000000')" "303 $g/integracoes/ifood"
-pagina "$gj" "$g/integracoes/ifood" >/dev/null
+esperar "aviso da loja invalida" "$(flash "$gj" "$g/integracoes/ifood/status")" "painel-flash-erro"
+esperar "escolher loja" "$(enviar "$gj" /integracoes/ifood/loja loja='66666666-7777-8888-9999-000000000000')" "303 $g/integracoes/ifood/status"
+pagina "$gj" "$g/integracoes/ifood/loja" >/dev/null
 contem "loja conectada" "$tmp/pagina.html" 'Loja CI Praia'
 esperar "testar iFood" "$(enviar "$gj" /integracoes/ifood/testar | cut -d' ' -f1)" "303"
-esperar "teste do iFood ok" "$(flash "$gj" "$g/integracoes/ifood")" "painel-flash-sucesso"
+esperar "teste do iFood ok" "$(flash "$gj" "$g/integracoes/ifood/loja")" "painel-flash-sucesso"
 pagina "$gj" "$g/integracoes" >/dev/null
 contem "visao geral mostra a loja" "$tmp/pagina.html" 'Loja: Loja CI Praia'
-esperar "desconectar iFood" "$(enviar "$gj" /integracoes/ifood/desconectar)" "303 $g/integracoes/ifood"
+esperar "desconectar iFood" "$(enviar "$gj" /integracoes/ifood/desconectar)" "303 $g/integracoes/ifood/status"
 
 echo "Isolamento"
 oj="$tmp/o"; login "$oj" ci_outro_gerente >/dev/null
