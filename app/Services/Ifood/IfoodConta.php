@@ -82,6 +82,29 @@ final class IfoodConta
         $this->cache = null;
     }
 
+    /** Fuso selecionado pelo operador, sempre vinculado ao merchantId correspondente. */
+    public function fusoHorario(): ?string
+    {
+        $dado = $this->integracao()['dados']['fuso_loja'] ?? null;
+        if (!is_array($dado) || ($dado['loja_id'] ?? '') !== $this->loja()) {
+            return null;
+        }
+        $fuso = $dado['fuso'] ?? '';
+        return is_string($fuso) && FusoLojaIfood::valido($fuso) ? $fuso : null;
+    }
+
+    public function salvarFusoHorario(string $fuso): void
+    {
+        if (!FusoLojaIfood::valido($fuso) || !$this->conectada()) {
+            return;
+        }
+        $this->db->prepare("UPDATE integracoes SET dados = JSON_SET(
+            COALESCE(NULLIF(dados,''),'{}'), '$.fuso_loja', CAST(? AS JSON))
+            WHERE id_restaurante = ? AND provedor = 'ifood'")
+            ->execute([json_encode(['loja_id' => $this->loja(), 'fuso' => $fuso], JSON_THROW_ON_ERROR), $this->idRestaurante]);
+        $this->cache = null;
+    }
+
     /** Acesso valido para chamar o iFood (renova quando vence). */
     public function token(): string
     {
