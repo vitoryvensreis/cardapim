@@ -77,6 +77,7 @@ try {
     $recusa(fn () => $repo->salvarFicha($a, $catOp, [$baconB => '0.010']), 'ficha com insumo de outro restaurante');
     $recusa(fn () => $repo->criarGrupo($a, 'Ruim', 3, 1, 9), 'minimo maior que o maximo');
     $recusa(fn () => $repo->criarOpcao($a, $borda, ['nome' => 'Duplicado', 'descricao' => null, 'preco' => '1.00', 'codigo' => 'BORDA-CAT', 'imagem_path' => null, 'disponivel' => 1, 'ordem' => 3]), 'codigo repetido');
+    $repo->salvarGruposDoProduto($a, $pizza, [$borda]); // a tentativa recusada acima apagou a ligacao antes de falhar
     $exigir(count($repo->grupos($a)) === 1 && $repo->grupos($a)[0]['produtos'] === 1, 'Grupo listado com 1 produto.');
     $exigir($repo->idsGruposDoProduto($a, $pizza) === [$borda], 'Grupos do produto.');
     $exigir($repo->queUsamInsumo($a, $catupiry) === ['Catupiry'], 'Complementos que usam o insumo.');
