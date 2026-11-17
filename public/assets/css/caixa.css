@@ -452,3 +452,16 @@
 .campo-peso input { font-size: 1.6rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .campo-peso-ajuda { margin: 0 0 .85rem; color: var(--c-muted); font-size: .85rem; }
 .conta-qtd { white-space: nowrap; }
+
+/* Complementos escolhidos no item */
+.item-complementos, .ck-item-comps { display: block; color: var(--c-ink); font-weight: 600; overflow-wrap: anywhere; }
+.produto-comps { display: grid; gap: .6rem; margin: .5rem 0; }
+.comps-grupo { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; border: 0; }
+.comps-grupo legend { width: 100%; margin-bottom: .3rem; color: var(--c-ink); font-weight: 700; font-size: .92rem; }
+.comps-grupo legend small { color: var(--c-muted); font-weight: 400; }
+.comps-grupo .chip-opcao { position: relative; display: inline-flex; }
+.comps-grupo .chip-opcao input { position: absolute; opacity: 0; pointer-events: none; }
+.comps-grupo .chip-opcao span { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 .85rem; border: 1.5px solid var(--c-line); border-radius: var(--r-pill, 999px); background: var(--c-white); color: var(--c-ink); font-size: .88rem; cursor: pointer; }
+.comps-grupo .chip-opcao input:checked + span { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); }
+.comps-grupo .chip-opcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.comps-grupo .chip-opcao.is-indisponivel span { opacity: .55; cursor: not-allowed; text-decoration: line-through; }

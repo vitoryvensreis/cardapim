@@ -5,6 +5,7 @@ use Cardapim\Core\Icon;
 $abas = [
     'resumo' => ['Resumo', 'chart-no-axes-column', '/estoque', null],
     'produtos' => ['Produtos', 'hamburger', '/estoque/produtos', $contagem['produtos'] ?? null],
+    'complementos' => ['Complementos', 'square-plus', '/estoque/complementos', null],
     'insumos' => ['Insumos', 'wheat', '/estoque/insumos', $contagem['insumos'] ?? null],
     'categorias' => ['Categorias', 'tags', '/estoque/categorias', $contagem['categorias'] ?? null],
 ];

@@ -92,11 +92,25 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
                             <button type="button" class="cd-produto<?= $p['disponivel'] ? '' : ' is-indisponivel' ?>" data-produto="<?= (int) $p['id'] ?>"
                                     data-nome="<?= $e($p['nome']) ?>" data-descricao="<?= $e($p['descricao']) ?>" data-centavos="<?= (int) $p['centavos'] ?>"
                                     data-unidade="<?= $e($p['unidade']) ?>" data-preco-texto="<?= $e($p['preco']) ?>"<?php if ($p['opcoes'] !== []): ?> data-porcoes="<?= $e(implode(',', array_column($p['opcoes'], 'milesimos'))) ?>"<?php endif; ?>
+                                    <?php if (!empty($p['grupos'])): ?> data-grupos="<?= $e((string) json_encode($p['grupos'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>
+                                    <?php if (!empty($p['imagem'])): ?> data-imagem="<?= $e((string) $p['imagem']) ?>"<?php endif; ?>
                                     <?= $p['disponivel'] ? '' : 'disabled aria-disabled="true"' ?>>
+                                <?php if (!empty($p['imagem'])): ?><img class="cd-produto-foto" src="<?= $e((string) $p['imagem']) ?>" alt="" loading="lazy" width="88" height="88"><?php endif; ?>
                                 <span class="cd-produto-texto">
                                     <strong><?= $e($p['nome']) ?></strong>
                                     <?php if ($p['descricao'] !== ''): ?><span class="cd-produto-desc"><?= $e($p['descricao']) ?></span><?php endif; ?>
-                                    <span class="cd-produto-preco"><?= $p['disponivel'] ? $e($p['opcoes'] !== [] ? $p['opcoes'][0]['texto'] . ' por ' . $p['opcoes'][0]['preco'] . (count($p['opcoes']) > 1 ? ' · ' . count($p['opcoes']) . ' porções' : '') : $p['preco']) : 'Indisponível no momento' ?></span>
+                                    <?php
+                                    if (!$p['disponivel']) {
+                                        $precoTexto = 'Indisponível no momento';
+                                    } elseif ($p['opcoes'] !== []) {
+                                        $precoTexto = $p['opcoes'][0]['texto'] . ' por ' . $p['opcoes'][0]['preco'] . (count($p['opcoes']) > 1 ? ' · ' . count($p['opcoes']) . ' porções' : '');
+                                    } elseif (!empty($p['grupos']) && array_filter($p['grupos'], static fn (array $g): bool => array_filter($g['opcoes'], static fn (array $o): bool => $o['centavos'] > 0) !== []) !== []) {
+                                        $precoTexto = 'A partir de ' . $p['preco'];
+                                    } else {
+                                        $precoTexto = $p['preco'];
+                                    }
+                                    ?>
+                                    <span class="cd-produto-preco"><?= $e($precoTexto) ?></span>
                                 </span>
                                 <span class="cd-produto-acao" aria-hidden="true">
                                     <span class="cd-na-sacola" data-na-sacola hidden></span>

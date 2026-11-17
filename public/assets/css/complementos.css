@@ -1,0 +1,44 @@
+/* Complementos (gerencia > estoque > complementos): lista dos grupos e formulario do grupo com as opcoes */
+.complementos-grupos { display: grid; gap: 1rem; }
+.complemento-grupo-topo { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: .85rem; }
+.complemento-grupo-topo h2 { color: var(--c-ink); font-size: 1.1rem; font-weight: 700; }
+.complemento-opcoes { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.complemento-opcao { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .75rem; padding: .6rem .75rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.complemento-opcao.is-pausado { background: #fbf7f8; }
+.complemento-opcao.is-pausado .complemento-texto strong { color: var(--c-muted); }
+.complemento-foto { width: 3rem; height: 3rem; border-radius: var(--r-md); object-fit: cover; }
+.complemento-foto.is-vazia { display: grid; place-items: center; background: var(--c-blush); color: var(--c-muted); }
+.complemento-texto { display: grid; gap: .1rem; min-width: 0; }
+.complemento-texto strong { color: var(--c-ink); overflow-wrap: anywhere; }
+.complemento-texto small { color: var(--c-muted); font-size: .85rem; }
+
+.opcoes-lista { display: grid; gap: .85rem; margin-bottom: 1rem; }
+.opcao-linha { display: grid; gap: .6rem; padding: .9rem; border: 1px solid var(--c-line); border-radius: var(--r-lg, .75rem); background: var(--c-white); }
+.opcao-principal { display: grid; gap: .6rem; }
+.opcao-campo { display: grid; gap: .3rem; min-width: 0; }
+.opcao-campo > span { color: var(--c-ink); font-size: .85rem; font-weight: 700; }
+.opcao-campo select { width: 100%; min-height: 2.75rem; padding: .5rem .75rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); color: var(--c-ink); font: inherit; }
+.opcao-campo input[type="file"] { font-size: .85rem; max-width: 100%; }
+.opcao-disponivel, .opcao-tirar, .opcao-remover { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.75rem; color: var(--c-ink); font-size: .9rem; font-weight: 600; }
+.opcao-disponivel input, .opcao-tirar input, .opcao-remover input { width: 1.15rem; height: 1.15rem; accent-color: var(--c-wine); }
+.opcao-remover { color: var(--c-danger); }
+.opcao-foto { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.opcao-foto img { width: 3.5rem; height: 3.5rem; border-radius: var(--r-md); object-fit: cover; }
+.opcao-mais summary { color: var(--c-wine); font-size: .9rem; font-weight: 700; cursor: pointer; min-height: 2.25rem; display: flex; align-items: center; }
+.opcao-mais-grade { display: grid; gap: .6rem; margin-top: .4rem; }
+.opcao-linha [data-opcao-remover] { justify-self: start; }
+@media (min-width: 48rem) {
+  .opcao-principal { grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr) auto; align-items: end; }
+  .opcao-mais-grade { grid-template-columns: 1fr 1fr; }
+}
+
+/* Produto: grupos de complementos e foto */
+.produto-grupos { display: grid; gap: .5rem; margin: 0; padding: 0; border: 0; }
+.produto-grupo { display: flex; align-items: center; gap: .6rem; min-height: 2.75rem; padding: .55rem .75rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.produto-grupo input[type="checkbox"] { width: 1.15rem; height: 1.15rem; accent-color: var(--c-wine); }
+.produto-grupo span { display: grid; gap: .1rem; min-width: 0; }
+.produto-grupo strong { color: var(--c-ink); }
+.produto-grupo small { color: var(--c-muted); font-size: .82rem; overflow-wrap: anywhere; }
+.produto-grupo-ordem { width: 4.5rem; margin-left: auto; }
+.produto-foto { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.produto-foto img { width: 6rem; height: 6rem; border-radius: var(--r-md); object-fit: cover; }

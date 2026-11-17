@@ -161,4 +161,27 @@
       });
     });
   }
+  /* ---------- Grupo de complementos: adicionar e remover opcoes ---------- */
+  const formGrupo = document.querySelector("[data-grupo-form]");
+  if (formGrupo) {
+    const lista = formGrupo.querySelector("[data-opcoes]");
+    const modelo = formGrupo.querySelector("[data-opcao-modelo]");
+    let proximo = Number.parseInt(lista?.dataset.proximo || "0", 10) || 0;
+    formGrupo.querySelector("[data-opcao-adicionar]")?.addEventListener("click", () => {
+      if (!lista || !modelo) return;
+      const html = modelo.innerHTML.replaceAll("__i__", String(proximo));
+      proximo += 1;
+      const area = document.createElement("div");
+      area.innerHTML = html;
+      const linha = area.firstElementChild;
+      lista.append(linha);
+      window.CardapimMascaras?.(linha);
+      linha.querySelector("input[name$='[nome]']")?.focus();
+    });
+    lista?.addEventListener("click", (evento) => {
+      const botao = evento.target.closest("[data-opcao-remover]");
+      if (!botao) return;
+      botao.closest("[data-opcao-linha]")?.remove();
+    });
+  }
 })();

@@ -43,14 +43,26 @@ final class BaixaEstoque
      * Venda por peso: quantidade em milesimos (2 un = 2000; 0,846 kg = 846). A ficha tecnica vale para
      * 1 unidade de venda (1 un, 1 kg ou 1 L): o consumo e proporcional, arredondado ao milesimo.
      * @param array<int,int> $itens id_produto => milesimos vendidos
+     * @param array<int,int> $extras id_insumo => milesimos a mais (ficha tecnica dos complementos escolhidos)
      * @return array<int,string> consumo por insumo
      * @throws EstoqueInsuficiente|InvalidArgumentException
      */
-    public function baixarMilesimos(int $idRestaurante, array $itens): array
+    public function baixarMilesimos(int $idRestaurante, array $itens, array $extras = []): array
     {
         $itens = $this->validarItens($itens);
-        return $this->emTransacao(function () use ($idRestaurante, $itens): array {
+        foreach ($extras as $idInsumo => $milesimos) {
+            if (!is_int($idInsumo) || $idInsumo < 1 || !is_int($milesimos) || $milesimos < 0 || $milesimos > 999_999_999_999) {
+                throw new InvalidArgumentException('Complementos do pedido invalidos.');
+            }
+        }
+        return $this->emTransacao(function () use ($idRestaurante, $itens, $extras): array {
             $necessidade = $this->necessidade($idRestaurante, $itens);
+            foreach ($extras as $idInsumo => $milesimos) {
+                if ($milesimos > 0) {
+                    $necessidade[$idInsumo] = ($necessidade[$idInsumo] ?? 0) + $milesimos;
+                }
+            }
+            ksort($necessidade); // mesma ordem de travamento em todas as vendas: evita deadlock
             if ($necessidade === []) {
                 return [];
             }

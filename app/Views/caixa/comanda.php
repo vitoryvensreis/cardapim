@@ -86,7 +86,8 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                                     <input type="hidden" name="quantidade" value="1">
                                     <button class="produto-botao" type="submit"<?= $prod['disponivel'] ? '' : ' disabled' ?>
                                             data-produto-abrir data-produto-id="<?= (int) $prod['id'] ?>" data-produto-nome="<?= $e($prod['nome']) ?>" data-produto-centavos="<?= (int) $prod['centavos'] ?>"
-                                            data-produto-unidade="<?= $e($prod['unidade']) ?>" data-produto-minimo="<?= (int) ($prod['minimo'] ?? 0) ?>">
+                                            data-produto-unidade="<?= $e($prod['unidade']) ?>" data-produto-minimo="<?= (int) ($prod['minimo'] ?? 0) ?>"<?php if (!empty($prod['grupos'])): ?>
+                                            data-produto-grupos="<?= $e((string) json_encode($prod['grupos'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>>
                                         <span class="produto-nome"><?= $e($prod['nome']) ?></span>
                                         <span class="produto-preco"><?= $prod['disponivel'] ? $e($prod['preco']) : 'Acabou' ?></span>
                                         <?php if ($prod['disponivel']): ?><span class="produto-mais" aria-hidden="true"><?= Icon::svg('plus', 'icon-sm') ?></span><?php endif; ?>
@@ -117,6 +118,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                             <li class="<?= $cancelado ? 'is-cancelado' : '' ?>">
                                 <span class="conta-qtd"><?= $e($qtdTexto($i)) ?></span>
                                 <span class="conta-nome"><?= $e((string) $i['nome']) ?>
+                                    <?php if (!empty($i['complementos_texto'])): ?><small class="item-complementos"><?= $e((string) $i['complementos_texto']) ?></small><?php endif; ?>
                                     <?php if ($i['observacao']): ?><small><?= $e((string) $i['observacao']) ?></small><?php endif; ?>
                                     <small class="conta-meta"><?php if (QuantidadeVenda::porPeso((string) ($i['unidade'] ?? 'un'))): ?><?= $e(Numero::reais((string) $i['preco_unitario']) . QuantidadeVenda::sufixoPreco((string) $i['unidade'])) ?> · <?php endif; ?><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?><?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small>
                                 </span>
@@ -234,6 +236,8 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                     </label>
                     <p class="campo-peso-ajuda" id="peso-ajuda" data-peso-ajuda>Digite só os números da balança: 8 4 6 vira 0,846.</p>
                 </div>
+                <div class="produto-comps" data-produto-grupos hidden></div>
+                <p class="campo-peso-ajuda texto-alerta" role="alert" data-grupos-erro hidden></p>
                 <label class="campo-caixa"><span>Observação (opcional)</span><input name="observacao" maxlength="140" placeholder="Ex.: sem cebola, bem passado" autocomplete="off"></label>
                 <button class="btn btn-primary btn-lg btn-block" type="submit" data-produto-lancar>Lançar</button>
             </form>

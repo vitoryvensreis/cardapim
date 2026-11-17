@@ -17,6 +17,8 @@ use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Services\Descontos\DescontoPedido;
 use Cardapim\Shared\Numero;
 use Cardapim\Shared\Validation\Documento;
+use Cardapim\Modules\Catalog\Complementos;
+use Cardapim\Shared\Esquema;
 use PDO;
 use Throwable;
 
@@ -86,7 +88,7 @@ final class CriarPedido
         $ids = array_values(array_unique(array_column($formato, 'id')));
         $completas = LinhasSacola::completar($this->db, $idRest, $formato);
         if ($completas['invalida']) {
-            return self::erro(409, 'O restaurante mudou as porções de algum item. Confira a sacola.');
+            return self::erro(409, $completas['mensagem'] ?? 'O restaurante mudou as porções de algum item. Confira a sacola.');
         }
         $disp = (new DisponibilidadeProdutos($this->db))->verificar($idRest, $ids);
         $indisponiveis = array_values(array_filter($ids, static fn (int $id): bool => in_array($id, $completas['ausentes'], true) || !($disp[$id]['disponivel'] ?? false)));
@@ -96,9 +98,13 @@ final class CriarPedido
         $linhas = $completas['linhas'];
         $subtotal = 0;
         $quantidades = [];
+        $extras = []; // insumos gastos pelos complementos escolhidos
         foreach ($linhas as $l) {
             $subtotal += $l['total'];
             $quantidades[$l['id']] = ($quantidades[$l['id']] ?? 0) + $l['milesimos'];
+            foreach ($l['insumos_complementos'] ?? [] as $idInsumo => $m) {
+                $extras[$idInsumo] = ($extras[$idInsumo] ?? 0) + $m;
+            }
         }
 
         // Entrega: endereco, area e taxa (sempre recalculados aqui).
@@ -192,13 +198,24 @@ final class CriarPedido
                 throw new \RuntimeException('Pedido nao gravado.');
             }
             $idPedido = (int) $pedido['id'];
-            $insItem = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $comComplementos = Esquema::tem($this->db, 'complementos');
+            $insItem = $this->db->prepare($comComplementos
+                ? 'INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em, complementos_texto)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                : 'INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             foreach ($linhas as $l) {
-                $insItem->execute([$idPedido, $idRest, $l['id'], $l['nome'], self::dec($l['centavos']), QuantidadeVenda::paraBanco($l['milesimos']), $l['unidade'],
-                    $l['observacao'] !== '' ? $l['observacao'] : null, self::dec($l['total']), $agora]);
+                $valoresItem = [$idPedido, $idRest, $l['id'], $l['nome'], self::dec($l['centavos']), QuantidadeVenda::paraBanco($l['milesimos']), $l['unidade'],
+                    $l['observacao'] !== '' ? $l['observacao'] : null, self::dec($l['total']), $agora];
+                if ($comComplementos) {
+                    $valoresItem[] = ($l['complementos_texto'] ?? '') !== '' ? $l['complementos_texto'] : null;
+                }
+                $insItem->execute($valoresItem);
+                if ($comComplementos && ($l['complementos'] ?? []) !== []) {
+                    Complementos::gravarNoItem($this->db, $idRest, (int) $this->db->lastInsertId(), $l['complementos']);
+                }
             }
-            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($idRest, $quantidades);
+            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($idRest, $quantidades, $extras);
             if ($consumo !== []) {
                 $this->db->prepare('UPDATE pedidos SET consumo_estoque = ? WHERE id = ? AND id_restaurante = ?')
                     ->execute([json_encode($consumo, JSON_THROW_ON_ERROR), $idPedido, $idRest]);

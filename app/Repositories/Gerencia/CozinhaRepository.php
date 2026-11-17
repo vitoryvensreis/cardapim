@@ -51,11 +51,12 @@ final class CozinhaRepository
 
         // IDs vieram do SELECT acima, sempre do restaurante autenticado.
         $ids = array_keys($porId);
+        $comp = \Cardapim\Shared\Esquema::tem($this->db, 'complementos') ? ', complementos_texto' : '';
         // Divide os IN em blocos para não exceder limites de parâmetros em grandes filas.
         foreach (array_chunk($ids, 100) as $bloco) {
             $marcadores = implode(',', array_fill(0, count($bloco), '?'));
             $itens = $this->db->prepare(
-                "SELECT id_pedido, nome, quantidade, unidade, observacao
+                "SELECT id_pedido, nome, quantidade, unidade, observacao$comp
                  FROM pedido_itens
                  WHERE id_restaurante = ? AND cancelado_em IS NULL
                    AND id_pedido IN ($marcadores)

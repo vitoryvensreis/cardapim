@@ -1,6 +1,6 @@
 /*
  * Cardapim - cardapio publico /{slug}: abas de categoria que acompanham a rolagem, busca,
- * janela do produto (quantidade + observacao) e sacola.
+ * janela do produto (quantidade, complementos e observacao) e sacola.
  *
  * Sacola: guardada neste aparelho (localStorage, uma por restaurante, vale 2 dias) para nao se perder ao
  * recarregar ou sair da pagina. Precos e disponibilidade sao sempre conferidos no servidor
@@ -24,7 +24,9 @@
   const textoPeso = (m, unidade) => (m < 1000
     ? `${m} ${unidade === "l" ? "ml" : "g"}`
     : `${Math.floor(m / 1000)},${String(m % 1000).padStart(3, "0")} ${unidade === "l" ? "L" : "kg"}`);
-  const valorLinha = (i) => (i.porcao ? Math.floor((i.centavos * i.qtd * i.porcao + 500) / 1000) : i.centavos * i.qtd);
+  /* Complementos (adicionais, bordas...): a linha guarda as escolhas (comps) e quanto somam por unidade (compsCentavos). */
+  const Comp = window.CardapimComplementos;
+  const valorLinha = (i) => (i.porcao ? Math.floor((i.centavos * i.qtd * i.porcao + 500) / 1000) : (i.centavos + (i.compsCentavos || 0)) * i.qtd);
   const textoLinha = (i) => (i.porcao ? textoPeso(i.qtd * i.porcao, i.unidade) : `${i.qtd}x`);
   const el = (tag, classe, texto) => {
     const n = document.createElement(tag);
@@ -78,6 +80,8 @@
       unidade: b.dataset.unidade || "un",
       precoTexto: b.dataset.precoTexto || "",
       porcoes: (b.dataset.porcoes || "").split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0),
+      grupos: (() => { try { return JSON.parse(b.dataset.grupos || "[]"); } catch (e) { return []; } })(),
+      imagem: b.dataset.imagem || "",
       disponivel: !b.disabled,
       botao: b,
     });
@@ -90,7 +94,8 @@
       const dados = JSON.parse(window.localStorage.getItem(CHAVE) || "null");
       if (!dados || !Array.isArray(dados.itens) || Date.now() - (dados.salvo || 0) > VALIDADE) return [];
       return dados.itens.filter((i) => Number.isInteger(i.id) && Number.isInteger(i.qtd) && i.qtd > 0
-        && (i.porcao === undefined || i.porcao === null || (Number.isInteger(i.porcao) && i.porcao > 0))).slice(0, 50);
+        && (i.porcao === undefined || i.porcao === null || (Number.isInteger(i.porcao) && i.porcao > 0))
+        && (i.comps === undefined || (Array.isArray(i.comps) && i.comps.every((c) => Number.isInteger(c.id) && Number.isInteger(c.qtd) && c.qtd > 0)))).slice(0, 50);
     } catch (e) {
       return [];
     }
@@ -103,7 +108,7 @@
       /* navegacao privada sem armazenamento: a sacola vale so enquanto a pagina estiver aberta */
     }
   };
-  const chaveLinha = (id, obs, porcao) => `${id}|${porcao || ""}|${obs.trim().toLowerCase()}`;
+  const chaveLinha = (id, obs, porcao, comps = []) => `${id}|${porcao || ""}|${comps.map((c) => `${c.id}x${c.qtd}`).sort().join(",")}|${obs.trim().toLowerCase()}`;
   const totais = () => sacola.reduce((t, i) => {
     if (i.indisponivel) return t;
     t.qtd += i.qtd;
@@ -111,13 +116,18 @@
     return t;
   }, { qtd: 0, centavos: 0 });
 
-  const adicionar = (produto, qtd, obs, linhaEditada, porcao = null) => {
+  const adicionar = (produto, qtd, obs, linhaEditada, porcao = null, comps = [], conferido = null) => {
     obs = obs.trim().slice(0, 140);
     if (linhaEditada) sacola = sacola.filter((i) => i.chave !== linhaEditada);
-    const chave = chaveLinha(produto.id, obs, porcao);
+    const chave = chaveLinha(produto.id, obs, porcao, comps);
     const existente = sacola.find((i) => i.chave === chave);
     if (existente) existente.qtd = Math.min(MAX_QTD, existente.qtd + qtd);
-    else sacola.push({ chave, id: produto.id, nome: produto.nome, centavos: produto.centavos, qtd, obs, porcao: porcao || null, unidade: produto.unidade });
+    else {
+      sacola.push({
+        chave, id: produto.id, nome: produto.nome, centavos: produto.centavos, qtd, obs, porcao: porcao || null, unidade: produto.unidade,
+        comps, compsCentavos: conferido ? conferido.centavos : 0, compsTexto: conferido ? conferido.texto : "",
+      });
+    }
     atualizar();
   };
 
@@ -156,6 +166,7 @@
       editar.addEventListener("click", () => abrirProduto(produtos.get(linha.id), linha));
       texto.append(editar);
       if (linha.porcao) texto.append(el("span", "cd-sacola-obs", linha.qtd > 1 ? `${linha.qtd} porções de ${textoPeso(linha.porcao, linha.unidade)}` : `Porção de ${textoPeso(linha.porcao, linha.unidade)}`));
+      if (linha.compsTexto) texto.append(el("span", "cd-sacola-obs cd-sacola-comps", linha.compsTexto));
       if (linha.obs) texto.append(el("span", "cd-sacola-obs", linha.obs));
       if (linha.indisponivel) texto.append(el("span", "cd-sacola-alerta", "Indisponível agora. Remova para continuar."));
       else texto.append(el("span", "cd-sacola-preco", reais(valorLinha(linha))));
@@ -253,6 +264,10 @@
   const contaObs = dProduto.querySelector("[data-obs-conta]");
   const campoPorcoes = dProduto.querySelector("[data-produto-porcoes]");
   const opcoesPorcoes = dProduto.querySelector("[data-porcoes-opcoes]");
+  const areaGrupos = dProduto.querySelector("[data-produto-grupos]");
+  const erroGrupos = dProduto.querySelector("[data-grupos-erro]");
+  const fotoProduto = dProduto.querySelector("[data-produto-foto]");
+  let compsAtual = new Map(); // id da opcao -> quantidade
   let atual = null;
   let qtdAtual = 1;
   let porcaoAtual = null;
@@ -262,7 +277,82 @@
     saidaQtd.textContent = String(qtdAtual);
     btnMenos.disabled = qtdAtual <= 1;
     btnMais.disabled = qtdAtual >= MAX_QTD;
-    totalAdicionar.textContent = reais(valorLinha({ centavos: atual.centavos, qtd: qtdAtual, porcao: porcaoAtual }));
+    totalAdicionar.textContent = reais(valorLinha({ centavos: atual.centavos, qtd: qtdAtual, porcao: porcaoAtual, compsCentavos: somaComps() }));
+  };
+
+  /* Complementos: cada grupo vira uma lista de escolhas. Maximo 1 = escolha unica (tocar de novo desmarca se for opcional). */
+  const escolhasAtuais = () => [...compsAtual.entries()].map(([id, qtd]) => ({ id, qtd }));
+  const somaComps = () => {
+    if (!atual || !atual.grupos.length) return 0;
+    let total = 0;
+    atual.grupos.forEach((g) => g.opcoes.forEach((o) => { total += (compsAtual.get(o.id) || 0) * o.centavos; }));
+    return total;
+  };
+  const marcarGrupo = (g) => {
+    const caixa = areaGrupos.querySelector(`[data-grupo="${g.id}"]`);
+    if (!caixa) return;
+    const soma = g.opcoes.reduce((t, o) => t + (compsAtual.get(o.id) || 0), 0);
+    caixa.querySelectorAll("input[data-opcao]").forEach((input) => {
+      const id = Number(input.value);
+      input.checked = compsAtual.has(id);
+      const opcao = g.opcoes.find((o) => o.id === id);
+      input.disabled = !opcao?.disponivel || (g.maximo > 1 && soma >= g.maximo && !compsAtual.has(id));
+    });
+    const contador = caixa.querySelector("[data-grupo-contador]");
+    if (contador) contador.textContent = g.maximo > 1 ? `${soma} de ${g.maximo}` : "";
+    caixa.classList.toggle("is-completo", soma >= g.minimo);
+  };
+  const desenharGrupos = (produto) => {
+    areaGrupos.replaceChildren();
+    erroGrupos.hidden = true;
+    areaGrupos.hidden = produto.grupos.length === 0;
+    produto.grupos.forEach((g) => {
+      const caixa = el("fieldset", "cd-grupo");
+      caixa.dataset.grupo = String(g.id);
+      const legenda = el("legend", "cd-grupo-titulo");
+      legenda.append(el("strong", "", g.nome), el("small", g.minimo > 0 ? "cd-grupo-regra is-obrigatorio" : "cd-grupo-regra", Comp.regra(g)));
+      const contador = el("span", "cd-grupo-contador");
+      contador.dataset.grupoContador = "";
+      contador.setAttribute("aria-live", "polite");
+      legenda.append(contador);
+      caixa.append(legenda);
+      g.opcoes.forEach((o) => {
+        const rotulo = el("label", "cd-opcao" + (o.disponivel ? "" : " is-indisponivel"));
+        const input = el("input");
+        input.type = g.maximo === 1 ? "radio" : "checkbox";
+        input.name = `grupo-${g.id}`;
+        input.value = String(o.id);
+        input.dataset.opcao = "";
+        input.addEventListener("click", () => {
+          if (g.maximo === 1) {
+            const jaEra = compsAtual.has(o.id);
+            g.opcoes.forEach((x) => compsAtual.delete(x.id));
+            if (!jaEra || g.minimo > 0) compsAtual.set(o.id, 1);
+          } else if (compsAtual.has(o.id)) compsAtual.delete(o.id);
+          else compsAtual.set(o.id, 1);
+          erroGrupos.hidden = true;
+          caixa.classList.remove("tem-erro");
+          marcarGrupo(g);
+          pintarQtd();
+        });
+        if (o.imagem) {
+          const foto = el("img", "cd-opcao-foto");
+          foto.src = o.imagem;
+          foto.alt = "";
+          foto.loading = "lazy";
+          foto.width = 48;
+          foto.height = 48;
+          rotulo.append(input, foto);
+        } else rotulo.append(input);
+        const texto = el("span", "cd-opcao-texto");
+        texto.append(el("strong", "", o.nome));
+        if (o.descricao) texto.append(el("small", "", o.descricao));
+        rotulo.append(texto, el("span", "cd-opcao-preco", !o.disponivel ? "Acabou" : (o.centavos > 0 ? `+ ${reais(o.centavos)}` : "Grátis")));
+        caixa.append(rotulo);
+      });
+      areaGrupos.append(caixa);
+      marcarGrupo(g);
+    });
   };
 
   // Produto por peso: o cliente escolhe uma das porcoes cadastradas pelo restaurante.
@@ -290,7 +380,11 @@
     linhaEmEdicao = linha ? linha.chave : null;
     qtdAtual = linha ? linha.qtd : 1;
     porcaoAtual = produto.porcoes.length ? (linha && produto.porcoes.includes(linha.porcao) ? linha.porcao : produto.porcoes[0]) : null;
+    compsAtual = new Map((linha?.comps || []).map((c) => [c.id, c.qtd]));
     desenharPorcoes(produto);
+    desenharGrupos(produto);
+    fotoProduto.hidden = !produto.imagem;
+    if (produto.imagem) fotoProduto.src = produto.imagem;
     dProduto.querySelector("[data-produto-nome]").textContent = produto.nome;
     const desc = dProduto.querySelector("[data-produto-desc]");
     desc.textContent = produto.descricao;
@@ -309,8 +403,21 @@
   form.addEventListener("submit", (ev) => {
     ev.preventDefault();
     if (!atual) return;
+    const comps = atual.grupos.length ? escolhasAtuais() : [];
+    const conferido = atual.grupos.length ? Comp.conferir(atual.grupos, comps) : null;
+    if (conferido && !conferido.ok) {
+      erroGrupos.textContent = conferido.erro;
+      erroGrupos.hidden = false;
+      const caixa = conferido.grupo ? areaGrupos.querySelector(`[data-grupo="${conferido.grupo}"]`) : null;
+      if (caixa) {
+        caixa.classList.add("tem-erro");
+        caixa.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        caixa.querySelector("input:not(:disabled)")?.focus({ preventScroll: true });
+      }
+      return;
+    }
     const editando = Boolean(linhaEmEdicao);
-    adicionar(atual, qtdAtual, campoObs.value, linhaEmEdicao, porcaoAtual);
+    adicionar(atual, qtdAtual, campoObs.value, linhaEmEdicao, porcaoAtual, comps, conferido);
     UI.fechar(dProduto);
     window.CardapimToast(editando ? "Item atualizado na sacola." : `${textoLinha({ qtd: qtdAtual, porcao: porcaoAtual, unidade: atual.unidade })} ${atual.nome} na sacola.`);
     avisoContinuar = "";
@@ -395,7 +502,7 @@
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ itens: sacola.map((i) => ({ id: i.id, quantidade: i.qtd, porcao: i.porcao || null })) }),
+      body: JSON.stringify({ itens: sacola.map((i) => ({ id: i.id, quantidade: i.qtd, porcao: i.porcao || null, complementos: (i.comps || []).map((c) => ({ id: c.id, quantidade: c.qtd })) })) }),
     }).then((r) => (r.ok ? r.json() : null)).then((dados) => {
       if (!dados || !Array.isArray(dados.itens)) return;
       const atuais = new Map(dados.itens.map((i) => [i.id, i]));
@@ -406,6 +513,17 @@
         // Porcao que o restaurante tirou (ou produto que mudou de unidade): a linha sai da sacola.
         const porcoes = Array.isArray(p.porcoes) ? p.porcoes : [];
         if ((linha.porcao && !porcoes.includes(linha.porcao)) || (!linha.porcao && p.unidade && p.unidade !== "un")) { mudou = true; return false; }
+        // Complementos de agora: escolha que sumiu, acabou ou ficou faltando tira a linha (o cliente escolhe de novo).
+        const grupos = Array.isArray(p.grupos) ? p.grupos : [];
+        if (grupos.length || (linha.comps || []).length) {
+          const r = Comp.conferir(grupos, linha.comps || []);
+          if (!r.ok) { mudou = true; return false; }
+          if (r.centavos !== (linha.compsCentavos || 0)) mudou = true;
+          linha.compsCentavos = r.centavos;
+          linha.compsTexto = r.texto;
+        }
+        const produto = produtos.get(linha.id);
+        if (produto) produto.grupos = grupos;
         if (p.centavos !== linha.centavos || p.nome !== linha.nome) mudou = true;
         linha.centavos = p.centavos;
         linha.nome = p.nome;

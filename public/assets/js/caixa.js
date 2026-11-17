@@ -202,6 +202,60 @@
     let preco = 0;
     let unidade = "un";
     let minimo = 0;
+    let grupos = [];
+    const areaGrupos = $("[data-produto-grupos]", dlgProduto);
+    const erroGrupos = $("[data-grupos-erro]", dlgProduto);
+    // Complementos (adicionais, borda...): cada grupo vira chips; a soma entra no preco de cada unidade.
+    const extraComps = () => (areaGrupos ? $$("input:checked", areaGrupos).reduce((t, c) => t + (parseInt(c.dataset.centavos, 10) || 0), 0) : 0);
+    const desenharGrupos = () => {
+      if (!areaGrupos) return;
+      areaGrupos.replaceChildren();
+      areaGrupos.hidden = grupos.length === 0;
+      if (erroGrupos) erroGrupos.hidden = true;
+      grupos.forEach((g) => {
+        const caixa = document.createElement("fieldset");
+        caixa.className = "comps-grupo";
+        caixa.dataset.max = String(g.maximo);
+        const legenda = document.createElement("legend");
+        legenda.textContent = g.nome;
+        const regra = document.createElement("small");
+        regra.textContent = g.minimo > 0 ? ` obrigatório${g.maximo > 1 ? `, de ${g.minimo} a ${g.maximo}` : ""}` : ` opcional${g.maximo > 1 ? `, até ${g.maximo}` : ""}`;
+        legenda.append(regra);
+        caixa.append(legenda);
+        g.opcoes.forEach((o) => {
+          const rotulo = document.createElement("label");
+          rotulo.className = "chip-opcao" + (o.disponivel ? "" : " is-indisponivel");
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.name = "complementos[]";
+          input.value = String(o.id);
+          input.dataset.centavos = String(o.centavos);
+          input.dataset.complemento = "";
+          input.disabled = !o.disponivel;
+          input.addEventListener("change", () => {
+            // Maximo 1: escolha unica (marca uma, desmarca as outras). Maximo maior: nao passa do limite.
+            if (g.maximo === 1 && input.checked) $$("input:checked", caixa).forEach((c) => { if (c !== input) c.checked = false; });
+            else if ($$("input:checked", caixa).length > g.maximo) input.checked = false;
+            if (erroGrupos) erroGrupos.hidden = true;
+            desenhar();
+          });
+          const texto = document.createElement("span");
+          texto.textContent = o.nome + (o.centavos > 0 ? ` +${reais(o.centavos)}` : "") + (o.disponivel ? "" : " (acabou)");
+          rotulo.append(input, texto);
+          caixa.append(rotulo);
+        });
+        areaGrupos.append(caixa);
+      });
+    };
+    // Confere o minimo antes de enviar (o servidor confere tudo de novo).
+    const conferirGrupos = () => {
+      for (const g of grupos) {
+        const caixa = areaGrupos ? [...areaGrupos.children][grupos.indexOf(g)] : null;
+        const marcados = caixa ? $$("input:checked", caixa).length : 0;
+        if (marcados < g.minimo) return g.minimo === 1 && g.maximo === 1 ? `Escolha uma opção em "${g.nome}".` : `Escolha pelo menos ${g.minimo} em "${g.nome}".`;
+      }
+      return "";
+    };
     const qtd = () => Math.min(99, Math.max(1, parseInt(campoQtd.value, 10) || 1));
     // "0,846" -> 846 (milesimos); vazio -> 0.
     const milesimos = () => {
@@ -214,7 +268,7 @@
     };
     const desenhar = () => {
       if (unidade === "un") {
-        botaoLancar.textContent = `Lançar ${qtd()}x · ${reais(preco * qtd())}`;
+        botaoLancar.textContent = `Lançar ${qtd()}x · ${reais((preco + extraComps()) * qtd())}`;
         botaoLancar.disabled = false;
         return;
       }
@@ -231,6 +285,8 @@
       preco = parseInt(b.dataset.produtoCentavos, 10) || 0;
       unidade = b.dataset.produtoUnidade || "un";
       minimo = parseInt(b.dataset.produtoMinimo, 10) || 0;
+      try { grupos = JSON.parse(b.dataset.produtoGrupos || "[]"); } catch (e) { grupos = []; }
+      desenharGrupos();
       const porPeso = unidade === "kg" || unidade === "l";
       $("[data-produto-titulo]", dlgProduto).textContent = b.dataset.produtoNome || "Produto";
       $("[data-produto-campo]", dlgProduto).value = b.dataset.produtoId;
@@ -247,6 +303,15 @@
       abrirDialogo(dlgProduto);
       window.setTimeout(() => (porPeso ? campoPeso : botaoLancar).focus(), 50);
     });
+    // Antes do envio sem recarregar (fase de captura): grupo obrigatorio sem escolha nao envia.
+    document.addEventListener("submit", (ev) => {
+      if (ev.target !== $("[data-form-produto]", dlgProduto)) return;
+      const erro = conferirGrupos();
+      if (!erro) return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      if (erroGrupos) { erroGrupos.textContent = erro; erroGrupos.hidden = false; }
+    }, true);
     $$("[data-qtd]", dlgProduto).forEach((b) => b.addEventListener("click", () => {
       campoQtd.value = String(Math.min(99, Math.max(1, qtd() + parseInt(b.dataset.qtd, 10))));
       desenhar();

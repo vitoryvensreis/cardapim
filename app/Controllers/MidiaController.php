@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Controllers;
 
 use Cardapim\Core\Response;
+use Cardapim\Modules\Catalog\ImagemCardapio;
 use Cardapim\Modules\Marca\MarcaUpload;
 use Cardapim\Modules\Restaurante\LogoUpload;
 
@@ -19,6 +20,12 @@ final class MidiaController
     public function logo(string $arquivo): Response
     {
         return $this->servir(LogoUpload::arquivoDe(LogoUpload::PREFIXO_URL . $arquivo));
+    }
+
+    /** Fotos de produtos e complementos do cardapio. */
+    public function cardapio(string $arquivo): Response
+    {
+        return $this->servir(ImagemCardapio::arquivoDe(ImagemCardapio::PREFIXO_URL . $arquivo));
     }
 
     /** Logos e icones da plataforma enviados em Configuracoes (SVG tambem: a politica "sandbox" impede qualquer script). */

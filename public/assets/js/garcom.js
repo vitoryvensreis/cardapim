@@ -138,8 +138,12 @@
         const inp = $("[data-qtd]", li);
         if (!inp) return;
         const q = Math.max(0, Math.min(Number(inp.max || 99), parseInt(inp.value || "0", 10) || 0));
+        // Complementos escolhidos (adicionais, borda...) somam no preco de cada unidade.
+        const extra = $$("[data-comps] input:checked", li).reduce((t, c) => t + Number(c.dataset.centavos || 0), 0);
         itens += q;
-        soma += q * Number(li.dataset.preco || 0);
+        soma += q * (Number(li.dataset.preco || 0) + extra);
+        const comps = $("[data-comps]", li);
+        if (comps) comps.hidden = q === 0;
         li.classList.toggle("is-escolhido", q > 0);
         const passo = $("[data-passo]", li);
         passo.classList.toggle("is-zero", q === 0);
@@ -165,6 +169,15 @@
       if (navigator.vibrate) navigator.vibrate(8);
       atualizarTotal();
     });
+    lista.addEventListener("change", (ev) => {
+      const caixa = ev.target.closest("[data-comps-grupo]");
+      if (!caixa) return;
+      // Maximo 1: escolha unica. Maximo maior: passou do limite, desmarca o que acabou de marcar.
+      const max = Number(caixa.dataset.max || 99);
+      if (max === 1 && ev.target.checked) $$("input:checked", caixa).forEach((c) => { if (c !== ev.target) c.checked = false; });
+      else if ($$("input:checked", caixa).length > max) ev.target.checked = false;
+      atualizarTotal();
+    });
     lista.addEventListener("input", (ev) => {
       if (ev.target.matches("[data-qtd]")) atualizarTotal();
       if (ev.target.matches("[data-peso]")) window.setTimeout(atualizarTotal, 0); // depois da mascara
@@ -183,6 +196,7 @@
           inp.disabled = true;
           const obs = $("[data-obs] input", inp.closest("[data-produto]"));
           if (obs) obs.disabled = true;
+          $$("[data-comps] input", inp.closest("[data-produto]")).forEach((c) => { c.disabled = true; });
         }
       });
       botao.disabled = true;

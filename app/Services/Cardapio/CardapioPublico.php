@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Cardapio;
 
+use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
@@ -32,7 +33,7 @@ final class CardapioPublico
     public function categorias(int $idRestaurante, bool $online = false): array
     {
         $q = $this->db->prepare(
-            'SELECT p.id, p.nome, p.descricao, p.preco, p.unidade_venda, p.venda_minima, p.id_categoria, c.nome AS categoria
+            'SELECT p.id, p.nome, p.descricao, p.preco, p.unidade_venda, p.venda_minima, p.imagem_path, p.id_categoria, c.nome AS categoria
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
              WHERE p.id_restaurante = ? AND p.ativo = 1 AND (c.id IS NULL OR c.ativo = 1)
@@ -42,6 +43,7 @@ final class CardapioPublico
         $linhas = $q->fetchAll(PDO::FETCH_ASSOC);
         $disponibilidade = (new DisponibilidadeProdutos($this->db))->verificar($idRestaurante);
         $porcoes = $this->porcoes($idRestaurante);
+        $grupos = Complementos::carregar($this->db, $idRestaurante, array_map(static fn (array $p): int => (int) $p['id'], $linhas));
 
         $categorias = [];
         $total = 0;
@@ -66,6 +68,9 @@ final class CardapioPublico
                 'unidade' => $unidade,
                 'minimo' => $p['venda_minima'] !== null ? QuantidadeVenda::doBanco($p['venda_minima']) : null,
                 'opcoes' => $opcoes,
+                'imagem' => $p['imagem_path'] !== null ? \Cardapim\Shared\MidiaUrl::publica((string) $p['imagem_path']) : null,
+                // Complementos (adicionais, bordas...): so produto por unidade.
+                'grupos' => $unidade === 'un' ? Complementos::publico($grupos[(int) $p['id']] ?? []) : [],
             ];
         }
         // Disponiveis primeiro dentro de cada categoria (os indisponiveis continuam visiveis, no fim).
@@ -134,6 +139,7 @@ final class CardapioPublico
         $q->execute([$idRestaurante, ...$lista]);
         $disponibilidade = (new DisponibilidadeProdutos($this->db))->verificar($idRestaurante, $lista);
         $porcoes = $this->porcoes($idRestaurante, $lista);
+        $grupos = Complementos::carregar($this->db, $idRestaurante, $lista);
         $saida = [];
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
             $unidade = QuantidadeVenda::unidade($p['unidade_venda'] ?? 'un');
@@ -145,6 +151,8 @@ final class CardapioPublico
                 // Produto por peso: preco do quilo/litro + porcoes validas (a sacola tira a porcao que sumiu).
                 'unidade' => $unidade,
                 'porcoes' => QuantidadeVenda::porPeso($unidade) ? ($porcoes[(int) $p['id']] ?? []) : [],
+                // Complementos de agora: a sacola refaz o preco da linha e tira a escolha que sumiu ou acabou.
+                'grupos' => $unidade === 'un' ? Complementos::publico($grupos[(int) $p['id']] ?? []) : [],
             ];
         }
         return ['itens' => array_values($saida), 'removidos' => array_values(array_diff($lista, array_keys($saida)))];

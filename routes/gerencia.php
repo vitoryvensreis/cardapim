@@ -40,6 +40,13 @@ return static function (Router $router): void {
     $router->post($g . '/estoque/produtos/{id}', [EstoqueController::class, 'atualizarProduto']);
     $router->post($g . '/estoque/produtos/{id}/pausar', [EstoqueController::class, 'alternarProduto']);
     $router->post($g . '/estoque/produtos/{id}/excluir', [EstoqueController::class, 'excluirProduto']);
+    $router->get($g . '/estoque/complementos', [EstoqueController::class, 'complementos']);
+    $router->get($g . '/estoque/complementos/novo', [EstoqueController::class, 'novoGrupo']);
+    $router->post($g . '/estoque/complementos', [EstoqueController::class, 'criarGrupo']);
+    $router->post($g . '/estoque/complementos/opcoes/{id}/pausar', [EstoqueController::class, 'alternarOpcao']);
+    $router->get($g . '/estoque/complementos/{id}', [EstoqueController::class, 'editarGrupo']);
+    $router->post($g . '/estoque/complementos/{id}', [EstoqueController::class, 'atualizarGrupo']);
+    $router->post($g . '/estoque/complementos/{id}/excluir', [EstoqueController::class, 'excluirGrupo']);
     $router->get($g . '/estoque/insumos', [EstoqueController::class, 'insumos']);
     $router->get($g . '/estoque/insumos/novo', [EstoqueController::class, 'novoInsumo']);
     $router->post($g . '/estoque/insumos', [EstoqueController::class, 'criarInsumo']);

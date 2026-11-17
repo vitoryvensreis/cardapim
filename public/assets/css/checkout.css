@@ -291,3 +291,6 @@
 .ck-cupom-msg { display: block; margin-top: .4rem; color: var(--c-danger); font-size: .85rem; font-weight: 400; }
 .ck-cupom-msg.is-info { color: var(--c-muted); font-weight: 400; }
 .ck-item-qtd { white-space: nowrap; }
+
+/* Complementos escolhidos no item */
+.item-complementos, .ck-item-comps { display: block; color: var(--c-ink); font-weight: 600; overflow-wrap: anywhere; }
