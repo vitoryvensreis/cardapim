@@ -369,6 +369,18 @@ final class IntegracoesController extends BaseGerencia
         return $this->telaLojaIfood(['horarios' => $res->erros + ['_geral' => $res->mensagem]], ['horarios' => $entrada, 'horario_proprio' => true], 422);
     }
 
+    /** Ajuste por restaurante e merchant do fuso operacional de interrupcoes (homologacao). */
+    public function ifoodFuso(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        return $this->responder(
+            $this->ifoodLojaServico()->definirFusoInterrupcoes($this->post('fuso')),
+            $this->url('integracoes/ifood#diagnosticos')
+        );
+    }
+
     /** Botao "Abrir loja no iFood" do topo: situacao (JSON). */
     public function ifoodBotaoSituacao(string $slug): Response
     {
