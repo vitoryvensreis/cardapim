@@ -300,7 +300,7 @@ final class IntegracoesController extends BaseGerencia
     private function atualizarCatalogoIfood(IfoodCatalogo $catalogo, IfoodConta $conta): ?string
     {
         try {
-            $catalogo->importar($conta);
+            $catalogo->importar($conta, false);
             return null;
         } catch (IntegracaoErro $erro) {
             return $erro->getMessage();
