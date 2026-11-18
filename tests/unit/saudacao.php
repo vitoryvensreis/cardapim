@@ -18,6 +18,8 @@ verifica(SaudacaoWhatsApp::numeroDireto(array_replace($base, ['from' => '12345@l
 verifica(SaudacaoWhatsApp::numeroDireto(array_replace($base, ['from' => '5585999990000@g.us'])) === null, 'grupo pelo dominio');
 verifica(SaudacaoWhatsApp::numeroDireto(array_replace($base, ['event' => 'status-find'])) === null, 'evento diferente');
 verifica(SaudacaoWhatsApp::instanteMensagem($base, $agora) !== null, 'horario novo');
+verifica(SaudacaoWhatsApp::instanteMensagem(array_replace($base, ['t' => null, 'timestamp' => $agora->getTimestamp()]), $agora) !== null, 'timestamp alternativo');
+verifica(SaudacaoWhatsApp::instanteMensagem(array_replace($base, ['t' => null, 'timestamp' => $agora->getTimestamp() - 301]), $agora) === null, 'timestamp alternativo antigo');
 verifica(SaudacaoWhatsApp::instanteMensagem(array_replace($base, ['t' => $agora->getTimestamp() - 301]), $agora) === null, 'evento atrasado');
 verifica(SaudacaoWhatsApp::instanteMensagem(array_replace($base, ['t' => $agora->getTimestamp() + 121]), $agora) === null, 'evento futuro');
 verifica(str_contains(SaudacaoWhatsApp::texto('Olá {{restaurante}}', 'Loja CI', 'loja-ci'), 'loja-ci'), 'link obrigatorio');
