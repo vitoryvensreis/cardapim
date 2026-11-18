@@ -6,6 +6,7 @@ namespace Cardapim\Controllers\Gerencia;
 
 use Cardapim\Core\Response;
 use Cardapim\Modules\Integracoes\IfoodApi;
+use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Integracoes\WppConnectApi;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
@@ -200,7 +201,11 @@ final class IntegracoesController extends BaseGerencia
     private function telaIfood(string $aba = 'status', array $erros = [], array $valores = [], int $status = 200): Response
     {
         $conta = new IfoodConta($this->db, (int) $this->restaurante['id']);
-        $itens = $conta->conectada() && $aba === 'cardapio' ? (new IfoodCatalogo($this->db, (int) $this->restaurante['id']))->itens() : [];
+        $catalogo = new IfoodCatalogo($this->db, (int) $this->restaurante['id']);
+        $mostrarCatalogo = $conta->conectada() && $aba === 'cardapio';
+        $erroCatalogo = $mostrarCatalogo ? $this->atualizarCatalogoIfood($catalogo, $conta) : null;
+        $itens = $mostrarCatalogo ? $catalogo->itens() : [];
+        $produtosLocais = $mostrarCatalogo ? $catalogo->produtos() : [];
         $pedidosHoje = 0;
         if ($aba === 'status') {
             $hoje = $this->db->prepare("SELECT COUNT(*) FROM pedidos WHERE id_restaurante = ? AND origem = 'ifood' AND criado_em >= ?");
@@ -212,10 +217,14 @@ final class IntegracoesController extends BaseGerencia
             'disponivel' => IfoodApi::disponivel(),
             'opcoes' => ['aceitar_automatico' => $conta->opcao('aceitar_automatico'), 'sincronizar_estoque' => $conta->opcao('sincronizar_estoque')],
             'resumoCardapio' => [
+                'locais' => count($produtosLocais),
                 'total' => count($itens),
-                'ligados' => count(array_filter($itens, static fn (array $i): bool => $i['id_produto'] !== null)),
+                'ligados' => count(array_filter($itens, static fn (array $i): bool => $i['id_produto'] !== null && (int) $i['produto_ativo'] === 1)),
+                'arquivados' => count(array_filter($itens, static fn (array $i): bool => $i['id_produto'] !== null && (int) $i['produto_ativo'] !== 1)),
                 'erros' => count(array_filter($itens, static fn (array $i): bool => $i['ultimo_erro'] !== null)),
+                'confirmado' => $mostrarCatalogo && $erroCatalogo === null,
             ],
+            'erroCatalogo' => $erroCatalogo,
             'abaIfood' => $aba,
             'pedidosHoje' => $pedidosHoje,
             'painel' => $conta->conectada() && $aba !== 'cardapio' ? $this->ifoodLojaServico()->painel() : null,
@@ -273,16 +282,29 @@ final class IntegracoesController extends BaseGerencia
             return $this->voltar($this->url('integracoes/ifood/status'), 'erro', 'Conecte o iFood primeiro.');
         }
         $catalogo = new IfoodCatalogo($this->db, (int) $this->restaurante['id']);
+        $erroCatalogo = $this->atualizarCatalogoIfood($catalogo, $conta);
         $filtro = in_array($_GET['filtro'] ?? '', ['soltos', 'erros'], true) ? (string) $_GET['filtro'] : 'todos';
         $itens = $catalogo->itens();
         return $this->tela('gerencia/integracoes/ifood-cardapio', 'integracoes', 'Cardápio do iFood', [
             'itens' => $itens,
+            'erroCatalogo' => $erroCatalogo,
             'filtro' => $filtro,
             'produtos' => $catalogo->produtos(),
             'sincronizar' => $conta->opcao('sincronizar_estoque'),
             'pageStyles' => ['css/ifood.css'],
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
         ]);
+    }
+
+    /** Consulta o catalogo real; em falha de API preserva o ultimo cache. */
+    private function atualizarCatalogoIfood(IfoodCatalogo $catalogo, IfoodConta $conta): ?string
+    {
+        try {
+            $catalogo->importar($conta);
+            return null;
+        } catch (IntegracaoErro $erro) {
+            return $erro->getMessage();
+        }
     }
 
     public function ifoodCardapioBuscar(string $slug): Response
