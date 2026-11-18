@@ -517,6 +517,14 @@ nao_contem "produto excluido sumiu da lista" "$tmp/pagina.html" "$prod_nome Novo
 rodar
 no_registro "produto publicado excluido no iFood" "excluir-produto "
 
+# Item externo ligado: desligar a sincronizacao geral nao pode impedir a pausa ao excluir.
+enviar "$gj" "$g/integracoes/ifood/cardapio" "$g/integracoes/ifood/opcoes" sincronizar_estoque=0 >/dev/null
+esperar "excluir produto ligado ao item externo" "$(enviar "$gj" "$g/estoque/produtos" "$g/estoque/produtos/$produto/excluir" | cut -d' ' -f1)" "303"
+aviso "$gj" "$g/estoque/produtos" > "$tmp/exclusao-externa-aviso.txt"
+contem "item externo deve ser pausado" "$tmp/exclusao-externa-aviso.txt" 'O item vinculado ao iFood será pausado pela sincronização.'
+rodar
+no_registro "pausa de item externo com estoque desligado" "status item-ci-1 UNAVAILABLE"
+
 enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/desconectar" >/dev/null
 if (( falhas > 0 )); then
   echo "FALHOU: $falhas verificacao(oes) do iFood."
