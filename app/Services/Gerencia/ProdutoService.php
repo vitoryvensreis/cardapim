@@ -12,6 +12,7 @@ use Cardapim\Repositories\Estoque\CategoriaRepository;
 use Cardapim\Repositories\Estoque\ComplementoRepository;
 use Cardapim\Repositories\Estoque\InsumoRepository;
 use Cardapim\Repositories\Estoque\ProdutoRepository;
+use Cardapim\Repositories\Gerencia\IfoodVinculoRepository;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Shared\Esquema;
@@ -177,10 +178,16 @@ final class ProdutoService
     public function excluir(int $id): Resultado
     {
         $produto = $this->produtos->buscar($this->idRestaurante, $id);
-        if ($produto === null) {
+        if ($produto === null || (int) $produto['ativo'] !== 1) {
             return Resultado::falha('Produto não encontrado. Ele pode já ter sido excluído.');
         }
-        $arquivado = $this->produtos->temPedidos($this->idRestaurante, $id);
+        $temPedidos = $this->produtos->temPedidos($this->idRestaurante, $id);
+        $vinculadoIfood = $this->produtos->temVinculoIfood($this->idRestaurante, $id);
+        $publicadoIfood = Esquema::tem($this->db, 'complementos')
+            && (new IfoodVinculoRepository($this->db, $this->idRestaurante))->buscar('item', $id) !== null;
+        // Nunca apagar fisicamente um produto referenciado pelo iFood: a FK impediria a exclusao.
+        // Arquivar mantem pedidos e vinculacoes para que o cron possa remover/pausar o item remoto.
+        $arquivado = $temPedidos || $vinculadoIfood || $publicadoIfood;
         $this->db->beginTransaction();
         try {
             if ($arquivado) {
@@ -197,8 +204,11 @@ final class ProdutoService
             throw $exception;
         }
         Auditoria::registrar($this->autor, 'Produto excluído', sprintf('%s (preço %s, categoria %s).%s', $produto['nome'], Numero::reais((string) $produto['preco']), $produto['categoria'] ?? 'nenhuma',
-            $arquivado ? ' Já tinha pedidos: foi arquivado para manter o histórico.' : ''));
-        return Resultado::sucesso('Produto "' . $produto['nome'] . '" excluído.' . ($arquivado ? ' Os pedidos antigos com ele continuam no histórico.' : ''));
+            $arquivado ? ' Arquivado: ' . ($temPedidos ? 'possui pedidos; ' : '') . ($publicadoIfood ? 'publicado no iFood; ' : '') . ($vinculadoIfood ? 'vinculado ao iFood; ' : '') . 'histórico preservado.' : ''));
+        $avisoIfood = $publicadoIfood ? ' A exclusão do produto publicado no iFood será enviada pela sincronização.'
+            : ($vinculadoIfood ? ' O item vinculado ao iFood será pausado pela sincronização.' : '');
+        return Resultado::sucesso('Produto "' . $produto['nome'] . '" excluído do Deliveryzim.'
+            . ($temPedidos ? ' Os pedidos antigos continuam no histórico.' : '') . $avisoIfood);
     }
 
     /**
