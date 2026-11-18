@@ -17,7 +17,7 @@ final class ProdutoRepository
     public function listar(int $idRestaurante): array
     {
         $query = $this->db->prepare(
-            'SELECT p.id, p.nome, p.preco, p.unidade_venda, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
+            'SELECT p.id, p.nome, p.imagem_path, p.preco, p.unidade_venda, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
              WHERE p.id_restaurante = ? AND p.ativo = 1
