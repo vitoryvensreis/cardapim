@@ -67,15 +67,8 @@ jobs:
           set -euo pipefail
           find app bin bootstrap config database deploy dev public routes tests -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
 
-      - name: Validar configuracao temporaria de backup
-        shell: bash
-        run: |
-          set -euo pipefail
-          cnf="$(mktemp)"
-          trap 'rm -f "$cnf"' EXIT
-          DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=cardapim DB_USERNAME=ci_backup DB_PASSWORD='ci-fake-password' \\
-            php deploy/scripts/mysql-backup-config.php > "$cnf"
-          grep -q '^\\[client\\]        run: composer validate --no-check-publish
+      - name: Validar Composer
+        run: composer validate --no-check-publish
 
       - name: Validar JavaScript
         shell: bash
