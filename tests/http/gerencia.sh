@@ -86,16 +86,17 @@ contem "produto na lista com preco" "$tmp/pagina.html" 'R$ 19,90'
 produto="$(id_por_link "$tmp/pagina.html" '/estoque/produtos' 'CI Salada')"
 [[ -n "$produto" ]] && ok "id do produto: $produto" || falha "id do produto"
 esperar "produto sem ficha com controle de estoque recusado" "$(enviar "$gj" /estoque/produtos nome='CI Vazio' preco='5' controle=estoque | cut -d' ' -f1)" "422"
-esperar "insumo em ficha nao pode ser excluido" "$(enviar "$gj" "/estoque/insumos/$insumo/excluir" | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/estoque/insumos" >/dev/null
-contem "insumo em uso continua" "$tmp/pagina.html" 'CI Alface Crespa'
+contem "insumo usado exibe botao excluir" "$tmp/pagina.html" "/estoque/insumos/$insumo/excluir"
+esperar "insumo em ficha agora pode ser arquivado" "$(enviar "$gj" "/estoque/insumos/$insumo/excluir" | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/estoque/insumos" >/dev/null
+nao_contem "insumo em uso sumiu da lista" "$tmp/pagina.html" '<strong>CI Alface Crespa<'
 esperar "pausar produto" "$(enviar "$gj" "/estoque/produtos/$produto/pausar" | cut -d' ' -f1)" "303"
 pagina "$gj" "$g/estoque/produtos?filtro=indisponiveis" >/dev/null
 contem "produto pausado no filtro fora de venda" "$tmp/pagina.html" 'CI Salada'
 esperar "excluir produto" "$(enviar "$gj" "/estoque/produtos/$produto/excluir")" "303 $g/estoque/produtos"
-esperar "excluir insumo livre" "$(enviar "$gj" "/estoque/insumos/$insumo/excluir")" "303 $g/estoque/insumos"
 pagina "$gj" "$g/estoque/insumos" >/dev/null
-nao_contem "insumo excluido some" "$tmp/pagina.html" '<strong>CI Alface Crespa<'
+nao_contem "insumo arquivado nao reaparece" "$tmp/pagina.html" '<strong>CI Alface Crespa<'
 esperar "outro gerente nao exclui item daqui" "$(curl -s -o /dev/null -b "$oj" -w '%{http_code}' -X POST "$g/estoque/insumos/1/excluir")" "403"
 
 echo "Equipe"
