@@ -143,6 +143,14 @@ final class ProdutoRepository
         return $q->fetchColumn() !== false;
     }
 
+    /** Itens importados/publicados pelo iFood mantem FK para o produto, mesmo sem pedidos. */
+    public function temVinculoIfood(int $idRestaurante, int $id): bool
+    {
+        $q = $this->db->prepare('SELECT 1 FROM ifood_itens WHERE id_produto = ? AND id_restaurante = ? LIMIT 1');
+        $q->execute([$id, $idRestaurante]);
+        return $q->fetchColumn() !== false;
+    }
+
     /** Arquiva: some do cardapio e do painel, libera o nome e o codigo, e os pedidos antigos continuam intactos. */
     public function arquivar(int $idRestaurante, int $id, string $nome): void
     {
