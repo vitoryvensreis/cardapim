@@ -39,6 +39,13 @@ Todo cadastro, edicao e exclusao grava em `log_user` (`Services/Auditoria`): tit
 
 Titulos usados: `Insumo cadastrado/editado/excluido`, `Estoque reposto`, `Categoria cadastrada/editada/excluida`, `Produto cadastrado/editado/excluido/pausado/liberado para venda`, `Equipe: conta criada/editada/excluida`, `Equipe: acesso bloqueado/liberado`, `Equipe: senha redefinida`, `Perfil do restaurante editado`, `Logo do restaurante alterada/removida`, `Horario de funcionamento alterado`, `Conta cadastrada/editada/paga/recebida/excluida`, `Baixa de conta desfeita`, `Assinatura contratada`, `Plano trocado`, `Assinatura cancelada`, `Cancelamento desfeito`, `Minha conta: dados alterados`, `Minha conta: senha alterada`, `Verificacao em duas etapas ligada/desligada`, `Codigos de recuperacao trocados`, `Aparelho(s) desconectado(s)`, `Verificacao recusada`.
 
+## Exclusão de itens do estoque (18/11/2026)
+
+- Contadores das abas de produtos e das categorias consideram somente `produtos.ativo = 1`. Ao excluir uma categoria, produtos arquivados também perdem o vínculo de categoria por integridade, mas não entram na mensagem de produtos ativos que ficaram sem categoria.
+- Excluir um insumo agora **arquiva** o registro (coluna `insumos.excluido_em`, `ativo=0`), em vez de tentar `DELETE` com chave estrangeira. Fichas técnicas de produtos, complementos e movimentações antigas permanecem íntegros; o insumo some da lista, da contagem e das opções de cadastro. O nome fica disponível para um novo insumo.
+- Um produto ativo que ainda usa o insumo arquivado fica **indisponível para venda** até que seu gerente atualize a ficha; complementos são afetados da mesma forma. A confirmação avisa sobre essa consequência antes da exclusão. Não remove os componentes das fichas silenciosamente.
+- A migration `20261118030000_arquivar_insumos.php` precisa estar aplicada antes do código da mudança ser ativado. A release que adiciona a coluna exige backup MySQL e executa migrations via pipeline, com posterior retorno à configuração padrão.
+
 ## Estoque
 
 | Rota | O que faz |
