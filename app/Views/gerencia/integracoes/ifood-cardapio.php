@@ -7,14 +7,14 @@ use Cardapim\Core\Icon;
 use Cardapim\Shared\Numero;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$soltos = array_values(array_filter($itens, static fn (array $i): bool => $i['id_produto'] === null));
+$soltos = array_values(array_filter($itens, static fn (array $i): bool => $i['id_produto'] === null || (int) $i['produto_ativo'] !== 1));
 $comErro = array_values(array_filter($itens, static fn (array $i): bool => $i['ultimo_erro'] !== null));
 $lista = match ($filtro) {
     'soltos' => $soltos,
     'erros' => $comErro,
     default => $itens,
 };
-$filtros = ['todos' => ['Todos', count($itens)], 'soltos' => ['Sem ligação', count($soltos)], 'erros' => ['Com erro', count($comErro)]];
+$filtros = ['todos' => ['Todos', count($itens)], 'soltos' => ['Sem produto ativo', count($soltos)], 'erros' => ['Com erro', count($comErro)]];
 $statusIfood = static fn (?string $s): array => match ($s) {
     'AVAILABLE' => ['Vendendo no iFood', 'etiqueta-ok', 'circle-check'],
     'UNAVAILABLE' => ['Indisponível no iFood', 'etiqueta-neutra', 'circle-pause'],
@@ -41,6 +41,14 @@ $statusIfood = static fn (?string $s): array => match ($s) {
             <?php endif; ?>
         </div>
     </header>
+
+    <?php if ($erroCatalogo !== null): ?>
+        <div class="notice notice-warning" role="status"><?= Icon::svg('circle-exclamation-point') ?><div>
+            <strong>O iFood não confirmou o cardápio atual.</strong>
+            <p>Esta lista mostra os últimos vínculos salvos. Nenhum vínculo foi apagado por falha de comunicação. <?= $e((string) $erroCatalogo) ?></p>
+            <p><a href="<?= $e($base . '/integracoes/ifood/cardapio/vinculos') ?>">Tentar novamente</a></p>
+        </div></div>
+    <?php endif; ?>
 
     <?php if (!$sincronizar): ?>
         <div class="notice notice-info"><?= Icon::svg('info') ?><div><p>O envio automático da disponibilidade está desligado nas <a href="<?= $e($base . '/integracoes/ifood/cardapio') ?>#titulo-opcoes-ifood">opções do iFood</a>. As vendas do iFood continuam baixando o estoque.</p></div></div>
@@ -83,11 +91,16 @@ $statusIfood = static fn (?string $s): array => match ($s) {
                                 <label for="produto-<?= (int) $item['id'] ?>">Produto daqui</label>
                                 <select id="produto-<?= (int) $item['id'] ?>" name="produto[<?= (int) $item['id'] ?>]">
                                     <option value="">Sem ligação</option>
+                                    <?php if ($item['id_produto'] !== null && (int) $item['produto_ativo'] !== 1): ?>
+                                        <option value="<?= (int) $item['id_produto'] ?>" selected disabled>Produto excluído daqui (aguardando sincronização)</option>
+                                    <?php endif; ?>
                                     <?php foreach ($produtos as $prod): ?>
                                         <option value="<?= (int) $prod['id'] ?>"<?= (int) $item['id_produto'] === $prod['id'] ? ' selected' : '' ?>><?= $e($prod['nome']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <?php if ($item['id_produto'] !== null): ?>
+                                <?php if ($item['id_produto'] !== null && (int) $item['produto_ativo'] !== 1): ?>
+                                    <small class="texto-alerta">O produto foi excluído do Deliveryzim. Se o item ainda existir no iFood, a sincronização deverá desativá-lo.</small>
+                                <?php elseif ($item['id_produto'] !== null): ?>
                                     <small class="texto-suave">
                                         <?= $item['vinculo'] === 'automatico' ? 'Ligado sozinho. ' : '' ?>
                                         <?php if ($item['desejado'] === 'AVAILABLE'): ?><?= $item['porcoes'] !== null ? 'Tem estoque para ' . \Cardapim\Modules\Inventory\QuantidadeVenda::quanto((int) ($item['restante'] ?? (int) $item['porcoes'] * 1000), (string) ($item['unidade'] ?? 'un')) . (($item['unidade'] ?? 'un') === 'un' ? ' un.' : '.') : 'Tem estoque.' ?><?php else: ?>Sem estoque ou pausado aqui.<?php endif; ?>
