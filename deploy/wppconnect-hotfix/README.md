@@ -37,24 +37,30 @@ Esse comando cria uma nova imagem local sem alterar o container atual e sem nece
 
 ## Troca e rollback
 
-Depois de backups e testes, no `/opt/wppconnect-cardapim/docker-compose.yml`,
-a única mudança deve ser:
+Depois dos backups e do build, a mudança deve ser feita com o override
+**versionado no GitHub**, sem editar o `docker-compose.yml` original.
 
-```diff
--    image: wppconnect/wppconnect-server:2.10.73
-+    image: cardapim/wppconnect-server:2.10.73-wa-js-4.8.2
+```bash
+cd /opt/wppconnect-cardapim
+# Se ja existir override proprio, PARAR e revisar; nao substituir configuracoes.
+test ! -e docker-compose.override.yml || { echo 'ERRO: override ja existe'; exit 1; }
+cp /home/escotilhaprodutora-cardapim/apps/cardapim/current/deploy/wppconnect-hotfix/docker-compose.override.yml ./
+docker compose config --quiet
+docker compose up -d --no-deps --force-recreate wppconnect
+docker compose ps
 ```
 
-Validar `docker compose config --quiet` e recriar **somente** o serviço
-com `docker compose up -d --no-deps --force-recreate wppconnect`.
-Não usar `down -v`. Verificar porta `127.0.0.1:21467`, sessão de plataforma,
-sessão de restaurante e envios de teste únicos. Confirmar também o evento real de webhook.
+O override modifica somente `services.wppconnect.image`, preservando portas,
+env_file, volumes, tokens e o restante do compose original.
+Não usar `down -v`. Verificar a porta `127.0.0.1:21467`, as duas sessões,
+os envios de teste únicos e o evento real de webhook.
 
-Rollback: restaurar a linha `image: wppconnect/wppconnect-server:2.10.73`
-no compose (ou restaurar o arquivo com backup) e recriar somente o serviço.
+Rollback: após constatar problema, parar o serviço, guardar o override em backup,
+retirá-lo da pasta ativa (sem remover o compose principal) e recriar apenas o
+serviço; isso restaura a imagem `wppconnect/wppconnect-server:2.10.73`.
 Volumes não devem ser apagados ou substituídos em uma reversão comum.
-Se houver alteração incompatível nos perfis pela nova biblioteca, interromper o
-serviço e restaurar um backup consistente, com avaliação explícita de impacto.
+Se houver alteração incompatível nos perfis pela nova biblioteca, interromper
+o serviço e avaliar restauração de backup consistente das sessões.
 
 ## Limites da validação
 
