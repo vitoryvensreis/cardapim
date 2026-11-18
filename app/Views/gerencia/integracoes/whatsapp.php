@@ -154,6 +154,9 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
                 <h2 id="titulo-saudacao"><?= Icon::svg('message-circle') ?>Mensagem de boas-vindas</h2>
                 <p>Quando alguém conversar com o WhatsApp da loja durante o horário de funcionamento, responda automaticamente apenas à primeira mensagem do dia desse número.</p>
             </div>
+            <?php if (empty($webhookConfigurado)): ?>
+                <div class="notice notice-warning"><?= Icon::svg('info') ?><p>O recebimento de mensagens ainda precisa ser habilitado no servidor. O suporte deve configurar o webhook antes de ativar as boas-vindas.</p></div>
+            <?php endif; ?>
             <form method="post" action="<?= $e($base . '/integracoes/whatsapp/saudacao') ?>">
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <label class="opcao-modo">
