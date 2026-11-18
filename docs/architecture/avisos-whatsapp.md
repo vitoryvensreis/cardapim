@@ -42,3 +42,7 @@ Gatilho removido no commit seguinte.
 
 - `tests/http/avisos.sh`: pedido completo (recebido, preparo, pronto, saiu com valor e mapa, entregue), etapa desligada, cancelamento com
   motivo, WhatsApp desconectado sem quebrar o pedido e menu do gerente sem Entregas/Mesas.
+
+## Saudacao a quem envia mensagem para o restaurante
+
+A saudacao de primeiro contato do dia e **separada** da fila de status dos pedidos. O gerente a ativa na mesma tela de integracao, e os eventos chegam por webhook WPPConnect. Veja [saudacao-whatsapp.md](saudacao-whatsapp.md).

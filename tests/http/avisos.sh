@@ -73,6 +73,31 @@ curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
 contem "tela mostra os avisos automaticos" "$tmp/wpp.html" 'Avisos automáticos para os clientes'
 contem "todos os avisos ligados por padrao" "$tmp/wpp.html" 'value="saiu_entrega" checked'
 
+echo "Saudacao diaria pelo WhatsApp do restaurante"
+contem "configuracao de saudacao na tela" "$tmp/wpp.html" "Mensagem de boas-vindas"
+# O usuario de teste pode ter horarios do perfil; abrir 24h temporariamente.
+sempre_antes="$(php -r 'require "bootstrap/app.php"; echo \Cardapim\Core\Database::connect()->query("SELECT sempre_aberto FROM restaurantes WHERE slug = '\''restaurante-modelo-cardapim'\''")->fetchColumn();')"
+esperar "horario de teste sempre aberto" "$(enviar "$gj" "$g/perfil/horarios" "$g/perfil" modo=sempre | cut -d' ' -f1)" "303"
+esperar "gerente ativa a saudacao" "$(enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" saudacao_ativo=1 'saudacao_mensagem=Bem-vindo ao {{restaurante}}! Cardápio {{cardapio}}' | cut -d' ' -f1)" "303"
+t_evento="$(date +%s)"
+wpp_callback="$base/webhooks/wppconnect/$WPPCONNECT_WEBHOOK_TOKEN"
+esperar "segredo incorreto bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{}' "$base/webhooks/wppconnect/invalido")" "401"
+evento="{\"event\":\"onmessage\",\"session\":\"$loja\",\"from\":\"5585999990000@c.us\",\"fromMe\":false,\"t\":$t_evento}"
+esperar "recebe mensagem" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento" "$wpp_callback")" "200"
+sleep 1
+esperar "primeira saudacao enviada" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
+mensagens
+contem "saudacao contem link exclusivo da loja" "$tmp/msgs.txt" "/$slug"
+esperar "webhook duplicado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento" "$wpp_callback")" "200"
+sleep 1
+esperar "uma unica saudacao por dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
+grupo="{\"event\":\"onmessage\",\"session\":\"$loja\",\"from\":\"5585999990000@g.us\",\"fromMe\":false,\"t\":$t_evento}"
+curl -s -o /dev/null -H 'Content-Type: application/json' -d "$grupo" "$wpp_callback"
+esperar "grupo nao recebe saudacao" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
+enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" 'saudacao_mensagem=Mensagem de teste' >/dev/null
+# Restaurar somente modo 24h; os turnos originais foram preservados.
+php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE restaurantes SET sempre_aberto=? WHERE slug=?")->execute([(int)$argv[1],$argv[2]]);' "$sempre_antes" "$slug"
+
 entrar_cliente() { # jar telefone nome -> csrf
   local csrf
   csrf="$(sessao "$1")"

@@ -40,6 +40,14 @@
 - Menu **Cardápio**: busca de produtos com preço e se tem (ou quantos restam).
 - Celular primeiro (menu embaixo), tablet e computador. [Detalhes](docs/architecture/garcom.md).
 
+## Boas-vindas automaticas no WhatsApp de cada loja
+
+- Em **Gerência > Integrações > WhatsApp**, a loja pode ativar uma saudação personalizada com o link do próprio cardápio.
+- Envia uma vez por número e por dia, somente no horário de funcionamento do restaurante, ignorando grupos, mensagens próprias e eventos antigos.
+- Usa a mesma sessão WPPConnect dos avisos de pedido, sem interferir no WhatsApp da plataforma.
+- Requer configurar o webhook de mensagens recebidas no container WPPConnect; inicia desligada.
+- [Arquitetura e habilitação na VPS](docs/architecture/saudacao-whatsapp.md).
+
 ## Avisos do pedido pelo WhatsApp do restaurante
 
 - O cliente recebe mensagens **do WhatsApp conectado pelo gerente** a cada etapa: pedido recebido (com link para acompanhar), em preparo, pronto, **saiu para entrega** (nome do motoqueiro, valor a pagar e link do mapa com a moto), entregue e cancelado (com o motivo).

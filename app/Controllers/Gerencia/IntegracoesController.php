@@ -9,6 +9,7 @@ use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Integracoes\WppConnectApi;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
+use Cardapim\Services\Pedidos\SaudacaoWhatsApp;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Services\Auth\Guard;
 use Cardapim\Services\Gerencia\Integracoes\AsaasService;
@@ -145,12 +146,43 @@ final class IntegracoesController extends BaseGerencia
             : 'Avisos salvos. Os clientes vão receber: ' . mb_strtolower($nomes($depois)) . '.');
     }
 
+    /** Saudacao automatica apenas na primeira mensagem do dia em horario de funcionamento. */
+    public function whatsappSaudacao(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $id = (int) $this->restaurante['id'];
+        $mensagem = (string) ($_POST['saudacao_mensagem'] ?? '');
+        $ativo = isset($_POST['saudacao_ativo']);
+        if ($ativo && strlen(\Cardapim\Core\Config::get('WPPCONNECT_WEBHOOK_TOKEN')) < 32) {
+            return $this->voltar($this->url('integracoes/whatsapp') . '#saudacao', 'erro',
+                'O recebimento de mensagens ainda não foi configurado no servidor. Avise o suporte.');
+        }
+        try {
+            $antes = SaudacaoWhatsApp::configuracao($this->db, $id);
+            SaudacaoWhatsApp::salvar($this->db, $id, $ativo, $mensagem);
+            \Cardapim\Services\Auditoria::registrar(
+                $this->usuario,
+                'WhatsApp: saudacao automatica',
+                'Primeira mensagem do dia: ' . ($antes['ativo'] ? 'ligada' : 'desligada')
+                    . ' -> ' . ($ativo ? 'ligada' : 'desligada') . '. Modelo atualizado.'
+            );
+            return $this->voltar($this->url('integracoes/whatsapp') . '#saudacao', 'sucesso',
+                $ativo ? 'Boas-vindas ativadas para novos contatos durante o horário de funcionamento.' : 'Boas-vindas desativadas.');
+        } catch (\InvalidArgumentException $e) {
+            return $this->voltar($this->url('integracoes/whatsapp') . '#saudacao', 'erro', $e->getMessage());
+        }
+    }
+
     /** @return array{avisosLigados:list<string>,avisosRecentes:list<array<string,mixed>>} */
     private function dadosAvisos(): array
     {
         return [
             'avisosLigados' => AvisosWhatsApp::ligados($this->db, (int) $this->restaurante['id']),
             'avisosRecentes' => AvisosWhatsApp::recentes($this->db, (int) $this->restaurante['id']),
+            'saudacao' => SaudacaoWhatsApp::configuracao($this->db, (int) $this->restaurante['id']),
+            'webhookConfigurado' => strlen(\Cardapim\Core\Config::get('WPPCONNECT_WEBHOOK_TOKEN')) >= 32,
         ];
     }
 
