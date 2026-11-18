@@ -83,13 +83,13 @@ $exemplos = [
         <section class="bloco bloco-perigo" aria-labelledby="titulo-excluir">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-excluir"><?= Icon::svg('trash') ?>Excluir insumo</h2>
-                <p><?= $usos === [] ? 'O insumo será apagado. Isso não pode ser desfeito.' : 'Este insumo está em fichas técnicas. Tire ele das fichas antes de excluir, ou apenas desative.' ?></p>
+                <p><?= $usos === [] ? 'Remover da lista sem apagar o histórico de estoque.' : 'Este insumo ainda está em fichas técnicas. Se excluir, os produtos que o utilizam ficarão indisponíveis até atualizar suas fichas.' ?></p>
             </div>
             <form method="post" action="<?= $e($base . '/estoque/insumos/' . (int) $insumo['id'] . '/excluir') ?>"
-                  data-confirm="O insumo será apagado. Isso não pode ser desfeito."
+                  data-confirm="O insumo será removido da lista, mas o histórico será preservado. Produtos e complementos que ainda o utilizam ficarão indisponíveis até você corrigir suas fichas técnicas."
                   data-confirm-titulo="Excluir &quot;<?= $e((string) $insumo['nome']) ?>&quot;?" data-confirm-acao="Excluir insumo" data-confirm-perigo="1">
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                <button class="btn btn-perigo btn-sm" type="submit"<?= $usos !== [] ? ' disabled' : '' ?>><?= Icon::svg('trash', 'icon-sm') ?>Excluir este insumo</button>
+                <button class="btn btn-perigo btn-sm" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Excluir este insumo</button>
             </form>
         </section>
     <?php endif; ?>
