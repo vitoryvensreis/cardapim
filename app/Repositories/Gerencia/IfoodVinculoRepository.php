@@ -57,6 +57,13 @@ final class IfoodVinculoRepository
             ->execute([...array_values($campos), $this->idRestaurante, $tipo, $idLocal]);
     }
 
+    /** Remove a vinculacao local depois que a exclusao remota for aceita (idempotente e restrita ao restaurante). */
+    public function remover(string $tipo, int $idLocal): void
+    {
+        $this->db->prepare('DELETE FROM ifood_catalogo_vinculos WHERE id_restaurante = ? AND tipo = ? AND id_local = ?')
+            ->execute([$this->idRestaurante, $tipo, $idLocal]);
+    }
+
     /** Falha ao enviar: guarda o motivo e agenda nova tentativa (1, 2, 4... ate 60 minutos). */
     public function falhou(string $tipo, int $idLocal, string $erro): void
     {
@@ -73,8 +80,11 @@ final class IfoodVinculoRepository
     /** Itens publicados (ou com erro ja vencido para tentar de novo). @return list<int> ids dos produtos */
     public function itensParaConferir(): array
     {
-        $q = $this->db->prepare("SELECT id_local FROM ifood_catalogo_vinculos WHERE id_restaurante = ? AND tipo = 'item' AND ifood_id <> ''
-            AND (status = 'publicado' OR (status = 'erro' AND (proxima_em IS NULL OR proxima_em <= ?))) ORDER BY id");
+        $q = $this->db->prepare("SELECT v.id_local FROM ifood_catalogo_vinculos v
+            LEFT JOIN produtos p ON p.id = v.id_local AND p.id_restaurante = v.id_restaurante
+            WHERE v.id_restaurante = ? AND v.tipo = 'item' AND v.ifood_id <> ''
+            AND (v.status = 'publicado' OR (v.status = 'erro' AND (v.proxima_em IS NULL OR v.proxima_em <= ?))
+                 OR (v.status = 'pendente' AND (p.id IS NULL OR p.ativo = 0))) ORDER BY v.id");
         $q->execute([$this->idRestaurante, date('Y-m-d H:i:s')]);
         return array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
     }

@@ -50,10 +50,11 @@ final class RotinaIfood
                 $pub = (new IfoodPublicacao($this->db, $idRestaurante))->sincronizar($conta);
                 $resumo['itens'] += $pub['enviados'];
             }
-            if ($conta->opcao('sincronizar_estoque')) {
-                $sinc = (new IfoodCatalogo($this->db, $idRestaurante))->sincronizar($conta);
-                $resumo['itens'] += $sinc['enviados'];
-            }
+            // Exclusoes devem pausar itens vinculados mesmo quando o gerente
+            // desligou a sincronizacao automatica de estoque.
+            $sinc = (new IfoodCatalogo($this->db, $idRestaurante))->sincronizar(
+                $conta, false, !$conta->opcao('sincronizar_estoque'));
+            $resumo['itens'] += $sinc['enviados'];
             $conta->registrarConsulta();
         } catch (IntegracaoErro $erro) {
             $resumo['erro'] = $erro->getMessage();

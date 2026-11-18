@@ -53,6 +53,10 @@ $limpar = static function () use ($db, &$idRest, &$idOutro, &$idGerente): void {
         if ($r <= 0) {
             continue;
         }
+        $db->prepare('DELETE FROM ifood_itens WHERE id_restaurante = ?')->execute([$r]);
+        $db->prepare('DELETE FROM ifood_catalogo_vinculos WHERE id_restaurante = ?')->execute([$r]);
+        $db->prepare('DELETE FROM produto_porcoes WHERE id_restaurante = ?')->execute([$r]);
+        $db->prepare('DELETE FROM produto_complemento_grupos WHERE id_restaurante = ?')->execute([$r]);
         $db->prepare('DELETE FROM produto_insumos WHERE id_restaurante = ?')->execute([$r]);
         $db->prepare('DELETE FROM produtos WHERE id_restaurante = ?')->execute([$r]);
         $db->prepare('DELETE FROM insumos WHERE id_restaurante = ?')->execute([$r]);
@@ -120,6 +124,36 @@ try {
     $exigir($categorias->excluir($idLanches)->ok && $valor('SELECT id_categoria FROM produtos WHERE id = ?', [$idX]) === null, 'Excluir categoria deixa produto sem categoria.');
     $exigir($produtos->excluir($idX)->ok && (int) $valor('SELECT COUNT(*) FROM produto_insumos WHERE id_produto = ?', [$idX]) === 0, 'Excluir produto apaga a ficha.');
     $exigir($insumos->excluir($idCarne)->ok, 'Insumo fora de fichas pode ser excluido.');
+
+    // Regressao: produto sem pedidos mas vinculado ao iFood nao pode ser apagado
+    // (a FK de ifood_itens aponta para ele). Arquivar preserva a ligacao e libera o nome.
+    $r = $produtos->salvar(null, ['nome' => 'CI Vinculado iFood', 'preco' => '12,00', 'controle' => 'livre', 'disponivel' => '1']);
+    $exigir($r->ok, 'Criar produto vinculado ao iFood.');
+    $idIfood = (int) $r->id;
+    $db->prepare("INSERT INTO ifood_itens (id_restaurante, ifood_item_id, nome, id_produto, vinculo, visto_em)
+        VALUES (?, ?, ?, ?, 'manual', NOW())")->execute([$idRest, 'ci-item-' . $idIfood, 'CI Vinculado iFood', $idIfood]);
+    $exigir(!(new ProdutoService($db, $autor, $idOutro))->excluir($idIfood)->ok, 'Outro restaurante nao exclui produto vinculado.');
+    $exigir($produtos->excluir($idIfood)->ok, 'Produto vinculado ao iFood deve ser arquivado sem erro de FK.');
+    $exigir((int) $valor('SELECT ativo FROM produtos WHERE id = ?', [$idIfood]) === 0,
+        'Produto vinculado arquivado e mantido no banco.');
+    $exigir((int) $valor('SELECT id_produto FROM ifood_itens WHERE ifood_item_id = ?', ['ci-item-' . $idIfood]) === $idIfood,
+        'Ligacao ao iFood continua disponivel para pausar o item.');
+    $exigir(!$produtos->excluir($idIfood)->ok, 'Exclusao repetida de produto arquivado recusada.');
+    $r = $produtos->salvar(null, ['nome' => 'CI Vinculado iFood', 'preco' => '13,00', 'controle' => 'livre', 'disponivel' => '1']);
+    $exigir($r->ok, 'Nome do produto arquivado pode ser reutilizado.');
+
+    // Publicacao do Deliveryzim: ainda que nao haja pedido, o vinculo deve sobreviver
+    // ate o cron remover o produto remoto pela API de catalogo.
+    $r = $produtos->salvar(null, ['nome' => 'CI Publicado iFood', 'preco' => '15,00', 'controle' => 'livre', 'disponivel' => '1']);
+    $exigir($r->ok, 'Criar produto publicado no iFood.');
+    $idPub = (int) $r->id;
+    (new \Cardapim\Repositories\Gerencia\IfoodVinculoRepository($db, $idRest))->salvar('item', $idPub, [
+        'ifood_id' => 'ci-publicado-' . $idPub, 'ifood_produto_id' => 'ci-produto-' . $idPub, 'status' => 'publicado',
+    ]);
+    $exigir($produtos->excluir($idPub)->ok && (int) $valor('SELECT ativo FROM produtos WHERE id = ?', [$idPub]) === 0,
+        'Produto publicado deve ser arquivado ate a exclusao remota.');
+    $exigir((int) $valor("SELECT COUNT(*) FROM ifood_catalogo_vinculos WHERE id_restaurante = ? AND tipo = 'item' AND id_local = ?", [$idRest, $idPub]) === 1,
+        'Vinculo para exclusao remota continua gravado.');
 
     /* ---------- Equipe ---------- */
     $equipe = new EquipeService($db, $autor, $idRest);

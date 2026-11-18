@@ -451,6 +451,12 @@ if (preg_match('~\A/ifood/(events|order|catalog)/~', $caminho)) {
     if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs\z~', $caminho) && $metodo === 'GET') {
         $responder(200, [['catalogId' => 'cat-ci', 'status' => 'AVAILABLE', 'context' => ['DEFAULT'], 'modifiedAt' => gmdate('c')]]);
     }
+    // Excluir exclusivamente produtos publicados por esta integracao (API Catalog v2).
+    if (preg_match('~\\A/ifood/catalog/v2\\.0/merchants/([0-9a-f-]+)/products/([0-9a-f-]+)\\z~', $caminho, $m) && $metodo === 'DELETE') {
+        $ifoodLog('excluir-produto ' . $m[2]);
+        http_response_code(204);
+        exit;
+    }
     // Cardapio publicado pelo sistema: categoria, foto, item completo e PATCH de preco/status (guardados no registro).
     if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs/cat-ci/categories\z~', $caminho) && $metodo === 'POST') {
         if (trim((string) ($json['name'] ?? '')) === '') {
