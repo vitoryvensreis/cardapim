@@ -1,0 +1,33 @@
+/* Configuracoes > SEO: simulacao de resultado do Google. Apenas CSS externo. */
+.seo-google {
+  display: grid;
+  gap: .4rem;
+  width: min(100%, 32rem);
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-white);
+}
+.seo-google-site { display: grid; gap: .15rem; min-width: 0; }
+.seo-google-site strong { color: var(--c-ink); font-size: .9rem; font-weight: 600; }
+.seo-google-site span { color: var(--c-muted); font-size: .78rem; overflow-wrap: anywhere; }
+.seo-google-titulo {
+  margin: .25rem 0 0;
+  color: #1a0dab;
+  font-size: clamp(1rem, .92rem + .4vw, 1.18rem);
+  line-height: 1.35;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.seo-google-descricao {
+  margin: 0;
+  color: var(--c-muted);
+  font-size: .86rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.seo-previa-espaco { margin-top: 1.2rem; }
+@media (max-width: 39.99rem) {
+  .seo-google { padding: .8rem; }
+}
