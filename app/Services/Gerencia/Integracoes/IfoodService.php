@@ -177,7 +177,7 @@ final class IfoodService extends BaseIntegracao
             return Resultado::falha($erro->getMessage());
         }
         if ($r['total'] === 0) {
-            return Resultado::falha('O iFood não mostrou nenhum item no cardápio da loja. Confira o cardápio no Portal do Parceiro.');
+            return Resultado::sucesso('O iFood não possui itens ativos no cardápio desta loja. A lista de vínculos foi atualizada.');
         }
         $this->log('iFood: cardápio buscado', sprintf('%d itens (%d novos); %d ligados automaticamente.', $r['total'], $r['novos'], $r['ligados']));
         return Resultado::sucesso(sprintf('Cardápio atualizado: %d itens do iFood%s.', $r['total'], $r['ligados'] > 0 ? ', ' . $r['ligados'] . ' ligados sozinhos pelo código ou pelo nome' : ''));
