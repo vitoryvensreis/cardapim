@@ -10,7 +10,7 @@ $lojas = is_array($d['lojas'] ?? null) ? $d['lojas'] : [];
 $expira = (int) ($d['expira'] ?? 0);
 $codigoValido = $expira > time();
 $opcoes ??= ['aceitar_automatico' => false, 'sincronizar_estoque' => true];
-$resumoCardapio ??= ['total' => 0, 'ligados' => 0, 'erros' => 0];
+$resumoCardapio ??= ['locais' => 0, 'total' => 0, 'ligados' => 0, 'arquivados' => 0, 'erros' => 0, 'confirmado' => false];
 $ultimaConsulta = $integracao['verificado_em'] ? time() - (int) strtotime((string) $integracao['verificado_em']) : null;
 $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'pendente' && ($ultimaConsulta === null || $ultimaConsulta > 180);
 ?>
@@ -189,12 +189,24 @@ $rotinaParada = $statusIntegracao !== 'desconectado' && $statusIntegracao !== 'p
                 <h2 id="titulo-cardapio-ifood"><?= Icon::svg('list-checks') ?>Cardápio e estoque</h2>
                 <p>Publique o cardápio daqui no iFood (com fotos e complementos) ou ligue os itens que já existem no iFood aos produtos daqui. A venda no iFood baixa o estoque, e o produto que acabar ou for pausado aqui fica indisponível no iFood sozinho.</p>
             </div>
+            <?php if ($erroCatalogo !== null): ?>
+                <div class="notice notice-warning" role="status"><?= Icon::svg('circle-exclamation-point') ?><div>
+                    <strong>Não foi possível conferir o cardápio do iFood agora.</strong>
+                    <p>Os números do iFood não serão mostrados como atuais. Os produtos daqui continuam atualizados. <?= $e((string) $erroCatalogo) ?></p>
+                    <p><a href="<?= $e($base . '/integracoes/ifood/cardapio') ?>">Tentar consultar novamente</a></p>
+                </div></div>
+            <?php endif; ?>
             <div class="resumo-assinatura">
-                <div class="resumo-linha"><span>Itens do iFood ligados a produtos</span><strong><?= (int) $resumoCardapio['ligados'] ?> de <?= (int) $resumoCardapio['total'] ?></strong></div>
-                <?php if ($resumoCardapio['erros'] > 0): ?><div class="resumo-linha"><span>Itens com erro ao enviar</span><strong class="texto-alerta"><?= (int) $resumoCardapio['erros'] ?></strong></div><?php endif; ?>
+                <div class="resumo-linha"><span>Produtos ativos no Deliveryzim</span><strong><?= (int) $resumoCardapio['locais'] ?></strong></div>
+                <div class="resumo-linha"><span>Itens no cardápio do iFood</span><strong><?= $resumoCardapio['confirmado'] ? (int) $resumoCardapio['total'] : 'Não confirmado' ?></strong></div>
+                <div class="resumo-linha"><span>Itens do iFood ligados a produtos ativos</span><strong><?= $resumoCardapio['confirmado'] ? (int) $resumoCardapio['ligados'] . ' de ' . (int) $resumoCardapio['total'] : 'Não confirmado' ?></strong></div>
+                <?php if ($resumoCardapio['confirmado'] && $resumoCardapio['arquivados'] > 0): ?>
+                    <div class="resumo-linha"><span>Itens ligados a produtos excluídos aqui</span><strong class="texto-alerta"><?= (int) $resumoCardapio['arquivados'] ?></strong></div>
+                <?php endif; ?>
+                <?php if ($resumoCardapio['confirmado'] && $resumoCardapio['erros'] > 0): ?><div class="resumo-linha"><span>Itens com erro ao enviar</span><strong class="texto-alerta"><?= (int) $resumoCardapio['erros'] ?></strong></div><?php endif; ?>
             </div>
-            <?php if ($resumoCardapio['total'] > $resumoCardapio['ligados']): ?>
-                <p class="texto-suave"><?= $resumoCardapio['total'] === 0 ? 'Busque o cardápio do iFood para começar.' : 'Itens sem ligação entram no pedido, mas não baixam o estoque.' ?></p>
+            <?php if ($resumoCardapio['confirmado']): ?>
+                <p class="texto-suave"><?= $resumoCardapio['total'] === 0 ? 'Nenhum item encontrado no iFood. Você pode publicar os produtos daqui.' : 'Contagens conferidas ao abrir esta aba. Itens sem produto ativo ligado não baixam estoque do Deliveryzim.' ?></p>
             <?php endif; ?>
             <div class="bloco-rodape">
                 <a class="btn btn-primary" href="<?= $e($base . '/integracoes/ifood/publicar') ?>"><?= Icon::svg('send', 'icon-sm') ?>Publicar cardápio no iFood</a>
