@@ -107,10 +107,27 @@ final class IfoodPublicacao
         }
         $produtos = $this->produtos($ids);
         $token = null;
-        foreach ($produtos as $id => $p) {
+        foreach ($ids as $id) {
             try {
                 $token ??= $conta->token();
-                $resumo['enviados'] += $this->publicarProduto($conta, $token, $p, false);
+                if (!isset($produtos[$id])) {
+                    // Produto arquivado/excluido: o vinculo retido permite repetir a exclusao
+                    // ate o iFood confirmar, sem ressuscitar o produto no catalogo.
+                    $item = $this->vinculos->buscar('item', $id);
+                    if ($item === null || (string) ($item['ifood_produto_id'] ?? '') === '') {
+                        continue;
+                    }
+                    $conta->api()->excluirProduto($token, (string) $conta->loja(), (string) $item['ifood_produto_id']);
+                    // Somente o item criado por nos deixa de ser vinculado; itens de outras origens
+                    // que apontam para o mesmo produto continuam para serem pausados normalmente.
+                    $this->db->prepare('UPDATE ifood_itens SET id_produto = NULL, vinculo = NULL, enviado_status = NULL, enviado_estoque = NULL,
+                        status_ifood = ? WHERE id_restaurante = ? AND id_produto = ? AND ifood_item_id = ?')
+                        ->execute(['UNAVAILABLE', $this->idRestaurante, $id, $item['ifood_id']]);
+                    $this->vinculos->remover('item', $id);
+                    $resumo['enviados']++;
+                    continue;
+                }
+                $resumo['enviados'] += $this->publicarProduto($conta, $token, $produtos[$id], false);
             } catch (IntegracaoErro $erro) {
                 $this->vinculos->falhou('item', $id, $erro->getMessage());
                 $resumo['erros']++;
