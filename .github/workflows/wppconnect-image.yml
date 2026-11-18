@@ -1,0 +1,41 @@
+name: Cardapim - Validar imagem WPPConnect corrigida
+on:
+  pull_request:
+    paths:
+      - 'deploy/wppconnect-hotfix/**'
+      - '.github/workflows/wppconnect-image.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/wppconnect-hotfix/**'
+      - '.github/workflows/wppconnect-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Montar imagem isolada e testar pacote WA-JS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir imagem sem publicar
+        run: |
+          set -euo pipefail
+          docker build --pull --progress=plain \
+            -t cardapim/wppconnect-server:2.10.73-wa-js-4.8.2 \
+            -f deploy/wppconnect-hotfix/Dockerfile \
+            deploy/wppconnect-hotfix
+      - name: Confirmar versoes e correcao no pacote instalado
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint node \
+            cardapim/wppconnect-server:2.10.73-wa-js-4.8.2 -e '
+              const fs=require("fs");
+              const p="/usr/src/wpp-server/node_modules/@wppconnect/wa-js";
+              const j=JSON.parse(fs.readFileSync(p+"/package.json", "utf8"));
+              if(j.version!=="4.8.2") process.exit(1);
+              if(!fs.readFileSync(p+"/dist/wppconnect-wa.js","utf8").includes("getMaybeMeLidUser")) process.exit(2);
+              console.log("OK: WA-JS 4.8.2 com fallback LID");
+            '
