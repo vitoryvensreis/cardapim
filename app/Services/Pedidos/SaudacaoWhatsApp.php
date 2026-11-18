@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Pedidos;
 
+use Cardapim\Core\Config;
 use Cardapim\Core\Database;
 use Cardapim\Modules\Integracoes\WppConnectApi;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
@@ -67,7 +68,8 @@ final class SaudacaoWhatsApp
     /** Nao aceitar mensagens antigas reemitidas pelo WPPConnect ao reiniciar. */
     public static function instanteMensagem(array $evento, DateTimeImmutable $agora): ?DateTimeImmutable
     {
-        $segundos = $evento['t'] ?? null;
+        // As versoes de WPPConnect podem fornecer t ou timestamp (segundos Unix).
+        $segundos = $evento['t'] ?? $evento['timestamp'] ?? null;
         if (!is_int($segundos) && !(is_string($segundos) && ctype_digit($segundos))) {
             return null;
         }
@@ -79,6 +81,19 @@ final class SaudacaoWhatsApp
     }
 
     /**
+     * Diagnostico opcional e sem PII: nao grava telefone, sessao, texto ou token.
+     * Ativar temporariamente com WPPCONNECT_SAUDACAO_DIAGNOSTICO=1 no .env compartilhado.
+     */
+    private static function ignorado(string $motivo, array $evento): bool
+    {
+        if (($evento['event'] ?? null) === 'onmessage'
+            && Config::get('WPPCONNECT_SAUDACAO_DIAGNOSTICO') === '1') {
+            error_log('[Cardapim] Saudacao WhatsApp ignorada: ' . $motivo);
+        }
+        return false;
+    }
+
+    /**
      * Enfileira a primeira mensagem elegivel do dia. Retorna true se uma saudacao foi criada.
      * A chave unica no MySQL torna webhooks repetidos e mensagens simultaneas idempotentes.
      */
@@ -86,32 +101,36 @@ final class SaudacaoWhatsApp
     {
         $telefone = self::numeroDireto($evento);
         if ($telefone === null) {
-            return false;
+            $origem = (string) ($evento['from'] ?? '');
+            $tipo = str_ends_with($origem, '@lid') ? 'remetente_lid_sem_numero'
+                : ((($evento['fromMe'] ?? null) === true) ? 'mensagem_propria'
+                    : 'remetente_ou_tipo_invalido');
+            return self::ignorado($tipo, $evento);
         }
         $agora ??= new DateTimeImmutable('now');
         $instante = self::instanteMensagem($evento, $agora);
         if ($instante === null) {
-            return false;
+            return self::ignorado('data_invalida_ausente_ou_antiga', $evento);
         }
         $sessao = (string) ($evento['session'] ?? '');
         if ($sessao === '') {
-            return false;
+            return self::ignorado('sessao_ausente', $evento);
         }
         $id = (new IntegracaoRepository($db))->restaurantePorSessaoWhatsApp($sessao);
         if ($id === null) {
-            return false;
+            return self::ignorado('sessao_sem_restaurante_ativo', $evento);
         }
         $config = self::configuracao($db, $id);
         if (!$config['ativo']) {
-            return false;
+            return self::ignorado('automacao_desligada', $evento);
         }
         $perfil = new PerfilRepository($db);
         $loja = $perfil->buscar($id);
         if ($loja === null || ($loja['status_rest'] ?? '') !== 'ativo') {
-            return false;
+            return self::ignorado('restaurante_inativo', $evento);
         }
         if (!HorarioFuncionamento::abertoEm((bool) $loja['sempre_aberto'], $perfil->horarios($id), $instante)) {
-            return false;
+            return self::ignorado('fora_do_horario', $evento);
         }
         $texto = self::texto($config['mensagem'], (string) $loja['nome'], (string) $loja['slug']);
         $q = $db->prepare("INSERT IGNORE INTO whatsapp_saudacao_diaria
@@ -119,7 +138,7 @@ final class SaudacaoWhatsApp
             VALUES (?, ?, ?, ?, 'pendente', 0, ?, ?)");
         $q->execute([$id, $telefone, $instante->format('Y-m-d'), $texto, $agora->format('Y-m-d H:i:s'), $agora->format('Y-m-d H:i:s')]);
         if ($q->rowCount() !== 1) {
-            return false;
+            return self::ignorado('ja_registrada_hoje', $evento);
         }
         self::agendarEnvio($id);
         return true;
