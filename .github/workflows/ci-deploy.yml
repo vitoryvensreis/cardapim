@@ -401,6 +401,19 @@ jobs:
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-saudacoes.sh'"
 
+      - name: Ampliar destinatario de saudacao para LID com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-lid-schema]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-saudacoes-lid.sh'"
+
       # Mapa proprio do Ceara (docs/architecture/mapa.md): gerado aqui e enviado para a VPS so com
       # [cardapim-mapa] na mensagem do commit (primeira instalacao e atualizacoes). Roda depois do deploy do codigo.
       - name: Go para gerar o mapa
