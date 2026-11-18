@@ -147,6 +147,36 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
                 </ul>
             <?php endif; ?>
         </section>
+
+        <?php if (isset($saudacao)): ?>
+        <section class="bloco" id="saudacao" aria-labelledby="titulo-saudacao">
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-saudacao"><?= Icon::svg('message-circle') ?>Mensagem de boas-vindas</h2>
+                <p>Quando alguém conversar com o WhatsApp da loja durante o horário de funcionamento, responda automaticamente apenas à primeira mensagem do dia desse número.</p>
+            </div>
+            <form method="post" action="<?= $e($base . '/integracoes/whatsapp/saudacao') ?>">
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <label class="opcao-modo">
+                    <input type="checkbox" name="saudacao_ativo" value="1"<?= $saudacao['ativo'] ? ' checked' : '' ?>>
+                    <span>
+                        <strong>Ativar mensagem automática de boas-vindas</strong>
+                        <small>Uma resposta por dia, por número e por restaurante. Fora do expediente não envia.</small>
+                    </span>
+                </label>
+                <?= Campo::areaTexto([
+                    'nome' => 'saudacao_mensagem',
+                    'rotulo' => 'Mensagem enviada ao cliente',
+                    'valor' => (string) $saudacao['mensagem'],
+                    'attrs' => ['maxlength' => 1500, 'rows' => 5, 'required' => true],
+                    'dica' => 'Use {{restaurante}} para o nome e {{cardapio}} para o link. O link é incluído mesmo se você apagar a variável.',
+                ]) ?>
+                <p class="texto-suave">O horário é o cadastrado em <strong>Restaurante &gt; Perfil</strong>, inclusive turnos que passam da meia-noite. Não responde grupos nem mensagens enviadas pela própria loja.</p>
+                <div class="bloco-rodape">
+                    <button type="submit" class="btn btn-primary" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar boas-vindas</button>
+                </div>
+            </form>
+        </section>
+        <?php endif; ?>
         <?php endif; ?>
 
         <section class="bloco" id="teste" aria-labelledby="titulo-teste" data-so-conectado<?= $statusIntegracao === 'conectado' ? '' : ' hidden' ?>>
