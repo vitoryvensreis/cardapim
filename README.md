@@ -15,6 +15,11 @@
 - Somente gerente do restaurante e administrador master podem acessar; respeita isolamento por restaurante. Não requer migration.
 - [Arquitetura e testes do modo cozinha](docs/architecture/cozinha.md).
 
+## Estoque: fotos na lista de produtos
+
+- Em **Gerência > Estoque > Produtos**, os produtos exibem a fotografia cadastrada em miniatura de 48 × 48 px, seguindo o padrão visual dos complementos. Sem foto, aparece o ícone de imagem.
+- A listagem carrega `produtos.imagem_path` do próprio restaurante e usa `MidiaUrl::publica()` para servir a imagem. Nenhuma alteração no banco ou no upload. [Detalhes](docs/database/cardapio-estoque.md).
+
 ## Modo caixa
 
 - `/{slug}/caixa` com **menu lateral**: Caixa, Mesas e comandas, Delivery, Entradas e saídas, Fechamentos e Cadastro de mesas.

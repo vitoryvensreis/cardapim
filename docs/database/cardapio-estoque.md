@@ -32,6 +32,8 @@ Migrations `20261110040000` a `20261110040300`. Toda linha pertence a um restaur
 | `ativo` | TINYINT | arquivar; produtos nao devem ser apagados |
 | `ordem` | SMALLINT | ordem no cardapio |
 
+Na gerencia, **Estoque > Produtos** mostra uma miniatura de 48 x 48 px para cada produto com `imagem_path`. A consulta `ProdutoRepository::listar()` inclui o caminho da foto e continua filtrando por `id_restaurante`; a view usa `MidiaUrl::publica()` para compor o endereco correto no Nginx. Produtos sem foto recebem o icone Lucide `image`, assim como o estado vazio dos complementos. Nenhuma migration e necessaria.
+
 ### `produto_porcoes` (venda por peso)
 Porcoes fixas do cardapio online (`quantidade` DECIMAL(10,3), ate 6 por produto, FK composta com o restaurante).
 
