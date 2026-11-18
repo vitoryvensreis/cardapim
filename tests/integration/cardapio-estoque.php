@@ -10,6 +10,7 @@ use Cardapim\Core\Database;
 use Cardapim\Modules\Inventory\BaixaEstoque;
 use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
 use Cardapim\Modules\Inventory\EstoqueInsuficiente;
+use Cardapim\Repositories\Estoque\ProdutoRepository;
 
 $db = Database::connect();
 $fail = static function (string $msg): never {
@@ -77,6 +78,22 @@ try {
     $recusa(fn () => $prod->execute([$a, $catA, 'Preco negativo', '-1', 1, null]), 'preco negativo');
     $recusa(fn () => $prod->execute([$a, $catA, 'X-Burguer', '1', 1, null]), 'produto duplicado');
     $recusa(fn () => $prod->execute([$a, $catA, 'Outro', '1', 1, 'XB01']), 'codigo duplicado');
+
+    // A lista de produtos deve trazer a foto para o painel, sem vazar dados entre restaurantes.
+    $caminhoFoto = '/midia/cardapio/' . str_repeat('a', 32) . '.webp';
+    $db->prepare('UPDATE produtos SET imagem_path = ? WHERE id = ? AND id_restaurante = ?')
+        ->execute([$caminhoFoto, $burger, $a]);
+    $produtoRepo = new ProdutoRepository($db);
+    $produtosListados = array_column($produtoRepo->listar($a), null, 'id');
+    if (($produtosListados[$burger]['imagem_path'] ?? null) !== $caminhoFoto) {
+        $fail('A lista de produtos nao retornou a imagem cadastrada.');
+    }
+    if (!array_key_exists('imagem_path', $produtosListados[$refri] ?? []) || $produtosListados[$refri]['imagem_path'] !== null) {
+        $fail('Produto sem foto deve ter imagem_path nulo na listagem.');
+    }
+    if ($produtoRepo->listar($b) !== []) {
+        $fail('A listagem mostrou produtos de outro restaurante.');
+    }
 
     // Ficha tecnica
     $ficha = $db->prepare('INSERT INTO produto_insumos (id_restaurante, id_produto, id_insumo, quantidade) VALUES (?, ?, ?, ?)');
