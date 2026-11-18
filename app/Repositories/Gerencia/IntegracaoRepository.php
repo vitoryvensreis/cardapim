@@ -120,6 +120,24 @@ final class IntegracaoRepository
             WHERE escopo = ? AND provedor = ?")->execute([self::escopo($idRestaurante), $provedor]);
     }
 
+    /** Sessao do WhatsApp pertencente a uma unica loja conectada (nunca a plataforma). */
+    public function restaurantePorSessaoWhatsApp(string $sessao): ?int
+    {
+        if (preg_match('/\Acardapim_r[1-9][0-9]*_[a-f0-9]{8}\z/', $sessao) !== 1) {
+            return null;
+        }
+        $q = $this->db->prepare("SELECT id_restaurante FROM integracoes
+            WHERE provedor = 'whatsapp' AND id_restaurante IS NOT NULL AND status = 'conectado'
+                AND JSON_UNQUOTE(JSON_EXTRACT(dados, '$.sessao')) = ? LIMIT 2");
+        $q->execute([$sessao]);
+        $ids = $q->fetchAll(PDO::FETCH_COLUMN);
+        if (count($ids) !== 1 || $sessao === '') {
+            return null;
+        }
+        $id = (int) $ids[0];
+        return str_starts_with($sessao, 'cardapim_r' . $id . '_') ? $id : null;
+    }
+
     /** @return array{id_restaurante:?int, credenciais:array<string,mixed>}|null integracao dona do webhook (null = plataforma) */
     public function porWebhook(string $provedor, string $webhookId): ?array
     {
