@@ -90,7 +90,7 @@ $filtros = ['todos' => 'Todos', 'a-venda' => 'À venda', 'indisponiveis' => 'For
                             </form>
                             <a class="btn-icone" href="<?= $e($base . '/estoque/produtos/' . $id) ?>"><?= Icon::svg('pencil', 'icon-sm') ?><span>Editar</span></a>
                             <form method="post" action="<?= $e($base . '/estoque/produtos/' . $id . '/excluir') ?>"
-                                  data-confirm="O produto e a ficha técnica dele serão apagados. Isso não pode ser desfeito."
+                                  data-confirm="O produto deixará de aparecer no cardápio. Se tiver pedidos ou vínculo com o iFood, será arquivado para preservar o histórico. Se foi publicado pelo Deliveryzim no iFood, a exclusão será sincronizada; itens apenas vinculados serão pausados."
                                   data-confirm-titulo="Excluir &quot;<?= $e((string) $p['nome']) ?>&quot;?" data-confirm-acao="Excluir produto" data-confirm-perigo="1">
                                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                                 <button class="btn-icone is-perigo" type="submit" aria-label="Excluir <?= $e((string) $p['nome']) ?>"><?= Icon::svg('trash', 'icon-sm') ?></button>
