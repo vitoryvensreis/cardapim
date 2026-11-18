@@ -356,9 +356,7 @@ jobs:
           DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
-          # One release only: add insumos.excluido_em before activating the PHP that depends on it.
-          # Restore the configurable default after migration/deploy confirmation.
-          RUN_MIGRATIONS: 'true'
+          RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
