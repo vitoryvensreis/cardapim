@@ -83,6 +83,26 @@ Nao aumentar o nivel de log global nem imprimir payloads de clientes.
   O workflow so executa com `[cardapim-saudacoes]` no commit de merge.
 - O codigo e publicado depois, em outro merge (o deploy normal nao aplica migrations automaticamente).
 
+## Compatibilidade de schema com LID
+
+O WhatsApp pode identificar remetentes de conversas privadas com `@lid`. O
+WPPConnect Server 2.10.73 aceita destinatarios com dominio `@lid` explicito.
+O campo legado `telefone` de `whatsapp_saudacao_diaria` precisa comportar o
+identificador completo do destinatario, sem alterar a chave UNIQUE diaria.
+A migration versionada
+`20261118220000_expand_whatsapp_saudacao_lid.php` amplia o campo de
+`VARCHAR(15)` para `VARCHAR(48)`, preservando o historico.
+
+O deploy da migration ocorre separadamente, **antes** da mudanca no PHP que
+passara a aceitar LID. O commit de merge da migration deve conter
+`[cardapim-lid-schema]`, que aciona
+`deploy/scripts/apply-saudacoes-lid.sh`: cria backup do banco, aplica apenas
+a migration esperada e verifica o schema. Nunca alterar a migration anterior
+nem apagar a tabela de saudacoes.
+
+Antes da migration, todos os eventos LID continuam sendo rejeitados pelo PHP,
+evitando gravacoes truncadas. O sistema de avisos de pedidos e inalterado.
+
 ## Envio e privacidade
 
 O webhook confirma imediatamente e agenda envio apos a resposta HTTP.
