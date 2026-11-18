@@ -154,6 +154,14 @@ O iFood não tem um comando "abrir": o botão remove a pausa criada pelo Deliver
 | GET | `/{slug}/caixa/ifood/situacao` | Caixa, gerente |
 | POST | `/{slug}/caixa/ifood/abrir` (header `X-CSRF-Token`) | Caixa, gerente |
 
+### Contagem atual do cardápio em cada sistema
+
+- Ao abrir **Integrações > iFood > Cardápio** ou **Ligar itens do cardápio**, o servidor consulta os catálogos da loja escolhida no iFood e busca do MySQL os **produtos ativos do restaurante**. A navegação não cria vínculos automáticos; eles continuam no primeiro vínculo e no botão de buscar cardápio.
+- Somente após receber **todas** as respostas do catálogo do iFood com sucesso, o sistema reconcilia `ifood_itens` numa transação, remove **apenas registros de cache** que não existem mais no catálogo remoto e não conta itens `DELETED`. Não apaga produtos, pedidos, auditoria ou vínculos de publicação pendentes de exclusão.
+- O resumo mostra separadamente **produtos ativos no Deliveryzim**, **itens atuais no iFood**, **itens vinculados a produtos ativos** e, quando houver, **vínculos com produtos arquivados** (que ainda precisam ser pausados ou excluídos no iFood).
+- Se a API falhar, a contagem remota fica **Não confirmado**: o cache e as vinculações anteriores são preservados, sem fingir atualização. Na tela de vínculos, itens ligados a produtos arquivados ficam identificados, impedindo confundir um vínculo antigo com um produto disponível.
+- Nenhuma migration; `ProdutoRepository` e regras de baixa de estoque permanecem intactas. Testes: `tests/http/ifood.sh` e fake de catálogo com cenários normal, `DELETED`, vazio e indisponível.
+
 ### Sincronização de disponibilidade Deliveryzim ↔ iFood
 
 - **Criar pausa:** após resposta de sucesso ao `POST /interruptions`, o Deliveryzim grava a pausa com início/fim/ID em `integracoes.dados.pausa_sincronizada`. Se já começou, o cardápio público e o checkout passam a bloquear **novos** pedidos. Pedidos existentes não são cancelados. A tela de gerência e caixa recebe evento no canal `geral` (outbox/WebSocket), e outras abas atualizam pelo endpoint local.
