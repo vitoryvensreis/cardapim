@@ -408,6 +408,15 @@ if ($caminho === '/ifood/_teste/evento' && $metodo === 'POST') {
     $guardar('ifood-eventos.json', $fila);
     $responder(201, ['ok' => true]);
 }
+// Permite simular remocoes e falha de consulta do Catalog sem tocar em producao.
+if ($caminho === '/ifood/_teste/catalogo' && $metodo === 'POST') {
+    $modo = (string) ($json['modo'] ?? 'normal');
+    if (!in_array($modo, ['normal', 'vazio', 'um', 'excluido', 'erro'], true)) {
+        $responder(400, ['error' => 'modo invalido']);
+    }
+    $guardar('ifood-catalogo-modo.json', $modo);
+    $responder(200, ['ok' => true]);
+}
 if ($caminho === '/ifood/_teste/registro' && $metodo === 'GET') {
     $responder(200, ['linhas' => is_file($pasta . '/ifood-registro.log') ? file($pasta . '/ifood-registro.log', FILE_IGNORE_NEW_LINES) : [], 'fila' => count($ifoodFila())]);
 }
@@ -488,11 +497,22 @@ if (preg_match('~\A/ifood/(events|order|catalog)/~', $caminho)) {
         $responder(202, ['batchId' => 'b-' . bin2hex(random_bytes(4))]);
     }
     if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/catalogs/cat-ci/categories\z~', $caminho) && $metodo === 'GET') {
+        $modo = $ler('ifood-catalogo-modo.json') ?? 'normal';
+        if ($modo === 'erro') {
+            $responder(503, ['message' => 'catalogo temporariamente indisponivel']);
+        }
+        if ($modo === 'vazio') {
+            $responder(200, []);
+        }
+        $itens = [
+            ['id' => 'item-ci-1', 'productId' => 'prod-ci-1', 'name' => 'Lanche iFood CI', 'externalCode' => 'PDV-CI-1', 'status' => 'AVAILABLE', 'price' => ['value' => 25.9, 'originalValue' => 25.9]],
+            ['id' => 'item-ci-2', 'productId' => 'prod-ci-2', 'name' => 'Item sem par CI', 'status' => $modo === 'excluido' ? 'DELETED' : 'AVAILABLE', 'price' => ['value' => 9.5]],
+        ];
+        if ($modo === 'um') {
+            $itens = array_slice($itens, 0, 1);
+        }
         $responder(200, [
-            ['id' => 'cat-lanches', 'name' => 'Lanches CI', 'status' => 'AVAILABLE', 'items' => [
-                ['id' => 'item-ci-1', 'productId' => 'prod-ci-1', 'name' => 'Lanche iFood CI', 'externalCode' => 'PDV-CI-1', 'status' => 'AVAILABLE', 'price' => ['value' => 25.9, 'originalValue' => 25.9]],
-                ['id' => 'item-ci-2', 'productId' => 'prod-ci-2', 'name' => 'Item sem par CI', 'status' => 'AVAILABLE', 'price' => ['value' => 9.5]],
-            ]],
+            ['id' => 'cat-lanches', 'name' => 'Lanches CI', 'status' => 'AVAILABLE', 'items' => $itens],
         ]);
     }
     if (preg_match('~\A/ifood/catalog/v2\.0/merchants/([0-9a-f-]+)/items/status\z~', $caminho) && $metodo === 'PATCH') {

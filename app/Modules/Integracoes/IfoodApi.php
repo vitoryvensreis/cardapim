@@ -329,6 +329,9 @@ class IfoodApi
     public function catalogos(string $token, string $idLoja): array
     {
         $d = $this->exigirOk($this->requisicao('GET', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/catalogs', $token), 'buscar o cardápio');
+        if (!array_is_list($d)) {
+            throw new IntegracaoErro('O iFood devolveu uma lista de cardápios em formato inesperado. Nada foi alterado.');
+        }
         $ids = [];
         foreach ($d as $c) {
             if (is_array($c) && is_string($c['catalogId'] ?? null) && strtoupper((string) ($c['status'] ?? 'AVAILABLE')) !== 'DELETED') {
@@ -346,13 +349,17 @@ class IfoodApi
     {
         $r = $this->requisicao('GET', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/catalogs/' . self::id($idCatalogo) . '/categories?includeItems=true', $token);
         $d = $this->exigirOk($r, 'buscar os itens do cardápio');
+        if (!array_is_list($d)) {
+            throw new IntegracaoErro('O iFood devolveu os itens em formato inesperado. Nada foi alterado.');
+        }
         $itens = [];
         foreach ($d as $categoria) {
-            if (!is_array($categoria)) {
+            if (!is_array($categoria) || strtoupper((string) ($categoria['status'] ?? 'AVAILABLE')) === 'DELETED') {
                 continue;
             }
             foreach (is_array($categoria['items'] ?? null) ? $categoria['items'] : [] as $item) {
-                if (!is_array($item) || !is_string($item['id'] ?? null) || $item['id'] === '') {
+                if (!is_array($item) || !is_string($item['id'] ?? null) || $item['id'] === ''
+                    || strtoupper((string) ($item['status'] ?? 'AVAILABLE')) === 'DELETED') {
                     continue;
                 }
                 $preco = $item['price']['value'] ?? $item['price'] ?? null;
