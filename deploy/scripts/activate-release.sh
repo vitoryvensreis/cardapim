@@ -56,14 +56,31 @@ echo "Validacao PHP concluida."
 
 if [[ "$migrations" == "true" ]]; then
   cnf="$shared/mysql-backup.cnf"
-  [[ -f "$cnf" ]] || { echo "Backup MySQL nao configurado em $cnf"; exit 1; }
-  [[ "$(stat -c '%a' "$cnf")" == "600" ]] || { echo "Permissao 600 obrigatoria em $cnf"; exit 1; }
   command -v mysqldump >/dev/null || { echo "mysqldump nao instalado"; exit 1; }
   command -v gzip >/dev/null || { echo "gzip nao instalado"; exit 1; }
+  if [[ ! -f "$cnf" ]]; then
+    # Caso a VPS ainda nao tenha conta de backup dedicada, usa a configuracao
+    # privada da propria aplicacao. Nunca imprime usuario/senha no log nem no ps.
+    cnf="$(mktemp "$shared/backups/.mysql-client.XXXXXXXX.cnf")"
+    chmod 600 "$cnf"
+    trap 'rm -f -- "$cnf"' EXIT
+    "$php_bin" "$release/deploy/scripts/mysql-backup-config.php" > "$cnf"
+    echo "Credenciais temporarias de backup geradas com acesso restrito."
+  fi
+  [[ "$(stat -c '%a' "$cnf")" == "600" ]] || { echo "Permissao 600 obrigatoria no arquivo de backup"; exit 1; }
   backup="$shared/backups/cardapim-$(date -u +%Y%m%dT%H%M%SZ)-$release_id.sql.gz"
-  mysqldump --defaults-extra-file="$cnf" --single-transaction --quick --no-tablespaces --set-charset --databases cardapim | gzip > "$backup"
+  if ! mysqldump --defaults-extra-file="$cnf" --single-transaction --quick --no-tablespaces --set-charset --databases cardapim | gzip > "$backup"; then
+    rm -f -- "$backup"
+    echo "Backup MySQL falhou; migrations NAO foram executadas."
+    exit 1
+  fi
+  if [[ ! -s "$backup" ]] || ! gzip -t "$backup"; then
+    rm -f -- "$backup"
+    echo "Backup MySQL vazio ou corrompido; migrations NAO foram executadas."
+    exit 1
+  fi
   chmod 600 "$backup"
-  echo "Backup criado: $backup"
+  echo "Backup criado e validado: $backup"
   "$php_bin" "$release/database/migrate.php" --apply
 fi
 

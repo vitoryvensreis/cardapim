@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find app bin bootstrap config database dev public routes tests -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
+          find app bin bootstrap config database deploy dev public routes tests -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
 
       - name: Validar Composer
         run: composer validate --no-check-publish
