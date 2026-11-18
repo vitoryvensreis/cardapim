@@ -29,7 +29,7 @@ final class HomeController
             // Titulo e descricao editaveis em Configuracoes > Google e redes sociais (painel do adm_master).
             'pageTitle' => Seo::tituloInicio(),
             'pageDescription' => Seo::descricaoInicio(),
-            'seo' => ['jsonLd' => Seo::jsonLdInicio()],
+            'seo' => ['jsonLd' => Seo::jsonLdInicio(), 'palavrasChave' => Seo::palavrasChaveInicio()],
             'planos' => $planos,
             'planosIndisponiveis' => $planosIndisponiveis,
         ]));

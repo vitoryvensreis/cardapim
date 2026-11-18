@@ -28,11 +28,13 @@
   "use strict";
 
   document.querySelectorAll("[data-seo-campo]").forEach((campo) => {
-    const alvo = document.querySelector(`[data-seo-previa="${campo.dataset.seoCampo}"]`);
-    if (!alvo) return;
+    const alvos = document.querySelectorAll(`[data-seo-previa="${campo.dataset.seoCampo}"]`);
+    if (!alvos.length) return;
     const atualizar = () => {
       const texto = campo.value.trim().replace(/\s+/g, " ");
-      alvo.textContent = texto !== "" ? texto : campo.getAttribute("placeholder") || "";
+      alvos.forEach((alvo) => {
+        alvo.textContent = texto !== "" ? texto : campo.getAttribute("placeholder") || "";
+      });
     };
     campo.addEventListener("input", atualizar);
   });

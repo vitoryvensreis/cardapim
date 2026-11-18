@@ -38,6 +38,7 @@ final class MarcaService
     public const SEO = [
         'seo_titulo' => ['Título da página inicial', Seo::TITULO_MAX, 'Titulo da pagina inicial no Google e nas redes'],
         'seo_descricao' => ['Descrição da página inicial', Seo::DESCRICAO_MAX, 'Descricao da pagina inicial no Google e nas redes'],
+        'seo_palavras_chave' => ['Palavras-chave de pesquisa', Seo::PALAVRAS_MAX, 'Termos de pesquisa do site, sem exibicao visual na landing'], 
         'frase_compartilhamento' => ['Frase da imagem do link', Seo::FRASE_MAX, 'Frase do cartao automatico do link'],
         'google_verificacao' => ['Código de verificação do Google', 100, 'Google Search Console'],
     ];
@@ -77,7 +78,30 @@ final class MarcaService
         $novos = [];
         foreach (self::SEO as $chave => [$rotulo, $max]) {
             $v = trim((string) preg_replace('/\s+/u', ' ', is_string($d[$chave] ?? null) ? $d[$chave] : ''));
-            if ($chave === 'google_verificacao' && $v !== '') {
+            if ($chave === 'seo_palavras_chave') {
+                // Termos separados por virgula ou ponto e virgula; evita duplicatas, inclusive com variacao de maiusculas.
+                $termos = [];
+                $vistos = [];
+                foreach (preg_split('/[,;]+/u', $v) ?: [] as $parte) {
+                    $termo = trim($parte);
+                    if ($termo === '') {
+                        continue;
+                    }
+                    if (mb_strlen($termo) > 60) {
+                        $erros[$chave] = 'Cada palavra-chave ou expressão deve ter até 60 caracteres.';
+                        break;
+                    }
+                    $identidade = mb_strtolower($termo);
+                    if (!isset($vistos[$identidade])) {
+                        $vistos[$identidade] = true;
+                        $termos[] = $termo;
+                    }
+                }
+                $v = implode(', ', $termos);
+                if (count($termos) > 20 || mb_strlen($v) > $max) {
+                    $erros[$chave] = 'Use até 20 palavras-chave ou expressões, com no máximo ' . $max . ' caracteres no total.';
+                }
+            } elseif ($chave === 'google_verificacao' && $v !== '') {
                 // Aceita a etiqueta inteira copiada do Google: fica so o codigo.
                 if (preg_match('/content\s*=\s*["\']([^"\']+)["\']/i', $v, $m) === 1) {
                     $v = trim($m[1]);
@@ -102,7 +126,7 @@ final class MarcaService
         Configuracoes::esquecer();
         $rotulos = array_map(static fn (array $t): string => $t[0], self::SEO);
         Auditoria::registrar($this->autor, 'SEO: textos alterados', Auditoria::diferencas(array_intersect_key($antes, $novos), $novos, $rotulos));
-        return Resultado::sucesso('Pronto! Os novos textos já valem para o Google e para os links compartilhados.');
+        return Resultado::sucesso('Configurações de SEO salvas. O Google pode levar algum tempo para atualizar os resultados.');
     }
 
     /** @param array<string,mixed> $arquivo item de $_FILES */

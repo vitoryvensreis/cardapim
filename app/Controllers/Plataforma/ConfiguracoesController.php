@@ -130,7 +130,7 @@ final class ConfiguracoesController extends BasePlataforma
             'email' => Mailer::configuracao(),
             'emailErro' => Session::flash('email_teste_erro'),
             'emailPara' => $this->emailDoUsuario(),
-            'pageStyles' => ['css/plataforma-gestao.css'],
+            'pageStyles' => ['css/plataforma-gestao.css', 'css/seo-configuracoes.css'],
             'pageScripts' => ['js/forms.js', 'js/marca.js'],
         ], $status);
     }

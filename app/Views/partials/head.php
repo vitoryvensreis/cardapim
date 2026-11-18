@@ -23,6 +23,9 @@ $seoIconeApp = \Cardapim\Controllers\PwaController::icones()[0]['src'];
 <?php endforeach; ?>
 <meta name="theme-color" content="#651424">
 <meta name="description" content="<?= $description ?>">
+<?php // Opcional, apenas no inicio; o Google nao usa meta keywords para posicionar paginas. ?>
+<?php if ($seoMeta['palavrasChave'] !== ''): ?><meta name="keywords" content="<?= $seoE($seoMeta['palavrasChave']) ?>">
+<?php endif; ?>
 <?php if (!empty($noIndex)): ?><meta name="robots" content="noindex, nofollow">
 <?php endif; ?>
 <?php if ($seoMeta['canonical'] !== null): ?><link rel="canonical" href="<?= $seoE($seoMeta['canonical']) ?>">
