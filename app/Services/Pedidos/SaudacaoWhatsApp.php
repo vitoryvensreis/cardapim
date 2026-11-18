@@ -51,15 +51,27 @@ final class SaudacaoWhatsApp
         return str_contains($texto, $link) ? $texto : $texto . "\n\nCardápio: " . $link;
     }
 
-    /** Telefone pessoal, codigo do Brasil; rejeita grupos, newsletters e identificadores LID. */
-    public static function numeroDireto(array $evento): ?string
+    /**
+     * Endereco de uma conversa individual: numero BR ou LID recebido do proprio
+     * WPPConnect. LID nao e telefone; deve ser encaminhado SEM remover @lid.
+     * A idempotencia diaria usa exatamente o identificador da conversa.
+     */
+    public static function destinatarioDireto(array $evento): ?string
     {
         if (($evento['event'] ?? null) !== 'onmessage' || ($evento['fromMe'] ?? null) !== false
             || !empty($evento['isGroupMsg']) || !empty($evento['isGroup']) || !empty($evento['isStatus'])) {
             return null;
         }
-        $origem = (string) ($evento['from'] ?? '');
-        if (!preg_match('/\A(55[0-9]{10,11})@c\.us\z/', $origem, $m)) {
+        $origem = $evento['from'] ?? null;
+        if (!is_string($origem)) {
+            return null;
+        }
+        // O identificador LID e independente do numero telefonico e ja identifica
+        // o chat que escreveu para a loja. Aceitar somente o dominio exato.
+        if (preg_match('/\A[0-9]{6,24}@lid\z/D', $origem) === 1) {
+            return $origem;
+        }
+        if (preg_match('/\A(55[0-9]{10,11})@c\.us\z/D', $origem, $m) !== 1) {
             return null;
         }
         return Documento::normalizarTelefone(substr($m[1], 2)) === null ? null : $m[1];
@@ -99,10 +111,10 @@ final class SaudacaoWhatsApp
      */
     public static function receber(PDO $db, array $evento, ?DateTimeImmutable $agora = null): bool
     {
-        $telefone = self::numeroDireto($evento);
+        $telefone = self::destinatarioDireto($evento);
         if ($telefone === null) {
             $origem = (string) ($evento['from'] ?? '');
-            $tipo = str_ends_with($origem, '@lid') ? 'remetente_lid_sem_numero'
+            $tipo = str_ends_with($origem, '@lid') ? 'lid_formato_invalido'
                 : ((($evento['fromMe'] ?? null) === true) ? 'mensagem_propria'
                     : 'remetente_ou_tipo_invalido');
             return self::ignorado($tipo, $evento);

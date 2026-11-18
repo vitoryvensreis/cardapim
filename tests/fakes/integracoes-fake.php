@@ -265,8 +265,12 @@ if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([a-z-]+)\z~', $caminho, $m)) {
         case 'host-device':
             $responder(200, ['status' => 'success', 'response' => ['phoneNumber' => '5585999990000', 'pushname' => 'Restaurante']]);
         case 'send-message':
-            if ($estado['status'] !== 'CONNECTED' || !preg_match('/\A55\d{10,11}\z/', (string) ($json['phone'] ?? ''))) {
-                $responder(400, ['status' => 'error', 'message' => 'nao conectado ou numero invalido']);
+            $destino = (string) ($json['phone'] ?? '');
+            $numero = preg_match('/\A55\d{10,11}\z/', $destino) === 1;
+            $lid = preg_match('/\A[0-9]{6,24}@lid\z/D', $destino) === 1
+                && ($json['isLid'] ?? null) === true;
+            if ($estado['status'] !== 'CONNECTED' || (!$numero && !$lid)) {
+                $responder(400, ['status' => 'error', 'message' => 'nao conectado ou destinatario invalido']);
             }
             file_put_contents($pasta . '/wpp-mensagens.log', $sessao . '|' . $json['phone'] . '|' . $json['message'] . "\n", FILE_APPEND);
             $responder(201, ['status' => 'success', 'response' => [['id' => 'msg1']]]);
