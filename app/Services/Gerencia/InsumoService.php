@@ -13,6 +13,7 @@ use Cardapim\Shared\Numero;
 use InvalidArgumentException;
 use PDO;
 use PDOException;
+use Throwable;
 
 /** Cadastro, edicao, reposicao e exclusao de insumos, com validacao e auditoria. */
 final class InsumoService
@@ -127,31 +128,33 @@ final class InsumoService
         if ($insumo === null) {
             return Resultado::falha('Insumo não encontrado. Ele pode já ter sido excluído.');
         }
-        $produtos = $this->insumos->produtosQueUsam($this->idRestaurante, $id);
-        if ($produtos !== []) {
-            return Resultado::falha(sprintf(
-                'Não dá para excluir "%s": ele está na ficha de %s. Tire ele das fichas ou desative o insumo.',
-                $insumo['nome'],
-                self::lista($produtos),
-            ));
-        }
-        if (\Cardapim\Shared\Esquema::tem($this->db, 'complementos')) {
-            $complementos = (new \Cardapim\Repositories\Estoque\ComplementoRepository($this->db))->queUsamInsumo($this->idRestaurante, $id);
-            if ($complementos !== []) {
-                return Resultado::falha(sprintf('Não dá para excluir "%s": ele é gasto pelos complementos %s. Tire ele dos complementos ou desative o insumo.',
-                    $insumo['nome'], self::lista($complementos)));
-            }
-        }
+        // Keep historical recipes and movements intact. Deactivating the ingredient also
+        // marks any active recipes that still depend on it as unavailable for sale.
+        $produtos = $this->insumos->produtosAtivosQueUsam($this->idRestaurante, $id);
+        $complementos = \Cardapim\Shared\Esquema::tem($this->db, 'complementos')
+            ? (new \Cardapim\Repositories\Estoque\ComplementoRepository($this->db))->queUsamInsumo($this->idRestaurante, $id) : [];
+        $this->db->beginTransaction();
         try {
-            $this->insumos->excluir($this->idRestaurante, $id);
+            $this->insumos->arquivar($this->idRestaurante, $id, (string) $insumo['nome']);
+            $this->db->commit();
         } catch (PDOException $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             if ($exception->getCode() === '23000') {
-                return Resultado::falha('Não dá para excluir este insumo porque ele ainda está em uso. Desative-o.');
+                return Resultado::falha('Não foi possível arquivar o insumo. Confira se já existe outro com o mesmo nome.');
+            }
+            throw $exception;
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
             }
             throw $exception;
         }
-        Auditoria::registrar($this->autor, 'Insumo excluído', sprintf('%s (estoque no momento: %s %s).', $insumo['nome'], Numero::decimalCampo((string) $insumo['estoque_atual']), $insumo['unidade']));
-        return Resultado::sucesso('Insumo "' . $insumo['nome'] . '" excluído.');
+        Auditoria::registrar($this->autor, 'Insumo excluído', sprintf('%s (arquivado; estoque %s %s; produtos ativos afetados: %s; complementos afetados: %s).',
+            $insumo['nome'], Numero::decimalCampo((string) $insumo['estoque_atual']), $insumo['unidade'], self::lista($produtos), self::lista($complementos)));
+        return Resultado::sucesso('Insumo "' . $insumo['nome'] . '" removido da lista. O histórico foi mantido.'
+            . ($produtos !== [] || $complementos !== [] ? ' Produtos e complementos que ainda usam esse insumo ficam indisponíveis até corrigir suas fichas técnicas.' : ''));
     }
 
     /**
