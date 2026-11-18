@@ -42,6 +42,37 @@ Configurar manualmente na VPS, sem gravar segredos no Git:
 nao funcionara, mesmo que a opcao esteja ativada no painel. A integracao atual de
 pedidos nao depende desse webhook e continua intacta.
 
+## Diagnostico seguro de eventos recebidos
+
+A resposta HTTP 200 **nao confirma** que um evento foi elegivel: o webhook responde 200
+tambem para eventos ignorados, sem registrar saudacao. O WPPConnect pode emitir varios
+tipos de eventos por sessao.
+
+Para investigar uma loja que recebe mensagens, mas nao agenda saudacoes, ativar
+**temporariamente** no `shared/.env`:
+
+```env
+WPPCONNECT_SAUDACAO_DIAGNOSTICO=1
+```
+
+Enviar **uma** mensagem de outro numero durante o horario e examinar o log de
+erros PHP do site. Uma linha com
+`[Cardapim] Saudacao WhatsApp ignorada: <motivo>` revela a etapa da recusa.
+Esses logs nao incluem numero, token, sessao ou conteudo da mensagem.
+Possiveis motivos: `remetente_lid_sem_numero`, `data_invalida_ausente_ou_antiga`,
+`sessao_sem_restaurante_ativo`, `fora_do_horario`, `automacao_desligada`,
+`ja_registrada_hoje`. Se nao aparecer motivo mesmo com webhook POST 200,
+verificar evento, rota, logs do PHP e limites de corpo.
+
+A rotina aceita tanto `t` quanto `timestamp` em segundos Unix, e rejeita
+mensagens com horario antigo/futuro. LID (`@lid`) continua sendo rejeitado
+**quando nao houver numero de telefone confirmado**: nunca tratar o numero LID
+como se fosse um telefone para disparos. Mapear LID para numero real exige
+resolucao confiavel via API, antes de responder.
+
+Desativar e retirar `WPPCONNECT_SAUDACAO_DIAGNOSTICO` apos concluir os testes.
+Nao aumentar o nivel de log global nem imprimir payloads de clientes.
+
 ## Tabelas e deploy
 
 - Migration aditiva `20261118190000_create_whatsapp_saudacoes.php`.
