@@ -5,6 +5,7 @@
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Inventory\AnaliseEstoque;
 use Cardapim\Shared\Numero;
+use Cardapim\Shared\MidiaUrl;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $filtros = ['todos' => 'Todos', 'a-venda' => 'À venda', 'indisponiveis' => 'Fora de venda'];
@@ -58,7 +59,11 @@ $filtros = ['todos' => 'Todos', 'a-venda' => 'À venda', 'indisponiveis' => 'For
                 ?>
                     <li class="lista-item" data-filtro-item="<?= $e($p['nome'] . ' ' . $categoria) ?>">
                         <div class="lista-principal">
-                            <span class="lista-icone" aria-hidden="true"><?= $e(mb_strtoupper(mb_substr((string) preg_replace('/[^\p{L}\p{N}]+/u', '', (string) $p['nome']), 0, 2))) ?></span>
+                            <?php if (!empty($p['imagem_path'])): ?>
+                                <img class="produto-lista-foto" src="<?= $e(MidiaUrl::publica((string) $p['imagem_path'])) ?>" alt="" loading="lazy" decoding="async" width="48" height="48">
+                            <?php else: ?>
+                                <span class="produto-lista-foto is-vazia" aria-hidden="true"><?= Icon::svg('image', 'icon-sm') ?></span>
+                            <?php endif; ?>
                             <span class="lista-titulo">
                                 <a href="<?= $e($base . '/estoque/produtos/' . $id) ?>"><strong><?= $e((string) $p['nome']) ?></strong></a>
                                 <small><?= $e($categoria) ?><?= $p['codigo'] ? ' · Cód. ' . $e((string) $p['codigo']) : '' ?></small>
