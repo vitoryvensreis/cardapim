@@ -62,6 +62,7 @@ $router->get('/sitemap.xml', [SeoController::class, 'sitemap']);
 $router->get('/midia/cartao', [SeoController::class, 'cartao']);
 $router->get('/midia/cartao/{slug}', [SeoController::class, 'cartaoRestaurante']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
+$router->post('/webhooks/wppconnect/{token}', [WppConnectWebhookController::class, 'mensagem']);
 (require __DIR__ . '/gerencia.php')($router);
 (require __DIR__ . '/caixa.php')($router);
 (require __DIR__ . '/garcom.php')($router);
