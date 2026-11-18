@@ -22,6 +22,7 @@ final class Configuracoes
         // Google e redes sociais (Configuracoes > Google e redes sociais).
         'seo_titulo',
         'seo_descricao',
+        'seo_palavras_chave',
         'frase_compartilhamento',
         'imagem_compartilhamento',
         'google_verificacao',
