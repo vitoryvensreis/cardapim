@@ -37,7 +37,7 @@ login "$aj" ci_master "$senha" >/dev/null
 slug="$(login "$gj" ci_gerente "$senha" | sed -E 's~^https?://[^/]+~~; s~^/([^/]+)/.*~\1~')"
 [[ -n "$slug" ]] && ok "restaurante do gerente: $slug" || falha "nao achou o restaurante do gerente"
 # Comeca dos textos padrao.
-enviar "$aj" "$p/configuracoes/seo" seo_titulo= seo_descricao= frase_compartilhamento= google_verificacao= >/dev/null
+enviar "$aj" "$p/configuracoes/seo" seo_titulo= seo_descricao= seo_palavras_chave= frase_compartilhamento= google_verificacao= >/dev/null
 enviar "$aj" "$p/configuracoes/compartilhamento/padrao" >/dev/null
 
 echo "Pagina inicial"
@@ -148,6 +148,7 @@ echo "Paginas fora do Google"
 curl -s "$base/login" > "$tmp/login.html"
 contem "login fora do Google" "$tmp/login.html" 'content="noindex, nofollow"'
 nao_contem "login sem canonical" "$tmp/login.html" 'rel="canonical"'
+nao_contem "keywords somente na pagina inicial" "$tmp/login.html" 'name="keywords"'
 contem "login ainda tem imagem do link" "$tmp/login.html" 'property="og:image" content="http'
 
 echo "robots.txt e sitemap.xml"
@@ -167,15 +168,19 @@ echo "Painel: Google e redes sociais"
 esperar "configuracoes abrem" "$(pagina "$aj" "$p/configuracoes")" "200"
 contem "secao Google e redes sociais" "$tmp/pagina.html" 'Google e redes sociais'
 contem "previa do link no WhatsApp" "$tmp/pagina.html" 'Assim o link aparece no WhatsApp'
+contem "previa de pesquisa Google" "$tmp/pagina.html" 'Prévia da pesquisa no Google'
+contem "editor de keywords" "$tmp/pagina.html" 'name="seo_palavras_chave"'
 contem "previa usa a imagem automatica" "$tmp/pagina.html" 'src="/midia/cartao?v='
 esperar "codigo do Google invalido recusado (422)" "$(enviar "$aj" "$p/configuracoes/seo" "google_verificacao=abc def" | cut -d' ' -f1)" "422"
 contem "mensagem do codigo invalido" "$tmp/resp.html" 'Cole o código que o Google mostra'
 esperar "titulo longo demais recusado (422)" "$(enviar "$aj" "$p/configuracoes/seo" "seo_titulo=$(printf 'x%.0s' {1..80})" | cut -d' ' -f1)" "422"
-esperar "salvar textos" "$(enviar "$aj" "$p/configuracoes/seo" 'seo_titulo=Titulo CI <script>alert(1)</script>' 'seo_descricao=Descricao CI para o Google e as redes sociais.' 'frase_compartilhamento=Frase CI do cartao' 'google_verificacao=<meta name="google-site-verification" content="CodigoCI_123-abc" />' | cut -d'#' -f1)" "303 $p/configuracoes"
+esperar "keywords acima do limite recusadas (422)" "$(enviar "$aj" "$p/configuracoes/seo" "seo_palavras_chave=$(printf 'x%.0s' {1..501})" | cut -d' ' -f1)" "422"
+esperar "salvar textos" "$(enviar "$aj" "$p/configuracoes/seo" 'seo_titulo=Titulo CI <script>alert(1)</script>' 'seo_descricao=Descricao CI para o Google e as redes sociais.' 'seo_palavras_chave=cardápio digital, gestão para restaurantes, cardápio digital, pdv para delivery' 'frase_compartilhamento=Frase CI do cartao' 'google_verificacao=<meta name="google-site-verification" content="CodigoCI_123-abc" />' | cut -d'#' -f1)" "303 $p/configuracoes"
 curl -s "$base/" > "$tmp/home2.html"
 contem "titulo novo na pagina inicial" "$tmp/home2.html" '<title>Titulo CI &lt;script&gt;'
 nao_contem "titulo escapado (sem script)" "$tmp/home2.html" '<script>alert(1)'
 contem "descricao nova" "$tmp/home2.html" 'content="Descricao CI para o Google e as redes sociais."'
+contem "keywords salvas como metadados na home, sem repeticoes" "$tmp/home2.html" 'name="keywords" content="cardápio digital, gestão para restaurantes, pdv para delivery"'
 contem "verificacao do Google so com o codigo" "$tmp/home2.html" 'name="google-site-verification" content="CodigoCI_123-abc"'
 img2="$(meta "$tmp/home2.html" og:image)"
 [[ "$img2" != "$img" ]] && ok "imagem automatica muda com a frase (endereco novo)" || falha "endereco da imagem nao mudou"
@@ -208,9 +213,10 @@ curl -s "$base/" > "$tmp/home4.html"
 [[ "$(meta "$tmp/home4.html" og:image)" == *"/midia/cartao?v="* ]] && ok "imagem automatica de volta" || falha "nao voltou para a automatica"
 
 # Deixa como estava (textos padrao).
-enviar "$aj" "$p/configuracoes/seo" seo_titulo= seo_descricao= frase_compartilhamento= google_verificacao= >/dev/null
+enviar "$aj" "$p/configuracoes/seo" seo_titulo= seo_descricao= seo_palavras_chave= frase_compartilhamento= google_verificacao= >/dev/null
 curl -s "$base/" > "$tmp/home5.html"
 nao_contem "verificacao do Google some quando apagada" "$tmp/home5.html" 'google-site-verification'
+nao_contem "meta keywords removida quando campo vazio" "$tmp/home5.html" 'name="keywords"'
 
 echo
 if (( falhas > 0 )); then
