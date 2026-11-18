@@ -25,15 +25,44 @@ final class IfoodCatalogo
     {
         $loja = $conta->loja() ?? throw new IntegracaoErro('Escolha a loja do iFood primeiro.');
         $token = $conta->token();
-        $total = 0;
-        $novos = 0;
+        // Consultar TODOS os catalogos antes de alterar o cache. Se uma pagina falhar,
+        // os vinculos e as contagens anteriores permanecem intactos.
+        $vistos = [];
         foreach ($conta->api()->catalogos($token, $loja) as $catalogo) {
             foreach ($conta->api()->itensCatalogo($token, $loja, $catalogo) as $item) {
-                $total++;
-                $novos += $this->guardar($item['id'], $item['nome'], $item['codigo'], $item['produto'], $item['categoria'], $item['preco'], $item['status']) ? 1 : 0;
+                $vistos[$item['id']] = $item; // o mesmo item pode constar em mais de um catalogo
             }
         }
-        return ['total' => $total, 'novos' => $novos, 'ligados' => $this->ligarAutomatico()];
+
+        $novos = 0;
+        $this->db->beginTransaction();
+        try {
+            foreach ($vistos as $item) {
+                $novos += $this->guardar($item['id'], $item['nome'], $item['codigo'], $item['produto'], $item['categoria'], $item['preco'], $item['status']) ? 1 : 0;
+            }
+
+            // ifood_itens e cache de catalogo, nao historico de pedidos: itens que
+            // desapareceram de um snapshot completo nao podem inflar o resumo.
+            $q = $this->db->prepare('SELECT id, ifood_item_id FROM ifood_itens WHERE id_restaurante = ?');
+            $q->execute([$this->idRestaurante]);
+            $antigos = [];
+            foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $linha) {
+                if (!isset($vistos[(string) $linha['ifood_item_id']])) {
+                    $antigos[] = (int) $linha['id'];
+                }
+            }
+            foreach (array_chunk($antigos, 500) as $lote) {
+                $marcadores = implode(',', array_fill(0, count($lote), '?'));
+                $this->db->prepare('DELETE FROM ifood_itens WHERE id_restaurante = ? AND id IN (' . $marcadores . ')')
+                    ->execute([$this->idRestaurante, ...$lote]);
+            }
+            $ligados = $this->ligarAutomatico();
+            $this->db->commit();
+        } catch (\Throwable $erro) {
+            $this->db->rollBack();
+            throw $erro;
+        }
+        return ['total' => count($vistos), 'novos' => $novos, 'ligados' => $ligados];
     }
 
     /** Grava ou atualiza um item do iFood. true = item novo. Se o iFood mostra outra situacao, envia de novo na proxima rodada. */
@@ -140,7 +169,7 @@ final class IfoodCatalogo
     public function itens(): array
     {
         $q = $this->db->prepare('SELECT i.id, i.ifood_item_id, i.nome, i.codigo_externo, i.categoria, i.preco, i.status_ifood, i.id_produto, i.vinculo,
-                i.enviado_status, i.enviado_estoque, i.sincronizado_em, i.ultimo_erro, p.nome AS produto_nome
+                i.enviado_status, i.enviado_estoque, i.sincronizado_em, i.ultimo_erro, p.nome AS produto_nome, p.ativo AS produto_ativo
             FROM ifood_itens i LEFT JOIN produtos p ON p.id = i.id_produto AND p.id_restaurante = i.id_restaurante
             WHERE i.id_restaurante = ? ORDER BY i.categoria, i.nome, i.id');
         $q->execute([$this->idRestaurante]);
