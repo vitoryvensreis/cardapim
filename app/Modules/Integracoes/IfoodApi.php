@@ -415,6 +415,15 @@ class IfoodApi
         $this->exigirOk($this->requisicao('PUT', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/items', $token, $cadastro), 'salvar o item no cardápio');
     }
 
+    /** Exclui um produto criado por esta integracao (nao usa em produtos de outras origens). 404 = ja removido. */
+    public function excluirProduto(string $token, string $idLoja, string $idProduto): void
+    {
+        $r = $this->requisicao('DELETE', '/catalog/v2.0/merchants/' . self::id($idLoja) . '/products/' . self::id($idProduto), $token);
+        if ($r->status !== 404) {
+            $this->exigirOk($r, 'excluir o produto do cardápio');
+        }
+    }
+
     /** Preco do item (PATCH /items/price). */
     public function precoItem(string $token, string $idLoja, string $idItem, float $valor): void
     {
