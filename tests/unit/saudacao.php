@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/bootstrap/app.php';
-
 use Cardapim\Services\Pedidos\SaudacaoWhatsApp;
+
+require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
 function verifica(bool $ok, string $descricao): void {
     if (!$ok) throw new RuntimeException('Falha: ' . $descricao);
