@@ -1,0 +1,6 @@
+# Versao de hotfix opcional. Copiar para /opt/wppconnect-cardapim/docker-compose.override.yml
+# SOMENTE depois de construir a imagem e criar backups consistentes dos volumes.
+# Nao altera portas, tokens, volumes, env_file ou outras instancias WPPConnect.
+services:
+  wppconnect:
+    image: cardapim/wppconnect-server:2.10.73-wa-js-4.8.2
