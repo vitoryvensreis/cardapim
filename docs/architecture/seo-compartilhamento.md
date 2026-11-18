@@ -12,6 +12,7 @@ X ou Telegram. Tudo que e da plataforma e editado pelo adm_master em **Configura
 | `link rel="canonical"` e `og:url` | `APP_URL` + caminho, sem parametros (`?mesa=1`, `?busca=`). Paginas com `noIndex` nao tem canonical |
 | `og:type`, `og:locale` (pt_BR), `og:site_name` | `website`; cardapio usa `restaurant.restaurant` |
 | `og:image` (+ `secure_url`, tipo, 1200 x 630, `alt`) e `twitter:card` `summary_large_image` | imagem da plataforma ou do restaurante (abaixo), sempre com endereco completo |
+| `meta name="keywords"` | opcional, apenas na pagina inicial: `seo_palavras_chave` (o Google nao usa esta tag para ranqueamento) |
 | `google-site-verification` | `google_verificacao` (so o codigo; o painel aceita a etiqueta inteira colada) |
 | icones | favicon com o tipo certo (SVG ou PNG enviado), PNG 192 e `apple-touch-icon` em todas as paginas |
 | JSON-LD | pagina inicial: `Organization` e `WebSite`; cardapio: `Restaurant` (nome, endereco, telefone, coordenadas, `hasMenu`) |
@@ -47,9 +48,15 @@ marca), `tipo` e `jsonLd` (lista de arrays). O JSON-LD sai com `JSON_HEX_TAG`, e
 
 ## Configuracoes (tabela `configuracoes`, sem migration)
 
-`seo_titulo` (ate 70), `seo_descricao` (ate 160), `frase_compartilhamento` (ate 90), `imagem_compartilhamento`
+`seo_titulo` (ate 70), `seo_descricao` (ate 160), `seo_palavras_chave` (ate 500 caracteres e 20 termos, separados por virgula ou ponto e virgula), `frase_compartilhamento` (ate 90), `imagem_compartilhamento`
 (caminho da arte) e `google_verificacao`. Rotas: `POST /painel/configuracoes/seo`, `/painel/configuracoes/compartilhamento`
 e `/painel/configuracoes/compartilhamento/padrao` (somente adm_master, com CSRF e registro na auditoria).
+
+## Previa do Google e palavras-chave
+
+O painel mostra uma previa ilustrativa de resultado da pesquisa do Google (titulo, URL e descricao), atualizada conforme os campos sao digitados, sem remover a previa existente do WhatsApp. O Google pode reescrever titulo e descricao conforme a consulta.
+
+As palavras-chave sao normalizadas, sem duplicatas (inclusive entre maiusculas/minusculas), e gravadas em `configuracoes` sob a chave `seo_palavras_chave`. So entram como `meta keywords` no HTML da pagina inicial e nao aparecem no conteudo visual da landing; campo vazio remove a tag. O Google nao usa essa tag como fator de ranking, portanto o SEO tambem exige bons titulos, descricoes, conteudo relevante e paginas indexaveis. O formulario e restrito ao `adm_master`, com CSRF, validacao e auditoria. Nao ha migration.
 
 ## Depois de publicar
 
