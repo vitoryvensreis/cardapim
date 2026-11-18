@@ -59,7 +59,7 @@ Enviar **uma** mensagem de outro numero durante o horario e examinar o log de
 erros PHP do site. Uma linha com
 `[Cardapim] Saudacao WhatsApp ignorada: <motivo>` revela a etapa da recusa.
 Esses logs nao incluem numero, token, sessao ou conteudo da mensagem.
-Possiveis motivos: `remetente_lid_sem_numero`, `data_invalida_ausente_ou_antiga`,
+Possiveis motivos: `lid_formato_invalido`, `data_invalida_ausente_ou_antiga`,
 `sessao_sem_restaurante_ativo`, `fora_do_horario`, `automacao_desligada`,
 `ja_registrada_hoje`. Se nao aparecer motivo mesmo com webhook POST 200,
 verificar evento, rota, logs do PHP e limites de corpo.
