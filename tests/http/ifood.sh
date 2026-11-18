@@ -453,12 +453,13 @@ nao_contem "item novo ligado sozinho" "$tmp/pagina.html" 'Código PDV PDV-NOVO'
 
 echo "Disponibilidade e situacao da integracao"
 esperar "enviar disponibilidade agora" "$(enviar "$gj" "$g/integracoes/ifood/cardapio/vinculos" "$g/integracoes/ifood/cardapio/sincronizar" | cut -d' ' -f1)" "303"
-esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio/vinculos")" "2 item(ns) atualizado(s) no iFood."
+# Item de pedido recriado, ausente no catalogo atual remoto, nao entra mais na sincronizacao.
+esperar "disponibilidade enviada" "$(aviso "$gj" "$g/integracoes/ifood/cardapio/vinculos")" "1 item(ns) atualizado(s) no iFood."
 pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "pedidos do iFood hoje no novo status" "$tmp/pagina.html" 'Pedidos do iFood hoje'
 nao_contem "rotina rodando (sem alerta de parada)" "$tmp/pagina.html" 'não estão chegando agora'
 pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
-contem "itens ligados no resumo" "$tmp/pagina.html" '2 de'
+contem "itens ligados no resumo (somente itens do catalogo atual)" "$tmp/pagina.html" '1 de 2'
 
 echo "Publicar o cardapio no iFood (Catalog)"
 r5="$(printf '%05d' $((RANDOM % 100000)))"
