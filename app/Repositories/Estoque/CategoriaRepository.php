@@ -19,7 +19,7 @@ final class CategoriaRepository
         $query = $this->db->prepare(
             'SELECT c.id, c.nome, c.ordem, COUNT(p.id) AS produtos
              FROM categorias c
-             LEFT JOIN produtos p ON p.id_categoria = c.id AND p.id_restaurante = c.id_restaurante
+             LEFT JOIN produtos p ON p.id_categoria = c.id AND p.id_restaurante = c.id_restaurante AND p.ativo = 1
              WHERE c.id_restaurante = ?
              GROUP BY c.id, c.nome, c.ordem
              ORDER BY c.ordem, c.nome'
@@ -70,9 +70,13 @@ final class CategoriaRepository
     /** Remove a categoria; os produtos dela ficam "sem categoria". Chamar dentro de transacao. */
     public function excluir(int $idRestaurante, int $id): int
     {
-        $produtos = $this->db->prepare('UPDATE produtos SET id_categoria = NULL WHERE id_categoria = ? AND id_restaurante = ?');
-        $produtos->execute([$id, $idRestaurante]);
+        // Archived products also lose the FK, but are not counted as products left without a category.
+        $q = $this->db->prepare('SELECT COUNT(*) FROM produtos WHERE id_categoria = ? AND id_restaurante = ? AND ativo = 1');
+        $q->execute([$id, $idRestaurante]);
+        $ativos = (int) $q->fetchColumn();
+        $this->db->prepare('UPDATE produtos SET id_categoria = NULL WHERE id_categoria = ? AND id_restaurante = ?')
+            ->execute([$id, $idRestaurante]);
         $this->db->prepare('DELETE FROM categorias WHERE id = ? AND id_restaurante = ?')->execute([$id, $idRestaurante]);
-        return $produtos->rowCount();
+        return $ativos;
     }
 }

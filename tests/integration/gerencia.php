@@ -113,7 +113,6 @@ try {
     $exigir(!(new InsumoService($db, $autor, $idRest))->excluir($idAlheio)->ok, 'Nao exclui insumo de outro restaurante.');
     $exigir((int) $valor('SELECT COUNT(*) FROM insumos WHERE id = ?', [$idAlheio]) === 1, 'Insumo alheio continua existindo.');
 
-    $exigir(!$insumos->excluir($idCarne)->ok, 'Insumo em ficha nao pode ser excluido.');
     $exigir(!$insumos->salvar($idCarne, ['nome' => 'Carne', 'unidade' => 'un', 'estoque_atual' => '1', 'ativo' => '1'])->ok, 'Unidade travada quando esta em ficha.');
     $exigir($insumos->repor($idCarne, '0,840')->ok && $valor('SELECT estoque_atual FROM insumos WHERE id = ?', [$idCarne]) === '1.000', 'Repor soma ao estoque.');
     $exigir($produtos->alternarDisponivel($idX)->ok && (int) $valor('SELECT disponivel FROM produtos WHERE id = ?', [$idX]) === 0, 'Pausar produto.');
@@ -123,7 +122,37 @@ try {
     $exigir($categorias->salvar($idLanches, 'Lanches da casa')->ok, 'Renomear categoria.');
     $exigir($categorias->excluir($idLanches)->ok && $valor('SELECT id_categoria FROM produtos WHERE id = ?', [$idX]) === null, 'Excluir categoria deixa produto sem categoria.');
     $exigir($produtos->excluir($idX)->ok && (int) $valor('SELECT COUNT(*) FROM produto_insumos WHERE id_produto = ?', [$idX]) === 0, 'Excluir produto apaga a ficha.');
-    $exigir($insumos->excluir($idCarne)->ok, 'Insumo fora de fichas pode ser excluido.');
+    $exigir($insumos->excluir($idCarne)->ok, 'Insumo fora de fichas pode ser arquivado.');
+    $exigir((new InsumoRepository($db))->buscar($idRest, $idCarne) === null &&
+        $valor('SELECT excluido_em FROM insumos WHERE id = ?', [$idCarne]) !== null,
+        'Insumo excluido deixa de aparecer sem perder a linha historica.');
+    $exigir($insumos->salvar(null, ['nome' => 'Carne', 'unidade' => 'kg', 'estoque_atual' => '2'])->ok,
+        'Nome de insumo excluido fica liberado para novo cadastro.');
+
+    // Insumo usado em produto ativo: exclusao logica preserva a ficha e torna
+    // a venda indisponivel sem apagar dados para possivel devolucao de estoque.
+    $r = $insumos->salvar(null, ['nome' => 'CI Coentro', 'unidade' => 'kg', 'estoque_atual' => '5', 'ativo' => '1']);
+    $exigir($r->ok, 'Criar insumo de regressao.');
+    $idCoentro = (int) $r->id;
+    $r = $produtos->salvar(null, ['nome' => 'CI Produto com Coentro', 'preco' => '11,00', 'controle' => 'estoque', 'disponivel' => '1',
+        'ficha_insumo' => [(string) $idCoentro], 'ficha_quantidade' => ['0,100']]);
+    $exigir($r->ok, 'Criar produto com insumo em uso.');
+    $idUsaCoentro = (int) $r->id;
+    $exigir((new DisponibilidadeProdutos($db))->verificar($idRest, [$idUsaCoentro])[$idUsaCoentro]['disponivel'] === true,
+        'Produto inicialmente a venda.');
+    $exigir($insumos->excluir($idCoentro)->ok, 'Excluir insumo usado deve arquivar.');
+    $exigir((int) $valor('SELECT ativo FROM insumos WHERE id = ?', [$idCoentro]) === 0
+        && (int) $valor('SELECT COUNT(*) FROM produto_insumos WHERE id_produto = ? AND id_insumo = ?', [$idUsaCoentro, $idCoentro]) === 1,
+        'Excluir insumo conserva ficha tecnica e desativa ingrediente.');
+    $exigir((new InsumoRepository($db))->buscar($idRest, $idCoentro) === null,
+        'Insumo arquivado nao aparece no estoque.');
+    $disp = (new DisponibilidadeProdutos($db))->verificar($idRest, [$idUsaCoentro]);
+    $exigir(!$disp[$idUsaCoentro]['disponivel'] && $disp[$idUsaCoentro]['motivo'] === DisponibilidadeProdutos::MOTIVO_INSUMO_INATIVO,
+        'Produto com insumo excluido fica indisponivel.');
+    $exigir(!$insumos->excluir($idCoentro)->ok && !$insumos->repor($idCoentro, '1')->ok,
+        'Insumo excluido nao pode ser editado ou reposto.');
+    $exigir(!(new InsumoService($db, $autor, $idOutro))->excluir($idCoentro)->ok,
+        'Insumo de outro restaurante nao pode ser excluido.');
 
     // Regressao: produto sem pedidos mas vinculado ao iFood nao pode ser apagado
     // (a FK de ifood_itens aponta para ele). Arquivar preserva a ligacao e libera o nome.
@@ -150,10 +179,28 @@ try {
     (new \Cardapim\Repositories\Gerencia\IfoodVinculoRepository($db, $idRest))->salvar('item', $idPub, [
         'ifood_id' => 'ci-publicado-' . $idPub, 'ifood_produto_id' => 'ci-produto-' . $idPub, 'status' => 'publicado',
     ]);
+    $rCategoria = (new CategoriaService($db, $autor, $idRest))->salvar(null, 'CI Categoria Publicada');
+    $exigir($rCategoria->ok, 'Criar categoria do produto publicado.');
+    $idCategoriaPub = (int) $rCategoria->id;
+    $db->prepare('UPDATE produtos SET id_categoria = ? WHERE id = ? AND id_restaurante = ?')
+        ->execute([$idCategoriaPub, $idPub, $idRest]);
+    $repoCategorias = new \Cardapim\Repositories\Estoque\CategoriaRepository($db);
+    $contarCategoria = static function () use ($repoCategorias, $idRest, $idCategoriaPub): int {
+        foreach ($repoCategorias->listar($idRest) as $categoria) {
+            if ((int) $categoria['id'] === $idCategoriaPub) {
+                return (int) $categoria['produtos'];
+            }
+        }
+        return -1;
+    };
+    $exigir($contarCategoria() === 1, 'Categoria conta produto ativo.');
     $exigir($produtos->excluir($idPub)->ok && (int) $valor('SELECT ativo FROM produtos WHERE id = ?', [$idPub]) === 0,
         'Produto publicado deve ser arquivado ate a exclusao remota.');
     $exigir((int) $valor("SELECT COUNT(*) FROM ifood_catalogo_vinculos WHERE id_restaurante = ? AND tipo = 'item' AND id_local = ?", [$idRest, $idPub]) === 1,
         'Vinculo para exclusao remota continua gravado.');
+    $exigir($contarCategoria() === 0, 'Categoria nao conta produto arquivado.');
+    $exigir(!str_contains((new CategoriaService($db, $autor, $idRest))->excluir($idCategoriaPub)->mensagem, 'produto(s) ficaram sem categoria'),
+        'Excluir categoria nao considera produto arquivado como ativo.');
 
     /* ---------- Equipe ---------- */
     $equipe = new EquipeService($db, $autor, $idRest);

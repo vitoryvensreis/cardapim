@@ -79,16 +79,12 @@ $etiquetas = [
                         <span class="lista-dado" data-rotulo="Custo"><?= $i['custo_unitario'] !== null ? $e('R$ ' . Numero::decimalCampo((string) $i['custo_unitario']) . ' / ' . $u->sigla()) : '<span class="texto-suave">Não informado</span>' ?></span>
                         <div class="lista-acoes">
                             <a class="btn-icone" href="<?= $e($base . '/estoque/insumos/' . $id) ?>"><?= Icon::svg('pencil', 'icon-sm') ?><span>Editar</span></a>
-                            <?php if ((int) $i['usos'] === 0): ?>
-                                <form method="post" action="<?= $e($base . '/estoque/insumos/' . $id . '/excluir') ?>"
-                                      data-confirm="O insumo será apagado. Isso não pode ser desfeito."
-                                      data-confirm-titulo="Excluir &quot;<?= $e((string) $i['nome']) ?>&quot;?" data-confirm-acao="Excluir insumo" data-confirm-perigo="1">
-                                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                                    <button class="btn-icone is-perigo" type="submit" aria-label="Excluir <?= $e((string) $i['nome']) ?>"><?= Icon::svg('trash', 'icon-sm') ?></button>
-                                </form>
-                            <?php else: ?>
-                                <span class="btn-icone is-bloqueado" title="Está na ficha de algum produto. Tire das fichas para poder excluir." aria-label="Não pode excluir: está em uso"><?= Icon::svg('lock', 'icon-sm') ?></span>
-                            <?php endif; ?>
+                            <form method="post" action="<?= $e($base . '/estoque/insumos/' . $id . '/excluir') ?>"
+                                  data-confirm="O insumo será removido da lista sem apagar o histórico. Se estiver em fichas técnicas, produtos e complementos afetados ficarão indisponíveis até você substituir o insumo."
+                                  data-confirm-titulo="Excluir &quot;<?= $e((string) $i['nome']) ?>&quot;?" data-confirm-acao="Excluir insumo" data-confirm-perigo="1">
+                                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                                <button class="btn-icone is-perigo" type="submit" aria-label="Excluir <?= $e((string) $i['nome']) ?>"><?= Icon::svg('trash', 'icon-sm') ?></button>
+                            </form>
                         </div>
                     </li>
                 <?php endforeach; ?>
