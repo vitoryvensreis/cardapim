@@ -6,14 +6,14 @@ Cada gerente pode ativar e editar a mensagem; novas lojas comecam com a saudacao
 
 ## Regras
 
-- Somente mensagens recebidas (`onmessage` com `fromMe=false`) de numeros brasileiros diretos `55DDDnumero@c.us`.
-- Nao responde grupos, broadcasts, status, contatos LID sem numero confirmado, nem mensagens do proprio restaurante.
+- Somente mensagens recebidas (`onmessage` com `fromMe=false`) de contatos individuais brasileiros `55DDDnumero@c.us` **ou** identificadores de chat diretos `NNNN@lid`. O LID nunca e interpretado como numero de telefone.
+- Nao responde grupos, broadcasts, status ou mensagens do proprio restaurante. Um LID identificado pelo WPPConnect pode ser respondido diretamente no mesmo chat, sem descobrir o numero.
 - Somente se a loja estiver ativa e o horario do Perfil permitir. Usa `HorarioFuncionamento::abertoEm` (inclusive apos meia-noite), horario `America/Fortaleza` da aplicacao.
 - Mensagens recebidas fora do horario nao contam; o primeiro contato **elegivel** do dia inicia a saudacao.
 - Mensagens antigas (mais de 5 min) ou com relogio adiantado mais de 2 min sao ignoradas, inclusive as reemitidas apos o WPPConnect iniciar.
-- UNIQUE `(id_restaurante, telefone, dia_local)`: impede respostas duplicadas por dia e por loja, inclusive chamadas repetidas.
+- UNIQUE `(id_restaurante, telefone, dia_local)`: guarda a identidade de chat (numero ou LID) e impede respostas duplicadas por dia e por loja, inclusive chamadas repetidas.
 - Texto com variaveis `{{restaurante}}` e `{{cardapio}}`. Link da loja e obrigatorio e inserido quando faltar.
-- Guarda apenas a mensagem de saida e o telefone no historico. Limpar registros com mais de 35 dias pelo script de manutencao.
+- Guarda apenas a mensagem de saida e o identificador de destino (telefone ou LID) no historico. Limpar registros com mais de 35 dias pelo script de manutencao.
 
 ## Webhook da versao WPPConnect 2.10.73
 
@@ -67,8 +67,8 @@ verificar evento, rota, logs do PHP e limites de corpo.
 A rotina aceita tanto `t` quanto `timestamp` em segundos Unix, e rejeita
 mensagens com horario antigo/futuro. LID (`@lid`) continua sendo rejeitado
 **quando nao houver numero de telefone confirmado**: nunca tratar o numero LID
-como se fosse um telefone para disparos. Mapear LID para numero real exige
-resolucao confiavel via API, antes de responder.
+como se fosse um telefone para disparos. LID pode ser respondido diretamente ao chat original apos a migration do schema.
+Nao descobrir ou inventar um numero de telefone.
 
 Desativar e retirar `WPPCONNECT_SAUDACAO_DIAGNOSTICO` apos concluir os testes.
 Nao aumentar o nivel de log global nem imprimir payloads de clientes.
