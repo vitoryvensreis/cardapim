@@ -19,10 +19,11 @@ final class InsumoRepository
     public function listar(int $idRestaurante): array
     {
         $query = $this->db->prepare(
-            'SELECT ' . self::CAMPOS . ', COUNT(pi.id) AS usos
+            'SELECT ' . self::CAMPOS . ', COUNT(p.id) AS usos
              FROM insumos i
              LEFT JOIN produto_insumos pi ON pi.id_insumo = i.id AND pi.id_restaurante = i.id_restaurante
-             WHERE i.id_restaurante = ?
+             LEFT JOIN produtos p ON p.id = pi.id_produto AND p.id_restaurante = pi.id_restaurante AND p.ativo = 1
+             WHERE i.id_restaurante = ? AND i.excluido_em IS NULL
              GROUP BY ' . self::CAMPOS . '
              ORDER BY i.nome'
         );
@@ -33,7 +34,7 @@ final class InsumoRepository
     /** @return array<string,mixed>|null */
     public function buscar(int $idRestaurante, int $id): ?array
     {
-        $query = $this->db->prepare('SELECT ' . self::CAMPOS . ' FROM insumos i WHERE i.id = ? AND i.id_restaurante = ?');
+        $query = $this->db->prepare('SELECT ' . self::CAMPOS . ' FROM insumos i WHERE i.id = ? AND i.id_restaurante = ? AND i.excluido_em IS NULL');
         $query->execute([$id, $idRestaurante]);
         $row = $query->fetch(PDO::FETCH_ASSOC);
         return $row === false ? null : $row;
@@ -42,7 +43,7 @@ final class InsumoRepository
     /** @return array<int,array{id:int,nome:string,unidade:string,ativo:bool,custo:?string}> insumos para ficha tecnica, por id */
     public function mapaParaFicha(int $idRestaurante): array
     {
-        $query = $this->db->prepare('SELECT id, nome, unidade, ativo, custo_unitario FROM insumos WHERE id_restaurante = ? ORDER BY nome');
+        $query = $this->db->prepare('SELECT id, nome, unidade, ativo, custo_unitario FROM insumos WHERE id_restaurante = ? AND excluido_em IS NULL ORDER BY nome');
         $query->execute([$idRestaurante]);
         $mapa = [];
         foreach ($query->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -63,9 +64,19 @@ final class InsumoRepository
         return array_map('strval', $query->fetchAll(PDO::FETCH_COLUMN));
     }
 
+    /** Products still offered for sale that will be affected when this ingredient is archived. @return list<string> */
+    public function produtosAtivosQueUsam(int $idRestaurante, int $id): array
+    {
+        $q = $this->db->prepare('SELECT p.nome FROM produto_insumos pi
+            JOIN produtos p ON p.id = pi.id_produto AND p.id_restaurante = pi.id_restaurante
+            WHERE pi.id_insumo = ? AND pi.id_restaurante = ? AND p.ativo = 1 ORDER BY p.nome');
+        $q->execute([$id, $idRestaurante]);
+        return array_map('strval', $q->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     public function nomeEmUso(int $idRestaurante, string $nome, ?int $ignorarId = null): bool
     {
-        $query = $this->db->prepare('SELECT id FROM insumos WHERE id_restaurante = ? AND LOWER(nome) = LOWER(?)');
+        $query = $this->db->prepare('SELECT id FROM insumos WHERE id_restaurante = ? AND excluido_em IS NULL AND LOWER(nome) = LOWER(?)');
         $query->execute([$idRestaurante, $nome]);
         foreach ($query->fetchAll(PDO::FETCH_COLUMN) as $id) {
             if ((int) $id !== $ignorarId) {
@@ -81,7 +92,7 @@ final class InsumoRepository
         $this->db->prepare(
             'INSERT INTO insumos (id_restaurante, nome, unidade, estoque_atual, estoque_minimo, custo_unitario, ativo) VALUES (?, ?, ?, ?, ?, ?, ?)'
         )->execute([$idRestaurante, $d['nome'], $d['unidade'], $d['estoque_atual'], $d['estoque_minimo'], $d['custo_unitario'], $d['ativo']]);
-        $id = $this->db->prepare('SELECT id FROM insumos WHERE id_restaurante = ? AND nome = ?');
+        $id = $this->db->prepare('SELECT id FROM insumos WHERE id_restaurante = ? AND excluido_em IS NULL AND nome = ?');
         $id->execute([$idRestaurante, $d['nome']]);
         return (int) $id->fetchColumn();
     }
@@ -91,7 +102,7 @@ final class InsumoRepository
     {
         $this->db->prepare(
             'UPDATE insumos SET nome = ?, unidade = ?, estoque_atual = ?, estoque_minimo = ?, custo_unitario = ?, ativo = ?
-             WHERE id = ? AND id_restaurante = ?'
+             WHERE id = ? AND id_restaurante = ? AND excluido_em IS NULL'
         )->execute([$d['nome'], $d['unidade'], $d['estoque_atual'], $d['estoque_minimo'], $d['custo_unitario'], $d['ativo'], $id, $idRestaurante]);
     }
 
@@ -100,8 +111,13 @@ final class InsumoRepository
         $this->db->prepare('UPDATE insumos SET estoque_atual = ? WHERE id = ? AND id_restaurante = ?')->execute([$novoEstoque, $id, $idRestaurante]);
     }
 
-    public function excluir(int $idRestaurante, int $id): void
+    /** Arquiva sem quebrar fichas tecnicas, estoque ou historico. Libera o nome para outro cadastro. */
+    public function arquivar(int $idRestaurante, int $id, string $nome): void
     {
-        $this->db->prepare('DELETE FROM insumos WHERE id = ? AND id_restaurante = ?')->execute([$id, $idRestaurante]);
+        $sufixo = ' (excluido ' . $id . ')';
+        $nomeArquivado = mb_substr($nome, 0, 120 - mb_strlen($sufixo)) . $sufixo;
+        $this->db->prepare('UPDATE insumos SET nome = ?, ativo = 0, excluido_em = CURRENT_TIMESTAMP
+            WHERE id = ? AND id_restaurante = ? AND excluido_em IS NULL')
+            ->execute([$nomeArquivado, $id, $idRestaurante]);
     }
 }
