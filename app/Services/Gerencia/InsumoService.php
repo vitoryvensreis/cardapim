@@ -89,7 +89,7 @@ final class InsumoService
 
         $this->db->beginTransaction();
         try {
-            $trava = $this->db->prepare('SELECT id, nome, unidade, estoque_atual FROM insumos WHERE id = ? AND id_restaurante = ?' . self::paraAtualizar($this->db));
+            $trava = $this->db->prepare('SELECT id, nome, unidade, estoque_atual FROM insumos WHERE id = ? AND id_restaurante = ? AND excluido_em IS NULL' . self::paraAtualizar($this->db));
             $trava->execute([$id, $this->idRestaurante]);
             $insumo = $trava->fetch(PDO::FETCH_ASSOC);
             if ($insumo === false) {
