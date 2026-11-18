@@ -13,7 +13,8 @@ use Cardapim\Controllers\RecuperarSenhaController;
 use Cardapim\Controllers\RestauranteController;
 use Cardapim\Controllers\SeoController;
 use Cardapim\Controllers\StatusController;
-use Cardapim\Controllers\WebhookController;
+use Cardapim\Controllers\WebhookController;use Cardapim\Controllers\WppConnectWebhookController;
+
 use Cardapim\Core\Router;
 use Cardapim\Services\Auth\Guard;
 
