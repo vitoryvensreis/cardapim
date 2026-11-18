@@ -19,6 +19,7 @@ final class Seo
 {
     public const TITULO_MAX = 70;
     public const DESCRICAO_MAX = 160;
+    public const PALAVRAS_MAX = 500;
     public const FRASE_MAX = 90;
 
     public const FRASE_PADRAO = 'Pedidos, mesas, caixa, cozinha e delivery em um só lugar.';
@@ -38,6 +39,12 @@ final class Seo
     public static function descricaoInicio(): string
     {
         return self::texto('seo_descricao', self::DESCRICAO_PADRAO, self::DESCRICAO_MAX);
+    }
+
+    /** Palavras-chave opcionais do HTML da pagina inicial (nao sao fator de ranking do Google). */
+    public static function palavrasChaveInicio(): string
+    {
+        return self::texto('seo_palavras_chave', '', self::PALAVRAS_MAX);
     }
 
     /** Frase que aparece no cartao automatico da plataforma. */
@@ -224,7 +231,7 @@ final class Seo
     /**
      * Tudo que o head.php precisa, ja com valores padrao.
      * @param array<string,mixed> $seo da pagina: imagem, titulo (og:title sem a marca), tipo, jsonLd
-     * @return array{url:string, canonical:?string, imagem:array{url:string,largura:int,altura:int,tipo:string,alt:string}, titulo:?string, tipo:string, jsonLd:list<string>, verificacao:string}
+     * @return array{url:string, canonical:?string, imagem:array{url:string,largura:int,altura:int,tipo:string,alt:string}, titulo:?string, tipo:string, jsonLd:list<string>, verificacao:string, palavrasChave:string}
      */
     public static function meta(array $seo, bool $noIndex): array
     {
@@ -249,6 +256,7 @@ final class Seo
             'tipo' => is_string($seo['tipo'] ?? null) ? $seo['tipo'] : 'website',
             'jsonLd' => $jsonLd,
             'verificacao' => $noIndex ? '' : self::verificacaoGoogle(),
+            'palavrasChave' => !$noIndex && is_string($seo['palavrasChave'] ?? null) ? $seo['palavrasChave'] : '',
         ];
     }
 
