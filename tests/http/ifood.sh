@@ -508,6 +508,15 @@ no_registro "nome novo pelo cadastro, com o preco antigo" "item $prod_nome Novo 
 no_registro "preco do item por PATCH" "item-price .* 34.9"
 no_registro "complemento pausado por PATCH" "opcao-status .* UNAVAILABLE"
 
+# A exclusao arquiva o produto com vinculo no iFood; a rotina remove a publicacao remota.
+esperar "excluir produto publicado" "$(enviar "$gj" "$g/estoque/produtos" "$g/estoque/produtos/$pub/excluir" | cut -d' ' -f1)" "303"
+aviso "$gj" "$g/estoque/produtos" > "$tmp/exclusao-aviso.txt"
+contem "aviso de exclusao pendente no iFood" "$tmp/exclusao-aviso.txt" 'A exclusão do produto publicado no iFood será enviada pela sincronização.'
+pagina "$gj" "$g/estoque/produtos" >/dev/null
+nao_contem "produto excluido sumiu da lista" "$tmp/pagina.html" "$prod_nome Novo"
+rodar
+no_registro "produto publicado excluido no iFood" "excluir-produto "
+
 enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/desconectar" >/dev/null
 if (( falhas > 0 )); then
   echo "FALHOU: $falhas verificacao(oes) do iFood."
