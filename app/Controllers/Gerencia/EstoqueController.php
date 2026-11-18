@@ -547,7 +547,12 @@ final class EstoqueController extends BaseGerencia
     {
         $id = $this->restaurante['id'];
         $contar = function (string $tabela) use ($id): int {
-            $q = $this->db->prepare('SELECT COUNT(*) FROM ' . $tabela . ' WHERE id_restaurante = ?');
+            $sql = match ($tabela) {
+                'produtos' => 'SELECT COUNT(*) FROM produtos WHERE id_restaurante = ? AND ativo = 1',
+                'insumos' => 'SELECT COUNT(*) FROM insumos WHERE id_restaurante = ? AND excluido_em IS NULL',
+                'categorias' => 'SELECT COUNT(*) FROM categorias WHERE id_restaurante = ?',
+            };
+            $q = $this->db->prepare($sql);
             $q->execute([$id]);
             return (int) $q->fetchColumn();
         };
