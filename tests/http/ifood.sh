@@ -74,6 +74,7 @@ esperar "gerente entra" "$(login "$gj" ci_gerente)" "303"
 esperar "caixa entra" "$(login "$cx" ci_caixa)" "303"
 
 echo "Conectar o iFood e verificar as quatro abas"
+curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"modo":"normal"}' "$fake/_teste/catalogo"
 esperar "url antiga redireciona para status" "$(curl -s -b "$gj" -o /dev/null -w '%{http_code} %{redirect_url}' "$g/integracoes/ifood")" "302 $g/integracoes/ifood/status"
 pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 if grep -q 'Loja conectada' "$tmp/pagina.html"; then
@@ -118,6 +119,8 @@ nao_contem "Loja sem cardapio" "$tmp/pagina.html" 'id="secao-cardapio"'
 
 esperar "aba Cardapio" "$(pagina "$gj" "$g/integracoes/ifood/cardapio")" "200"
 contem "resumo do cardapio" "$tmp/pagina.html" '0 de 2'
+contem "contagem de produtos locais" "$tmp/pagina.html" 'Produtos ativos no Deliveryzim'
+contem "contagem independente do catalogo remoto" "$tmp/pagina.html" '<span>Itens no cardápio do iFood</span><strong>2</strong>'
 contem "opcoes do iFood" "$tmp/pagina.html" 'Aceitar pedidos do iFood sozinho'
 contem "vinculos preservados" "$tmp/pagina.html" '/integracoes/ifood/cardapio/vinculos'
 nao_contem "Cardapio sem dados do Merchant" "$tmp/pagina.html" 'Lojas vinculadas'
@@ -524,6 +527,36 @@ aviso "$gj" "$g/estoque/produtos" > "$tmp/exclusao-externa-aviso.txt"
 contem "item externo deve ser pausado" "$tmp/exclusao-externa-aviso.txt" 'O item vinculado ao iFood será pausado pela sincronização.'
 rodar
 no_registro "pausa de item externo com estoque desligado" "status item-ci-1 UNAVAILABLE"
+
+echo "Reconciliar catalogo remoto, produtos arquivados e falhas de API"
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
+contem "catalogo remoto inicialmente com 2 itens" "$tmp/pagina.html" '<span>Itens no cardápio do iFood</span><strong>2</strong>'
+contem "vinculos arquivados separados dos ativos" "$tmp/pagina.html" 'Itens ligados a produtos excluídos aqui'
+pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos" >/dev/null
+contem "produto arquivado indicado na ligacao" "$tmp/pagina.html" 'Produto excluído daqui (aguardando sincronização)'
+
+curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"modo":"erro"}' "$fake/_teste/catalogo"
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
+contem "falha nao exibe numero antigo como atual" "$tmp/pagina.html" 'Não confirmado'
+contem "falha informa que nao confirmou catalogo" "$tmp/pagina.html" 'Não foi possível conferir o cardápio do iFood agora.'
+pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos" >/dev/null
+contem "falha preserva ultimo vinculo conhecido" "$tmp/pagina.html" 'Lanche iFood CI'
+
+curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"modo":"excluido"}' "$fake/_teste/catalogo"
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
+contem "item remoto excluido nao conta" "$tmp/pagina.html" '<span>Itens no cardápio do iFood</span><strong>1</strong>'
+pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos" >/dev/null
+nao_contem "item remoto excluido some dos vinculos" "$tmp/pagina.html" 'Item sem par CI'
+
+curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"modo":"vazio"}' "$fake/_teste/catalogo"
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
+contem "catalogo vazio mostra zero confirmado" "$tmp/pagina.html" '<span>Itens no cardápio do iFood</span><strong>0</strong>'
+pagina "$gj" "$g/integracoes/ifood/cardapio/vinculos" >/dev/null
+contem "catalogo vazio nao guarda linhas antigas" "$tmp/pagina.html" 'Nenhum item do iFood ainda'
+
+curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"modo":"normal"}' "$fake/_teste/catalogo"
+pagina "$gj" "$g/integracoes/ifood/cardapio" >/dev/null
+contem "itens remotos restaurados apos nova consulta" "$tmp/pagina.html" '<span>Itens no cardápio do iFood</span><strong>2</strong>'
 
 enviar "$gj" "$g/integracoes/ifood" "$g/integracoes/ifood/desconectar" >/dev/null
 if (( falhas > 0 )); then
