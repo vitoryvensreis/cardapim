@@ -21,7 +21,7 @@ final class IfoodCatalogo
     }
 
     /** Busca os itens no iFood, guarda e liga automaticamente os que tiverem o mesmo codigo ou nome. @return array{total:int, novos:int, ligados:int} */
-    public function importar(IfoodConta $conta): array
+    public function importar(IfoodConta $conta, bool $ligarAutomaticamente = true): array
     {
         $loja = $conta->loja() ?? throw new IntegracaoErro('Escolha a loja do iFood primeiro.');
         $token = $conta->token();
@@ -56,7 +56,7 @@ final class IfoodCatalogo
                 $this->db->prepare('DELETE FROM ifood_itens WHERE id_restaurante = ? AND id IN (' . $marcadores . ')')
                     ->execute([$this->idRestaurante, ...$lote]);
             }
-            $ligados = $this->ligarAutomatico();
+            $ligados = $ligarAutomaticamente ? $this->ligarAutomatico() : 0;
             $this->db->commit();
         } catch (\Throwable $erro) {
             $this->db->rollBack();
