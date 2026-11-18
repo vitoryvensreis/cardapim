@@ -19,7 +19,7 @@ try {
         if (($config[$campo] ?? '') !== $tipo) throw new RuntimeException('Configuracao incompleta: ' . $campo);
     }
     $fila = $colunas('whatsapp_saudacao_diaria');
-    foreach (['id_restaurante' => 'bigint unsigned','telefone' => 'varchar(15)','dia_local' => 'date','status' => "enum('pendente','enviando','enviado','falhou')"] as $campo => $tipo) {
+    foreach (['id_restaurante' => 'bigint unsigned','telefone' => 'varchar(48)','dia_local' => 'date','status' => "enum('pendente','enviando','enviado','falhou')"] as $campo => $tipo) {
         if (($fila[$campo] ?? '') !== $tipo) throw new RuntimeException('Fila incompleta: ' . $campo);
     }
     $q = $db->query("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='whatsapp_saudacao_diaria' AND INDEX_NAME='uq_saudacao_restaurante_telefone_dia'");
