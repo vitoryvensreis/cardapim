@@ -93,7 +93,7 @@ class WppConnectApi
             'isGroup' => false,
             // O servidor reconhece o dominio explicito @lid; nao interpreta LID
             // como telefone, evitando criar conversa com destinatario incorreto.
-            'isLid' => preg_match('/\\A[0-9]{6,24}@lid\\z/D', $telefone) === 1,
+            'isLid' => preg_match('/\A[0-9]{6,24}@lid\z/D', $telefone) === 1,
         ]);
         $status = strtolower((string) ($r->json()['status'] ?? ''));
         if (!$r->ok() || ($status !== '' && $status !== 'success')) {
