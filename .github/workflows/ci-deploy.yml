@@ -130,6 +130,7 @@ jobs:
           php database/verify-caixa.php --verify
           php database/verify-entregas.php --verify
           php database/verify-avisos.php --verify
+          php database/verify-saudacoes.php --verify
           php database/verify-garcom.php --verify
           php database/verify-cobranca.php --verify
           php database/verify-assinaturas.php --verify
@@ -384,6 +385,19 @@ jobs:
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
           ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+
+      - name: Aplicar schema de saudacoes WhatsApp com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-saudacoes]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-saudacoes.sh'"
 
       # Mapa proprio do Ceara (docs/architecture/mapa.md): gerado aqui e enviado para a VPS so com
       # [cardapim-mapa] na mensagem do commit (primeira instalacao e atualizacoes). Roda depois do deploy do codigo.
