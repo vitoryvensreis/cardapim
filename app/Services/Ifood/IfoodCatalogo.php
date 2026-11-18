@@ -171,13 +171,21 @@ final class IfoodCatalogo
      * So envia o que mudou desde o ultimo envio aceito; $forcar envia tudo de novo.
      * @return array{enviados:int, erros:int, ultimo_erro:?string}
      */
-    public function sincronizar(IfoodConta $conta, bool $forcar = false): array
+    public function sincronizar(IfoodConta $conta, bool $forcar = false, bool $somenteArquivados = false): array
     {
         $loja = $conta->loja();
         if ($loja === null) {
             return ['enviados' => 0, 'erros' => 0, 'ultimo_erro' => null];
         }
-        $q = $this->db->prepare('SELECT id, ifood_item_id, ifood_produto_id, id_produto, enviado_status, enviado_estoque FROM ifood_itens WHERE id_restaurante = ? AND id_produto IS NOT NULL ORDER BY id');
+        // Mesmo com a sincronizacao automatica de estoque desligada, exclusoes devem
+        // ser propagadas: filtrar apenas produtos arquivados nessa modalidade.
+        $sql = 'SELECT i.id, i.ifood_item_id, i.ifood_produto_id, i.id_produto, i.enviado_status, i.enviado_estoque
+            FROM ifood_itens i JOIN produtos p ON p.id = i.id_produto AND p.id_restaurante = i.id_restaurante
+            WHERE i.id_restaurante = ? AND i.id_produto IS NOT NULL';
+        if ($somenteArquivados) {
+            $sql .= ' AND p.ativo = 0';
+        }
+        $q = $this->db->prepare($sql . ' ORDER BY i.id');
         $q->execute([$this->idRestaurante]);
         $itens = $q->fetchAll(PDO::FETCH_ASSOC);
         if ($itens === []) {
@@ -193,7 +201,7 @@ final class IfoodCatalogo
             $d = $disp[(int) $item['id_produto']] ?? ['disponivel' => false, 'porcoes' => 0];
             $status = self::vende($d) ? 'AVAILABLE' : 'UNAVAILABLE';
             // Produto por peso: so liga/desliga (o estoque do iFood conta unidades).
-            $quantidade = $d['porcoes'] !== null && $item['ifood_produto_id'] !== null && ($d['unidade'] ?? 'un') === 'un' ? min((int) $d['porcoes'], 9999) : null;
+            $quantidade = !$somenteArquivados && $d['porcoes'] !== null && $item['ifood_produto_id'] !== null && ($d['unidade'] ?? 'un') === 'un' ? min((int) $d['porcoes'], 9999) : null;
             $mudouStatus = $forcar || $item['enviado_status'] !== $status;
             $mudouQtd = $quantidade !== null && ($forcar || $item['enviado_estoque'] === null || (int) $item['enviado_estoque'] !== $quantidade);
             if (!$mudouStatus && !$mudouQtd) {
