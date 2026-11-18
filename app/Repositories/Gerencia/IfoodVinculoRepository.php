@@ -57,6 +57,13 @@ final class IfoodVinculoRepository
             ->execute([...array_values($campos), $this->idRestaurante, $tipo, $idLocal]);
     }
 
+    /** Remove a vinculacao local depois que a exclusao remota for aceita (idempotente e restrita ao restaurante). */
+    public function remover(string $tipo, int $idLocal): void
+    {
+        $this->db->prepare('DELETE FROM ifood_catalogo_vinculos WHERE id_restaurante = ? AND tipo = ? AND id_local = ?')
+            ->execute([$this->idRestaurante, $tipo, $idLocal]);
+    }
+
     /** Falha ao enviar: guarda o motivo e agenda nova tentativa (1, 2, 4... ate 60 minutos). */
     public function falhou(string $tipo, int $idLocal, string $erro): void
     {
