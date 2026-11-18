@@ -96,6 +96,7 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
         $seoPadrao = [
             'seo_titulo' => Seo::tituloPadrao(),
             'seo_descricao' => Seo::DESCRICAO_PADRAO,
+            'seo_palavras_chave' => '',
             'frase_compartilhamento' => Seo::FRASE_PADRAO,
             'google_verificacao' => '',
         ];
@@ -103,7 +104,17 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
         ?>
         <div class="seo-grade">
             <div class="seo-previa" data-logo>
-                <p class="seo-previa-rotulo"><?= Icon::svg('message-circle', 'icon-sm') ?>Assim o link aparece no WhatsApp</p>
+                <p class="seo-previa-rotulo"><?= Icon::svg('search', 'icon-sm') ?>Prévia da pesquisa no Google</p>
+                <div class="seo-google" aria-label="Exemplo ilustrativo do resultado no Google">
+                    <div class="seo-google-site">
+                        <strong><?= $e(marca()) ?></strong>
+                        <span><?= $e('https://' . ($dominio !== '' ? $dominio : 'seu-site.com.br')) ?></span>
+                    </div>
+                    <p class="seo-google-titulo" data-seo-previa="seo_titulo"><?= $e($seoMostrar('seo_titulo')) ?></p>
+                    <p class="seo-google-descricao" data-seo-previa="seo_descricao"><?= $e($seoMostrar('seo_descricao')) ?></p>
+                </div>
+                <p class="texto-suave seo-dica">Prévia aproximada. O Google pode alterar o título e a descrição conforme a pesquisa realizada.</p>
+                <p class="seo-previa-rotulo seo-previa-espaco"><?= Icon::svg('message-circle', 'icon-sm') ?>Assim o link aparece no WhatsApp</p>
                 <div class="seo-bolha">
                     <div class="seo-cartao">
                         <img src="<?= $e($previaImagem) ?>" width="1200" height="630" alt="Imagem que aparece no link" data-logo-previa>
@@ -148,6 +159,10 @@ $v = static fn (string $c): string => is_string($valores[$c] ?? null) ? (string)
                 <?= Campo::areaTexto(['nome' => 'seo_descricao', 'rotulo' => 'Descrição da página inicial', 'valor' => $v('seo_descricao'), 'opcional' => true,
                     'erro' => $erros['seo_descricao'] ?? null, 'dica' => 'Resumo do que o sistema faz, embaixo do título. Até ' . Seo::DESCRICAO_MAX . ' letras.',
                     'attrs' => ['maxlength' => Seo::DESCRICAO_MAX, 'rows' => 3, 'placeholder' => $seoPadrao['seo_descricao'], 'data-seo-campo' => 'seo_descricao']]) ?>
+                <?= Campo::areaTexto(['nome' => 'seo_palavras_chave', 'rotulo' => 'Palavras-chave de pesquisa', 'valor' => $v('seo_palavras_chave'), 'opcional' => true,
+                    'erro' => $erros['seo_palavras_chave'] ?? null,
+                    'dica' => 'Separe por vírgulas, até 20 expressões (500 caracteres no total). Ficam no código da página, não aparecem visualmente na landing. O Google não utiliza a meta keywords para ranqueamento.',
+                    'attrs' => ['maxlength' => Seo::PALAVRAS_MAX, 'rows' => 3, 'placeholder' => 'sistema para restaurantes, cardápio digital, gestão de delivery, PDV para restaurantes', 'spellcheck' => 'false']]) ?>
                 <?= Campo::texto(['nome' => 'frase_compartilhamento', 'rotulo' => 'Frase da imagem automática', 'valor' => $v('frase_compartilhamento'), 'icone' => 'sparkles', 'opcional' => true,
                     'erro' => $erros['frase_compartilhamento'] ?? null, 'dica' => 'Vai na imagem do link, embaixo do nome. Até ' . Seo::FRASE_MAX . ' letras.',
                     'attrs' => ['maxlength' => Seo::FRASE_MAX, 'placeholder' => $seoPadrao['frase_compartilhamento'], 'autocomplete' => 'off']]) ?>
