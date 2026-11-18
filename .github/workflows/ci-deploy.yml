@@ -49,6 +49,7 @@ jobs:
       DB_USERNAME: cardapim_ci
       DB_PASSWORD: cardapim_ci_only
       CARDAPIM_TEST_WHATSAPP: '85900000000'
+      WPPCONNECT_WEBHOOK_TOKEN: 'token-ci-wppconnect-saudacao-exclusivo-2026'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -99,6 +100,7 @@ jobs:
           php tests/unit/recuperar-senha.php
           php tests/unit/peso.php
           php tests/unit/cozinha.php
+          php tests/unit/saudacao.php
           php tests/unit/complementos.php
 
       - name: Interface sem emojis e sem estilos inline
