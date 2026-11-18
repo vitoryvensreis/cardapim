@@ -69,6 +69,13 @@ Cada restaurante conecta a própria loja do iFood (aplicativo **distribuído** d
 | POST | `/{slug}/gerencia/integracoes/ifood/publicar` | Publica `produtos[]` (até 50) |
 | POST | `/{slug}/gerencia/integracoes/ifood/publicar/sincronizar` | Envia agora as mudanças dos publicados |
 
+## Excluir produto no Deliveryzim e refletir no iFood
+
+- Na gerência, excluir um produto **sem pedidos e sem vínculos com iFood** continua removendo o cadastro e sua ficha técnica. Se houver pedidos, item importado/vinculado ou publicação do Deliveryzim, o cadastro é **arquivado** (`ativo=0`, `disponivel=0`) para preservar FKs e o histórico. Ele some do cardápio e da lista de produtos; nome e código ficam disponíveis para novo cadastro.
+- Quando o próprio Deliveryzim publicou o produto no iFood, o `ifood_catalogo_vinculos` registra o ID remoto. A rotina `IfoodPublicacao::sincronizar` chama `DELETE /catalog/v2.0/merchants/{merchantId}/products/{productId}` (somente para produto publicado por esta integração). HTTP 404 é tratado como já removido. Só **depois** da resposta aceita a vinculação é retirada e o item correspondente de `ifood_itens` é desvinculado. Falhas ficam em `ultimo_erro` e entram em retry crescente, sem desfazer a exclusão local.
+- Para itens **apenas vinculados** a um produto existente no iFood (não publicados pelo Deliveryzim), não removemos o produto remoto, pois pode ser usado em outros contextos: enviamos `PATCH /items/status` com `UNAVAILABLE`. Essa pausa de exclusão também ocorre quando a sincronização normal de estoque está desativada.
+- O aviso da interface distingue a exclusão local da operação remota **pendente**; nunca anuncia exclusão confirmada no iFood antes da API responder. CSRF, RBAC e `id_restaurante` continuam obrigatórios.
+
 ## Loja no iFood (módulo Merchant)
 
 As quatro abas compartilham os mesmos serviços e permissões, mas exibem apenas o conteúdo pertinente. O último status operacional continua armazenado no MySQL:
