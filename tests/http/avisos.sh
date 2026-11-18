@@ -91,9 +91,20 @@ contem "saudacao contem link exclusivo da loja" "$tmp/msgs.txt" "/$slug"
 esperar "webhook duplicado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento" "$wpp_callback")" "200"
 sleep 1
 esperar "uma unica saudacao por dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
+# Endereco LID e opaco: manter @lid e nao tentar converter para um telefone.
+lid='1234567890123456@lid'
+evento_lid="{\"event\":\"onmessage\",\"session\":\"$loja\",\"from\":\"$lid\",\"fromMe\":false,\"t\":$t_evento}"
+esperar "webhook recebe contato LID" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento_lid" "$wpp_callback")" "200"
+sleep 1
+esperar "saudacao LID enviada" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
+mensagens
+contem "resposta enderecada ao LID original" "$tmp/msgs.txt" "$loja|$lid|"
+esperar "LID repetido responde HTTP 200" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento_lid" "$wpp_callback")" "200"
+sleep 1
+esperar "LID sem duplicacao no dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
 grupo="{\"event\":\"onmessage\",\"session\":\"$loja\",\"from\":\"5585999990000@g.us\",\"fromMe\":false,\"t\":$t_evento}"
 curl -s -o /dev/null -H 'Content-Type: application/json' -d "$grupo" "$wpp_callback"
-esperar "grupo nao recebe saudacao" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
+esperar "grupo nao recebe saudacao" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
 enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" 'saudacao_mensagem=Mensagem de teste' >/dev/null
 # Restaurar somente modo 24h; os turnos originais foram preservados.
 php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE restaurantes SET sempre_aberto=? WHERE slug=?")->execute([(int)$argv[1],$argv[2]]);' "$sempre_antes" "$slug"
