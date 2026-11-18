@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Pedidos;
 
-use Cardapim\Core\Config;
 use Cardapim\Core\Database;
 use Cardapim\Modules\Integracoes\WppConnectApi;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
@@ -13,7 +12,6 @@ use Cardapim\Repositories\Gerencia\PerfilRepository;
 use Cardapim\Services\Gerencia\Integracoes\BaseIntegracao;
 use Cardapim\Shared\Validation\Documento;
 use DateTimeImmutable;
-use DateTimeZone;
 use PDO;
 use Throwable;
 
@@ -159,6 +157,13 @@ final class SaudacaoWhatsApp
         $token = $repo->credenciais($restaurante, 'whatsapp')['token'] ?? null;
         if (!WppConnectApi::disponivel() || $integracao['status'] !== 'conectado'
             || !is_string($sessao) || !is_string($token) || $token === '') {
+            return 0;
+        }
+        // A saudacao nao pode sair depois que o expediente terminou.
+        $perfil = new PerfilRepository($db);
+        $loja = $perfil->buscar($restaurante);
+        if ($loja === null || ($loja['status_rest'] ?? '') !== 'ativo'
+            || !HorarioFuncionamento::abertoEm((bool) $loja['sempre_aberto'], $perfil->horarios($restaurante), new DateTimeImmutable('now'))) {
             return 0;
         }
         $api ??= new WppConnectApi();
