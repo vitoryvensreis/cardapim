@@ -8,6 +8,11 @@
 .vg-variacao.is-sobe { color: var(--c-success); }
 .vg-variacao.is-desce { color: var(--c-danger); }
 
+/* Atalhos: todos os cards ocupam a mesma altura, mesmo com textos em mais linhas. */
+.painel-page .atalhos-lista { grid-auto-rows: 1fr; }
+.painel-page .atalhos-lista > li { display: flex; min-width: 0; }
+.painel-page .atalhos-lista .atalho { flex: 1 1 auto; min-width: 0; }
+
 /* Alertas do topo */
 .vg-alertas { display: grid; gap: .6rem; margin-bottom: 1.25rem; }
 .vg-alerta {
