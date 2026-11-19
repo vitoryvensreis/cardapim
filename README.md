@@ -80,7 +80,7 @@
 
 ## Cardapio online do restaurante (cliente final)
 
-- `/{slug-do-restaurante}`: cardapio para o cliente pedir pelo celular, no estilo dos apps de delivery: capa, status aberto/fechado, horarios, busca, abas de categoria que acompanham a rolagem e produtos com botao "+".
+- `/{slug-do-restaurante}`: cardapio para o cliente pedir pelo celular, no estilo dos apps de delivery: capa, status aberto/fechado, horarios, busca, abas de categoria que acompanham a rolagem e produtos com botao "+". O status e o recebimento de pedidos do link próprio seguem o horário cadastrado em **Gerência > Perfil**, independentemente da disponibilidade no iFood.
 - **Sacola**: folha que sobe de baixo com observacao e quantidade; barra fixa "Ver sacola" no celular e painel lateral no computador; guardada no aparelho por 2 dias e **conferida no servidor** (preco e disponibilidade atuais) ao abrir a pagina.
 - **Login do cliente sem senha**: so numero do WhatsApp e nome. Codigo de 6 digitos enviado pelo **WhatsApp da plataforma** (`/painel/integracoes/whatsapp` precisa estar conectado), valido por 10 min, com limites de envio e tentativas; aparelho lembrado por 60 dias.
 - Tabelas `clientes` (nome, WhatsApp, CPF, endereco completo, ultimo acesso) e `cliente_sessoes`.
