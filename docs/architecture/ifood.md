@@ -171,6 +171,19 @@ O iFood não tem um comando "abrir": o botão remove a pausa criada pelo Deliver
 - **Isolamento:** todas as consultas continuam limitadas por `id_restaurante`. As pausas do iFood seguem conciliadas com a API externa independentemente dos pedidos locais. Nenhuma migration é necessária.
 - **Falhas da API externa:** problemas de comunicação, loja `TEST`/`DISABLED` ou fechamento remoto não interferem no status do Deliveryzim, mas continuam sendo apresentados na aba da integração para o gerente resolver.
 
+### Pausar só o iFood (pausa rápida)
+
+Na aba **Status**, cartão **Pausar só o iFood**: o gerente escolhe **30 minutos**, **1 hora**, **2 horas** ou **Até o fim do dia**
+(23:59:59 de Brasília) e clica em **Pausar iFood**. O servidor calcula o período (`IfoodLojaService::periodoRapido`, início 10 s
+à frente, como a pausa manual) e cria a interrupção pelas mesmas regras da pausa manual (`criarPausa`: sobreposição, `201` com ID,
+log de auditoria), com o motivo "Pausa do iFood pelo Deliveryzim (link próprio segue aberto)". Como o cardápio próprio segue só o
+Perfil, **o link continua recebendo pedidos**. A rotina `bin/ifood.php` segue rodando, então pedidos do iFood já em andamento
+continuam atualizando. Para voltar antes: **Remover pausa** na lista ou **Abrir loja** no topo.
+
+| Método | Rota | O que faz |
+| --- | --- | --- |
+| POST | `/{slug}/gerencia/integracoes/ifood/pausas/rapida` (`duracao` = `30min`, `1h`, `2h`, `fim_do_dia`) | Pausa rápida; por JS devolve o card de pausas e o período (`inicio`, `fim`) para a tela acompanhar a confirmação |
+
 ## Rotas novas (gerência, CSRF, só gerente)
 
 | Método | Rota | O que faz |

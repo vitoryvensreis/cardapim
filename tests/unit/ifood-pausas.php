@@ -70,6 +70,21 @@ $exigeFalha(fn (): null => $api->removerPausa('token-falso', $loja, $id), '200 i
 $http->resposta = new RespostaHttp(403, '{}');
 $exigeFalha(fn (): null => $api->removerPausa('token-falso', $loja, $id), '403 rejeitado');
 
+// Pausa rapida "so o iFood": periodo calculado no horario de Brasilia, 10 s a frente.
+$zonaBr = new DateTimeZone('America/Sao_Paulo');
+$meioDia = new DateTimeImmutable('2026-11-19 12:00:00', $zonaBr);
+$p30 = \Cardapim\Services\Gerencia\Integracoes\IfoodLojaService::periodoRapido('30min', $meioDia);
+$verificar($p30 === ['inicio' => '2026-11-19T12:00:10', 'fim' => '2026-11-19T12:30:10'], 'pausa rapida de 30 minutos');
+$p2 = \Cardapim\Services\Gerencia\Integracoes\IfoodLojaService::periodoRapido('2h', $meioDia);
+$verificar(($p2['fim'] ?? '') === '2026-11-19T14:00:10', 'pausa rapida de 2 horas');
+$pDia = \Cardapim\Services\Gerencia\Integracoes\IfoodLojaService::periodoRapido('fim_do_dia', $meioDia);
+$verificar(($pDia['fim'] ?? '') === '2026-11-19T23:59:59', 'pausa ate o fim do dia');
+$utc = new DateTimeImmutable('2026-11-19 15:00:00', new DateTimeZone('UTC')); // 12:00 em Brasilia
+$verificar((\Cardapim\Services\Gerencia\Integracoes\IfoodLojaService::periodoRapido('1h', $utc)['inicio'] ?? '') === '2026-11-19T12:00:10', 'relogio em UTC vira Brasilia');
+$quaseMeiaNoite = new DateTimeImmutable('2026-11-19 23:58:55', $zonaBr);
+$verificar(\Cardapim\Services\Gerencia\Integracoes\IfoodLojaService::periodoRapido('fim_do_dia', $quaseMeiaNoite) === null, 'menos de 1 minuto para o fim do dia recusa');
+$verificar(\Cardapim\Services\Gerencia\Integracoes\IfoodLojaService::periodoRapido('3dias', $meioDia) === null, 'opcao desconhecida recusa');
+
 if ($erros !== 0) {
     exit(1);
 }

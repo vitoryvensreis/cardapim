@@ -378,9 +378,13 @@
       if (!botao) { ocupado = false; return; }
       const rotulo = botao.querySelector("span");
       const original = rotulo ? rotulo.textContent : "";
-      const criando = form.matches(".ifood-form-pausa");
-      const descricao = criando ? (form.querySelector("[name=descricao]")?.value || "").trim() : "Pausa";
-      const periodo = criando
+      const rapida = form.matches("[data-pausa-rapida]");
+      const criando = rapida || form.matches(".ifood-form-pausa");
+      const descricao = rapida ? (form.dataset.descricao || "Pausa do iFood")
+        : criando ? (form.querySelector("[name=descricao]")?.value || "").trim() : "Pausa";
+      const escolhido = rapida ? form.querySelector("[name=duracao]:checked")?.closest("label")?.textContent.trim() : "";
+      let periodo = rapida ? "Por " + (escolhido || "").toLowerCase()
+        : criando
         ? "De " + (form.querySelector("[name=inicio]")?.value || "").replace("T", " ") + " até " + (form.querySelector("[name=fim]")?.value || "").replace("T", " ")
         : "";
       const dadosForm = new FormData(form);
@@ -411,10 +415,12 @@
         const id = dados.id_pausa;
         if (typeof id === "string" && id !== "" && urlEstado) {
           const acao = dados.acao === "remover" ? "remover" : "criar";
+          // Pausa rapida: o servidor calcula inicio e fim e devolve para a confirmacao.
+          const inicio = rapida ? String(dados.inicio || "") : criando ? (dadosForm.get("inicio") || "").toString() : "";
+          const fim = rapida ? String(dados.fim || "") : criando ? (dadosForm.get("fim") || "").toString() : "";
+          if (rapida && inicio && fim) periodo = "De " + inicio.replace("T", " ") + " até " + fim.replace("T", " ");
           if (acao === "criar") acrescentarPendente(descricao, periodo, "Aguardando confirmação do iFood", id);
-          await acompanhar(id, acao, descricao, periodo,
-            criando ? (dadosForm.get("inicio") || "").toString() : "",
-            criando ? (dadosForm.get("fim") || "").toString() : "");
+          await acompanhar(id, acao, descricao, periodo, inicio, fim);
         } else {
           aviso("Solicitação enviada, mas não foi possível acompanhar o identificador. Confira as pausas e o status antes de tentar novamente.");
         }

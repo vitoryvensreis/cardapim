@@ -418,6 +418,29 @@ final class IntegracoesController extends BaseGerencia
         return $this->telaLojaIfood(['pausa' => $res->erros + ['_geral' => $res->mensagem]], ['pausa' => $valores], 422);
     }
 
+    /**
+     * POST .../integracoes/ifood/pausas/rapida - "Pausar so o iFood" por 30 min, 1 h, 2 h ou ate o fim do dia.
+     * O cardapio proprio segue so o horario do Perfil (#106), entao o link continua recebendo pedidos.
+     */
+    public function ifoodPausaRapida(string $slug): Response
+    {
+        $porJs = self::pedidoPorJs();
+        if ($r = $this->entrar($slug, !$porJs)) {
+            return $porJs ? BotaoLojaIfood::semSessao() : $r;
+        }
+        if ($porJs && !\Cardapim\Core\Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return Response::json(['ok' => false, 'mensagem' => 'Sua sessão expirou. Recarregue a página.'], 419);
+        }
+        $servico = $this->ifoodLojaServico();
+        $res = $servico->pausaRapida($this->post('duracao'));
+        BotaoLojaIfood::esquecer($this->restaurante['id']);
+        if ($porJs) {
+            return $this->cardPausas($servico, $res, IfoodLojaService::novaPausa($servico->fusoDaLoja()),
+                $servico->periodoDaUltimaRapida() ?? []);
+        }
+        return $this->responder($res, $this->url('integracoes/ifood/status#pausas'));
+    }
+
     public function ifoodPausaRemover(string $slug): Response
     {
         $porJs = self::pedidoPorJs();
@@ -605,7 +628,8 @@ final class IntegracoesController extends BaseGerencia
     }
 
     /** JSON com o card de pausas atualizado e o aviso dentro dele. @param array<string,string> $valores */
-    private function cardPausas(IfoodLojaService $servico, Resultado $res, array $valores): Response
+    /** @param array{inicio?:string, fim?:string} $periodo periodo calculado no servidor (pausa rapida), para a tela acompanhar */
+    private function cardPausas(IfoodLojaService $servico, Resultado $res, array $valores, array $periodo = []): Response
     {
         $lista = $servico->pausasAgora();
         $pendente = $res->ok && ($lista['erro'] !== null || !$servico->alteracaoConfirmada($lista['pausas']));
@@ -630,6 +654,8 @@ final class IntegracoesController extends BaseGerencia
             'html' => $html,
             'id_pausa' => $res->ok ? ($servico->idCriado() ?? $servico->idRemovido()) : null,
             'acao' => $servico->idCriado() !== null ? 'criar' : 'remover',
+            'inicio' => (string) ($periodo['inicio'] ?? ''),
+            'fim' => (string) ($periodo['fim'] ?? ''),
             'registro_confirmado' => $res->ok && !$pendente,
         ], $res->ok ? 200 : 422));
     }

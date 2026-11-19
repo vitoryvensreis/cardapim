@@ -28,6 +28,24 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <?php if ($erroLista !== null): ?>
     <div class="notice notice-warning"><?= Icon::svg('circle-exclamation-point') ?><div><p><?= $e($erroLista) ?></p></div></div>
 <?php endif; ?>
+<form class="ifood-pausa-rapida" method="post" action="<?= $e($base . '/integracoes/ifood/pausas/rapida') ?>" data-pausa-form data-pausa-rapida
+      data-descricao="<?= $e(IfoodLojaService::MOTIVO_PAUSA_RAPIDA) ?>">
+    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+    <h3>Pausar só o iFood</h3>
+    <p class="texto-suave">Para de receber pedidos pelo iFood por um tempo. <strong>Seu link próprio continua recebendo pedidos normalmente</strong>, no horário do Perfil.</p>
+    <fieldset class="ifood-pausa-tempos">
+        <legend class="sr-only">Por quanto tempo pausar o iFood</legend>
+        <?php foreach (IfoodLojaService::PAUSAS_RAPIDAS as $valor => $rotulo): ?>
+            <label class="ifood-pausa-tempo">
+                <input type="radio" name="duracao" value="<?= $e($valor) ?>"<?= $valor === '1h' ? ' checked' : '' ?>>
+                <span><?= $e($rotulo) ?></span>
+            </label>
+        <?php endforeach; ?>
+    </fieldset>
+    <?= $erroPausa('duracao') ?>
+    <div><button class="btn btn-primary" type="submit" data-submit-label="Pausando..."><?= Icon::svg('circle-pause', 'icon-sm') ?><span>Pausar iFood</span></button></div>
+    <p class="texto-suave">Para voltar antes, use <strong>Remover pausa</strong> na lista abaixo ou o botão <strong>Abrir loja</strong> no topo.</p>
+</form>
 <?php if ($pausas === []): ?>
     <p class="texto-suave"><?= $erroLista !== null ? 'Não foi possível confirmar as pausas agora.' : 'Nenhuma pausa ativa.' ?></p>
 <?php else: ?>
@@ -49,7 +67,7 @@ $geral = $nota === null && isset($eP['_geral']) ? ['tipo' => 'erro', 'mensagem' 
 <?php endif; ?>
 <form class="ifood-form-pausa" method="post" action="<?= $e($base . '/integracoes/ifood/pausas') ?>" novalidate data-pausa-form>
     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-    <h3>Nova pausa</h3>
+    <h3>Pausa com horário escolhido</h3>
     <p class="texto-suave">Horário de referência: Brasília (UTC−03:00). O início automático fica 10 segundos à frente do relógio.</p>
     <label class="campo-rotulo" for="pausa-descricao">Motivo</label>
     <input class="campo-simples" id="pausa-descricao" name="descricao" maxlength="255" required value="<?= $e((string) $vP['descricao']) ?>" placeholder="Ex.: Cozinha cheia"<?= isset($eP['descricao']) ? ' aria-invalid="true" aria-describedby="erro-pausa-descricao"' : '' ?>>

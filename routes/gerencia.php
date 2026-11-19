@@ -179,6 +179,7 @@ return static function (Router $router): void {
     $router->get($g . '/integracoes/ifood/minha-loja', [IntegracoesController::class, 'ifoodMinhaLoja']);
     $router->post($g . '/integracoes/ifood/pausas', [IntegracoesController::class, 'ifoodPausaCriar']);
     $router->post($g . '/integracoes/ifood/pausas/remover', [IntegracoesController::class, 'ifoodPausaRemover']);
+    $router->post($g . '/integracoes/ifood/pausas/rapida', [IntegracoesController::class, 'ifoodPausaRapida']);
     $router->get($g . '/integracoes/ifood/pausas/estado', [IntegracoesController::class, 'ifoodPausaEstado']);
     $router->post($g . '/integracoes/ifood/horarios', [IntegracoesController::class, 'ifoodHorarios']);
     // Botao "Abrir loja no iFood" do topo (JSON).
