@@ -23,7 +23,7 @@ class ScaleWindow:
         self.sync_status = sync_status
         self.window = tk.Toplevel(parent)
         self.window.title("Balança — Deliveryzim Agent")
-        self.window.geometry("520x570")
+        self.window.geometry("520x650")
         self.window.resizable(False, False)
         self.window.configure(bg=BG)
         self.window.transient(parent)
