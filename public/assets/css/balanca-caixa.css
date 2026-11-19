@@ -1,37 +1,50 @@
-/* Integração com balança na folha de produto da comanda. */
-.balanca-pdv[hidden] { display: none !important; }
+/* Pesagem no PDV: apenas fonte automática/manual e feedback acessível. */
+.balanca-pdv[hidden], .balanca-pdv-status[hidden] { display: none !important; }
 .balanca-pdv {
-  display: grid;
-  gap: .55rem;
-  margin: 0 0 .9rem;
-  padding: .85rem;
-  border: 1px solid var(--c-line);
-  border-left: 3px solid var(--c-orange);
-  border-radius: var(--r-md);
-  background: var(--c-white);
-}
-.balanca-pdv-titulo {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: .5rem;
+  margin: 0 0 .85rem;
+  padding: .7rem .85rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-white);
+}
+.balanca-pdv-opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  min-height: 44px;
+  font-weight: 700;
   color: var(--c-wine);
-  font-size: .92rem;
+  cursor: pointer;
 }
-.balanca-pdv-etapa { color: var(--c-muted); font-size: .78rem; }
-.balanca-pdv .campo-caixa { margin: 0; }
-.balanca-pdv [data-balanca-status] {
-  min-height: 1.5rem;
+.balanca-pdv-opcao input {
+  width: 1.2rem;
+  height: 1.2rem;
   margin: 0;
-  color: var(--c-ink);
-  font-size: .86rem;
-  line-height: 1.45;
+  accent-color: var(--c-orange);
+  cursor: pointer;
 }
-.balanca-pdv button:disabled { opacity: .65; cursor: not-allowed; }
-.balanca-pdv select { font-size: 1rem; }
-.balanca-pdv :focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.balanca-pdv-selo {
+  color: var(--c-muted);
+  font-size: .83rem;
+  font-weight: 600;
+}
+.balanca-pdv-status {
+  margin: -.25rem 0 .85rem;
+  color: var(--c-muted);
+  font-size: .84rem;
+  line-height: 1.4;
+}
+.balanca-pdv :focus-visible { outline: 3px solid var(--c-orange); outline-offset: 3px; }
+[data-peso-campo][readonly] {
+  background: var(--c-white);
+  color: var(--c-ink);
+  cursor: default;
+}
 @media (max-width: 479px) {
-  .balanca-pdv { padding: .7rem; }
-  .balanca-pdv-titulo { display: grid; }
+  .balanca-pdv { padding: .5rem .75rem; }
 }
