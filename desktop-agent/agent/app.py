@@ -15,6 +15,8 @@ from PIL import Image, ImageTk
 from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
 from agent.printing import printers, receipt, spool
+from agent.scale import ScaleMonitor, ScaleSettings
+from agent.scale_ui import ScaleWindow
 
 WINE = "#651424"
 ORANGE = "#FF5825"
@@ -38,6 +40,8 @@ class DeliveryzimApp:
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
         self.preferences = Preferences()
         self.store = EventStore()
+        self.scale_monitor = ScaleMonitor()
+        self.scale_window = None
         self.messages = queue.Queue()
         self.quit_flag = threading.Event()
         self.worker = None
@@ -54,6 +58,7 @@ class DeliveryzimApp:
         self.status_var = tk.StringVar(value="Conectando..." if self.token else "Nao vinculado")
         self.name_var = tk.StringVar(value=self.preferences.get("restaurante") or "")
         self._render()
+        self._start_scale_if_configured()
         self.root.after(150, self._drain)
         self.root.after(20000, self._remind)
         if self.token:
@@ -188,6 +193,7 @@ class DeliveryzimApp:
         # Etapa 2: configuracoes do equipamento, carregada apos vinculo.
         heading = tk.Frame(self.settings_page, bg=BACKGROUND)
         heading.pack(fill="x")
+        self._button(heading, "Configurar balança", self._open_scale, primary=False, padx=10, pady=6).pack(side="right")
         self._label(heading, "ETAPA 02  /  CONFIGURAÇÃO", 9, WINE, True).pack(anchor="w")
         self._label(heading, "Central de impressão", 19, DARK, True).pack(anchor="w", pady=(3, 0))
 
@@ -288,6 +294,26 @@ class DeliveryzimApp:
             primary=False, padx=12, pady=7,
         ).pack(side="right")
         self._show_link_state()
+
+    def _start_scale_if_configured(self):
+        if not self.token or not self.preferences.get("balanca_ativa"):
+            return
+        try:
+            self.scale_monitor.configure(ScaleSettings(
+                port=str(self.preferences.get("balanca_porta") or ""),
+                baudrate=int(self.preferences.get("balanca_baudrate") or 9600),
+                protocol=str(self.preferences.get("balanca_protocolo") or "continuo"),
+                unit=str(self.preferences.get("balanca_unidade") or "kg"),
+            ))
+        except (ValueError, OSError):
+            # Mantém o agente de pedidos operacional mesmo se a balança falhar.
+            self.scale_monitor.stop()
+
+    def _open_scale(self):
+        if self.scale_window is not None and self.scale_window.window.winfo_exists():
+            self.scale_window.window.lift()
+        else:
+            self.scale_window = ScaleWindow(self.root, self.preferences, self.scale_monitor)
 
     def _select_mode(self, mode):
         self.mode_var.set(mode)
@@ -545,7 +571,8 @@ class DeliveryzimApp:
         old_client = self.client
         self.client = None
         self.token = ""
-        self.preferences.set(cursor=0, restaurante="", device_id=0)
+        self.scale_monitor.stop()
+        self.preferences.set(cursor=0, restaurante="", device_id=0, balanca_ativa=False)
         self.name_var.set("")
         self.store.clear_on_relink()
         for dialog in list(self.dialogs.values()):
@@ -597,6 +624,7 @@ class DeliveryzimApp:
                     self.name_var.set(str(payload.get("restaurante") or ""))
                     self.status_var.set("Conectado - aguardando pedidos")
                     self._show_link_state()
+                    self._start_scale_if_configured()
                     self._start_worker()
                 except Exception as exc:
                     messagebox.showerror("Credencial", "Nao foi possivel salvar a credencial: " + str(exc))
@@ -607,6 +635,7 @@ class DeliveryzimApp:
                 self.status_var.set("Precisa vincular novamente: " + payload)
                 self.token = ""
                 self.client = None
+                self.scale_monitor.stop()
                 delete_credential()
                 self._show_link_state()
             elif kind == "new":
@@ -637,6 +666,7 @@ class DeliveryzimApp:
             return
         self.quit_flag.set()
         self.client = None
+        self.scale_monitor.stop()
         if self.icon is not None:
             self.icon.stop()
         self.root.destroy()
