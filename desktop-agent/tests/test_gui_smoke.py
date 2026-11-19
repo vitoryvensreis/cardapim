@@ -44,7 +44,7 @@ class GuiSmokeTests(unittest.TestCase):
 
     def test_login_settings_modes_and_scale(self):
         app = self.app
-        self.assertTrue(app.login_page.winfo_ismapped())
+        self.assertEqual(app.login_page.winfo_manager(), "pack")
         # Tela de configuração (como se estivesse vinculado), sem iniciar polling.
         app.token = "dzag_" + "0" * 64
         app._show_link_state()

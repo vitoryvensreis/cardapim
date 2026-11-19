@@ -46,7 +46,7 @@ jobs:
       - name: Gerar executavel unico
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name Deliveryzim-Agent --icon "desktop-agent/agent/assets/deliveryzim.ico" --add-data "desktop-agent/agent/assets/icone.png;agent/assets" --add-data "desktop-agent/agent/assets/logo-branca.png;agent/assets" desktop-agent/main.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name Deliveryzim-Agent --icon "desktop-agent/agent/assets/deliveryzim.ico" --add-data "desktop-agent/agent/assets/icone.png;agent/assets" --add-data "desktop-agent/agent/assets/logo-branca.png;agent/assets" --add-data "desktop-agent/agent/assets/deliveryzim.ico;agent/assets" --collect-data customtkinter desktop-agent/main.py
       - name: Publicar EXE
         uses: actions/upload-artifact@v4
         with:

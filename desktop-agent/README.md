@@ -1,4 +1,8 @@
-# Deliveryzim Agent para Windows — v0.4 (teste controlado)
+# Deliveryzim Agent para Windows — v0.5 (teste controlado)
+
+Interface em **CustomTkinter** (desde 0.5.0), com as cores oficiais (vinho, laranja, branco) e cantos discretos.
+A ordem da tela de configuração é: Novos pedidos, Impressora, Balança e o botão principal **Concluir e deixar em
+segundo plano**. O teste `tests/test_gui_smoke.py` abre as telas de verdade no runner Windows do GitHub Actions.
 
 A versão fica em `agent/__init__.py` (`__version__`) e vai no nome do EXE gerado no GitHub Actions.
 
