@@ -88,15 +88,32 @@
     render();
   });
 
-  useButton.addEventListener("click", () => {
-    const device = selected();
-    const kg = device && device.estavel ? formatWeight(device.peso_kg) : null;
-    if (!kg) return;
-    weightInput.value = kg;
-    weightInput.dispatchEvent(new Event("input", { bubbles: true }));
-    weightInput.focus();
-    show("Peso preenchido. Confira o valor e clique em Lançar para adicionar à comanda.");
-    useButton.disabled = true; // Nova pesagem exige nova leitura/ação explícita.
+  useButton.addEventListener("click", async () => {
+    // Nunca aplicar uma leitura armazenada no navegador sem consultar
+    // novamente o servidor. O peso deve estar recente NO INSTANTE da ação.
+    const deviceId = selectedId;
+    if (!deviceId || useButton.disabled) return;
+    useButton.disabled = true;
+    try {
+      const response = await fetch("/api/v1/desktop/balancas", {
+        credentials: "same-origin", cache: "no-store",
+        headers: { "Accept": "application/json" },
+      });
+      if (!response.ok) throw new Error("API indisponível");
+      const payload = await response.json();
+      const fresh = (payload.balancas || []).find((d) => String(d.id) === deviceId);
+      const kg = fresh && fresh.estavel ? formatWeight(fresh.peso_kg) : null;
+      if (!kg || !dialog.open || panel.hidden || selector.value !== deviceId) {
+        show("A leitura mudou ou expirou. Confira o visor e tente novamente.");
+        return;
+      }
+      weightInput.value = kg;
+      weightInput.dispatchEvent(new Event("input", { bubbles: true }));
+      weightInput.focus();
+      show("Peso preenchido. Confira o valor e clique em Lançar para adicionar à comanda.");
+    } catch (_) {
+      show("Não foi possível confirmar o peso agora. Digite manualmente ou tente novamente.");
+    }
   });
 
   window.setInterval(refresh, 1700);
