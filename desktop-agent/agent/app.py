@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import webbrowser
 import winreg
-import winsound
+import ctypes
 import pystray
 from PIL import Image, ImageTk
 
@@ -16,7 +16,8 @@ from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
 from agent.printing import printers, receipt, spool
 from agent.scale import ScaleMonitor, ScaleSettings
-from agent.scale_ui import ScaleWindow
+from agent.scale_panel import ScalePanel
+from agent.sound import play as play_order_sound
 
 WINE = "#651424"
 ORANGE = "#FF5825"
@@ -30,18 +31,27 @@ SUBTLE = "#F8F4F4"
 
 class DeliveryzimApp:
     def __init__(self):
+        # AppUserModelID mantém a identidade do EXE correta na barra de tarefas.
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Deliveryzim.Agent.Windows")
+        except (AttributeError, OSError):
+            pass
         self.root = tk.Tk()
         self.root.title("Deliveryzim Agent")
-        self.root.geometry("580x730")
-        self.root.resizable(False, False)
-        self.root.minsize(580, 730)
-        self.root.maxsize(580, 730)
+        self.root.geometry("650x790")
+        self.root.resizable(True, True)
+        self.root.minsize(560, 610)
+        try:
+            self.window_icon_photo = ImageTk.PhotoImage(self._icon_image().resize((64, 64)))
+            self.root.iconphoto(True, self.window_icon_photo)
+        except (OSError, RuntimeError):
+            pass
         self.root.configure(bg=BACKGROUND)
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
         self.preferences = Preferences()
         self.store = EventStore()
         self.scale_monitor = ScaleMonitor()
-        self.scale_window = None
+        self.scale_panel = None
         self.scale_sync_thread = None
         self.messages = queue.Queue()
         self.quit_flag = threading.Event()
@@ -56,6 +66,7 @@ class DeliveryzimApp:
         self.mode_var = tk.StringVar(value="auto" if self.preferences.get("automatico") else "manual")
         self.paper_var = tk.StringVar(value=str(self.preferences.get("papel") or 80))
         self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")))
+        self.sound_var = tk.BooleanVar(value=bool(self.preferences.get("som_ativo")))
         self.status_var = tk.StringVar(value="Conectando..." if self.token else "Nao vinculado")
         self.scale_sync_status = tk.StringVar(value="PDV: aguardando ativação")
         self.name_var = tk.StringVar(value=self.preferences.get("restaurante") or "")
@@ -121,21 +132,15 @@ class DeliveryzimApp:
         brand = tk.Frame(header, bg=WINE)
         brand.pack(fill="x", anchor="w")
         try:
-            original = self._icon_image()
-            self.brand_photo = ImageTk.PhotoImage(original.resize((52, 52), Image.Resampling.LANCZOS))
+            original = self._logo_image()
+            self.brand_photo = ImageTk.PhotoImage(original.resize((245, 58), Image.Resampling.LANCZOS))
             tk.Label(brand, image=self.brand_photo, bg=WINE, bd=0).pack(side="left", padx=(0, 13))
         except Exception:
             self.brand_photo = None
         title = tk.Frame(brand, bg=WINE)
         title.pack(side="left", anchor="center")
-        tk.Label(
-            title, text="Deliveryzim", bg=WINE, fg=WHITE,
-            font=("Segoe UI", 22, "bold"),
-        ).pack(anchor="w")
-        tk.Label(
-            title, text="AGENT  /  WINDOWS", bg=WINE, fg="#F9C9D1",
-            font=("Segoe UI", 9, "bold"),
-        ).pack(anchor="w", pady=(0, 1))
+        tk.Label(title, text="AGENT  /  WINDOWS", bg=WINE, fg="#F9C9D1",
+                 font=("Segoe UI", 10, "bold")).pack(anchor="w")
         tk.Label(
             header, text="Pedidos em tempo real, sem complicação.", bg=WINE,
             fg="#F6EAED", font=("Segoe UI", 10),
@@ -145,7 +150,22 @@ class DeliveryzimApp:
         self.screen = tk.Frame(self.root, bg=BACKGROUND)
         self.screen.pack(fill="both", expand=True)
         self.login_page = tk.Frame(self.screen, bg=BACKGROUND, padx=34, pady=25)
-        self.settings_page = tk.Frame(self.screen, bg=BACKGROUND, padx=27, pady=16)
+        self.settings_scroll = tk.Frame(self.screen, bg=BACKGROUND)
+        self.settings_canvas = tk.Canvas(self.settings_scroll, bg=BACKGROUND, bd=0,
+                                         highlightthickness=0)
+        self.settings_scrollbar = ttk.Scrollbar(self.settings_scroll, orient="vertical",
+                                                command=self.settings_canvas.yview)
+        self.settings_canvas.configure(yscrollcommand=self.settings_scrollbar.set)
+        self.settings_canvas.pack(side="left", fill="both", expand=True)
+        self.settings_scrollbar.pack(side="right", fill="y")
+        self.settings_page = tk.Frame(self.settings_canvas, bg=BACKGROUND, padx=27, pady=16)
+        self.settings_window = self.settings_canvas.create_window((0, 0), window=self.settings_page,
+                                                                   anchor="nw")
+        self.settings_page.bind("<Configure>", lambda _: self.settings_canvas.configure(
+            scrollregion=self.settings_canvas.bbox("all")))
+        self.settings_canvas.bind("<Configure>", lambda e: self.settings_canvas.itemconfigure(
+            self.settings_window, width=e.width))
+        self.root.bind_all("<MouseWheel>", self._scroll_settings)
 
         # Etapa 1: a interface de operacao so fica visivel com vinculo aprovado.
         self._label(self.login_page, "ETAPA 01  /  ACESSO SEGURO", 9, WINE, True).pack(anchor="w")
@@ -191,109 +211,105 @@ class DeliveryzimApp:
             9, GRAY, wrap=460,
         ).pack(anchor="w", pady=(3, 0))
 
-        # Etapa 2: configuracoes do equipamento, carregada apos vinculo.
+        # Configuração de impressora, balança e alertas na MESMA página pós-login.
         heading = tk.Frame(self.settings_page, bg=BACKGROUND)
         heading.pack(fill="x")
-        self._button(heading, "Configurar balança", self._open_scale, primary=False, padx=10, pady=6).pack(side="right")
-        self._label(heading, "ETAPA 02  /  CONFIGURAÇÃO", 9, WINE, True).pack(anchor="w")
-        self._label(heading, "Central de impressão", 19, DARK, True).pack(anchor="w", pady=(3, 0))
+        self._label(heading, "CONFIGURAÇÃO DO COMPUTADOR", 9, WINE, True).pack(anchor="w")
+        self._label(heading, "Seu ponto de atendimento", 19, DARK, True).pack(anchor="w", pady=(4, 3))
+        self._label(heading, "Configure uma vez. Depois, o Agent continua na bandeja do Windows.",
+                    9, GRAY, wrap=540).pack(anchor="w")
 
-        statecard = tk.Frame(
-            self.settings_page, bg=WHITE, padx=16, pady=12,
-            highlightbackground=BORDER, highlightthickness=1,
-        )
-        statecard.pack(fill="x", pady=(15, 11))
-        self.name_label = tk.Label(
-            statecard, textvariable=self.name_var, bg=WHITE, fg=WINE,
-            font=("Segoe UI", 11, "bold"), anchor="w",
-        )
+        statecard = tk.Frame(self.settings_page, bg=WHITE, padx=17, pady=13,
+                            highlightbackground=BORDER, highlightthickness=1)
+        statecard.pack(fill="x", pady=(14, 10))
+        self.name_label = tk.Label(statecard, textvariable=self.name_var, bg=WHITE, fg=WINE,
+                                   font=("Segoe UI", 12, "bold"), anchor="w")
         self.name_label.pack(fill="x")
-        self.status_label = tk.Label(
-            statecard, textvariable=self.status_var, bg=WHITE, fg=GRAY,
-            font=("Segoe UI", 9), anchor="w", justify="left", wraplength=472,
-        )
+        self.status_label = tk.Label(statecard, textvariable=self.status_var, bg=WHITE, fg=GRAY,
+                                    font=("Segoe UI", 9), anchor="w", justify="left", wraplength=520)
         self.status_label.pack(fill="x", pady=(4, 0))
 
-        modecard = tk.Frame(
-            self.settings_page, bg=WHITE, padx=16, pady=14,
-            highlightbackground=BORDER, highlightthickness=1,
-        )
-        modecard.pack(fill="x", pady=(0, 11))
-        self._label(modecard, "COMO RECEBER PEDIDOS", 9, WINE, True).pack(anchor="w")
-        modes = tk.Frame(modecard, bg=WHITE)
-        modes.pack(fill="x", pady=(11, 0))
-        self.mode_buttons = {}
-        for key, title, detail in (
-            ("auto", "Automático", "Imprime ao receber"),
-            ("manual", "Com confirmação", "Pergunta antes de imprimir"),
-        ):
-            container = tk.Frame(modes, bg=WHITE)
-            container.pack(side="left", fill="x", expand=True, padx=(0, 5) if key == "auto" else (5, 0))
-            button = tk.Button(
-                container, text=title + "\n" + detail,
-                command=lambda chosen=key: self._select_mode(chosen),
-                font=("Segoe UI", 10, "bold"),
-                bg=WHITE, fg=DARK, justify="center", cursor="hand2",
-                relief="flat", highlightthickness=2, bd=0, pady=11,
-                activeforeground=WINE, activebackground=SUBTLE,
-            )
-            button.pack(fill="both", expand=True)
-            self.mode_buttons[key] = button
-        self._paint_mode_buttons()
-        self._label(
-            modecard, "O alerta sonoro toca sempre, inclusive no modo automático.",
-            9, GRAY, wrap=476,
-        ).pack(anchor="w", pady=(12, 0))
-
-        printcard = tk.Frame(
-            self.settings_page, bg=WHITE, padx=16, pady=14,
-            highlightbackground=BORDER, highlightthickness=1,
-        )
-        printcard.pack(fill="x", pady=(0, 11))
+        printcard = tk.Frame(self.settings_page, bg=WHITE, padx=17, pady=15,
+                             highlightbackground=BORDER, highlightthickness=1)
+        printcard.pack(fill="x", pady=(0, 10))
         row = tk.Frame(printcard, bg=WHITE)
         row.pack(fill="x")
-        self._label(row, "IMPRESSORA DO WINDOWS", 9, WINE, True).pack(side="left")
-        self._button(row, "Atualizar", self._reload_printers, primary=False, padx=9, pady=4).pack(side="right")
-        self.printer_selector = ttk.Combobox(
-            printcard, textvariable=self.printer_var,
-            state="readonly", style="Agent.TCombobox", font=("Segoe UI", 10),
-        )
-        self.printer_selector.pack(fill="x", pady=(10, 0), ipady=3)
+        self._label(row, "01  /  IMPRESSORA", 10, WINE, True).pack(side="left")
+        self._button(row, "Atualizar lista", self._reload_printers, primary=False,
+                     padx=9, pady=5).pack(side="right")
+        self._label(printcard, "Escolha a impressora que receberá os pedidos.",
+                    9, GRAY).pack(anchor="w", pady=(5, 11))
+        self.printer_selector = ttk.Combobox(printcard, textvariable=self.printer_var,
+                                             state="readonly", style="Agent.TCombobox",
+                                             font=("Segoe UI", 10))
+        self.printer_selector.pack(fill="x", ipady=3)
         self.printer_selector.bind("<<ComboboxSelected>>", lambda _: self._save_preferences())
-        self.printer_hint = tk.Label(
-            printcard, text="", bg=WHITE, fg=GRAY, justify="left",
-            anchor="w", font=("Segoe UI", 9), wraplength=466,
-        )
-        self.printer_hint.pack(fill="x", pady=(6, 0))
+        self.printer_hint = tk.Label(printcard, text="", bg=WHITE, fg=GRAY, justify="left",
+                                     anchor="w", font=("Segoe UI", 9), wraplength=520)
+        self.printer_hint.pack(fill="x", pady=(6, 9))
         paper = tk.Frame(printcard, bg=WHITE)
-        paper.pack(fill="x", pady=(8, 0))
-        self._label(paper, "Largura do papel", 9, DARK, True).pack(side="left")
+        paper.pack(fill="x")
+        self._label(paper, "Tamanho do papel", 9, DARK, True).pack(side="left")
         for value in ("58", "80"):
-            tk.Radiobutton(
-                paper, text=value + " mm", variable=self.paper_var, value=value,
-                command=self._save_preferences, bg=WHITE, fg=DARK,
-                font=("Segoe UI", 9), activebackground=WHITE, selectcolor=WHITE,
-            ).pack(side="right", padx=(12, 0))
+            tk.Radiobutton(paper, text=value + " mm", variable=self.paper_var, value=value,
+                           command=self._save_preferences, bg=WHITE, fg=DARK,
+                           activebackground=WHITE, selectcolor=WHITE,
+                           font=("Segoe UI", 9)).pack(side="right", padx=(12, 0))
+
+        balcard = tk.Frame(self.settings_page, bg=WHITE, padx=17, pady=15,
+                           highlightbackground=BORDER, highlightthickness=1)
+        balcard.pack(fill="x", pady=(0, 10))
+        self.scale_panel = ScalePanel(balcard, self.preferences, self.scale_monitor,
+                                      self.scale_sync_status)
+        self.scale_panel.frame.pack(fill="x")
+
+        alertcard = tk.Frame(self.settings_page, bg=WHITE, padx=17, pady=14,
+                             highlightbackground=BORDER, highlightthickness=1)
+        alertcard.pack(fill="x", pady=(0, 11))
+        self._label(alertcard, "03  /  NOVOS PEDIDOS", 10, WINE, True).pack(anchor="w")
+        tk.Checkbutton(alertcard, text="Tocar alerta sonoro quando chegar um pedido",
+                       variable=self.sound_var, command=self._save_preferences,
+                       bg=WHITE, fg=DARK, activebackground=WHITE, selectcolor=WHITE,
+                       font=("Segoe UI", 10), anchor="w").pack(fill="x", pady=(10, 0))
+        self._button(alertcard, "Ouvir som de teste", self._test_sound,
+                     primary=False, padx=10, pady=6).pack(anchor="w", pady=(6, 11))
+        self._label(alertcard, "Impressão de pedidos", 9, DARK, True).pack(anchor="w")
+        modes = tk.Frame(alertcard, bg=WHITE)
+        modes.pack(fill="x", pady=(8, 0))
+        self.mode_buttons = {}
+        for key, title, detail in (
+            ("auto", "Automática", "Imprime ao receber"),
+            ("manual", "Com confirmação", "Pergunta antes de imprimir"),
+        ):
+            button = tk.Button(modes, text=title + "\n" + detail,
+                               command=lambda chosen=key: self._select_mode(chosen),
+                               font=("Segoe UI", 9, "bold"), bg=WHITE, fg=DARK,
+                               justify="center", cursor="hand2", relief="flat",
+                               highlightthickness=2, bd=0, pady=9,
+                               activeforeground=WINE, activebackground=SUBTLE)
+            button.pack(side="left", fill="x", expand=True,
+                        padx=(0, 6) if key == "auto" else (6, 0))
+            self.mode_buttons[key] = button
+        self._paint_mode_buttons()
 
         foot = tk.Frame(self.settings_page, bg=BACKGROUND)
-        foot.pack(fill="x")
-        tk.Checkbutton(
-            foot, text="Iniciar com o Windows", variable=self.start_var,
-            command=self._save_preferences, bg=BACKGROUND, fg=DARK,
-            activebackground=BACKGROUND, selectcolor=BACKGROUND,
-            font=("Segoe UI", 10),
-        ).pack(anchor="w", pady=(1, 8))
-        self._button(
-            foot, "Testar alerta e impressão", self._test, primary=True,
-        ).pack(fill="x", ipady=3)
+        foot.pack(fill="x", pady=(2, 15))
+        tk.Checkbutton(foot, text="Iniciar automaticamente com o Windows",
+                       variable=self.start_var, command=self._save_preferences,
+                       bg=BACKGROUND, fg=DARK, activebackground=BACKGROUND,
+                       selectcolor=BACKGROUND, font=("Segoe UI", 10)).pack(anchor="w", pady=(0, 10))
+        self._button(foot, "Testar impressão e alerta", self._test,
+                     primary=False).pack(fill="x", pady=(0, 9))
+        self._button(foot, "Concluir e deixar em segundo plano",
+                     self._finish_setup, primary=True).pack(fill="x", ipady=4)
+        self._label(foot, "O Agent continuará na área de notificação ao lado do relógio.",
+                    9, GRAY).pack(anchor="w", pady=(7, 10))
         footer = tk.Frame(foot, bg=BACKGROUND)
-        footer.pack(fill="x", pady=(10, 0))
-        self._button(footer, "Desvincular", self._unlink, primary=False, padx=12, pady=7).pack(side="left")
-        self._button(
-            footer, "Abrir Deliveryzim",
-            self._open_deliveryzim,
-            primary=False, padx=12, pady=7,
-        ).pack(side="right")
+        footer.pack(fill="x")
+        self._button(footer, "Desvincular", self._unlink,
+                     primary=False, padx=12, pady=7).pack(side="left")
+        self._button(footer, "Abrir Deliveryzim", self._open_deliveryzim,
+                     primary=False, padx=12, pady=7).pack(side="right")
         self._show_link_state()
 
     def _open_deliveryzim(self):
@@ -326,11 +342,32 @@ class DeliveryzimApp:
             # Mantém o agente de pedidos operacional mesmo se a balança falhar.
             self.scale_monitor.stop()
 
-    def _open_scale(self):
-        if self.scale_window is not None and self.scale_window.window.winfo_exists():
-            self.scale_window.window.lift()
-        else:
-            self.scale_window = ScaleWindow(self.root, self.preferences, self.scale_monitor, self.scale_sync_status)
+    def _scroll_settings(self, event):
+        if self.token and self.settings_scroll.winfo_ismapped():
+            self.settings_canvas.yview_scroll(-int(event.delta / 120), "units")
+
+    def _test_sound(self):
+        if not play_order_sound():
+            messagebox.showwarning("Alerta de pedidos",
+                                   "O som não pôde ser reproduzido. Verifique a saída de áudio do Windows.")
+
+    def _finish_setup(self):
+        self._save_preferences()
+        if self.icon is None:
+            messagebox.showwarning("Área de notificação",
+                                   "A bandeja do Windows não está disponível. Mantenha o Agent aberto.")
+            return
+        if self.mode_var.get() == "auto" and not self.printer_var.get():
+            messagebox.showwarning("Impressora", "Escolha uma impressora ou use o modo com confirmação.")
+            return
+        self.preferences.set(configurado=True)
+        self.status_var.set("Configurado. Monitorando novos pedidos em segundo plano.")
+        if self.icon:
+            try:
+                self.icon.notify("Pedidos e alertas ativos.", "Deliveryzim Agent")
+            except (NotImplementedError, RuntimeError, OSError):
+                pass
+        self.hide()
 
     def _select_mode(self, mode):
         self.mode_var.set(mode)
@@ -350,10 +387,10 @@ class DeliveryzimApp:
     def _show_link_state(self):
         if self.token:
             self.login_page.pack_forget()
-            self.settings_page.pack(fill="both", expand=True)
+            self.settings_scroll.pack(fill="both", expand=True)
             self._reload_printers()
         else:
-            self.settings_page.pack_forget()
+            self.settings_scroll.pack_forget()
             self.login_page.pack(fill="both", expand=True)
             self.root.after(50, self.username.focus_set)
 
@@ -363,8 +400,9 @@ class DeliveryzimApp:
             self.printer_selector["values"] = available
             selected = self.printer_var.get()
             if selected not in available:
-                self.printer_var.set(available[0] if available else "")
-                if available:
+                # Não escolher aleatoriamente a primeira impressora em caixas com várias.
+                self.printer_var.set(available[0] if len(available) == 1 else "")
+                if len(available) == 1:
                     self._save_preferences()
             if available:
                 self.printer_hint.config(
@@ -386,6 +424,7 @@ class DeliveryzimApp:
             impressora=self.printer_var.get(),
             papel=int(self.paper_var.get()),
             iniciar_windows=bool(self.start_var.get()),
+            som_ativo=bool(self.sound_var.get()),
         )
         self._startup(bool(self.start_var.get()))
 
@@ -556,10 +595,9 @@ class DeliveryzimApp:
             self._prompt(order)
 
     def _ring(self):
-        try:
-            winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS | winsound.SND_ASYNC)
-        except RuntimeError:
-            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+        # É acionado por cada pedido novo, mesmo quando a janela fica na bandeja.
+        if self.sound_var.get():
+            play_order_sound()
 
     def _remind(self):
         if any(w.winfo_exists() for w in self.dialogs.values()):
@@ -630,7 +668,7 @@ class DeliveryzimApp:
         self.client = None
         self.token = ""
         self.scale_monitor.stop()
-        self.preferences.set(cursor=0, restaurante="", device_id=0, balanca_ativa=False)
+        self.preferences.set(cursor=0, restaurante="", device_id=0, balanca_ativa=False, configurado=False)
         self.name_var.set("")
         self.store.clear_on_relink()
         for dialog in list(self.dialogs.values()):
@@ -737,16 +775,16 @@ class DeliveryzimApp:
             self.icon.stop()
         self.root.destroy()
 
-    def _icon_image(self):
+    def _asset(self, name):
         if getattr(sys, "frozen", False):
-            path = os.path.join(sys._MEIPASS, "agent", "assets", "icon-192.png")
-        else:
-            # Desenvolvimento: reutiliza o ícone oficial da árvore do repositório.
-            path = os.path.abspath(os.path.join(
-                os.path.dirname(__file__), "..", "..", "public",
-                "assets", "img", "pwa", "icon-192.png",
-            ))
-        return Image.open(path).convert("RGBA")
+            return os.path.join(sys._MEIPASS, "agent", "assets", name)
+        return os.path.join(os.path.dirname(__file__), "assets", name)
+
+    def _icon_image(self):
+        return Image.open(self._asset("icone.png")).convert("RGBA")
+
+    def _logo_image(self):
+        return Image.open(self._asset("logo-branca.png")).convert("RGBA")
 
     def _start_tray(self):
         try:
@@ -764,4 +802,7 @@ class DeliveryzimApp:
 
     def run(self):
         self._start_tray()
+        if self.token and self.preferences.get("configurado") and self.icon is not None:
+            # Não pisca uma janela na tela ao iniciar automaticamente com o Windows.
+            self.root.withdraw()
         self.root.mainloop()
