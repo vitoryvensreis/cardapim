@@ -224,7 +224,7 @@ final class DesktopAgentController
         }
         try {
             $db = Database::connect();
-            $q = $db->prepare("SELECT d.*, u.ativo, u.cargo, u.excluido_em, r.status AS restaurante_status
+            $q = $db->prepare("SELECT d.*, u.ativo, u.cargo, u.excluido_em, r.status_rest AS restaurante_status
                 FROM desktop_agent_devices d
                 JOIN `user` u ON u.id = d.id_user AND u.id_restaurante = d.id_restaurante
                 JOIN restaurantes r ON r.id = d.id_restaurante
