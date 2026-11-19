@@ -80,11 +80,10 @@ final class RestauranteController
         }
         try {
             $info = (new CardapioPublico(Database::connect()))->informacoes((int) $restaurante['id']);
-            $aberto = !($info['fechado_integracao'] ?? false) && (!$info['horario_informado'] || $info['aberto']);
             return Response::json([
-                'aberto' => $aberto,
-                'fechado_integracao' => (bool) ($info['fechado_integracao'] ?? false),
-                'motivo' => ($info['fechado_integracao'] ?? false) ? 'Restaurante fechado temporariamente.' : '',
+                // Mantém o comportamento atual para restaurantes ainda sem horários cadastrados.
+                'aberto' => !$info['horario_informado'] || $info['aberto'],
+                'horario_informado' => $info['horario_informado'],
             ])->comCabecalhos(['Cache-Control' => 'no-store']);
         } catch (\Throwable $erro) {
             error_log('[Cardapim] Falha ao consultar estado da loja: ' . get_class($erro));
