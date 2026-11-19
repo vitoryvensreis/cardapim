@@ -42,6 +42,7 @@ class DeliveryzimApp:
         self.store = EventStore()
         self.scale_monitor = ScaleMonitor()
         self.scale_window = None
+        self.scale_sync_thread = None
         self.messages = queue.Queue()
         self.quit_flag = threading.Event()
         self.worker = None
@@ -56,6 +57,7 @@ class DeliveryzimApp:
         self.paper_var = tk.StringVar(value=str(self.preferences.get("papel") or 80))
         self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")))
         self.status_var = tk.StringVar(value="Conectando..." if self.token else "Nao vinculado")
+        self.scale_sync_status = tk.StringVar(value="PDV: aguardando ativação")
         self.name_var = tk.StringVar(value=self.preferences.get("restaurante") or "")
         self._render()
         self._start_scale_if_configured()
@@ -312,7 +314,7 @@ class DeliveryzimApp:
         if self.scale_window is not None and self.scale_window.window.winfo_exists():
             self.scale_window.window.lift()
         else:
-            self.scale_window = ScaleWindow(self.root, self.preferences, self.scale_monitor)
+            self.scale_window = ScaleWindow(self.root, self.preferences, self.scale_monitor, self.scale_sync_status)
 
     def _select_mode(self, mode):
         self.mode_var.set(mode)
@@ -434,6 +436,44 @@ class DeliveryzimApp:
         self.worker = threading.Thread(target=self._poll, args=(self.client,), daemon=True,
                                        name="deliveryzim-pedidos")
         self.worker.start()
+        self.scale_sync_thread = threading.Thread(
+            target=self._push_weights, args=(self.client,), daemon=True,
+            name="deliveryzim-sincronizar-peso",
+        )
+        self.scale_sync_thread.start()
+
+    def _push_weights(self, client):
+        """Publica apenas leitura estável e fresca; nunca altera valores de pedidos."""
+        backoff = 1.2
+        was_active = False
+        last_status = None
+        while not self.quit_flag.is_set() and self.client is client:
+            enabled = bool(self.preferences.get("balanca_ativa"))
+            if not enabled and not was_active:
+                self.quit_flag.wait(2.0)
+                continue
+            _, reading = self.scale_monitor.snapshot()
+            stable = bool(enabled and reading is not None and reading.stable
+                          and reading.kg <= 99.999)
+            weight = f"{reading.kg:.3f}" if stable else None
+            try:
+                client.publish_weight(weight, stable)
+                current_status = ("PDV: peso disponível" if stable else
+                                  "PDV: aguardando peso estável" if enabled else
+                                  "PDV: balança desconectada")
+                was_active = enabled
+                backoff = 1.2
+            except AuthenticationError:
+                current_status = "PDV: vínculo expirado. Conecte novamente o agente."
+                self.messages.put(("scale_sync", current_status))
+                return
+            except Exception:
+                current_status = "PDV: sem sincronização. Confira a API e a internet."
+                backoff = min(30, backoff * 1.8)
+            if current_status != last_status:
+                self.messages.put(("scale_sync", current_status))
+                last_status = current_status
+            self.quit_flag.wait(backoff)
 
     def _poll(self, client):
         delay = 2.5
@@ -637,6 +677,8 @@ class DeliveryzimApp:
                 self.scale_monitor.stop()
                 delete_credential()
                 self._show_link_state()
+            elif kind == "scale_sync":
+                self.scale_sync_status.set(str(payload))
             elif kind == "new":
                 self._new_order(payload)
             elif kind == "printed":
