@@ -1,5 +1,5 @@
 <?php
-/** Integracoes: visao geral. Espera: $integracoes (provedor => dados), $ifoodDisponivel, $whatsappDisponivel, $base. */
+/** Integracoes: visao geral. Espera: $integracoes (provedor => dados), $ifoodDisponivel, $whatsappDisponivel, $agentConectado, $agentDownload, $base. */
 use Cardapim\Core\Icon;
 use Cardapim\Shared\Validation\Documento;
 
@@ -51,6 +51,20 @@ $detalhe = static function (string $provedor, array $i) use ($e): string {
                 </a>
             </article>
         <?php endforeach; ?>
+        <article class="integracao-cartao is-agent">
+            <div class="integracao-topo">
+                <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('monitor') ?></span>
+                <?php if (!empty($agentConectado)): ?>
+                    <span class="etiqueta etiqueta-ok"><?= Icon::svg('circle-check') ?>Conectado</span>
+                <?php else: ?>
+                    <span class="etiqueta etiqueta-neutra"><?= Icon::svg('monitor') ?>Para o computador</span>
+                <?php endif; ?>
+            </div>
+            <h2><?= marca_html() ?> Agent</h2>
+            <p>Programa para o computador do caixa (Windows): avisa pedido novo com som até alguém receber, imprime o cupom e lê a balança.</p>
+            <p class="integracao-detalhe">Instala em 1 minuto e abre sozinho quando o computador liga, já com o painel no navegador.</p>
+            <a class="btn btn-primary btn-sm btn-block" href="<?= $e((string) $agentDownload) ?>" rel="noopener" download><?= Icon::svg('download', 'icon-sm') ?>Baixar o Agent para Windows</a>
+        </article>
         <article class="integracao-cartao is-99food is-em-breve">
             <div class="integracao-topo">
                 <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('utensils') ?></span>

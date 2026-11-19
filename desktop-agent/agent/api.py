@@ -117,8 +117,8 @@ class ApiClient:
             raise AuthenticationError("Dispositivo revogado ou sem acesso à balança.")
         response.raise_for_status()
 
-    def browser_pairing(self):
-        """Gera URL temporaria de pareamento para o navegador deste Windows."""
+    def browser_pairing(self, destino=""):
+        """Gera URL temporaria de pareamento para o navegador deste Windows (destino=gerencia abre a gerencia)."""
         if not self.token:
             raise AuthenticationError("Agente sem credencial.")
         response = requests.post(
@@ -132,6 +132,8 @@ class ApiClient:
         path = response.json().get("url", "")
         if not isinstance(path, str) or not path.startswith("/api/v1/desktop/parear?ticket="):
             raise ValueError("Link de caixa invalido.")
+        if destino == "gerencia":
+            path += "&destino=gerencia"
         return self.url(path)
 
     def order_status(self, ids):

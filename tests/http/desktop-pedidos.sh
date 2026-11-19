@@ -112,4 +112,8 @@ curl --fail --silent --show-error "$base/assets/js/alerta-pedido.js" -o "$tmp/al
 grep -q '/api/v1/desktop/agente-ativo' "$tmp/alerta.js" || fail "navegador nao confere o Agent"
 grep -q 'Som no Agent' "$tmp/alerta.js" || fail "botao sem o estado Som no Agent"
 ok "navegador confere o Agent e mostra Som no Agent"
+pagina="$(curl -s -b "$gerente" "$base/$slug/gerencia/integracoes")"
+[[ "$pagina" == *"Baixar o Agent para Windows"* && "$pagina" == *"releases/latest/download/Deliveryzim-Agent-Setup.exe"* ]] \
+  || fail "gerencia sem o botao para baixar o Agent"
+ok "gerencia tem o botao para baixar o Agent"
 echo "Agent: receber pedido e som validados."

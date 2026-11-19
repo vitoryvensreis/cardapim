@@ -20,7 +20,7 @@ $agora = 1770000000;
 $t = VinculoBalanca::gerarTicket(15, 98, $agora);
 $ok(VinculoBalanca::verificarTicket($t, 15, $agora) === 98, 'link valido');
 $ok(VinculoBalanca::verificarTicket($t, 16, $agora) === null, 'link de outro restaurante');
-$ok(VinculoBalanca::verificarTicket($t, 15, $agora + 121) === null, 'link vencido');
+$ok(VinculoBalanca::verificarTicket($t, 15, $agora + 601) === null, 'link vencido (10 min)');
 $ok(VinculoBalanca::verificarTicket($t . 'a', 15, $agora) === null, 'assinatura adulterada');
 $ok(VinculoBalanca::verificarTicket('98', 15, $agora) === null, 'id puro nunca e ticket');
 $cookie = VinculoBalanca::cookieAssinado(15, 98, $agora);

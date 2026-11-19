@@ -36,7 +36,21 @@ final class IntegracoesController extends BaseGerencia
             'integracoes' => (new IntegracaoRepository($this->db))->todas($this->restaurante['id']),
             'ifoodDisponivel' => IfoodApi::disponivel(),
             'whatsappDisponivel' => WppConnectApi::disponivel(),
+            'agentConectado' => $this->agentConectado(),
+            'agentDownload' => self::AGENT_DOWNLOAD,
         ]);
+    }
+
+    /** Instalador mais recente do Deliveryzim Agent (publicado pelo GitHub Actions a cada versao). */
+    public const AGENT_DOWNLOAD = 'https://github.com/vitoryvensreis/cardapim/releases/latest/download/Deliveryzim-Agent-Setup.exe';
+
+    private function agentConectado(): bool
+    {
+        try {
+            return \Cardapim\Controllers\Api\DesktopAgentController::agenteConectado($this->db, (int) $this->restaurante['id']);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /* ---------- Asaas ---------- */

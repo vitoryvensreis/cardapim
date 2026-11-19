@@ -41,6 +41,44 @@ MODE_HINTS = {
 }
 
 
+class Choice:
+    """Grupo de botões (substitui o CTkSegmentedButton, que não tem cor de texto para o item escolhido)."""
+
+    def __init__(self, ui, parent, values, variable, command):
+        self.variable = variable
+        self.command = command
+        self.frame = ctk.CTkFrame(parent, fg_color=WHITE, corner_radius=0)
+        self.buttons = {}
+        values = list(values)
+        for index, value in enumerate(values):
+            button = ctk.CTkButton(
+                self.frame, text=value, height=38, corner_radius=RADIUS, border_width=1,
+                font=ui._font(10, True), command=lambda v=value: self.select(v),
+            )
+            button.pack(side="left", fill="x", expand=True, padx=(0, 6) if index < len(values) - 1 else 0)
+            self.buttons[value] = button
+        variable.trace_add("write", lambda *_: self.paint())
+        self.paint()
+
+    def select(self, value):
+        self.variable.set(value)
+        if self.command:
+            self.command(value)
+
+    def paint(self):
+        current = self.variable.get()
+        for value, button in self.buttons.items():
+            chosen = value == current
+            button.configure(
+                fg_color=WINE if chosen else WHITE, hover_color=WINE if chosen else SUBTLE,
+                text_color=WHITE if chosen else DARK, border_color=WINE if chosen else BORDER,
+            )
+
+    def pack(self, **options):
+        self.frame.pack(**options)
+        return self
+
+
 class DeliveryzimApp:
     def __init__(self):
         # AppUserModelID mantém a identidade do EXE correta na barra de tarefas.
@@ -51,8 +89,8 @@ class DeliveryzimApp:
         self.root = ctk.CTk(fg_color=BACKGROUND)
         self.root.title("Deliveryzim Agent")
         self.root.geometry("620x780")
-        self.root.resizable(True, True)
-        self.root.minsize(520, 600)
+        # Tamanho fixo: o conteúdo rola por dentro, a janela não estica nem encolhe.
+        self.root.resizable(False, False)
         self._set_window_icon()
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
         self.preferences = Preferences()
@@ -73,8 +111,10 @@ class DeliveryzimApp:
         self.printer_var = tk.StringVar(value=self.preferences.get("impressora") or "")
         self.mode_var = tk.StringVar(value="auto" if self.preferences.get("automatico") else "manual")
         self.paper_var = tk.StringVar(value=str(self.preferences.get("papel") or 80))
-        self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")))
+        # O instalador já liga "abrir com o Windows"; a caixa de seleção mostra o que está valendo.
+        self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")) or self._startup_registered())
         self.logo_var = tk.BooleanVar(value=self.preferences.get("logo_cupom") is not False)
+        self.open_panel_var = tk.BooleanVar(value=self.preferences.get("abrir_painel") is not False)
         self.sound_var = tk.BooleanVar(value=bool(self.preferences.get("som_ativo")))
         # Cópia simples para a bandeja (outra thread) ler sem tocar em variáveis do Tk.
         self.sound_on = bool(self.preferences.get("som_ativo"))
@@ -119,12 +159,8 @@ class DeliveryzimApp:
                                corner_radius=4, checkbox_width=20, checkbox_height=20)
 
     def _segmented(self, parent, values, variable, command):
-        return ctk.CTkSegmentedButton(
-            parent, values=list(values), variable=variable, command=command,
-            fg_color=SUBTLE, selected_color=WINE, selected_hover_color=WINE,
-            unselected_color=WHITE, unselected_hover_color=SUBTLE, text_color=DARK,
-            text_color_disabled=GRAY, corner_radius=RADIUS, height=38, font=self._font(10, True),
-        )
+        """Escolha entre opções lado a lado. A escolhida fica vinho com letra branca (legível)."""
+        return Choice(self, parent, values, variable, command)
 
     def _entry(self, parent, **options):
         return ctk.CTkEntry(parent, height=40, corner_radius=RADIUS, border_width=1, border_color=BORDER,
@@ -224,8 +260,8 @@ class DeliveryzimApp:
                      height=30).pack(side="right")
         self.printer_selector = ctk.CTkComboBox(
             box, variable=self.printer_var, values=[], state="readonly", height=40,
-            corner_radius=RADIUS, border_width=1, border_color=BORDER, button_color=WINE,
-            button_hover_color=ORANGE, fg_color=WHITE, text_color=DARK, font=self._font(10),
+            corner_radius=RADIUS, border_width=1, border_color=BORDER, button_color=SUBTLE,
+            button_hover_color=BORDER, fg_color=WHITE, text_color=DARK, font=self._font(10),
             dropdown_font=self._font(10), command=lambda _v: self._save_preferences(),
         )
         self.printer_selector.pack(fill="x", pady=(10, 4))
@@ -251,6 +287,8 @@ class DeliveryzimApp:
         foot = ctk.CTkFrame(self.settings_page, fg_color=BACKGROUND, corner_radius=0)
         foot.pack(**pad, pady=(4, 18))
         self._checkbox(foot, "Abrir sozinho quando o Windows ligar", self.start_var,
+                       self._save_preferences).pack(anchor="w", pady=(0, 8))
+        self._checkbox(foot, "Abrir o painel do Deliveryzim no navegador ao iniciar", self.open_panel_var,
                        self._save_preferences).pack(anchor="w", pady=(0, 10))
         self._button(foot, "Testar impressão e aviso", self._test, primary=False).pack(fill="x", pady=(0, 8))
         self._button(foot, "Concluir e deixar em segundo plano", self._finish_setup).pack(fill="x")
@@ -263,21 +301,29 @@ class DeliveryzimApp:
                      height=32).pack(side="right")
         self._show_link_state()
 
-    def _open_deliveryzim(self):
-        # A configuracao permanece no Agent. No caixa, nao se escolhe dispositivo.
-        if not self.token or not self.preferences.get("balanca_ativa"):
-            webbrowser.open("https://deliveryzim.com.br")
-            return
-        self.status_var.set("Vinculando a balança a este navegador...")
-        threading.Thread(target=self._open_deliveryzim_task, daemon=True).start()
+    def _open_deliveryzim(self, quiet=False):
+        """Abre o painel no navegador padrão (ou no app instalado) já ligado à balança deste computador.
 
-    def _open_deliveryzim_task(self):
+        O link do Agent associa o navegador e leva o gerente à gerência e o caixa ao caixa; sem login,
+        o sistema pede para entrar e conclui depois.
+        """
+        if not self.token:
+            webbrowser.open("https://deliveryzim.com.br/login")
+            return
+        if not quiet:
+            self.status_var.set("Abrindo o Deliveryzim no navegador...")
+        threading.Thread(target=self._open_deliveryzim_task, args=(quiet,), daemon=True).start()
+
+    def _open_deliveryzim_task(self, quiet=False):
         try:
             client = ApiClient()
             client.token = self.token
-            self.messages.put(("open_pos", client.browser_pairing()))
+            self.messages.put(("open_pos", client.browser_pairing(destino="gerencia")))
         except Exception as exc:
-            self.messages.put(("pair_error", str(exc)))
+            if quiet:
+                webbrowser.open("https://deliveryzim.com.br/login")
+            else:
+                self.messages.put(("pair_error", str(exc)))
 
     def _start_scale_if_configured(self):
         if not self.token or not self.preferences.get("balanca_ativa"):
@@ -372,6 +418,7 @@ class DeliveryzimApp:
             iniciar_windows=bool(self.start_var.get()),
             som_ativo=bool(self.sound_var.get()),
             logo_cupom=bool(self.logo_var.get()),
+            abrir_painel=bool(self.open_panel_var.get()),
         )
         self.sound_on = bool(self.sound_var.get())
         if self.icon is not None:
@@ -380,6 +427,15 @@ class DeliveryzimApp:
             except Exception:
                 pass
         self._startup(bool(self.start_var.get()))
+
+    @staticmethod
+    def _startup_registered():
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run") as key:
+                winreg.QueryValueEx(key, "DeliveryzimAgent")
+                return True
+        except OSError:
+            return False
 
     def _startup(self, enabled):
         try:
@@ -721,7 +777,7 @@ class DeliveryzimApp:
                     messagebox.showerror("Credencial", "Nao foi possivel salvar a credencial: " + str(exc))
             elif kind == "open_pos":
                 webbrowser.open(payload)
-                self.status_var.set("Caixa aberto. Se não estiver logado, entre e abra novamente pelo Agent.")
+                self.status_var.set("Deliveryzim aberto no navegador. Se pedir login, é só entrar.")
             elif kind == "pair_error":
                 self.status_var.set("Não foi possível vincular a balança: " + str(payload)[:100])
                 messagebox.showwarning("Balança", "Não foi possível associar o navegador. " + str(payload))
@@ -836,4 +892,7 @@ class DeliveryzimApp:
         if self.token and self.preferences.get("configurado") and self.icon is not None:
             # Não pisca uma janela na tela ao iniciar automaticamente com o Windows.
             self.root.withdraw()
+        if self.token and self.preferences.get("abrir_painel") is not False:
+            # Ao ligar o computador o painel já abre no navegador/app, com a balança associada.
+            self.root.after(2500, lambda: self._open_deliveryzim(quiet=True))
         self.root.mainloop()

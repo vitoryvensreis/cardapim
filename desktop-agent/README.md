@@ -1,4 +1,14 @@
-# Deliveryzim Agent para Windows — v0.5 (teste controlado)
+# Deliveryzim Agent para Windows — v0.6 (teste controlado)
+
+**Instalar (desde 0.6.0):** em Gerência > Integrações > **Baixar o Agent para Windows** (ou na Release `agent-vX.Y.Z`),
+abra o `Deliveryzim-Agent-Setup.exe`. Ele instala só para o usuário (sem pedir administrador) em
+`%LOCALAPPDATA%\Programs\Deliveryzim Agent`, cria o atalho, liga **abrir com o Windows** e abre o Agent. Atualizar = rodar o
+instalador novo (ele fecha o Agent antes). Só um Agent abre por usuário.
+**Ao iniciar**, o Agent abre o painel no navegador padrão (ou no app instalado, se o Chrome abrir links nele) pelo link
+do Agent: o gerente cai na gerência, o caixa no caixa, e o navegador fica associado à balança deste computador. Sem login,
+o sistema pede para entrar e conclui depois. Dá para desligar em "Abrir o painel do Deliveryzim no navegador ao iniciar".
+**Balança no caixa:** com uma só balança ligada no restaurante, o caixa usa ela mesmo sem associação; com duas ou mais,
+cada navegador usa a do seu computador (associada pelo link do Agent). A janela do Agent tem tamanho fixo.
 
 Interface em **CustomTkinter** (desde 0.5.0), com as cores oficiais (vinho, laranja, branco) e cantos discretos.
 A ordem da tela de configuração é: Novos pedidos, Impressora, Balança e o botão principal **Concluir e deixar em

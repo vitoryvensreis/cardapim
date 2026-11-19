@@ -264,6 +264,10 @@ final class AuthController
             return $usuario->cargo === Autorizacao::CARGO_MASTER
                 || ($usuario->restauranteSlug === $m[1] && in_array($usuario->cargo, Autorizacao::AREAS_RESTAURANTE[$m[2]], true));
         }
+        if ($caminho === '/api/v1/desktop/parear') {
+            // Link aberto pelo Agent: o proprio endpoint confere cargo e restaurante.
+            return in_array($usuario->cargo, ['gerente', 'caixa'], true);
+        }
         return $caminho === '/minha-conta';
     }
 }
