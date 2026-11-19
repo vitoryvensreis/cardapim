@@ -56,6 +56,17 @@ expect "recebe 350 g" "$(post /api/v1/desktop/pesagem "$token" '{"peso_kg":"0.35
 
 code="$(curl -s -b "$manager" -o "$tmp/balancas.json" -w '%{http_code}' "$base/api/v1/desktop/balancas")"
 expect "gerente consulta balancas" "$code" "200"
+expect "sem pareamento nenhum aparelho foi escolhido" "$(json "$tmp/balancas.json" selecionada)" "null"
+expect "token obrigatorio para criar vinculo" "$(post /api/v1/desktop/pareamento falso '{}')" "401"
+expect "agente cria link de pareamento" "$(post /api/v1/desktop/pareamento "$token" '{}')" "200"
+link="$(json "$tmp/last.json" url)"
+[[ "$link" == /api/v1/desktop/parear\?ticket=* ]] || fail "link de balanca ausente"
+expect "sem login nao faz pareamento" "$(curl -s -o /dev/null -w '%{http_code}' "$base$link")" "403"
+expect "outro restaurante nao assume balanca" "$(curl -s -b "$other" -o /dev/null -w '%{http_code}' "$base$link")" "403"
+expect "navegador do caixa recebe o vinculo" "$(curl -s -b "$manager" -c "$manager" -o /dev/null -w '%{http_code}' "$base$link")" "302"
+curl -s -b "$manager" "$base/api/v1/desktop/balancas" > "$tmp/balancas-pareadas.json"
+expect "balanca correta associada ao navegador" "$(json "$tmp/balancas-pareadas.json" selecionada.id)" "$device"
+
 php -r '$d=json_decode(file_get_contents($argv[1]),true);foreach($d["balancas"]??[] as $b){if($b["id"]===(int)$argv[2] && $b["peso_kg"]==="0.350" && $b["estavel"]===true)exit(0);}exit(1);' "$tmp/balancas.json" "$device" || fail "peso estavel nao aparece no restaurante"
 ok "peso estavel mostrado no restaurante"
 
@@ -63,6 +74,15 @@ code="$(curl -s -b "$other" -o "$tmp/outra-loja.json" -w '%{http_code}' "$base/a
 expect "outra loja consulta apenas o proprio escopo" "$code" "200"
 php -r '$d=json_decode(file_get_contents($argv[1]),true);foreach($d["balancas"]??[] as $b){if($b["id"]===(int)$argv[2])exit(1);}exit(0);' "$tmp/outra-loja.json" "$device" || fail "vazamento entre restaurantes"
 ok "sem vazamento de balanca para outra loja"
+expect "outro restaurante nao recebe dispositivo selecionado" "$(json "$tmp/outra-loja.json" selecionada)" "null"
+# Mesmo com mais de uma balanca da mesma loja, este computador nao troca automaticamente de origem.
+code="$(curl -s -b "$manager" -o "$tmp/vinculo2.json" -w '%{http_code}' -H 'Content-Type: application/json' -H "X-CSRF-Token: $csrf" -d '{"nome":"SEGUNDO-CAIXA-CI"}' "$base/api/v1/desktop/vincular")"
+expect "segundo computador vinculado" "$code" "201"
+token2="$(json "$tmp/vinculo2.json" token)"
+expect "outro equipamento envia peso" "$(post /api/v1/desktop/pesagem "$token2" '{"peso_kg":"0.700","estavel":true}')" "200"
+curl -s -b "$manager" "$base/api/v1/desktop/balancas" > "$tmp/balancas-multiplas.json"
+expect "multiplas balancas nao alteram origem do caixa" "$(json "$tmp/balancas-multiplas.json" selecionada.id)" "$device"
+
 expect "entregador nao consulta pesagens" "$(curl -s -b "$courier" -o /dev/null -w '%{http_code}' "$base/api/v1/desktop/balancas")" "403"
 expect "sem sessao nao consulta pesagens" "$(curl -s -o /dev/null -w '%{http_code}' "$base/api/v1/desktop/balancas")" "403"
 
@@ -72,8 +92,12 @@ php -r '$d=json_decode(file_get_contents($argv[1]),true);foreach($d["balancas"]?
 ok "leitura instavel nao fica disponivel"
 expect "revoga dispositivo" "$(post /api/v1/desktop/desconectar "$token" '{}')" "200"
 expect "dispositivo revogado nao envia peso" "$(post /api/v1/desktop/pesagem "$token" '{"peso_kg":"0.350","estavel":true}')" "401"
+curl -s -b "$manager" "$base/api/v1/desktop/balancas" > "$tmp/balancas-revogadas.json"
+expect "revogacao impede uso de peso antigo" "$(json "$tmp/balancas-revogadas.json" selecionada)" "null"
+expect "revoga segundo agente" "$(post /api/v1/desktop/desconectar "$token2" '{}')" "200"
 
 curl --fail --silent --show-error "$base/assets/js/balanca-caixa.js" -o "$tmp/bridge.js"
-grep -q 'Usar ' "$tmp/bridge.js" || fail "acao manual da balanca ausente"
-ok "script de uso manual disponivel"
+grep -q 'data-balanca-automatica' "$tmp/bridge.js" || fail "checkbox automatico ausente"
+! grep -q 'data-balanca-seletor' "$tmp/bridge.js" || fail "seletor antigo encontrado"
+ok "captura automatica com fallback manual e sem seletor"
 echo "API de balancas validada."
