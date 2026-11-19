@@ -1,0 +1,37 @@
+/* Integração com balança na folha de produto da comanda. */
+.balanca-pdv[hidden] { display: none !important; }
+.balanca-pdv {
+  display: grid;
+  gap: .55rem;
+  margin: 0 0 .9rem;
+  padding: .85rem;
+  border: 1px solid var(--c-line);
+  border-left: 3px solid var(--c-orange);
+  border-radius: var(--r-md);
+  background: var(--c-white);
+}
+.balanca-pdv-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: .5rem;
+  color: var(--c-wine);
+  font-size: .92rem;
+}
+.balanca-pdv-etapa { color: var(--c-muted); font-size: .78rem; }
+.balanca-pdv .campo-caixa { margin: 0; }
+.balanca-pdv [data-balanca-status] {
+  min-height: 1.5rem;
+  margin: 0;
+  color: var(--c-ink);
+  font-size: .86rem;
+  line-height: 1.45;
+}
+.balanca-pdv button:disabled { opacity: .65; cursor: not-allowed; }
+.balanca-pdv select { font-size: 1rem; }
+.balanca-pdv :focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+@media (max-width: 479px) {
+  .balanca-pdv { padding: .7rem; }
+  .balanca-pdv-titulo { display: grid; }
+}
