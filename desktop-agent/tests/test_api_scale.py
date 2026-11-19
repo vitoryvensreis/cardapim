@@ -29,6 +29,29 @@ class PublishWeightTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             c.publish_weight(None, True)
 
+    def test_browser_pairing_uses_device_token_only(self):
+        c = ApiClient()
+        c.token = "dzag_" + "f" * 64
+        with patch("agent.api.requests.post") as post:
+            post.return_value.status_code = 200
+            post.return_value.json.return_value = {
+                "url": "/api/v1/desktop/parear?ticket=teste-assinado",
+            }
+            url = c.browser_pairing()
+            self.assertEqual(url, "https://deliveryzim.com.br/api/v1/desktop/parear?ticket=teste-assinado")
+            self.assertEqual(post.call_args.args[0], "https://deliveryzim.com.br/api/v1/desktop/pareamento")
+            self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer " + c.token)
+            self.assertNotIn("json", post.call_args.kwargs)
+
+    def test_browser_pairing_rejects_untrusted_path(self):
+        c = ApiClient()
+        c.token = "dzag_" + "f" * 64
+        with patch("agent.api.requests.post") as post:
+            post.return_value.status_code = 200
+            post.return_value.json.return_value = {"url": "https://evil.example/path"}
+            with self.assertRaises(ValueError):
+                c.browser_pairing()
+
     def test_revoked(self):
         c = ApiClient()
         c.token = "dzag_" + "f" * 64
