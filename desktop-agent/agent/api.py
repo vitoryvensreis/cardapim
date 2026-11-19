@@ -98,6 +98,22 @@ class ApiClient:
         response.raise_for_status()
         return response.json()
 
+    def publish_weight(self, kg=None, stable=False):
+        """Atualiza leitura efêmera em HTTPS. O backend determina o restaurante."""
+        if not self.token:
+            raise AuthenticationError("Agente sem credencial.")
+        if stable and kg is None:
+            raise ValueError("Peso estavel ausente.")
+        response = requests.post(
+            self.url("/api/v1/desktop/pesagem"),
+            json={"peso_kg": str(kg) if stable else None, "estavel": bool(stable)},
+            headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
+            timeout=(4, 8),
+        )
+        if response.status_code in (401, 403):
+            raise AuthenticationError("Dispositivo revogado ou sem acesso à balança.")
+        response.raise_for_status()
+
     def revoke(self):
         if self.token:
             requests.post(self.url("/api/v1/desktop/desconectar"),
