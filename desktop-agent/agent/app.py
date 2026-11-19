@@ -12,7 +12,10 @@ import ctypes
 import pystray
 from PIL import Image, ImageTk
 
+from agent import __version__
+from agent.alerts import AlertBoard, RING_INTERVAL_MS
 from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
+from agent.notifier import OrderToasts
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
 from agent.printing import printers, receipt, spool
 from agent.scale import ScaleMonitor, ScaleSettings
@@ -60,20 +63,25 @@ class DeliveryzimApp:
         self.client = None
         self.authentication = None
         self.waiting_code = False
-        self.dialogs = {}
+        self.alerts = AlertBoard()
+        self.status_thread = None
         self.icon = None
         self.printer_var = tk.StringVar(value=self.preferences.get("impressora") or "")
         self.mode_var = tk.StringVar(value="auto" if self.preferences.get("automatico") else "manual")
         self.paper_var = tk.StringVar(value=str(self.preferences.get("papel") or 80))
         self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")))
         self.sound_var = tk.BooleanVar(value=bool(self.preferences.get("som_ativo")))
+        # Cópia simples para a bandeja (outra thread) ler sem tocar em variáveis do Tk.
+        self.sound_on = bool(self.preferences.get("som_ativo"))
+        self.toasts = OrderToasts(self.root, self._receive, self._open_order,
+                                  self._silence, self._print)
         self.status_var = tk.StringVar(value="Conectando..." if self.token else "Nao vinculado")
         self.scale_sync_status = tk.StringVar(value="PDV: aguardando ativação")
         self.name_var = tk.StringVar(value=self.preferences.get("restaurante") or "")
         self._render()
         self._start_scale_if_configured()
         self.root.after(150, self._drain)
-        self.root.after(20000, self._remind)
+        self.root.after(RING_INTERVAL_MS, self._ring_loop)
         if self.token:
             self._start_worker()
         self.root.after(500, self._recover_jobs)
@@ -267,7 +275,7 @@ class DeliveryzimApp:
                              highlightbackground=BORDER, highlightthickness=1)
         alertcard.pack(fill="x", pady=(0, 11))
         self._label(alertcard, "03  /  NOVOS PEDIDOS", 10, WINE, True).pack(anchor="w")
-        tk.Checkbutton(alertcard, text="Tocar alerta sonoro quando chegar um pedido",
+        tk.Checkbutton(alertcard, text="Tocar até alguém receber o pedido (som de pedido novo)",
                        variable=self.sound_var, command=self._save_preferences,
                        bg=WHITE, fg=DARK, activebackground=WHITE, selectcolor=WHITE,
                        font=("Segoe UI", 10), anchor="w").pack(fill="x", pady=(10, 0))
@@ -278,8 +286,8 @@ class DeliveryzimApp:
         modes.pack(fill="x", pady=(8, 0))
         self.mode_buttons = {}
         for key, title, detail in (
-            ("auto", "Automática", "Imprime ao receber"),
-            ("manual", "Com confirmação", "Pergunta antes de imprimir"),
+            ("auto", "Automática", "Imprime quando o pedido chega"),
+            ("manual", "Ao receber", "Imprime quando clicar em Receber"),
         ):
             button = tk.Button(modes, text=title + "\n" + detail,
                                command=lambda chosen=key: self._select_mode(chosen),
@@ -426,6 +434,12 @@ class DeliveryzimApp:
             iniciar_windows=bool(self.start_var.get()),
             som_ativo=bool(self.sound_var.get()),
         )
+        self.sound_on = bool(self.sound_var.get())
+        if self.icon is not None:
+            try:
+                self.icon.update_menu()
+            except Exception:
+                pass
         self._startup(bool(self.start_var.get()))
 
     def _startup(self, enabled):
@@ -499,6 +513,11 @@ class DeliveryzimApp:
             name="deliveryzim-sincronizar-peso",
         )
         self.scale_sync_thread.start()
+        self.status_thread = threading.Thread(
+            target=self._watch_orders, args=(self.client,), daemon=True,
+            name="deliveryzim-situacao-pedidos",
+        )
+        self.status_thread.start()
 
     def _push_weights(self, client):
         """Publica apenas leitura estável e fresca; nunca altera valores de pedidos."""
@@ -560,23 +579,56 @@ class DeliveryzimApp:
                 delay = min(30, delay * 1.7)
             self.quit_flag.wait(delay)
 
+    def _watch_orders(self, client):
+        """A cada 5 s pergunta a situação dos pedidos esperando: aceito no caixa ou cancelado = para de tocar."""
+        while not self.quit_flag.is_set() and self.client is client:
+            ids = [i for i in self.alerts.ids() if i > 0]
+            if ids:
+                try:
+                    self.messages.put(("order_status", client.order_status(ids)))
+                except AuthenticationError:
+                    return
+                except Exception:
+                    pass  # sem internet: continua tocando até conseguir conferir
+            self.quit_flag.wait(5.0)
+
     def _recover_jobs(self):
+        """Ao abrir: retoma impressões interrompidas e volta a avisar pedidos que ninguém aceitou."""
         if not self.token:
             return
+        candidates = {}
         for order, status in self.store.pending():
             if status == "imprimindo":
-                self._prompt(order, warning="Envio anterior indefinido. Verifique a fila do Windows antes de reimprimir.")
+                order = dict(order, _aviso="Envio anterior indefinido. Confira a fila do Windows antes de imprimir de novo.")
             elif status == "erro":
-                self._prompt(order, warning="Impressao anterior falhou. Confira a impressora.")
+                order = dict(order, _aviso="A impressão anterior falhou. Confira a impressora.")
             elif self.mode_var.get() == "auto":
                 self._print(order)
-            else:
-                self._prompt(order)
+            candidates[int(order.get("id") or 0)] = order
+        for order in self.store.recent():
+            candidates.setdefault(int(order.get("id") or 0), order)
+        candidates.pop(0, None)
+        if candidates:
+            threading.Thread(target=self._recover_task, args=(list(candidates.values()),), daemon=True).start()
+
+    def _recover_task(self, orders):
+        try:
+            client = ApiClient()
+            client.token = self.token
+            current = {int(r.get("id") or 0): str(r.get("status") or "")
+                       for r in client.order_status([o["id"] for o in orders]) if isinstance(r, dict)}
+        except Exception:
+            current = {}
+        for order in orders:
+            status = current.get(int(order["id"]))
+            if status == "recebido" or order.get("_aviso"):
+                self.messages.put(("recovered", dict(order, status=status or order.get("status"))))
 
     def _test(self):
         moment = int(time.time() * 1000)
         order = {
-            "evento_id": -moment, "id": 0, "numero": "TESTE", "tipo": "retirada",
+            "evento_id": -moment, "id": -moment, "numero": "TESTE", "tipo": "retirada",
+            "status": "recebido", "teste": True,
             "cliente": "Cliente de teste", "criado_em": time.strftime("%d/%m/%Y %H:%M"),
             "itens": [{"nome": "X-Bacon", "quantidade": "2", "total": "40.00",
                        "observacao": "Sem cebola"},
@@ -587,64 +639,69 @@ class DeliveryzimApp:
         self.store.receive(order)
         self._new_order(order)
 
-    def _new_order(self, order):
-        self._ring()
-        if self.mode_var.get() == "auto":
+    def _new_order(self, order, warning="", recovered=False):
+        needs_action = self.alerts.add(order)
+        self.toasts.show(order, needs_action=needs_action, warning=warning)
+        if needs_action or not recovered:
+            self._ring()
+        if self.mode_var.get() == "auto" and not recovered:
             self._print(order)
-        else:
-            self._prompt(order)
 
     def _ring(self):
-        # É acionado por cada pedido novo, mesmo quando a janela fica na bandeja.
-        if self.sound_var.get():
+        # Também toca com a janela fechada na bandeja; o laço abaixo repete até alguém receber.
+        if self.sound_on:
             play_order_sound()
 
-    def _remind(self):
-        if any(w.winfo_exists() for w in self.dialogs.values()):
-            self._ring()
-        self.root.after(20000, self._remind)
+    def _ring_loop(self):
+        if self.alerts.should_ring(self.sound_on):
+            play_order_sound()
+        self.root.after(RING_INTERVAL_MS, self._ring_loop)
 
-    def _prompt(self, order, warning=""):
-        event_id = int(order["evento_id"])
-        if event_id in self.dialogs and self.dialogs[event_id].winfo_exists():
-            self.dialogs[event_id].lift()
+    def _silence(self, order):
+        self.alerts.silence(int(order.get("id") or 0))
+
+    def _receive(self, order):
+        """"Receber" = aceitar o pedido no sistema (Novo -> Em preparo), como o botão Aceitar do caixa."""
+        pedido_id = int(order.get("id") or 0)
+        if order.get("teste"):
+            self._finish_receive(order, True, "em_preparo", "Pedido de teste recebido.")
             return
-        dialog = tk.Toplevel(self.root)
-        self.dialogs[event_id] = dialog
-        dialog.title("Novo pedido - Deliveryzim")
-        dialog.configure(bg=WHITE)
-        dialog.geometry("420x295")
-        dialog.attributes("-topmost", True)
-        dialog.lift()
-        dialog.protocol("WM_DELETE_WINDOW", lambda: None)
-        tk.Label(dialog, text="PEDIDO NOVO", bg=WINE, fg=WHITE,
-                 font=("Segoe UI", 15, "bold"), padx=14, pady=12).pack(fill="x")
-        content = tk.Frame(dialog, bg=WHITE, padx=18, pady=12)
-        content.pack(fill="both", expand=True)
-        self._label(content, "Pedido #" + str(order.get("numero", "")), 15, WINE, True).pack(anchor="w")
-        self._label(content, str(order.get("cliente") or "Cliente nao informado"), 11).pack(anchor="w", pady=4)
-        self._label(content, "Itens: " + str(len(order.get("itens") or [])), 10).pack(anchor="w")
-        if warning:
-            self._label(content, warning, 9, ORANGE, True).pack(anchor="w", pady=10)
-        controls = tk.Frame(content, bg=WHITE)
-        controls.pack(fill="x", pady=(18, 0))
-        ttk.Button(controls, text="Receber e imprimir",
-                   command=lambda: self._choose(order, True)).pack(fill="x", pady=4)
-        ttk.Button(controls, text="Somente receber",
-                   command=lambda: self._choose(order, False)).pack(fill="x", pady=4)
-        self._label(content, "Receber confirma o aviso neste computador; nao altera status do pedido.",
-                    8, GRAY).pack(anchor="w", pady=5)
+        if not self.token:
+            self.toasts.set_message(pedido_id, "Este computador não está vinculado. Entre de novo no Agent.", error=True)
+            return
+        self.toasts.set_busy(pedido_id, True, "Aceitando o pedido...")
+        threading.Thread(target=self._receive_task, args=(order,), daemon=True).start()
 
-    def _choose(self, order, do_print):
-        event_id = int(order["evento_id"])
-        window = self.dialogs.pop(event_id, None)
-        if window and window.winfo_exists():
-            window.destroy()
-        if do_print:
-            self._print(order)
+    def _receive_task(self, order):
+        try:
+            client = ApiClient()
+            client.token = self.token
+            accepted, status, message = client.receive_order(int(order["id"]))
+            self.messages.put(("received", (order, accepted, status, message)))
+        except AuthenticationError as exc:
+            self.messages.put(("receive_error", (order, str(exc))))
+            self.messages.put(("auth_expired", str(exc)))
+        except Exception as exc:
+            self.messages.put(("receive_error", (order, str(exc)[:160])))
+
+    def _finish_receive(self, order, accepted, status, message):
+        pedido_id = int(order.get("id") or 0)
+        self.alerts.resolve(pedido_id)
+        self.toasts.close(pedido_id)
+        numero = str(order.get("numero", ""))
+        if accepted:
+            self.status_var.set("Pedido #" + numero + " aceito. Em preparo.")
+            # Modo "Ao receber": o cupom sai agora (no automático já saiu quando o pedido chegou).
+            if self.mode_var.get() != "auto":
+                self._print(order)
+        elif status == "cancelado":
+            self.status_var.set("Pedido #" + numero + " foi cancelado.")
         else:
-            self.store.update(event_id, "recebido")
-            self.status_var.set("Pedido #" + str(order.get("numero")) + " recebido sem imprimir.")
+            self.status_var.set("Pedido #" + numero + ": " + (message or "já foi aceito em outro lugar."))
+
+    def _open_order(self, order):
+        client = self.client or ApiClient()
+        webbrowser.open(client.order_url(order) if not order.get("teste") else client.url("/login"))
 
     def _print(self, order):
         event_id = int(order["evento_id"])
@@ -671,10 +728,8 @@ class DeliveryzimApp:
         self.preferences.set(cursor=0, restaurante="", device_id=0, balanca_ativa=False, configurado=False)
         self.name_var.set("")
         self.store.clear_on_relink()
-        for dialog in list(self.dialogs.values()):
-            if dialog.winfo_exists():
-                dialog.destroy()
-        self.dialogs.clear()
+        self.toasts.close_all()
+        self.alerts.clear()
         delete_credential()
         self.status_var.set("Desvinculado")
         self._show_link_state()
@@ -751,7 +806,25 @@ class DeliveryzimApp:
                 order, reason = payload
                 self.store.update(order["evento_id"], "erro")
                 self.status_var.set("Falha de impressao: " + reason[:130])
-                self._prompt(order, warning="Falha de impressao: " + reason[:100])
+                self.toasts.show(order, needs_action=self.alerts.waiting(int(order.get("id") or 0)),
+                                 warning="Falha na impressão: " + reason[:100])
+            elif kind == "order_status":
+                for pedido_id in self.alerts.apply_status(payload):
+                    self.toasts.close(pedido_id)
+            elif kind == "recovered":
+                self._new_order(payload, warning=str(payload.get("_aviso") or ""), recovered=True)
+            elif kind == "received":
+                self._finish_receive(*payload)
+            elif kind == "receive_error":
+                order, reason = payload
+                self.toasts.set_busy(int(order.get("id") or 0), False)
+                self.toasts.set_message(int(order.get("id") or 0),
+                                        "Não deu para aceitar: " + reason + " Tente de novo ou aceite pelo caixa.",
+                                        error=True)
+            elif kind == "toggle_sound":
+                self.sound_var.set(not self.sound_var.get())
+                self._save_preferences()
+                self.status_var.set("Som dos pedidos " + ("ligado." if self.sound_on else "desligado."))
             elif kind == "show":
                 self.root.deiconify()
                 self.root.lift()
@@ -793,6 +866,8 @@ class DeliveryzimApp:
                 "Deliveryzim Agent", image, "Deliveryzim Agent",
                 menu=pystray.Menu(
                     pystray.MenuItem("Abrir configuracoes", lambda *_: self.messages.put(("show", None)), default=True),
+                    pystray.MenuItem("Som dos pedidos", lambda *_: self.messages.put(("toggle_sound", None)),
+                                     checked=lambda _item: self.sound_on),
                     pystray.MenuItem("Encerrar agente", lambda *_: self.messages.put(("quit", None))),
                 ),
             )

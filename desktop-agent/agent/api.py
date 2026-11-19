@@ -134,6 +134,56 @@ class ApiClient:
             raise ValueError("Link de caixa invalido.")
         return self.url(path)
 
+    def order_status(self, ids):
+        """Situação atual dos pedidos avisados (até 50), só do restaurante deste computador."""
+        if not self.token:
+            raise AuthenticationError("Agente sem credencial.")
+        ids = [int(i) for i in ids if int(i) > 0][:50]
+        if not ids:
+            return []
+        response = requests.get(
+            self.url("/api/v1/desktop/pedidos/situacao"),
+            params={"ids": ",".join(str(i) for i in ids)},
+            headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
+            timeout=(4, 10),
+        )
+        if response.status_code in (401, 403):
+            raise AuthenticationError("Credencial revogada, expirada ou sem permissao.")
+        response.raise_for_status()
+        rows = response.json().get("pedidos")
+        return rows if isinstance(rows, list) else []
+
+    def receive_order(self, pedido_id):
+        """"Receber" do aviso = Aceitar do caixa. Devolve (aceito_agora, situacao, mensagem).
+
+        409 significa que alguém já mudou o pedido (aceitou no caixa ou cancelou): o aviso fecha igual.
+        """
+        if not self.token:
+            raise AuthenticationError("Agente sem credencial.")
+        response = requests.post(
+            self.url("/api/v1/desktop/pedidos/" + str(int(pedido_id)) + "/receber"),
+            headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
+            timeout=(5, 15),
+        )
+        if response.status_code in (401, 403):
+            raise AuthenticationError("Credencial revogada, expirada ou sem permissao.")
+        try:
+            data = response.json()
+        except ValueError:
+            data = {}
+        if response.status_code == 200:
+            return True, str(data.get("status") or "em_preparo"), str(data.get("mensagem") or "")
+        if response.status_code == 409:
+            return False, str(data.get("status") or ""), str(data.get("erro") or "Este pedido já mudou de situação.")
+        raise RuntimeError(str(data.get("erro") or "Não foi possível aceitar agora. Tente pelo caixa."))
+
+    def order_url(self, order):
+        """Endereço do pedido no sistema; só aceita caminho relativo do próprio servidor."""
+        path = str(order.get("url") or "")
+        if not path.startswith("/") or path.startswith("//") or "://" in path:
+            return self.url("/login")
+        return self.url(path)
+
     def revoke(self):
         if self.token:
             requests.post(self.url("/api/v1/desktop/desconectar"),

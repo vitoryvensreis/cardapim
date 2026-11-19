@@ -31,8 +31,14 @@
   const REPETIR_MS = 20000;
   const MAX_REPETICOES = 6;
 
+  const URL_AGENT = "/api/v1/desktop/agente-ativo";
+  const CONFERIR_AGENT_MS = 30000;
+
   let audio = null;
   let somLigado = true;
+  // Deliveryzim Agent conectado no restaurante: ele toca ate alguem aceitar, entao o navegador fica em silencio.
+  // Se o Agent fechar ou perder a internet, a proxima conferencia (30 s) devolve o som ao navegador.
+  let agentAtivo = false;
   let pendentes = [];
   let repetir = null;
   let repeticoes = 0;
@@ -42,9 +48,33 @@
 
   function mostrarBotaoSom() {
     if (!botaoSom) return;
+    botaoSom.classList.toggle("is-agent", agentAtivo);
+    if (agentAtivo) {
+      botaoSom.setAttribute("aria-pressed", "false");
+      botaoSom.setAttribute("aria-disabled", "true");
+      if (textoSom) textoSom.textContent = "Som no Agent";
+      botaoSom.title = "O Deliveryzim Agent está tocando os pedidos novos neste restaurante. O navegador fica em silêncio enquanto ele estiver conectado.";
+      return;
+    }
+    botaoSom.removeAttribute("aria-disabled");
     botaoSom.setAttribute("aria-pressed", somLigado ? "true" : "false");
     if (textoSom) textoSom.textContent = somLigado ? "Som ligado" : "Som desligado";
     botaoSom.title = somLigado ? "Som de pedido novo ligado. Toque para desligar." : "Som de pedido novo desligado. Toque para ligar.";
+  }
+
+  function conferirAgent() {
+    if (!window.fetch) return;
+    window.fetch(URL_AGENT, { credentials: "same-origin", headers: { Accept: "application/json" }, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { ativo: false }))
+      .then((dados) => {
+        const antes = agentAtivo;
+        agentAtivo = !!(dados && dados.ativo === true);
+        if (antes !== agentAtivo) mostrarBotaoSom();
+      })
+      .catch(() => {
+        // Sem resposta: na duvida o navegador toca (nenhum pedido fica sem aviso).
+        if (agentAtivo) { agentAtivo = false; mostrarBotaoSom(); }
+      });
   }
 
   /* ---------- Som (Web Audio, sem arquivo) ---------- */
@@ -62,7 +92,7 @@
 
   // Campainha "ding-dong" em dois toques, com harmonico para ser ouvida na cozinha.
   function tocar() {
-    if (!somLigado || !audio) return;
+    if (agentAtivo || !somLigado || !audio) return;
     if (audio.state === "suspended") {
       // Pode ter sido liberado depois (permissao do site): tenta e toca quando der.
       audio.resume().then(() => { if (audioPronto()) tocar(); }).catch(() => {});
@@ -191,6 +221,7 @@
 
   if (botaoSom) {
     botaoSom.addEventListener("click", () => {
+      if (agentAtivo) return; // o som esta no Agent; nada a ligar aqui
       somLigado = !somLigado;
       try { window.localStorage.setItem(CHAVE_SOM, somLigado ? "ligado" : "desligado"); } catch (e) { /* sem memoria: vale so nesta pagina */ }
       mostrarBotaoSom();
@@ -201,6 +232,9 @@
     });
   }
   mostrarBotaoSom();
+  conferirAgent();
+  window.setInterval(conferirAgent, CONFERIR_AGENT_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) conferirAgent(); });
 
   // A gerencia nem sempre ouve "pedidos" (depende da aba): pede o canal ao tempo real.
   if (window.CardapimTempoReal) window.CardapimTempoReal.assinar("pedidos");

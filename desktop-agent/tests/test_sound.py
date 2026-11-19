@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from agent import sound
+from agent.alerts import AlertBoard
 from agent.app import DeliveryzimApp
 
 
@@ -35,29 +36,48 @@ class SoundTests(unittest.TestCase):
             self.assertTrue(sound.play())
             fallback.assert_called_once()
 
-    def test_every_new_order_rings_in_both_modes(self):
+    def _app(self, mode):
         app = DeliveryzimApp.__new__(DeliveryzimApp)
         app._ring = MagicMock()
         app._print = MagicMock()
-        app._prompt = MagicMock()
+        app.toasts = MagicMock()
+        app.alerts = AlertBoard()
+        app.mode_var = MagicMock()
+        app.mode_var.get.return_value = mode
+        return app
+
+    def test_every_new_order_rings_and_shows_the_notice_in_both_modes(self):
         for mode in ("auto", "manual"):
-            app.mode_var = MagicMock()
-            app.mode_var.get.return_value = mode
-            app._new_order({"evento_id": 4, "numero": 7})
-        self.assertEqual(app._ring.call_count, 2)
-        app._print.assert_called_once()
-        app._prompt.assert_called_once()
+            app = self._app(mode)
+            app._new_order({"evento_id": 4, "id": 70, "numero": 7, "status": "recebido"})
+            app._ring.assert_called_once()
+            app.toasts.show.assert_called_once()
+            self.assertTrue(app.toasts.show.call_args.kwargs["needs_action"])
+            self.assertEqual(app.alerts.ids(), [70])
+            # Automático imprime ao chegar; "Ao receber" só imprime no clique em Receber.
+            self.assertEqual(app._print.call_count, 1 if mode == "auto" else 0)
+
+    def test_ring_loop_repeats_until_received(self):
+        app = self._app("manual")
+        app.root = MagicMock()
+        app.sound_on = True
+        app._new_order({"evento_id": 5, "id": 71, "numero": 8, "status": "recebido"})
+        with patch("agent.app.play_order_sound") as play:
+            app._ring_loop()
+            app._ring_loop()
+            self.assertEqual(play.call_count, 2)
+            app.alerts.resolve(71)
+            app._ring_loop()
+            self.assertEqual(play.call_count, 2)
 
     def test_sound_can_be_disabled_without_muting_test_button(self):
         app = DeliveryzimApp.__new__(DeliveryzimApp)
-        app.sound_var = MagicMock()
+        app.sound_on = False
         with patch("agent.app.play_order_sound") as play:
-            app.sound_var.get.return_value = False
             app._ring()
             play.assert_not_called()
             app._test_sound()
             play.assert_called_once()
-
 
 if __name__ == "__main__":
     unittest.main()

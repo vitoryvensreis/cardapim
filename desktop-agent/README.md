@@ -1,13 +1,29 @@
-# Deliveryzim Agent para Windows — v0.1 (teste controlado)
+# Deliveryzim Agent para Windows — v0.3 (teste controlado)
+
+A versão fica em `agent/__init__.py` (`__version__`) e vai no nome do EXE gerado no GitHub Actions.
 
 Agente nativo Python para Windows. **Sem WebView.** Fica na bandeja, toca som nativo, mostra aviso e envia cupons ESC/POS ao spooler do Windows.
 
-## Escolha do restaurante
+## Aviso de pedido novo (desde 0.3.0)
 
-- **Imprimir automaticamente:** cada pedido novo gera aviso sonoro + envio imediato ao Windows, sem janelas de confirmacao.
-- **Perguntar antes:** cada novo pedido gera aviso sonoro + janela com os botoes **Receber e imprimir** ou **Somente receber**.
-- Em ambos, receber significa reconhecer o aviso **localmente**. Nao executa a acao comercial **Aceitar** do caixa.
-- Alerta toca sempre que o agente recebe um evento novo (respeita volume e saida de audio do Windows). No modo manual, repete em intervalos de 20s enquanto houver janela pendente.
+- Cada pedido novo abre um **cartão no canto inferior direito** (acima do relógio), por cima das outras janelas e sem
+  roubar o foco. Vários pedidos ficam empilhados (até 4 visíveis).
+- **Receber** aceita o pedido no sistema, igual ao botão **Aceitar** do caixa: *Novo -> Em preparo*, linha do tempo,
+  aviso ao cliente no WhatsApp (se ligado), tempo real nas telas e confirmação ao iFood quando o pedido é de lá.
+  Fica registrado em log ("Pedido aceito pelo Agent") com o nome do computador e a conta que vinculou o Agent.
+- **Ver no sistema** abre `/{slug}/caixa/delivery/{id}` no navegador padrão (ou no app instalado, se o Chrome abrir
+  links nele).
+- **O som repete a cada 4 s até o pedido ser aceito** — no Agent, no caixa ou em outro computador (o Agent confere a
+  situação a cada 5 s) — ou cancelado. **Silenciar este pedido** para o som só dele; o cartão fica até alguém receber.
+- **Desligar o som:** menu do ícone da bandeja (**Som dos pedidos**), a caixa na configuração ou o Silenciar do cartão.
+  Sem som, o cartão continua aparecendo.
+- **Impressão:** *Automática* imprime quando o pedido chega; *Ao receber* imprime no clique em Receber.
+- Pedido que já chega aceito (ex.: iFood com aceite automático) mostra o cartão só com **Ver no sistema** e fecha em 20 s.
+- Ao reabrir o Agent, pedidos das últimas 3 horas que ninguém aceitou voltam a avisar.
+- **Navegador em silêncio:** com um Agent conectado no restaurante (consultou o sistema nos últimos 30 s), as telas da
+  gerência e do caixa em **todos os aparelhos** não tocam o som; o botão do topo mostra **Som no Agent**. A luz e a
+  faixa continuam. Se o Agent fechar ou perder a internet, o navegador volta a tocar em até 30 s.
+
 - A opcao de imprimir automaticamente fica salva neste computador, nao na conta do restaurante.
 - Impressora: selecione uma impressora **RAW ESC/POS** cadastrada no Windows. O Android Virtual Printer pode ser usado no lugar do equipamento fisico.
 - A impressao usa cp850, sem imagens. O sucesso do spooler nao garante a saida fisica do papel.
@@ -55,7 +71,7 @@ O workflow \`.github/workflows/desktop-agent-windows.yml\` usa runner Windows, P
 3. No agente, selecione \`Deliveryzim Virtual Printer\`, papel 58 mm ou 80 mm.
 4. Clique **Testar pedido e alerta**.
 5. No modo automatico, o cupom aparece no Android e o som toca.
-6. No modo de confirmacao, surge janela com **Receber e imprimir** e **Somente receber**. O som toca nos dois casos, mas a segunda opcao nao imprime.
+6. No modo **Ao receber**, o cartão no canto da tela mostra **Receber** e **Ver no sistema**; o som repete até clicar em Receber, e só então o cupom sai.
 7. Feche a janela principal e confira que o agente continua na bandeja.
 
 ## Balança pelo Wi-Fi e APK Android de teste
@@ -163,6 +179,9 @@ SQLite registra cada evento antes do cursor ser atualizado, evitando reprocessar
 - POST \`/api/v1/desktop/vincular\` — sessão PHP + \`X-CSRF-Token\` + JSON \`{"nome":"CAIXA-1"}\`
 - GET \`/api/v1/desktop/eventos?desde={id}\` — Bearer token (dispositivo, escopo do restaurante), retorna cupom e cursor
 - POST \`/api/v1/desktop/desconectar\` — revoga o token em uso
+- GET \`/api/v1/desktop/pedidos/situacao?ids=1,2\` — Bearer do agente, situação de até 50 pedidos do próprio restaurante
+- POST \`/api/v1/desktop/pedidos/{id}/receber\` — Bearer do agente, aceita o pedido (200), 409 se já mudou, 404 de outra loja
+- GET \`/api/v1/desktop/agente-ativo\` — sessão de gerente/caixa, \`{"ativo": true}\` quando há Agent conectado na loja
 - POST \`/api/v1/desktop/pesagem\` — Bearer do agente, somente peso estável em kg ou limpeza de leitura
 - GET \`/api/v1/desktop/balancas\` — sessão de gerente/caixa, lista apenas dispositivos da loja e \`selecionada\` vinculado ao navegador
 - POST \`/api/v1/desktop/pareamento\` — token Bearer do Agent, gera link assinado de 2 minutos
