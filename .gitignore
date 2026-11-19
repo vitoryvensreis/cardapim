@@ -24,3 +24,7 @@
 # Mapa proprio (PMTiles): fica em shared/mapas na VPS (docs/architecture/mapa.md)
 /public/mapas/
 *.pmtiles
+
+# Python
+__pycache__/
+*.pyc

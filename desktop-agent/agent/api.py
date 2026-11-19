@@ -4,8 +4,11 @@ import socket
 from urllib.parse import urljoin
 import requests
 
+from agent import __version__
+
 BASE_URL = "https://deliveryzim.com.br"
-USER_AGENT = "Deliveryzim-Agent/0.1 (Windows)"
+
+USER_AGENT = "Deliveryzim-Agent/" + __version__ + " (Windows)"
 CSRF_RE = re.compile(r'name=["\']_csrf["\']\s+value=["\']([a-f0-9]{64})["\']', re.I)
 
 

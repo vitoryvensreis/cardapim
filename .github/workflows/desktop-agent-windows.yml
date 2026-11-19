@@ -33,6 +33,13 @@ jobs:
         run: |
           python -m compileall -q .
           python -m unittest discover -s tests -v
+      - name: Ler versão do Agent
+        id: versao
+        shell: pwsh
+        working-directory: desktop-agent
+        run: |
+          $v = python -c "import agent; print(agent.__version__)"
+          "versao=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
       - name: Preparar ícone e logo oficiais
         shell: pwsh
         run: python desktop-agent/tools/prepare_brand.py
@@ -43,6 +50,6 @@ jobs:
       - name: Publicar EXE
         uses: actions/upload-artifact@v4
         with:
-          name: Deliveryzim-Agent-Windows-v0.1
+          name: Deliveryzim-Agent-Windows-v${{ steps.versao.outputs.versao }}
           path: dist/Deliveryzim-Agent.exe
           if-no-files-found: error
