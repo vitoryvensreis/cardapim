@@ -10,6 +10,7 @@ use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Repositories\Desktop\PesagemRepository;
+use Cardapim\Services\Desktop\VinculoBalanca;
 use Cardapim\Services\Auth\Autenticacao;
 use Cardapim\Services\Auth\Autorizacao;
 use PDO;
@@ -178,6 +179,56 @@ final class DesktopAgentController
         }
     }
 
+    /** O Agent gera o link de associacao no computador da balanca (sem expor o token). */
+    public function prepararPareamento(): Response
+    {
+        $autorizado = $this->dispositivo();
+        if ($autorizado instanceof Response) return $autorizado;
+        [, $dispositivo] = $autorizado;
+        $id = (int) $dispositivo['id'];
+        if (!RateLimiter::padrao(10, 600)->permitir('desktop-parear|' . $id)) {
+            return Response::json(['erro' => 'Muitas tentativas.'], 429);
+        }
+        return Response::json([
+            'url' => '/api/v1/desktop/parear?ticket=' . VinculoBalanca::gerarTicket(
+                (int) $dispositivo['id_restaurante'], $id
+            ),
+        ]);
+    }
+
+    /** O navegador precisa estar autenticado na MESMA loja antes de consumir o link do Agent. */
+    public function parearNavegador(): Response
+    {
+        $usuario = Autenticacao::usuario();
+        if ($usuario === null || $usuario->idRestaurante === null
+            || !in_array($usuario->cargo, self::CARGOS, true)
+            || !Autorizacao::contaLiberada($usuario)) {
+            return Response::html('Entre no Deliveryzim como gerente ou caixa antes de abrir pelo Agent.', 403)
+                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+        }
+        $idRestaurante = (int) $usuario->idRestaurante;
+        $idDispositivo = VinculoBalanca::verificarTicket((string) ($_GET['ticket'] ?? ''), $idRestaurante);
+        if ($idDispositivo === null) {
+            return Response::html('Link de conexão expirado ou pertencente a outro restaurante. Abra novamente pelo Agent.', 403)
+                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+        }
+        try {
+            $balancas = (new PesagemRepository(Database::connect()))->listar($idRestaurante);
+            $valida = array_filter($balancas, static fn (array $d): bool => (int) $d['id'] === $idDispositivo);
+            if ($valida === []) {
+                return Response::html('Dispositivo desconectado ou sem permissão para esta loja.', 403)
+                    ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+            }
+            VinculoBalanca::gravarCookie($idRestaurante, $idDispositivo);
+            return Response::redirect($usuario->urlRestaurante('caixa'))
+                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: pareamento indisponivel (' . get_class($e) . ').');
+            return Response::html('Não foi possível associar este caixa agora.', 503)
+                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+        }
+    }
+
     /** Apenas a propria equipe autenticada consulta as balancas do restaurante. */
     public function balancas(): Response
     {
@@ -189,9 +240,18 @@ final class DesktopAgentController
         }
         try {
             $db = Database::connect();
-            return Response::json([
-                'balancas' => (new PesagemRepository($db))->listar((int) $usuario->idRestaurante),
-            ]);
+            $idRestaurante = (int) $usuario->idRestaurante;
+            $balancas = (new PesagemRepository($db))->listar($idRestaurante);
+            // O id do dispositivo vem de um cookie assinado pelo servidor, nunca do JS.
+            $idVinculado = VinculoBalanca::verificarCookie($_COOKIE[VinculoBalanca::COOKIE] ?? null, $idRestaurante);
+            $vinculada = null;
+            foreach ($balancas as $balanca) {
+                if ($idVinculado !== null && $balanca['id'] === $idVinculado) {
+                    $vinculada = $balanca;
+                    break;
+                }
+            }
+            return Response::json(['balancas' => $balancas, 'selecionada' => $vinculada]);
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: leitura de balancas indisponivel (' . get_class($e) . ').');
             return Response::json(['erro' => 'Balancas indisponiveis.'], 503);
