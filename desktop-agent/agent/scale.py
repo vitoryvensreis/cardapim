@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from collections import deque
 import re
+import ipaddress
+import socket
 import threading
 import time
 
@@ -27,10 +29,32 @@ class ScaleSettings:
     protocol: str = "continuo"
     unit: str = "kg"
 
+    def tcp_address(self):
+        """Somente endpoints IPv4 privados explícitos; sem DNS/Internet ou credenciais."""
+        if not self.port.lower().startswith("tcp://"):
+            return None
+        match = re.fullmatch(r"tcp://((?:\d{1,3}\.){3}\d{1,3}):(\d{2,5})", self.port.lower())
+        if not match:
+            raise ValueError("Use o IP do celular no formato tcp://192.168.1.20:9101.")
+        try:
+            host = ipaddress.IPv4Address(match.group(1))
+        except ipaddress.AddressValueError as exc:
+            raise ValueError("Endereço IPv4 inválido.") from exc
+        ranges = (
+            ipaddress.IPv4Network("10.0.0.0/8"),
+            ipaddress.IPv4Network("172.16.0.0/12"),
+            ipaddress.IPv4Network("192.168.0.0/16"),
+            ipaddress.IPv4Network("127.0.0.0/8"),
+        )
+        port = int(match.group(2))
+        if not any(host in network for network in ranges) or not 1024 <= port <= 65535:
+            raise ValueError("Aceitamos apenas IP privado e porta 1024–65535.")
+        return str(host), port
+
     def validate(self):
-        # Limitar acesso a portas locais; nunca interpretar URL de pySerial.
-        if not re.fullmatch(r"COM[1-9][0-9]*", self.port.upper()):
-            raise ValueError("Selecione uma porta COM válida do Windows.")
+        # COM físico ou Wi-Fi de teste; jamais interpretar URLs como portas pySerial.
+        if self.tcp_address() is None and not re.fullmatch(r"COM[1-9][0-9]*", self.port.upper()):
+            raise ValueError("Selecione uma porta COM ou o IP local do celular.")
         if self.baudrate not in VALID_BAUDS:
             raise ValueError("Velocidade serial não suportada.")
         if self.protocol not in VALID_PROTOCOLS or self.unit not in VALID_UNITS:
@@ -62,6 +86,13 @@ def parse_weight(frame, fallback_unit="kg"):
     """
     if fallback_unit not in VALID_UNITS:
         raise ValueError("Unidade de peso inválida.")
+    if isinstance(frame, bytes) and len(frame) == 7 and frame[0] == 2 and frame[-1] == 3:
+        payload = frame[1:6]
+        # Toledo Prt5 / Urano PROT3: 5 dígitos inteiros de GRAMAS, sem ponto.
+        if payload.isdigit():
+            return Decimal(int(payload)) / Decimal("1000"), True
+        # IIIII = instável; NNNNN = negativo; SSSSS = sobrecarga.
+        return None
     text = frame.decode("ascii", errors="ignore") if isinstance(frame, bytes) else str(frame)
     text = text.strip().replace("\x00", "")
     if not text or len(text) > 128:
@@ -87,6 +118,32 @@ def parse_weight(frame, fallback_unit="kg"):
     unstable = bool(re.search(r"\b(US|UNST|UNSTABLE|MOTION)\b", text, re.I))
     stable_mark = bool(re.search(r"\b(ST|STABLE)\b", text, re.I))
     return value, (False if unstable else True if stable_mark else None)
+
+
+class StreamFrames:
+    """Delimita tramas TCP arbitrariamente fragmentadas: STX/ETX ou CR/LF."""
+    def __init__(self):
+        self.buffer = bytearray()
+
+    def feed(self, chunk):
+        results = []
+        for value in chunk:
+            if value == 2:  # STX inicia nova trama binária.
+                self.buffer = bytearray([2])
+                continue
+            if not self.buffer and (value == 3 or value in (10, 13)):
+                continue
+            self.buffer.append(value)
+            if len(self.buffer) > 128:
+                self.buffer.clear()
+                continue
+            if self.buffer[0] == 2 and value == 3:
+                results.append(bytes(self.buffer))
+                self.buffer.clear()
+            elif self.buffer[0] != 2 and value == 10:
+                results.append(bytes(self.buffer))
+                self.buffer.clear()
+        return results
 
 
 class ScaleMonitor:
@@ -135,6 +192,10 @@ class ScaleMonitor:
         self._publish("Desconectada")
 
     def _run(self, settings, stop):
+        endpoint = settings.tcp_address()
+        if endpoint is not None:
+            self._run_tcp(settings, stop, endpoint)
+            return
         while not stop.is_set():
             try:
                 with serial.Serial(
@@ -176,5 +237,55 @@ class ScaleMonitor:
                         )
             except (serial.SerialException, OSError, ValueError) as exc:
                 self._publish("Sem conexão: " + str(exc)[:100])
+                stop.wait(2)
+        self._publish("Desconectada")
+
+    def _run_tcp(self, settings, stop, endpoint):
+        """Socket local, sem alterar a leitura serial física nem abrir listener no PC."""
+        host, port = endpoint
+        while not stop.is_set():
+            try:
+                with socket.create_connection((host, port), timeout=2) as conn:
+                    conn.settimeout(0.4)
+                    self._publish("Simulador conectado — somente teste")
+                    decoder = StreamFrames()
+                    recent = deque(maxlen=3)
+                    last_frame = time.monotonic()
+                    last_request = 0.0
+                    while not stop.is_set():
+                        now = time.monotonic()
+                        if settings.protocol == "enq" and now - last_request >= 0.5:
+                            conn.sendall(b"\x05")
+                            last_request = now
+                        try:
+                            raw = conn.recv(256)
+                        except socket.timeout:
+                            raw = None
+                        if raw == b"":
+                            raise ConnectionError("Celular desconectado")
+                        if raw:
+                            for frame in decoder.feed(raw):
+                                parsed = parse_weight(frame, settings.unit)
+                                if parsed is None:
+                                    recent.clear()
+                                    self._publish("Simulador — leitura instável ou inválida")
+                                    continue
+                                last_frame = time.monotonic()
+                                kg, indicated_stable = parsed
+                                recent.append(kg)
+                                consistent = (len(recent) == 3 and
+                                    max(recent) - min(recent) <= Decimal("0.005"))
+                                stable = consistent and indicated_stable is not False
+                                self._publish(
+                                    "SIMULAÇÃO — peso estável" if stable else
+                                    "SIMULAÇÃO — estabilizando",
+                                    WeightReading(kg, stable, time.monotonic(),
+                                        repr(frame[:80])),
+                                )
+                        if time.monotonic() - last_frame > 3:
+                            recent.clear()
+                            self._publish("Simulador conectado — sem dados recentes")
+            except (OSError, ConnectionError, ValueError) as exc:
+                self._publish("Simulador indisponível: " + str(exc)[:90])
                 stop.wait(2)
         self._publish("Desconectada")
