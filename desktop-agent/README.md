@@ -58,6 +58,35 @@ O workflow \`.github/workflows/desktop-agent-windows.yml\` usa runner Windows, P
 6. No modo de confirmacao, surge janela com **Receber e imprimir** e **Somente receber**. O som toca nos dois casos, mas a segunda opcao nao imprime.
 7. Feche a janela principal e confira que o agente continua na bandeja.
 
+## Balança pelo Wi-Fi e APK Android de teste
+
+Desde a versão 0.2.0 o Agent da `main` aceita, além da porta COM, uma balança na **rede local**
+(`tcp://IP:porta`). Antes disso a leitura Wi-Fi só existia numa branch de teste, e o Agent da `main`
+recusava a configuração salva com a mensagem "Selecione uma porta COM válida do Windows".
+
+O projeto virtual-scale/android gera o APK **Deliveryzim Balança Virtual**.
+Digite, por exemplo, 0,350 kg no celular e marque a leitura como estável;
+o app envia tramas de balança na porta TCP 9101 em rede Wi-Fi privada.
+
+1. No APK, pressione **Iniciar servidor** e anote o IP mostrado.
+2. No Deliveryzim Agent Windows, na seção **Balança**, escolha
+   **Wi-Fi (rede local)** e digite o IP mostrado no Android (porta 9101).
+   Também aceita colar `192.168.0.4:9101` direto no campo do IP.
+3. Para **ASCII** ou **Urano PROT3**, selecione **Fluxo contínuo**.
+   Para **Toledo Prix III Prt5**, selecione **Solicitar com ENQ**.
+4. Clique **Conectar e salvar**. O Agent exige três amostras consistentes,
+   mostra **Peso estável (Wi-Fi)** e publica o peso no restaurante vinculado.
+5. Experimente **Instável**, **Sobrecarga** e **Parar**; a última leitura
+   deve ser invalidada. O simulador não é medição nem balança comercial.
+
+O IP precisa ser IPv4 privado (faixas 10.x, 172.16–31.x e 192.168.x).
+O Agent bloqueia destinos públicos e não abre porta TCP de escuta no Windows.
+Portas COM físicas continuam funcionando como antes. O APK não transforma
+o celular em periférico USB, RS-232 ou Bluetooth. O teste físico com
+balança comercial permanece obrigatório para homologação.
+
+Detalhes e instruções: virtual-scale/README.md
+
 ## Balança para açaí (leitura local + integração via API)
 
 O Agent também pode capturar peso de uma **balança serial ASCII** ligada ao
@@ -102,7 +131,7 @@ balanças de rede e protocolos binários exigem adaptadores futuros e
 homologação específica. Para uso comercial, respeitar os requisitos
 metrológicos e de verificação aplicáveis à balança.
 
-**Integração do PDV (em branch, ainda sem deploy):** o Agent publica em
+**Integração do PDV (publicada no backend):** o Agent publica em
 \`POST /api/v1/desktop/pesagem\` com seu token de dispositivo, sem aceitar
 identificador de restaurante no payload. O caixa e o gerente consultam
 \`GET /api/v1/desktop/balancas\` em sessão autenticada. Pesos com mais de 3 s
@@ -135,7 +164,9 @@ SQLite registra cada evento antes do cursor ser atualizado, evitando reprocessar
 - GET \`/api/v1/desktop/eventos?desde={id}\` — Bearer token (dispositivo, escopo do restaurante), retorna cupom e cursor
 - POST \`/api/v1/desktop/desconectar\` — revoga o token em uso
 - POST \`/api/v1/desktop/pesagem\` — Bearer do agente, somente peso estável em kg ou limpeza de leitura
-- GET \`/api/v1/desktop/balancas\` — sessão de gerente/caixa, lista apenas dispositivos da loja e \`selecionada\` vinculado ao navegador\n- POST \`/api/v1/desktop/pareamento\` — token Bearer do Agent, gera link assinado de 2 minutos\n- GET \`/api/v1/desktop/parear?ticket=...\` — sessão de gerente/caixa, associa dispositivo por cookie assinado
+- GET \`/api/v1/desktop/balancas\` — sessão de gerente/caixa, lista apenas dispositivos da loja e \`selecionada\` vinculado ao navegador
+- POST \`/api/v1/desktop/pareamento\` — token Bearer do Agent, gera link assinado de 2 minutos
+- GET \`/api/v1/desktop/parear?ticket=...\` — sessão de gerente/caixa, associa dispositivo por cookie assinado
 - Migrations \`20261119010000_create_desktop_agent_devices.php\` e \`20261119020000_create_desktop_agent_pesagens.php\`
 
 **Operação:** atualizar o EXE após a publicação. Nenhuma migration nova para a UX ou o pareamento; verificar a disponibilidade das tabelas de agentes e pesagens no ambiente. A segurança e a leitura física ainda precisam ser homologadas no equipamento utilizado.

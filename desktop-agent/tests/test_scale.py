@@ -3,7 +3,7 @@ import unittest
 import time
 from decimal import Decimal
 from unittest.mock import patch
-from agent.scale import ScaleSettings, ScaleMonitor, parse_weight, serial_ports
+from agent.scale import ScaleSettings, ScaleMonitor, endereco_wifi, parse_weight, serial_ports
 
 
 class ParseScaleTests(unittest.TestCase):
@@ -32,6 +32,14 @@ class ParseScaleTests(unittest.TestCase):
                 ScaleSettings(port).validate()
         with self.assertRaises(ValueError):
             ScaleSettings("COM3", protocol="proprietario").validate()
+        # Wi-Fi na rede local (balança de rede ou app Android) volta a ser aceito.
+        ScaleSettings("tcp://192.168.0.4:9101").validate()
+        ScaleSettings("TCP://192.168.0.4:9101").validate()
+
+    def test_endereco_wifi(self):
+        self.assertEqual(endereco_wifi("192.168.0.4", "9101"), "tcp://192.168.0.4:9101")
+        self.assertEqual(endereco_wifi("192.168.0.4:9200", "9101"), "tcp://192.168.0.4:9200")
+        self.assertEqual(endereco_wifi(" tcp://10.0.0.7 ", ""), "tcp://10.0.0.7:9101")
 
     def test_ports_filter(self):
         class Port:

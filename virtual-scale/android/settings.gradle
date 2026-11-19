@@ -1,0 +1,18 @@
+pluginManagement {
+    repositories {
+        google()
+        // Espelho do Maven Central para não sobrecarregar o endpoint direto no CI.
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+        mavenCentral()
+    }
+}
+rootProject.name = 'DeliveryzimVirtualScale'
+include ':app'
