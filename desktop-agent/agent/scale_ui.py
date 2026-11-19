@@ -17,9 +17,10 @@ PROTOCOL_NAMES = {value: key for key, value in PROTOCOLS.items()}
 
 
 class ScaleWindow:
-    def __init__(self, parent, preferences, monitor):
+    def __init__(self, parent, preferences, monitor, sync_status):
         self.preferences = preferences
         self.monitor = monitor
+        self.sync_status = sync_status
         self.window = tk.Toplevel(parent)
         self.window.title("Balança — Deliveryzim Agent")
         self.window.geometry("520x570")
@@ -109,6 +110,8 @@ class ScaleWindow:
                    textvariable=self.weight).pack(anchor="w", pady=(0, 3))
         self.label(readout, "", 9, GRAY,
                    textvariable=self.status, wraplength=436).pack(anchor="w")
+        self.label(readout, "", 9, GRAY,
+                   textvariable=self.sync_status, wraplength=436).pack(anchor="w", pady=(5, 0))
 
         actions = tk.Frame(body, bg=BG)
         actions.pack(fill="x", pady=(12, 0))
@@ -118,7 +121,7 @@ class ScaleWindow:
             body,
             "Sem leitura? Confira o cabo, a porta e o protocolo do fabricante. "
             "A tara e o zero são feitos na balança física. "
-            "O peso exibido ainda não altera pedidos ou valores no Deliveryzim.",
+            "Após sincronizar, use o peso no caixa e confirme antes de lançar.\nO peso não lança produtos automaticamente.",
             9, GRAY, wraplength=458,
         ).pack(anchor="w", pady=(12, 0))
 
