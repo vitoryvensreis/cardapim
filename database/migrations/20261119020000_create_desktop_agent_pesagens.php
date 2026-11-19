@@ -17,8 +17,8 @@ CREATE TABLE desktop_agent_pesagens (
     PRIMARY KEY (id_dispositivo),
     KEY idx_desktop_pesagens_restaurante (id_restaurante, atualizado_em),
     CONSTRAINT ck_desktop_pesagens_peso CHECK (peso_kg IS NULL OR (peso_kg >= 0 AND peso_kg <= 99.999)),
-    CONSTRAINT fk_desktop_pesagens_device FOREIGN KEY (id_dispositivo)
-        REFERENCES desktop_agent_devices (id) ON DELETE CASCADE,
+    CONSTRAINT fk_desktop_pesagens_device FOREIGN KEY (id_dispositivo, id_restaurante)
+        REFERENCES desktop_agent_devices (id, id_restaurante) ON DELETE CASCADE,
     CONSTRAINT fk_desktop_pesagens_restaurante FOREIGN KEY (id_restaurante)
         REFERENCES restaurantes (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
