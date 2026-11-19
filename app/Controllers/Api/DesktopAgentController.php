@@ -9,6 +9,7 @@ use Cardapim\Core\RateLimiter;
 use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Repositories\PedidoRepository;
+use Cardapim\Repositories\Desktop\PesagemRepository;
 use Cardapim\Services\Auth\Autenticacao;
 use Cardapim\Services\Auth\Autorizacao;
 use PDO;
@@ -130,6 +131,67 @@ final class DesktopAgentController
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: consulta indisponivel (' . get_class($e) . ').');
             return Response::json(['erro' => 'Falha ao consultar pedidos.'], 503);
+        }
+    }
+
+    /**
+     * Leitura recente enviada SOMENTE por agente autenticado. Nunca recebe um preco,
+     * identificador de restaurante ou ID de dispositivo no corpo da requisicao.
+     */
+    public function registrarPesagem(): Response
+    {
+        $autorizado = $this->dispositivo();
+        if ($autorizado instanceof Response) return $autorizado;
+        [$db, $d] = $autorizado;
+
+        $body = file_get_contents('php://input');
+        if (!is_string($body) || strlen($body) > 1024) {
+            return Response::json(['erro' => 'Dados de pesagem invalidos.'], 422);
+        }
+        $input = json_decode($body, true);
+        if (!is_array($input) || !is_bool($input['estavel'] ?? null)) {
+            return Response::json(['erro' => 'Estado de pesagem invalido.'], 422);
+        }
+        $estavel = $input['estavel'];
+        $kg = $input['peso_kg'] ?? null;
+        if ($kg !== null && (!is_string($kg)
+            || preg_match('/\A(?:\d{1,2})(?:\.\d{1,3})?\z/D', $kg) !== 1
+            || (float) $kg > 99.999)) {
+            return Response::json(['erro' => 'Peso fora do formato permitido.'], 422);
+        }
+        if ($estavel && $kg === null) {
+            return Response::json(['erro' => 'Falta o peso estavel.'], 422);
+        }
+        // Se o monitor perdeu a balanca, apaga-se o peso em vez de manter valor antigo.
+        if (!$estavel) $kg = null;
+        try {
+            (new PesagemRepository($db))->registrar(
+                (int) $d['id_restaurante'], (int) $d['id'], $kg, $estavel
+            );
+            return Response::json(['ok' => true]);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: registro de pesagem indisponivel (' . get_class($e) . ').');
+            return Response::json(['erro' => 'Registro de peso indisponivel.'], 503);
+        }
+    }
+
+    /** Apenas a propria equipe autenticada consulta as balancas do restaurante. */
+    public function balancas(): Response
+    {
+        $usuario = Autenticacao::usuario();
+        if ($usuario === null || $usuario->idRestaurante === null
+            || !in_array($usuario->cargo, self::CARGOS, true)
+            || !Autorizacao::contaLiberada($usuario)) {
+            return Response::json(['erro' => 'Acesso negado.'], 403);
+        }
+        try {
+            $db = Database::connect();
+            return Response::json([
+                'balancas' => (new PesagemRepository($db))->listar((int) $usuario->idRestaurante),
+            ]);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: leitura de balancas indisponivel (' . get_class($e) . ').');
+            return Response::json(['erro' => 'Balancas indisponiveis.'], 503);
         }
     }
 
