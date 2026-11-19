@@ -45,13 +45,55 @@ O workflow \`.github/workflows/desktop-agent-windows.yml\` usa runner Windows, P
 6. No modo de confirmacao, surge janela com **Receber e imprimir** e **Somente receber**. O som toca nos dois casos, mas a segunda opcao nao imprime.
 7. Feche a janela principal e confira que o agente continua na bandeja.
 
+## Balança para açaí (fase local Windows)
+
+O Agent também pode capturar peso de uma **balança serial ASCII** ligada ao
+computador via RS-232 ou adaptador USB/serial que crie uma porta `COM`.
+A comunicação é **local**: nesta fase, peso **não altera** carrinho, pedido,
+comanda, estoque ou preço no PHP. Não existe API de pesagem publicada.
+
+1. Depois de entrar no Agent, abra **Configurar balança**.
+2. Instale o driver do fabricante quando necessário e conecte a balança.
+3. Clique **Atualizar portas** e selecione a porta COM identificada.
+4. Escolha velocidade (padrão 9600, ajustar conforme manual), unidade
+   recebida (kg ou g) e comunicação:
+   - **Fluxo contínuo (ASCII)**: peso enviado espontaneamente pela balança;
+   - **Solicitar com ENQ**: transmite apenas ENQ (0x05) a cada 500 ms.
+5. Clique **Conectar e salvar**. O visor mostra peso em kg com 3 casas e
+   informa se a leitura está estável. O Agent reconecta após desconexão.
+6. **Desconectar** interrompe a leitura e o reconectar automático.
+
+A leitura aceita mensagens ASCII com número decimal e unidade `kg`/`g`,
+indicadores opcionais `ST`/`US` e final de linha LF (ou timeout
+serial curto). Uma leitura só é exibida como estável após **três amostras
+consecutivas** com variação de no máximo 5 g, desde que a balança não informe
+instabilidade. Quadro inválido, peso negativo, sobrecarga, falha ou leitura
+antiga não podem ser usados para uma venda. A tara e o zero continuam sendo
+operações no equipamento físico, sem enviar comandos não homologados.
+
+**Compatibilidade:** não suporta automaticamente todos os equipamentos
+Toledo, Filizola, Urano, Balmak ou outros. Cada modelo pode usar protocolo,
+paridade, comandos de solicitação e formato próprios. USB-HID, USB sem COM,
+balanças de rede e protocolos binários exigem adaptadores futuros e
+homologação específica. Para uso comercial, respeitar os requisitos
+metrológicos e de verificação aplicáveis à balança.
+
+**Integração futura com o sistema:** o leitor fica separado da impressão e
+expõe o estado/último peso estável para o processo local do Agent. A etapa
+seguinte deverá criar uma ponte segura entre PDV e Agent, associada ao
+restaurante/dispositivo, com autorização, expiração do peso, validação de
+unidades e cálculo **server-side** em DECIMAL. Não confiar em peso ou
+preço vindo de JavaScript, nem disponibilizar endpoint local sem autenticação
+que possa ser acionado por sites arbitrários.
+
 ## Protecoes de fila
 
 SQLite registra cada evento antes do cursor ser atualizado, evitando reprocessar a mesma notificacao na reconexao. Estados: pendente, imprimindo, enviado_ao_windows, recebido, erro. Se o aplicativo morrer com estado "imprimindo", uma revisao manual e necessaria antes de repetir a impressao. **Nao ha garantia de "exatamente uma impressao fisica" via driver Windows**.
 
 ## Limitacoes da v0.1
 
-- Apenas Windows, ESC/POS RAW e porta impressora registrada no Windows.
+- Impressão: apenas Windows, ESC/POS RAW e porta impressora registrada no Windows.
+- Balanças: somente serial ASCII via porta COM e protocolos básicos acima; testar o modelo físico.
 - Consulta HTTP da outbox (2,5 s), **nao WS direto no agente** nesta versao. O PHP segue usando WS para o navegador.
 - Evento \`pedido.novo\` precisa existir; pedidos anteriores ao cadastro nao geram alertas retroativos.
 - Nao suporta impressao de PDF/documento grafico, atalhos de acessibilidade avancados, reimpressao controlada por permissao ou gerenciamento centralizado de varios dispositivos.
