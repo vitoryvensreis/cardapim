@@ -46,7 +46,31 @@ try {
     if ($q->fetchColumn() !== 'fk_desktop_pesagens_device') {
         throw new RuntimeException('FK composta da pesagem ausente.');
     }
-    echo "Dispositivos e balancas confirmados.\n";
+    // Valida as consultas reais da API ainda no passo de schema:
+    // se houver uma coluna/alias inválido, o CI mostra o SQLSTATE antes
+    // de iniciar os testes HTTP e sem expor credenciais ou dados de usuários.
+    $db->query("EXPLAIN SELECT d.*, u.ativo, u.cargo, u.excluido_em,
+                      r.status AS restaurante_status
+                 FROM desktop_agent_devices d
+                 JOIN `user` u ON u.id = d.id_user
+                    AND u.id_restaurante = d.id_restaurante
+                 JOIN restaurantes r ON r.id = d.id_restaurante
+                WHERE d.token_hash = 'hash_inexistente'
+                    AND d.revogado_em IS NULL AND d.expira_em > NOW()
+                LIMIT 1");
+    $db->query("EXPLAIN SELECT d.id, d.nome,
+                      CASE WHEN p.atualizado_em >= NOW(6) - INTERVAL 3 SECOND
+                           AND p.estavel = 1 THEN p.peso_kg ELSE NULL END AS peso_kg
+                 FROM desktop_agent_devices d
+                 JOIN `user` u ON u.id = d.id_user
+                    AND u.id_restaurante = d.id_restaurante
+                 LEFT JOIN desktop_agent_pesagens p ON p.id_dispositivo = d.id
+                    AND p.id_restaurante = d.id_restaurante
+                WHERE d.id_restaurante = 0 AND d.revogado_em IS NULL
+                    AND d.expira_em > NOW() AND u.ativo = 1
+                    AND u.excluido_em IS NULL
+                LIMIT 50");
+    echo "Dispositivos, balancas e consultas SQL confirmados.\n";
 } catch (Throwable $e) {
     fwrite(STDERR, "Falha no schema Desktop: " . $e->getMessage() . "\n");
     exit(1);
