@@ -110,9 +110,8 @@ class ScaleWindow:
             9, GRAY, wraplength=430,
         )
         self.net_hint.pack(anchor="w")
-        self._toggle_source()
-
         settings = tk.Frame(card, bg=WHITE)
+        self.settings_box = settings
         settings.pack(fill="x", pady=(12, 0))
         left = tk.Frame(settings, bg=WHITE)
         right = tk.Frame(settings, bg=WHITE)
@@ -126,6 +125,7 @@ class ScaleWindow:
         ttk.Combobox(right, textvariable=self.unit, state="readonly",
                      values=("kg", "g")).pack(fill="x", pady=(5, 0))
 
+        self._toggle_source()
         self.label(card, "Comunicação", 9, DARK, True).pack(anchor="w", pady=(12, 0))
         ttk.Combobox(card, textvariable=self.protocol, state="readonly",
                      values=tuple(PROTOCOLS), font=("Segoe UI", 10)).pack(fill="x", pady=(5, 0))
@@ -158,15 +158,15 @@ class ScaleWindow:
             for widget in (self.serial_line, self.port_selector, self.serial_description):
                 widget.pack_forget()
             for widget in (self.net_label, self.net_entry, self.net_hint):
-                widget.pack(fill="x", pady=(5, 3))
+                widget.pack(fill="x", pady=(5, 3), before=self.settings_box)
             if self.protocol.get() != "Solicitar com ENQ" and not self.tcp_host.get():
                 self.protocol.set("Fluxo contínuo (ASCII)")
         else:
             for widget in (self.net_label, self.net_entry, self.net_hint):
                 widget.pack_forget()
-            self.serial_line.pack(fill="x")
-            self.port_selector.pack(fill="x", pady=(8, 4), ipady=4)
-            self.serial_description.pack(anchor="w")
+            self.serial_line.pack(fill="x", before=self.settings_box)
+            self.port_selector.pack(fill="x", pady=(8, 4), ipady=4, before=self.settings_box)
+            self.serial_description.pack(anchor="w", before=self.settings_box)
 
     def reload_ports(self):
         ports = serial_ports()
