@@ -4,7 +4,8 @@ Interface em **CustomTkinter** (desde 0.5.0), com as cores oficiais (vinho, lara
 A ordem da tela de configuração é: Novos pedidos, Impressora, Balança e o botão principal **Concluir e deixar em
 segundo plano**. O teste `tests/test_gui_smoke.py` abre as telas de verdade no runner Windows do GitHub Actions.
 
-A versão fica em `agent/__init__.py` (`__version__`) e vai no nome do EXE gerado no GitHub Actions.
+A versão fica em `agent/__init__.py` (`__version__`) e vai no nome do EXE gerado no GitHub Actions. A cada push na
+`main` que mexe no Agent, o EXE também é publicado em **Releases** com a tag `agent-vX.Y.Z` (link fixo para baixar).
 
 Agente nativo Python para Windows. **Sem WebView.** Fica na bandeja, toca som nativo, mostra aviso e envia cupons ESC/POS ao spooler do Windows.
 
