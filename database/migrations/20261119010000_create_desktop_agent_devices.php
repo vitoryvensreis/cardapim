@@ -16,6 +16,7 @@ CREATE TABLE desktop_agent_devices (
     ultimo_acesso_em DATETIME NULL DEFAULT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uq_desktop_agent_token (token_hash),
+    UNIQUE KEY uq_desktop_agent_tenant (id, id_restaurante),
     KEY idx_desktop_agent_usuario (id_user, id_restaurante),
     CONSTRAINT fk_desktop_agent_restaurante FOREIGN KEY (id_restaurante) REFERENCES restaurantes (id) ON DELETE CASCADE,
     CONSTRAINT fk_desktop_agent_usuario FOREIGN KEY (id_user) REFERENCES `user` (id) ON DELETE CASCADE
