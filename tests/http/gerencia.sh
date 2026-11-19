@@ -52,6 +52,8 @@ for caminho in /estoque /estoque/produtos /estoque/insumos /estoque/categorias /
     falha "$caminho tem link ou formulario fora do padrao: $(grep -oE '(action|href)="[^"]*"' "$tmp/pagina.html" | grep -vE '="(/'"$slug"'["/]|/assets/|/sair|/login|/minha-conta|/painel|/midia/|/pwa/|/cookies"|#|https://)' | head -2 | tr '\n' ' ')"
   fi
 done
+pagina "$gj" "$g/estoque/produtos/novo" >/dev/null
+contem "produto pode contar as proprias unidades (revenda)" "$tmp/pagina.html" 'Contar as unidades deste produto'
 pagina "$gj" "$g/estoque/insumos/novo" >/dev/null
 contem "formulario do insumo envia para a rota certa" "$tmp/pagina.html" "action=\"/$slug/gerencia/estoque/insumos\""
 

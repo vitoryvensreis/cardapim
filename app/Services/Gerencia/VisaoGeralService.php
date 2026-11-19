@@ -163,7 +163,7 @@ final class VisaoGeralService
     /** @return array{emFalta:list<array<string,mixed>>, baixos:list<array<string,mixed>>, indisponiveis:int, totalInsumos:int, totalProdutos:int} */
     private function estoque(): array
     {
-        $insumos = (new InsumoRepository($this->db))->listar($this->idRestaurante);
+        $insumos = (new InsumoRepository($this->db))->listar($this->idRestaurante, true);
         $produtos = (new ProdutoRepository($this->db))->listar($this->idRestaurante);
         $a = AnaliseEstoque::analisar($insumos, $produtos, (new DisponibilidadeProdutos($this->db))->verificar($this->idRestaurante));
         return [

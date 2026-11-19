@@ -16,10 +16,14 @@ final class ProdutoRepository
     /** @return list<array<string,mixed>> */
     public function listar(int $idRestaurante): array
     {
+        // Estoque contado no proprio produto: id do insumo proprio (para o "Chegou mais" da lista).
+        $proprio = \Cardapim\Shared\Esquema::tem($this->db, 'estoque_produto');
         $query = $this->db->prepare(
-            'SELECT p.id, p.nome, p.imagem_path, p.preco, p.unidade_venda, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo
+            'SELECT p.id, p.nome, p.imagem_path, p.preco, p.unidade_venda, p.codigo, p.id_categoria, c.nome AS categoria, p.controla_estoque, p.disponivel, p.ativo,
+                    ' . ($proprio ? 'ip.id' : 'NULL') . ' AS id_insumo_proprio
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
+             ' . ($proprio ? 'LEFT JOIN insumos ip ON ip.id_produto_proprio = p.id AND ip.id_restaurante = p.id_restaurante AND ip.excluido_em IS NULL' : '') . '
              WHERE p.id_restaurante = ? AND p.ativo = 1
              ORDER BY c.ordem IS NULL, c.ordem, c.nome, p.ordem, p.nome'
         );

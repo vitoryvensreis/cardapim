@@ -82,8 +82,21 @@ $filtros = ['todos' => 'Todos', 'a-venda' => 'À venda', 'indisponiveis' => 'For
                                 <span class="texto-suave">Não controla</span>
                             <?php elseif (!$d['disponivel'] && !$pausado): ?>
                                 <span class="texto-alerta"><?= $e(AnaliseEstoque::motivoTexto($d)) ?></span>
+                            <?php elseif (!empty($p['id_insumo_proprio'])): ?>
+                                Restam <?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::quanto((int) ($d['restante'] ?? (int) $d['porcoes'] * 1000), (string) ($d['unidade'] ?? 'un'))) ?>
                             <?php else: ?>
                                 Dá para vender <?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::quanto((int) ($d['restante'] ?? (int) $d['porcoes'] * 1000), (string) ($d['unidade'] ?? 'un'))) ?>
+                            <?php endif; ?>
+                            <?php if (!empty($p['id_insumo_proprio'])): $siglaProprio = ['un' => 'un', 'kg' => 'kg', 'l' => 'L'][(string) ($p['unidade_venda'] ?? 'un')] ?? 'un'; ?>
+                                <form class="repor repor-produto" method="post" action="<?= $e($base . '/estoque/insumos/' . (int) $p['id_insumo_proprio'] . '/repor') ?>">
+                                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                                    <label class="sr-only" for="chegou-<?= $id ?>">Quanto chegou de <?= $e((string) $p['nome']) ?></label>
+                                    <span class="repor-campo">
+                                        <input id="chegou-<?= $id ?>" name="quantidade" inputmode="decimal" autocomplete="off" placeholder="Chegou mais" data-mask="quantity" required>
+                                        <span aria-hidden="true"><?= $e($siglaProprio) ?></span>
+                                    </span>
+                                    <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('plus', 'icon-sm') ?>Somar</button>
+                                </form>
                             <?php endif; ?>
                         </span>
                         <div class="lista-acoes">

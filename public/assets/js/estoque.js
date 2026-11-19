@@ -56,6 +56,8 @@
       formProduto.querySelectorAll("[data-sigla-unidade]").forEach((el) => { el.textContent = unidade === "l" ? "L" : "kg"; });
       const tituloFicha = formProduto.querySelector("[data-ficha-unidade-venda]");
       if (tituloFicha) tituloFicha.textContent = { un: "1 unidade", kg: "1 kg vendido", l: "1 litro vendido" }[unidade];
+      // "Contar as unidades deste produto": a quantidade segue como o produto e vendido.
+      formProduto.querySelectorAll("[data-proprio-area] .field-sufixo").forEach((el) => { el.textContent = { un: "un", kg: "kg", l: "L" }[unidade]; });
       atualizarPorcoes();
     };
     formProduto.querySelectorAll("[data-unidade-venda]").forEach((r) => r.addEventListener("change", atualizarComoVende));
@@ -70,9 +72,15 @@
       if (nova) novaCategoria.querySelector("input")?.focus();
     });
 
+    const areaProprio = formProduto.querySelector("[data-proprio-area]");
     formProduto.querySelectorAll("[data-controle]").forEach((radio) => {
       radio.addEventListener("change", () => {
-        if (areaFicha) areaFicha.hidden = formProduto.querySelector("[data-controle]:checked")?.value === "livre";
+        const modo = formProduto.querySelector("[data-controle]:checked")?.value;
+        if (areaFicha) areaFicha.hidden = modo !== "estoque";
+        if (areaProprio) {
+          areaProprio.hidden = modo !== "proprio";
+          if (modo === "proprio") areaProprio.querySelector("input:not([type=hidden])")?.focus();
+        }
       });
     });
 
