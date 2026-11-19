@@ -256,7 +256,7 @@ echo "Botao Abrir loja no iFood (gerencia e caixa)"
 curl -s -o "$tmp/estado-publico-referencia.json" "$base/api/v1/restaurantes/$slug/situacao"
 situacao_referencia="$(abertura_publica "$tmp/estado-publico-referencia.json")"
 contem "API publica retorna horario informado" "$tmp/estado-publico-referencia.json" '"horario_informado":true'
-nao_contem "API publica independente do iFood" "$tmp/estado-publico-referencia.json" '"fechado_integracao"'
+contem "API publica mantem contrato anterior sem bloqueio externo" "$tmp/estado-publico-referencia.json" '"fechado_integracao":false'
 pagina "$gj" "$g" >/dev/null
 contem "botao no topo da gerencia" "$tmp/pagina.html" 'data-ifood-loja'
 pagina "$cx" "$c" >/dev/null
