@@ -50,7 +50,7 @@ try {
     // se houver uma coluna/alias inválido, o CI mostra o SQLSTATE antes
     // de iniciar os testes HTTP e sem expor credenciais ou dados de usuários.
     $db->query("EXPLAIN SELECT d.*, u.ativo, u.cargo, u.excluido_em,
-                      r.status AS restaurante_status
+                      r.status_rest AS restaurante_status
                  FROM desktop_agent_devices d
                  JOIN `user` u ON u.id = d.id_user
                     AND u.id_restaurante = d.id_restaurante
