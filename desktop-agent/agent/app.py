@@ -75,8 +75,7 @@ class DeliveryzimApp:
     def _button(self, parent, text, command, primary=True, **options):
         color = WINE if primary else WHITE
         foreground = WHITE if primary else WINE
-        button = tk.Button(
-            parent, text=text, command=command,
+        defaults = dict(
             font=("Segoe UI", 10, "bold"), bg=color, fg=foreground,
             activebackground=ORANGE if primary else SUBTLE,
             activeforeground=WHITE if primary else WINE,
@@ -84,9 +83,9 @@ class DeliveryzimApp:
             padx=18, pady=11, highlightthickness=1,
             highlightbackground=WINE if primary else BORDER,
             highlightcolor=ORANGE, takefocus=True,
-            **options,
         )
-        return button
+        defaults.update(options)
+        return tk.Button(parent, text=text, command=command, **defaults)
 
     def _render(self):
         self.style = ttk.Style(self.root)
@@ -600,7 +599,7 @@ class DeliveryzimApp:
                 break
             if kind == "need_2fa":
                 self.waiting_code = True
-                self.code.pack(fill="x", pady=4, before=self.login_button)
+                self.code_holder.pack(fill="x", pady=(14, 0), before=self.login_feedback_label)
                 self.login_button.config(text="Confirmar codigo", command=self._verify, state="normal")
                 self.password.delete(0, "end")
                 self.status_var.set("Digite o codigo da verificacao em duas etapas.")
@@ -675,7 +674,11 @@ class DeliveryzimApp:
         if getattr(sys, "frozen", False):
             path = os.path.join(sys._MEIPASS, "agent", "assets", "icon-192.png")
         else:
-            path = os.path.join(os.path.dirname(__file__), "assets", "icon-192.png")
+            # Desenvolvimento: reutiliza o ícone oficial da árvore do repositório.
+            path = os.path.abspath(os.path.join(
+                os.path.dirname(__file__), "..", "..", "public",
+                "assets", "img", "pwa", "icon-192.png",
+            ))
         return Image.open(path).convert("RGBA")
 
     def _start_tray(self):
