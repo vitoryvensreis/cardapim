@@ -21,8 +21,11 @@ public final class JobStore {
             File f = new File(context.getFilesDir(), NAME);
             if (!f.exists()) return new JSONArray();
             try (FileInputStream input = new FileInputStream(f)) {
-                byte[] data = input.readAllBytes();
-                return new JSONArray(new String(data, StandardCharsets.UTF_8));
+                java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+                byte[] chunk = new byte[4096];
+                int length;
+                while ((length = input.read(chunk)) != -1) buffer.write(chunk, 0, length);
+                return new JSONArray(new String(buffer.toByteArray(), StandardCharsets.UTF_8));
             } catch (Exception ignored) {
                 return new JSONArray();
             }
