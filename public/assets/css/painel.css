@@ -260,8 +260,10 @@
 .area-remover { color: var(--c-danger); }
 .area-remover:hover { color: #8f1c13; }
 .lista-vazia { padding: 2.5rem 1.5rem; text-align: center; color: var(--c-muted); }
-.lista-vazia .icon { width: 2.5rem; height: 2.5rem; margin: 0 auto .75rem; color: var(--c-wine-400); }
-.lista-vazia strong { display: block; margin-bottom: .3rem; color: var(--c-ink); font-family: var(--f-head); font-size: 1.05rem; }
+/* So o icone e o titulo do estado vazio: o icone de botoes e os destaques dentro do texto ficam normais. */
+.lista-vazia > .icon { width: 2.5rem; height: 2.5rem; margin: 0 auto .75rem; color: var(--c-wine-400); }
+.lista-vazia > strong { display: block; margin-bottom: .3rem; color: var(--c-ink); font-family: var(--f-head); font-size: 1.05rem; }
+.lista-vazia p strong { color: var(--c-ink); }
 
 /* Botoes pequenos de icone */
 .btn-icone {
