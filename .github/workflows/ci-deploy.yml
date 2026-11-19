@@ -362,6 +362,7 @@ jobs:
           DEPLOY_URL: ${{ vars.CARDAPIM_DEPLOY_URL }}
           DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
           RUN_MIGRATIONS: ${{ vars.CARDAPIM_RUN_MIGRATIONS || 'false' }}
+          DESKTOP_AGENT_SCHEMA: ${{ contains(github.event.head_commit.message, '[cardapim-agent-schema]') && 'true' || 'false' }}
         run: |
           set -euo pipefail
           for value in "$DEPLOY_HOST" "$DEPLOY_USER" "$DEPLOY_SSH_KEY" "$DEPLOY_KNOWN_HOSTS" "$DEPLOY_ROOT" "$DEPLOY_URL"; do
@@ -376,6 +377,8 @@ jobs:
           [[ "$DEPLOY_URL" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || { echo "::error::URL HTTPS invalida"; exit 1; }
           [[ "$DEPLOY_SSH_PORT" =~ ^[0-9]+$ ]] || { echo "::error::Porta SSH invalida"; exit 1; }
           [[ "$RUN_MIGRATIONS" == "false" || "$RUN_MIGRATIONS" == "true" ]] || exit 1
+          [[ "$DESKTOP_AGENT_SCHEMA" == "false" || "$DESKTOP_AGENT_SCHEMA" == "true" ]] || exit 1
+          if [[ "$DESKTOP_AGENT_SCHEMA" == "true" ]]; then RUN_MIGRATIONS=true; fi
           mkdir -p "$HOME/.ssh"
           chmod 700 "$HOME/.ssh"
           printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/cardapim_deploy"
@@ -388,7 +391,7 @@ jobs:
           rsync -az --delete --exclude='.git/' --exclude='.github/' --exclude='.env' --exclude='storage/' --exclude='/vendor/' \
             -e "ssh -i $HOME/.ssh/cardapim_deploy -p $DEPLOY_SSH_PORT -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes" \
             ./ "$host:$DEPLOY_ROOT/releases/$release/"
-          ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" < deploy/scripts/activate-release.sh
+          ssh "${ssh_args[@]}" "$host" bash -se -- "$DEPLOY_ROOT" "$release" "$DEPLOY_URL" "$RUN_MIGRATIONS" "$DESKTOP_AGENT_SCHEMA" < deploy/scripts/activate-release.sh
 
       - name: Aplicar schema de saudacoes WhatsApp com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-saudacoes]') }}
