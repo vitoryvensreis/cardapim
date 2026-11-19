@@ -143,6 +143,9 @@ final class DesktopAgentController
         $autorizado = $this->dispositivo();
         if ($autorizado instanceof Response) return $autorizado;
         [$db, $d] = $autorizado;
+        if (!RateLimiter::padrao(180, 60)->permitir('desktop-pesagem|' . $d['id'])) {
+            return Response::json(['erro' => 'Muitas leituras. Tente novamente.'], 429);
+        }
 
         $body = file_get_contents('php://input');
         if (!is_string($body) || strlen($body) > 1024) {
