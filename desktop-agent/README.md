@@ -12,6 +12,19 @@ Agente nativo Python para Windows. **Sem WebView.** Fica na bandeja, toca som na
 - Impressora: selecione uma impressora **RAW ESC/POS** cadastrada no Windows. O Android Virtual Printer pode ser usado no lugar do equipamento fisico.
 - A impressao usa cp850, sem imagens. O sucesso do spooler nao garante a saida fisica do papel.
 
+## Experiência de configuração (Windows)
+
+- A tela após o login reúne **Impressora**, **Balança** e **Novos pedidos**, em seções visuais na mesma página, com rolagem quando necessário. Não é preciso abrir outra janela para escolher a porta COM.
+- Selecione a impressora e o papel (58 ou 80 mm). Configure a balança somente se ela estiver conectada ao computador; a leitura continua pelo Agent, não pelo navegador.
+- Escolha **Impressão automática** ou **Com confirmação**. O alerta sonoro original está ativado por padrão e toca em ambos os modos sempre que chegar um pedido novo. Use **Ouvir som de teste** para conferir a saída de áudio do Windows.
+- Clique **Concluir e deixar em segundo plano**. A janela desaparece, mas o Agent continua monitorando pedidos, alertas e balança pelo ícone oficial do Deliveryzim na bandeja do Windows (ao lado do relógio).
+- O duplo clique no ícone da bandeja reabre a configuração. Para fechar o programa de verdade, escolha **Encerrar agente** no menu do ícone. Na próxima abertura, um Agent previamente configurado pode iniciar diretamente na bandeja.
+- A opção **Iniciar automaticamente com o Windows** só registra o executável compilado no registro do próprio usuário. Não registra o Python de desenvolvimento.
+- A impressora não é escolhida arbitrariamente quando várias estão instaladas; o atendente confirma a correta. Sem impressora selecionada no modo automático, a conclusão da configuração mostra aviso.
+- Os ícones da bandeja, da janela e da barra de tarefas utilizam o ícone oficial fornecido para esta versão. O EXE recebe o recurso de ícone do Windows gerado durante o build.
+- O alerta sonoro foi substituído por um WAV curto original, gerado localmente; não depende do som `SystemExclamation` configurado no tema do Windows. Não é possível garantir áudio se o Windows estiver no mudo, o dispositivo de áudio não existir ou o PC estiver desligado.
+- **Testes:** `desktop-agent/tests/test_sound.py` valida o WAV, o fallback e a chamada de alerta a cada pedido em ambos os modos. O workflow Windows roda todos os testes, valida os assets com Pillow, gera `.ico` e compila o EXE.
+
 ## Autenticacao
 
 1. Execute Deliveryzim-Agent.exe (ou python main.py).
