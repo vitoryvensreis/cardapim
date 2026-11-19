@@ -23,13 +23,17 @@ class ScaleWindow:
         self.sync_status = sync_status
         self.window = tk.Toplevel(parent)
         self.window.title("Balança — Deliveryzim Agent")
-        self.window.geometry("520x650")
+        self.window.geometry("520x735")
         self.window.resizable(False, False)
         self.window.configure(bg=BG)
         self.window.transient(parent)
         self.window.protocol("WM_DELETE_WINDOW", self.close)
 
-        self.port = tk.StringVar(value=preferences.get("balanca_porta") or "")
+        saved = preferences.get("balanca_porta") or ""
+        is_tcp = saved.lower().startswith("tcp://")
+        self.source = tk.StringVar(value="Wi-Fi (celular)" if is_tcp else "Porta COM")
+        self.port = tk.StringVar(value="" if is_tcp else saved)
+        self.tcp_host = tk.StringVar(value=saved[6:].split(":")[0] if is_tcp else "")
         self.baudrate = tk.StringVar(value=str(preferences.get("balanca_baudrate") or 9600))
         self.protocol = tk.StringVar(value=PROTOCOL_NAMES.get(
             preferences.get("balanca_protocolo"), "Fluxo contínuo (ASCII)"))
@@ -74,15 +78,39 @@ class ScaleWindow:
                         highlightbackground=BORDER, highlightthickness=1)
         card.pack(fill="x")
 
-        line = tk.Frame(card, bg=WHITE)
+        self.label(card, "Tipo de conexão", 10, DARK, True).pack(anchor="w")
+        source_select = ttk.Combobox(
+            card, textvariable=self.source, state="readonly",
+            values=("Porta COM", "Wi-Fi (celular)"), font=("Segoe UI", 10),
+        )
+        source_select.pack(fill="x", pady=(7, 12))
+        source_select.bind("<<ComboboxSelected>>", lambda _event: self._toggle_source())
+
+        self.serial_line = tk.Frame(card, bg=WHITE)
+        line = self.serial_line
         line.pack(fill="x")
         self.label(line, "Porta da balança", 10, DARK, True).pack(side="left")
         self.button(line, "Atualizar portas", self.reload_ports, False).pack(side="right")
         self.port_selector = ttk.Combobox(card, textvariable=self.port, state="readonly",
                                           font=("Segoe UI", 11))
         self.port_selector.pack(fill="x", pady=(8, 4), ipady=4)
-        self.label(card, "", 9, GRAY, wraplength=430,
-                   textvariable=self.description).pack(anchor="w")
+        self.serial_description = self.label(
+            card, "", 9, GRAY, wraplength=430, textvariable=self.description,
+        )
+        self.serial_description.pack(anchor="w")
+
+        self.net_label = self.label(card, "IP do celular (mesma rede Wi-Fi)", 10, DARK, True)
+        self.net_label.pack(anchor="w")
+        self.net_entry = ttk.Entry(
+            card, textvariable=self.tcp_host, font=("Segoe UI", 12),
+        )
+        self.net_entry.pack(fill="x", pady=(6, 3), ipady=4)
+        self.net_hint = self.label(
+            card, "O APK mostra o IP. Porta fixa 9101. Apenas rede local e testes.",
+            9, GRAY, wraplength=430,
+        )
+        self.net_hint.pack(anchor="w")
+        self._toggle_source()
 
         settings = tk.Frame(card, bg=WHITE)
         settings.pack(fill="x", pady=(12, 0))
@@ -119,11 +147,26 @@ class ScaleWindow:
         self.button(actions, "Desconectar", self.disconnect, False).pack(side="right", padx=(5, 0))
         self.label(
             body,
-            "Sem leitura? Confira o cabo, a porta e o protocolo do fabricante. "
+            "Sem leitura? No modo Wi-Fi, inicie o APK e confira o IP. Em COM, confira o cabo e o protocolo. "
             "A tara e o zero são feitos na balança física. "
             "Após sincronizar, use o peso no caixa e confirme antes de lançar.\nO peso não lança produtos automaticamente.",
             9, GRAY, wraplength=458,
         ).pack(anchor="w", pady=(12, 0))
+
+    def _toggle_source(self):
+        if self.source.get() == "Wi-Fi (celular)":
+            for widget in (self.serial_line, self.port_selector, self.serial_description):
+                widget.pack_forget()
+            for widget in (self.net_label, self.net_entry, self.net_hint):
+                widget.pack(fill="x", pady=(5, 3))
+            if self.protocol.get() != "Solicitar com ENQ" and not self.tcp_host.get():
+                self.protocol.set("Fluxo contínuo (ASCII)")
+        else:
+            for widget in (self.net_label, self.net_entry, self.net_hint):
+                widget.pack_forget()
+            self.serial_line.pack(fill="x")
+            self.port_selector.pack(fill="x", pady=(8, 4), ipady=4)
+            self.serial_description.pack(anchor="w")
 
     def reload_ports(self):
         ports = serial_ports()
@@ -144,8 +187,11 @@ class ScaleWindow:
 
     def connect(self):
         try:
+            port = ("tcp://" + self.tcp_host.get().strip() + ":9101"
+                    if self.source.get() == "Wi-Fi (celular)"
+                    else self.port.get().strip())
             settings = ScaleSettings(
-                port=self.port.get().strip(),
+                port=port,
                 baudrate=int(self.baudrate.get()),
                 protocol=PROTOCOLS[self.protocol.get()],
                 unit=self.unit.get(),
@@ -153,7 +199,7 @@ class ScaleWindow:
             settings.validate()
             self.monitor.configure(settings)
             self.preferences.set(
-                balanca_ativa=True, balanca_porta=settings.port.upper(),
+                balanca_ativa=True, balanca_porta=settings.port,
                 balanca_baudrate=settings.baudrate,
                 balanca_protocolo=settings.protocol, balanca_unidade=settings.unit,
             )
