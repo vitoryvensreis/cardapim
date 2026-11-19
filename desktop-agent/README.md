@@ -51,7 +51,7 @@ O Agent também pode capturar peso de uma **balança serial ASCII** ligada ao
 computador via RS-232 ou adaptador USB/serial que crie uma porta `COM`.
 A leitura física é local. Com a API do PR #104 implantada, o Agent envia somente
 uma leitura recente e estável via HTTPS para o restaurante vinculado; o caixa
-pode escolher a balança e usar o peso na comanda. **O operador precisa confirmar
+usa a balança do computador sem seleção no modal. **O operador precisa confirmar
 o lançamento**; a leitura isolada não cria pedidos, não movimenta estoque e
 não calcula preço.
 
@@ -64,7 +64,15 @@ não calcula preço.
    - **Solicitar com ENQ**: transmite apenas ENQ (0x05) a cada 500 ms.
 5. Clique **Conectar e salvar**. O visor mostra peso em kg com 3 casas e
    informa se a leitura está estável. O Agent reconecta após desconexão.
-6. **Desconectar** interrompe a leitura e o reconectar automático.
+6. Entre no Deliveryzim pelo navegador padrão do mesmo computador com sua conta
+   de gerente/caixa. No Agent, clique **Abrir Deliveryzim**: ele associa esse
+   navegador à balança deste Windows. Faça isso uma vez por navegador (ou após
+   limpar os cookies); a configuração de COM/protocolo continua apenas no Agent.
+7. No caixa, ao abrir um produto por kg, **Usar balança** já aparece marcado,
+   o peso estável preenche o campo e o total muda automaticamente.
+   Confira o visor e clique **Lançar**. Para digitar manualmente, desmarque
+   **Usar balança**. Outro caixa com outra balança não interfere nessa leitura.
+8. **Desconectar** interrompe a leitura e o reconectar automático.
 
 A leitura aceita mensagens ASCII com número decimal e unidade `kg`/`g`,
 indicadores opcionais `ST`/`US` e final de linha LF (ou timeout
@@ -86,7 +94,7 @@ metrológicos e de verificação aplicáveis à balança.
 identificador de restaurante no payload. O caixa e o gerente consultam
 \`GET /api/v1/desktop/balancas\` em sessão autenticada. Pesos com mais de 3 s
 ou não estáveis são ignorados. No modal de produto por quilo, o funcionário
-clica em **Usar peso da balança** e depois em **Lançar**. O PHP aplica
+confere o peso preenchido automaticamente e clica somente em **Lançar**. O PHP aplica
 \`QuantidadeVenda\` e revalida os valores. Produtos por litro permanecem
 com digitação manual. Não existe servidor HTTP local exposto no Windows.
 
@@ -114,10 +122,7 @@ SQLite registra cada evento antes do cursor ser atualizado, evitando reprocessar
 - GET \`/api/v1/desktop/eventos?desde={id}\` — Bearer token (dispositivo, escopo do restaurante), retorna cupom e cursor
 - POST \`/api/v1/desktop/desconectar\` — revoga o token em uso
 - POST \`/api/v1/desktop/pesagem\` — Bearer do agente, somente peso estável em kg ou limpeza de leitura
-- GET \`/api/v1/desktop/balancas\` — sessão de gerente/caixa, lista exclusivamente dispositivos da própria loja
+- GET \`/api/v1/desktop/balancas\` — sessão de gerente/caixa, lista apenas dispositivos da loja e \`selecionada\` vinculado ao navegador\n- POST \`/api/v1/desktop/pareamento\` — token Bearer do Agent, gera link assinado de 2 minutos\n- GET \`/api/v1/desktop/parear?ticket=...\` — sessão de gerente/caixa, associa dispositivo por cookie assinado
 - Migrations \`20261119010000_create_desktop_agent_devices.php\` e \`20261119020000_create_desktop_agent_pesagens.php\`
 
-**Ainda sem deploy nesta branch.** Validar CI, merge, aplicar as duas migrations
-com backup e verificação antes do uso, testar com balança real e confirmar o
-funcionamento ponta a ponta. O EXE isolado pode mostrar falha de sincronização
-com o PDV enquanto a API não estiver publicada.
+**Operação:** atualizar o EXE após a publicação. Nenhuma migration nova para a UX ou o pareamento; verificar a disponibilidade das tabelas de agentes e pesagens no ambiente. A segurança e a leitura física ainda precisam ser homologadas no equipamento utilizado.

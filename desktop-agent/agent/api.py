@@ -114,6 +114,23 @@ class ApiClient:
             raise AuthenticationError("Dispositivo revogado ou sem acesso à balança.")
         response.raise_for_status()
 
+    def browser_pairing(self):
+        """Gera URL temporaria de pareamento para o navegador deste Windows."""
+        if not self.token:
+            raise AuthenticationError("Agente sem credencial.")
+        response = requests.post(
+            self.url("/api/v1/desktop/pareamento"),
+            headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
+            timeout=(4, 10),
+        )
+        if response.status_code in (401, 403):
+            raise AuthenticationError("Dispositivo nao autorizado.")
+        response.raise_for_status()
+        path = response.json().get("url", "")
+        if not isinstance(path, str) or not path.startswith("/api/v1/desktop/parear?ticket="):
+            raise ValueError("Link de caixa invalido.")
+        return self.url(path)
+
     def revoke(self):
         if self.token:
             requests.post(self.url("/api/v1/desktop/desconectar"),

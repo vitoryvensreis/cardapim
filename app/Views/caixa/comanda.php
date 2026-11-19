@@ -233,18 +233,18 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                 </div>
                 <?php // Produto vendido por quilo/litro: digita os numeros do visor da balanca (8 4 6 -> 0,846). ?>
                 <div class="campo-peso" data-peso-bloco hidden>
+                    <div class="balanca-pdv" data-balanca-pdv hidden>
+                        <label class="balanca-pdv-opcao">
+                            <input type="checkbox" data-balanca-automatica checked>
+                            <span>Usar balança</span>
+                        </label>
+                        <span class="balanca-pdv-selo" data-balanca-selo role="status">Conectando...</span>
+                    </div>
                     <label class="campo-caixa"><span data-peso-rotulo>Peso (kg)</span>
-                        <input name="quantidade" inputmode="numeric" autocomplete="off" placeholder="0,000" data-mask="peso" data-peso-campo disabled aria-describedby="peso-ajuda">
+                        <input name="quantidade" inputmode="numeric" autocomplete="off" placeholder="0,000" data-mask="peso" data-peso-campo disabled aria-describedby="peso-ajuda balanca-status">
                     </label>
                     <p class="campo-peso-ajuda" id="peso-ajuda" data-peso-ajuda>Digite só os números da balança: 8 4 6 vira 0,846.</p>
-                    <div class="balanca-pdv" data-balanca-pdv hidden>
-                        <div class="balanca-pdv-titulo"><strong>Leitura da balança</strong><span class="balanca-pdv-etapa">Conferir antes de lançar</span></div>
-                        <label class="campo-caixa" for="balanca-dispositivo">Balança conectada
-                            <select id="balanca-dispositivo" data-balanca-seletor></select>
-                        </label>
-                        <p role="status" aria-live="polite" data-balanca-status>Aguardando leitura...</p>
-                        <button class="btn btn-outline btn-block" type="button" data-balanca-usar disabled>Usar peso da balança</button>
-                    </div>
+                    <p class="balanca-pdv-status" id="balanca-status" data-balanca-status role="status" aria-live="polite" hidden></p>
                 </div>
                 <div class="produto-comps" data-produto-grupos hidden></div>
                 <p class="campo-peso-ajuda texto-alerta" role="alert" data-grupos-erro hidden></p>

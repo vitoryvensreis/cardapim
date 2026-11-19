@@ -291,10 +291,26 @@ class DeliveryzimApp:
         self._button(footer, "Desvincular", self._unlink, primary=False, padx=12, pady=7).pack(side="left")
         self._button(
             footer, "Abrir Deliveryzim",
-            lambda: webbrowser.open("https://deliveryzim.com.br"),
+            self._open_deliveryzim,
             primary=False, padx=12, pady=7,
         ).pack(side="right")
         self._show_link_state()
+
+    def _open_deliveryzim(self):
+        # A configuracao permanece no Agent. No caixa, nao se escolhe dispositivo.
+        if not self.token or not self.preferences.get("balanca_ativa"):
+            webbrowser.open("https://deliveryzim.com.br")
+            return
+        self.status_var.set("Vinculando a balança a este navegador...")
+        threading.Thread(target=self._open_deliveryzim_task, daemon=True).start()
+
+    def _open_deliveryzim_task(self):
+        try:
+            client = ApiClient()
+            client.token = self.token
+            self.messages.put(("open_pos", client.browser_pairing()))
+        except Exception as exc:
+            self.messages.put(("pair_error", str(exc)))
 
     def _start_scale_if_configured(self):
         if not self.token or not self.preferences.get("balanca_ativa"):
@@ -670,6 +686,12 @@ class DeliveryzimApp:
                     self._start_worker()
                 except Exception as exc:
                     messagebox.showerror("Credencial", "Nao foi possivel salvar a credencial: " + str(exc))
+            elif kind == "open_pos":
+                webbrowser.open(payload)
+                self.status_var.set("Caixa aberto. Se não estiver logado, entre e abra novamente pelo Agent.")
+            elif kind == "pair_error":
+                self.status_var.set("Não foi possível vincular a balança: " + str(payload)[:100])
+                messagebox.showwarning("Balança", "Não foi possível associar o navegador. " + str(payload))
             elif kind == "connection":
                 if self.token:
                     self.status_var.set(payload)
