@@ -84,6 +84,9 @@ final class RestauranteController
                 // Mantém o comportamento atual para restaurantes ainda sem horários cadastrados.
                 'aberto' => !$info['horario_informado'] || $info['aberto'],
                 'horario_informado' => $info['horario_informado'],
+                // Compatibilidade com abas antigas: o iFood nunca bloqueia o cardápio próprio.
+                'fechado_integracao' => false,
+                'motivo' => '',
             ])->comCabecalhos(['Cache-Control' => 'no-store']);
         } catch (\Throwable $erro) {
             error_log('[Cardapim] Falha ao consultar estado da loja: ' . get_class($erro));
