@@ -161,7 +161,7 @@ final class DesktopAgentController
             $db = Database::connect();
             $q = $db->prepare("SELECT d.*, u.ativo, u.cargo, u.excluido_em, r.status AS restaurante_status
                 FROM desktop_agent_devices d
-                JOIN \`user\` u ON u.id = d.id_user AND u.id_restaurante = d.id_restaurante
+                JOIN `user` u ON u.id = d.id_user AND u.id_restaurante = d.id_restaurante
                 JOIN restaurantes r ON r.id = d.id_restaurante
                 WHERE d.token_hash = ? AND d.revogado_em IS NULL AND d.expira_em > NOW() LIMIT 1");
             $q->execute([hash('sha256', $m[1])]);
