@@ -21,7 +21,10 @@ class ScalePanel:
         self.frame = tk.Frame(parent, bg=WHITE)
         self.port = tk.StringVar(value=str(preferences.get("balanca_porta") or ""))
         self.baudrate = tk.StringVar(value=str(preferences.get("balanca_baudrate") or 9600))
-        self.protocol = tk.StringVar(value=str(preferences.get("balanca_protocolo") or "continuo"))
+        self.protocol = tk.StringVar(value={
+            "continuo": "Fluxo contínuo",
+            "enq": "Solicitar leitura (ENQ)",
+        }.get(str(preferences.get("balanca_protocolo") or "continuo"), "Fluxo contínuo"))
         self.unit = tk.StringVar(value=str(preferences.get("balanca_unidade") or "kg"))
         self.status = tk.StringVar(value="Balança não configurada")
         self.weight = tk.StringVar(value="— kg")
@@ -50,7 +53,6 @@ class ScalePanel:
         self.port_box = ttk.Combobox(line, textvariable=self.port, state="readonly",
                                      style="Agent.TCombobox", font=("Segoe UI", 10))
         self.port_box.pack(fill="x", pady=(5, 5))
-        self._label(line, "", 9, color=GRAY).pack_forget()
         tk.Label(self.frame, textvariable=self.details, bg=WHITE, fg=GRAY,
                  wraplength=520, justify="left", anchor="w",
                  font=("Segoe UI", 9)).pack(fill="x")
@@ -61,7 +63,7 @@ class ScalePanel:
             ("Velocidade", self.baudrate,
              ("1200", "2400", "4800", "9600", "19200", "38400", "57600", "115200")),
             ("Unidade", self.unit, ("kg", "g")),
-            ("Comunicação", self.protocol, ("continuo", "enq")),
+            ("Leitura", self.protocol, ("Fluxo contínuo", "Solicitar leitura (ENQ)")),
         ):
             column = tk.Frame(options, bg=WHITE)
             column.pack(side="left", fill="x", expand=True, padx=(0, 8))
@@ -83,7 +85,6 @@ class ScalePanel:
         readout = tk.Frame(self.frame, bg="#F8F4F4", padx=13, pady=10)
         readout.pack(fill="x", pady=(13, 0))
         self._label(readout, "PESO LIDO", 9, True).pack(anchor="w")
-        self._label(readout, "", 22, True).pack_forget()
         tk.Label(readout, textvariable=self.weight, bg="#F8F4F4", fg=WINE,
                  anchor="w", font=("Segoe UI", 23, "bold")).pack(anchor="w")
         tk.Label(readout, textvariable=self.status, bg="#F8F4F4", fg=GRAY,
@@ -107,7 +108,10 @@ class ScalePanel:
     def connect(self):
         try:
             settings = ScaleSettings(port=self.port.get().strip(), baudrate=int(self.baudrate.get()),
-                                     protocol=self.protocol.get(), unit=self.unit.get())
+                                     protocol={
+                                         "Fluxo contínuo": "continuo",
+                                         "Solicitar leitura (ENQ)": "enq",
+                                     }[self.protocol.get()], unit=self.unit.get())
             settings.validate()
             self.monitor.configure(settings)
             self.preferences.set(balanca_ativa=True, balanca_porta=settings.port.upper(),
