@@ -19,6 +19,8 @@ class Preferences:
         self.data = {
             "automatico": False, "impressora": "", "papel": 80,
             "iniciar_windows": False, "cursor": 0, "restaurante": "", "device_id": 0,
+            "balanca_ativa": False, "balanca_porta": "", "balanca_baudrate": 9600,
+            "balanca_protocolo": "continuo", "balanca_unidade": "kg",
         }
         if PREFERENCES.exists():
             try:
