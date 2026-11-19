@@ -1,5 +1,6 @@
 """Protocolos ASCII de balanças sem precisar de hardware nos testes."""
 import unittest
+import time
 from decimal import Decimal
 from unittest.mock import patch
 from agent.scale import ScaleSettings, ScaleMonitor, parse_weight, serial_ports
@@ -47,6 +48,45 @@ class ParseScaleTests(unittest.TestCase):
         monitor._publish("Conectada")
         self.assertEqual(monitor.snapshot(), ("Conectada", None))
         monitor.stop()
+
+
+    def test_serial_monitor_marks_stable_only_after_consistent_frames(self):
+        frames = [b"ST,+0.350kg\\r\\n", b"ST,+0.351kg\\r\\n",
+                  b"ST,+0.350kg\\r\\n", b"ST,+0.350kg\\r\\n"]
+
+        class Port:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                pass
+
+            def read_until(self, *_):
+                if frames:
+                    return frames.pop(0)
+                time.sleep(0.02)
+                return b""
+
+            def write(self, data):
+                return len(data)
+
+        monitor = ScaleMonitor()
+        with patch("agent.scale.serial.Serial", return_value=Port()):
+            monitor.configure(ScaleSettings("COM7"))
+            deadline = time.monotonic() + 1.0
+            try:
+                while time.monotonic() < deadline:
+                    status, reading = monitor.snapshot()
+                    if reading and reading.stable:
+                        self.assertEqual(reading.kg, Decimal("0.350"))
+                        self.assertEqual(status, "Peso estável")
+                        break
+                    time.sleep(0.02)
+                else:
+                    self.fail("Leitura estável não foi publicada")
+            finally:
+                monitor.stop()
+
 
 
 if __name__ == "__main__":
