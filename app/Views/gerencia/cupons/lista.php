@@ -25,12 +25,19 @@ $situacoes = [
     </header>
 
     <?php if ($cupons === []): ?>
-        <section class="bloco">
-            <div class="lista-vazia">
-                <?= Icon::svg('ticket-percent') ?>
-                <strong>Nenhum cupom ainda</strong>
-                <p>Crie um código como <strong>BEMVINDO10</strong> para dar 10% de desconto, ou <strong>FRETE5</strong> para R$ 5,00. Você decide se ele vale uma vez ou várias.</p>
-                <p class="lista-vazia-acao"><a class="btn btn-primary btn-sm" href="<?= $e($base . '/cupons/novo') ?>"><?= Icon::svg('plus', 'icon-sm') ?>Criar o primeiro cupom</a></p>
+        <section class="bloco cl-vazio" aria-labelledby="cl-vazio-titulo">
+            <span class="cl-vazio-icone" aria-hidden="true"><?= Icon::svg('ticket-percent') ?></span>
+            <div class="cl-vazio-texto">
+                <h2 id="cl-vazio-titulo">Nenhum cupom ainda</h2>
+                <p>Crie um código, escolha o desconto e divulgue para os seus clientes. Você decide se ele vale uma vez ou várias.</p>
+                <a class="btn btn-primary" href="<?= $e($base . '/cupons/novo') ?>"><?= Icon::svg('plus', 'icon-sm') ?><span>Criar o primeiro cupom</span></a>
+            </div>
+            <div class="cl-vazio-exemplos">
+                <p class="cl-vazio-rotulo">Exemplos</p>
+                <ul>
+                    <li><span class="cl-codigo">BEMVINDO10</span><small>10% de desconto</small></li>
+                    <li><span class="cl-codigo">FRETE5</span><small>R$ 5,00 de desconto</small></li>
+                </ul>
             </div>
         </section>
     <?php else: ?>
