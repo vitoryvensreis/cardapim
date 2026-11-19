@@ -10,6 +10,8 @@ use Cardapim\Services\Caixa\CaixaService;
 use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Shared\Numero;
 
+$pageStyles = [...($pageStyles ?? []), 'css/balanca-caixa.css'];
+$pageScripts = [...($pageScripts ?? []), 'js/balanca-caixa.js'];
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $r = static fn (int $c): string => Numero::reais(CaixaService::dec($c));
 $p = $c['pedido'];
@@ -235,6 +237,14 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                         <input name="quantidade" inputmode="numeric" autocomplete="off" placeholder="0,000" data-mask="peso" data-peso-campo disabled aria-describedby="peso-ajuda">
                     </label>
                     <p class="campo-peso-ajuda" id="peso-ajuda" data-peso-ajuda>Digite só os números da balança: 8 4 6 vira 0,846.</p>
+                    <div class="balanca-pdv" data-balanca-pdv hidden>
+                        <div class="balanca-pdv-titulo"><strong>Leitura da balança</strong><span class="balanca-pdv-etapa">Conferir antes de lançar</span></div>
+                        <label class="campo-caixa" for="balanca-dispositivo">Balança conectada
+                            <select id="balanca-dispositivo" data-balanca-seletor></select>
+                        </label>
+                        <p role="status" aria-live="polite" data-balanca-status>Aguardando leitura...</p>
+                        <button class="btn btn-outline btn-block" type="button" data-balanca-usar disabled>Usar peso da balança</button>
+                    </div>
                 </div>
                 <div class="produto-comps" data-produto-grupos hidden></div>
                 <p class="campo-peso-ajuda texto-alerta" role="alert" data-grupos-erro hidden></p>
