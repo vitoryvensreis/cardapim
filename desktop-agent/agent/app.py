@@ -27,8 +27,8 @@ class DeliveryzimApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Deliveryzim Agent")
-        self.root.geometry("550x620")
-        self.root.minsize(485, 555)
+        self.root.geometry("550x690")
+        self.root.minsize(460, 515)
         self.root.configure(bg=WHITE)
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
         self.preferences = Preferences()
@@ -66,8 +66,18 @@ class DeliveryzimApp:
                  font=("Segoe UI", 20, "bold")).pack(anchor="w")
         tk.Label(header, text="Pedidos, impressao termica e alertas", bg=WINE, fg=WHITE,
                  font=("Segoe UI", 10)).pack(anchor="w")
-        body = tk.Frame(self.root, bg=WHITE, padx=22, pady=16)
-        body.pack(fill="both", expand=True)
+        outer = tk.Frame(self.root, bg=WHITE)
+        outer.pack(fill="both", expand=True)
+        canvas = tk.Canvas(outer, bg=WHITE, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        body = tk.Frame(canvas, bg=WHITE, padx=22, pady=16)
+        canvas.create_window((0, 0), window=body, anchor="nw", tags="content")
+        body.bind("<Configure>", lambda _: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure("content", width=e.width))
+        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units"))
 
         self._label(body, "STATUS DO RESTAURANTE", size=10, color=WINE, bold=True).pack(anchor="w")
         self._label(body, "", size=2).pack()
@@ -244,6 +254,8 @@ class DeliveryzimApp:
             self.quit_flag.wait(delay)
 
     def _recover_jobs(self):
+        if not self.token:
+            return
         for order, status in self.store.pending():
             if status == "imprimindo":
                 self._prompt(order, warning="Envio anterior indefinido. Verifique a fila do Windows antes de reimprimir.")
@@ -352,6 +364,10 @@ class DeliveryzimApp:
         self.preferences.set(cursor=0, restaurante="", device_id=0)
         self.name_var.set("")
         self.store.clear_on_relink()
+        for dialog in list(self.dialogs.values()):
+            if dialog.winfo_exists():
+                dialog.destroy()
+        self.dialogs.clear()
         delete_credential()
         self.status_var.set("Desvinculado")
         self._show_link_state()
@@ -385,6 +401,10 @@ class DeliveryzimApp:
                 self.password.delete(0, "end")
                 self.code.delete(0, "end")
                 try:
+                    previous = int(self.preferences.get("device_id") or 0)
+                    new_device = int(payload.get("device_id") or 0)
+                    if previous and previous != new_device:
+                        self.store.clear_on_relink()
                     save_credential(payload["token"])
                     self.token = payload["token"]
                     self.preferences.set(cursor=int(payload["cursor"]),
