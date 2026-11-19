@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cardapim\Controllers\Api\CatalogoController;
 use Cardapim\Controllers\Api\ClienteController;
 use Cardapim\Controllers\Api\DisponibilidadeController;
+use Cardapim\Controllers\Api\DesktopAgentController;
 use Cardapim\Controllers\Api\PedidoClienteController;
 use Cardapim\Controllers\Api\TempoRealController;
 use Cardapim\Controllers\RestauranteController;
@@ -15,6 +16,11 @@ return static function (Router $router): void {
     $router->get('/api/v1/cadastro/disponibilidade', [DisponibilidadeController::class, 'verificar']);
     $router->get('/api/v1/restaurantes', [CatalogoController::class, 'listar']);
     $router->get('/api/v1/tempo-real/ticket', [TempoRealController::class, 'ticket']);
+    // Agente local Windows: login da equipe + vinculo seguro; eventos tenant-scoped por token.
+    $router->get('/api/v1/desktop/csrf', [DesktopAgentController::class, 'csrf']);
+    $router->post('/api/v1/desktop/vincular', [DesktopAgentController::class, 'vincular']);
+    $router->get('/api/v1/desktop/eventos', [DesktopAgentController::class, 'eventos']);
+    $router->post('/api/v1/desktop/desconectar', [DesktopAgentController::class, 'desconectar']);
     $router->get('/api/v1/restaurantes/{slug}/situacao', [RestauranteController::class, 'situacao']);
     $router->post('/api/v1/restaurantes/{slug}/sacola', [RestauranteController::class, 'sacola']);
     // Cliente final (login pelo WhatsApp da plataforma)
