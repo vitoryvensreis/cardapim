@@ -99,6 +99,15 @@ class EventStore:
             ).fetchall()
             return [(json.loads(x), state) for x, state in rows]
 
+    def recent(self, hours=3, limit=30):
+        """Pedidos das últimas horas, para voltar a avisar o que ninguém aceitou depois de reabrir o Agent."""
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT payload FROM trabalhos WHERE evento_id > 0 AND atualizado_em >= datetime('now', ?) "
+                "ORDER BY evento_id DESC LIMIT ?", ("-" + str(int(hours)) + " hours", int(limit))
+            ).fetchall()
+            return [json.loads(x) for (x,) in rows]
+
     def clear_on_relink(self):
         with self.lock:
             self.db.execute("DELETE FROM trabalhos")

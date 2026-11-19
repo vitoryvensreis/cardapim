@@ -82,6 +82,9 @@ Garcom e entregador nao recebem (nao tratam pedidos do delivery).
 - **Visual**: luz laranja piscando em volta da tela (3 pulsos), tremida leve do sistema (0,5 s) e faixa no topo com
   "Pedido novo! #123", **Ver pedido** (abre `/caixa/delivery/{id}`) e **Ok, vi**. Varios pedidos juntos: "3 pedidos novos".
   O titulo da aba vira "(1) Pedido novo" e o celular vibra. Com "reduzir movimento" a luz fica parada e nada treme.
+- **Com o Deliveryzim Agent conectado** no restaurante (`GET /api/v1/desktop/agente-ativo`, conferido ao abrir, a cada
+  30 s e ao voltar para a aba), o navegador **nao toca** em nenhum aparelho e o botao mostra "Som no Agent": quem toca
+  ate alguem aceitar e o Agent no computador do caixa. Sem resposta ou Agent desligado ha mais de 30 s, o som volta.
 - **Som**: campainha "ding-dong" gerada no navegador (Web Audio, sem arquivo), repetida a cada 20 s (ate 6 vezes) enquanto a
   faixa estiver aberta. O navegador so libera som depois do primeiro toque na pagina, EXCETO no app instalado (PWA) ou
   com "Som: Permitir" nas configuracoes do site (cadeado da barra de endereco > Configuracoes do site > Som). O script

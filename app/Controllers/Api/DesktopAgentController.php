@@ -13,6 +13,10 @@ use Cardapim\Repositories\Desktop\PesagemRepository;
 use Cardapim\Services\Desktop\VinculoBalanca;
 use Cardapim\Services\Auth\Autenticacao;
 use Cardapim\Services\Auth\Autorizacao;
+use Cardapim\Services\Auth\UsuarioLogado;
+use Cardapim\Services\Auditoria;
+use Cardapim\Services\Caixa\DeliveryService;
+use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use PDO;
 use Throwable;
 
@@ -21,12 +25,16 @@ use Throwable;
  * - Vinculacao com login de equipe + CSRF, sem armazenar senha no agente;
  * - Token de dispositivo escopado a um unico restaurante, revogavel, hash SHA-256 no banco;
  * - Consulta de eventos "pedido.novo" na outbox; sem acesso cruzado entre tenants.
- * O botao "Receber" do agente apenas reconhece o aviso local; nao aceita o pedido comercialmente.
+ * - "Receber" no aviso do agente aceita o pedido como o botao Aceitar do caixa (mesmo DeliveryService);
+ * - Situacao dos pedidos avisados, para o agente parar o som quando alguem aceitar em outro lugar;
+ * - "Agent conectado" para o navegador nao tocar o som repetido enquanto o agente toca.
  */
 final class DesktopAgentController
 {
     private const CARGOS = ['gerente', 'caixa'];
     private const VALID_DIAS = 90;
+    /** Agent consulta os eventos a cada 2,5 s; sem consulta ha 30 s, o navegador volta a tocar. */
+    public const CONECTADO_SEGUNDOS = 30;
 
     public function csrf(): Response
     {
@@ -109,6 +117,8 @@ final class DesktopAgentController
                     'evento_id' => $cursor, 'id' => (int) $p['id'],
                     'numero' => (int) $p['numero'], 'tipo' => (string) $p['tipo'],
                     'status' => (string) $p['status'], 'origem' => (string) $p['origem'],
+                    // "Ver no sistema" do aviso: caminho relativo, o agente junta com o endereco oficial.
+                    'url' => '/' . rawurlencode((string) $dispositivo['restaurante_slug']) . '/caixa/delivery/' . (int) $p['id'],
                     'cliente' => (string) ($p['cliente_nome'] ?? ''),
                     'endereco' => array_filter([
                         $p['entrega_logradouro'] ?? null, $p['entrega_numero'] ?? null,
@@ -258,6 +268,116 @@ final class DesktopAgentController
         }
     }
 
+    /**
+     * GET /api/v1/desktop/pedidos/situacao?ids=1,2,3 - situacao atual dos pedidos avisados (ate 50),
+     * so do restaurante do dispositivo. Id de outro restaurante simplesmente nao volta.
+     */
+    public function situacaoPedidos(): Response
+    {
+        $autorizado = $this->dispositivo();
+        if ($autorizado instanceof Response) return $autorizado;
+        [$db, $dispositivo] = $autorizado;
+        $ids = [];
+        foreach (explode(',', (string) ($_GET['ids'] ?? '')) as $parte) {
+            $id = filter_var(trim($parte), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($id !== false) $ids[$id] = $id;
+        }
+        if ($ids === [] || count($ids) > 50) {
+            return Response::json(['erro' => 'Informe de 1 a 50 pedidos.'], 422);
+        }
+        try {
+            $marcadores = implode(',', array_fill(0, count($ids), '?'));
+            $q = $db->prepare("SELECT id, status FROM pedidos WHERE id_restaurante = ? AND id IN ($marcadores)");
+            $q->execute([(int) $dispositivo['id_restaurante'], ...array_values($ids)]);
+            $pedidos = array_map(static fn (array $r): array => ['id' => (int) $r['id'], 'status' => (string) $r['status']],
+                $q->fetchAll(PDO::FETCH_ASSOC));
+            return Response::json(['pedidos' => $pedidos]);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: situacao indisponivel (' . get_class($e) . ').');
+            return Response::json(['erro' => 'Falha ao consultar pedidos.'], 503);
+        }
+    }
+
+    /**
+     * POST /api/v1/desktop/pedidos/{id}/receber - "Receber" no aviso do Agent = Aceitar do caixa:
+     * Novo -> Em preparo, WhatsApp do cliente, tempo real e confirmacao ao iFood. Autor = conta que
+     * vinculou o agente (gerente ou caixa ativo, reconferido agora). 409 quando o pedido ja mudou.
+     */
+    public function receberPedido(string $id): Response
+    {
+        $autorizado = $this->dispositivo();
+        if ($autorizado instanceof Response) return $autorizado;
+        [$db, $d] = $autorizado;
+        $idPedido = filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($idPedido === false) {
+            return Response::json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+        if (!RateLimiter::padrao(120, 600)->permitir('desktop-receber|' . (int) $d['id'])) {
+            return Response::json(['erro' => 'Muitas tentativas. Aguarde um pouco.'], 429);
+        }
+        $idRestaurante = (int) $d['id_restaurante'];
+        try {
+            $pedido = (new PedidoRepository($db))->buscar($idRestaurante, (int) $idPedido);
+            if ($pedido === null || !in_array($pedido['tipo'], ['entrega', 'retirada'], true)) {
+                return Response::json(['erro' => 'Pedido não encontrado.'], 404);
+            }
+            if ($pedido['status'] !== 'recebido') {
+                return Response::json([
+                    'erro' => 'Este pedido já mudou de situação.', 'status' => (string) $pedido['status'],
+                ], 409);
+            }
+            $autor = new UsuarioLogado(
+                (int) $d['id_user'], (string) $d['cargo'], (string) $d['user_nome'], (string) $d['user_sobrenome'],
+                true, $idRestaurante, (string) $d['restaurante_slug'], (string) $d['restaurante_nome'],
+                (string) $d['restaurante_status'],
+            );
+            $resultado = (new DeliveryService($db, $idRestaurante, $autor))->avancar((int) $idPedido, 'aceitar');
+            if (!$resultado->ok) {
+                $atual = (new PedidoRepository($db))->buscar($idRestaurante, (int) $idPedido);
+                return Response::json(['erro' => $resultado->mensagem, 'status' => (string) ($atual['status'] ?? '')], 409);
+            }
+            Auditoria::registrar($autor, 'Pedido aceito pelo Agent', sprintf(
+                'Pedido #%d aceito no Deliveryzim Agent (%s).', (int) $pedido['numero'], (string) $d['nome']
+            ));
+            AvisosWhatsApp::agendarEnvio($idRestaurante);
+            return Response::json(['ok' => true, 'status' => 'em_preparo', 'mensagem' => $resultado->mensagem]);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: receber pedido falhou (' . get_class($e) . ').');
+            return Response::json(['erro' => 'Não foi possível aceitar agora. Tente pelo caixa.'], 503);
+        }
+    }
+
+    /**
+     * GET /api/v1/desktop/agente-ativo - para o navegador da equipe: ha Agent conectado neste restaurante?
+     * Se sim, o som repetido do navegador fica desligado (o Agent toca ate alguem aceitar).
+     */
+    public function agenteAtivo(): Response
+    {
+        $usuario = Autenticacao::usuario();
+        if ($usuario === null || $usuario->idRestaurante === null
+            || !in_array($usuario->cargo, self::CARGOS, true)
+            || !Autorizacao::contaLiberada($usuario)) {
+            return Response::json(['ativo' => false])->comCabecalhos(['Cache-Control' => 'no-store']);
+        }
+        try {
+            $ativo = self::agenteConectado(Database::connect(), (int) $usuario->idRestaurante);
+        } catch (Throwable $e) {
+            $ativo = false; // na duvida o navegador toca: nenhum pedido fica sem aviso
+        }
+        return Response::json(['ativo' => $ativo, 'conferir_em' => self::CONECTADO_SEGUNDOS])
+            ->comCabecalhos(['Cache-Control' => 'no-store']);
+    }
+
+    public static function agenteConectado(PDO $db, int $idRestaurante): bool
+    {
+        $q = $db->prepare('SELECT 1 FROM desktop_agent_devices
+            WHERE id_restaurante = ? AND revogado_em IS NULL AND expira_em > NOW()
+              AND ultimo_acesso_em >= NOW() - INTERVAL ' . self::CONECTADO_SEGUNDOS . ' SECOND LIMIT 1');
+        // Mesmo relogio do MySQL que grava ultimo_acesso_em (NOW()), sem misturar fuso do PHP.
+        $q->execute([$idRestaurante]);
+        return $q->fetchColumn() !== false;
+    }
+
     public function desconectar(): Response
     {
         $autorizado = $this->dispositivo();
@@ -284,7 +404,8 @@ final class DesktopAgentController
         }
         try {
             $db = Database::connect();
-            $q = $db->prepare("SELECT d.*, u.ativo, u.cargo, u.excluido_em, r.status_rest AS restaurante_status
+            $q = $db->prepare("SELECT d.*, u.ativo, u.cargo, u.excluido_em, u.nome AS user_nome, u.sobrenome AS user_sobrenome,
+                    r.status_rest AS restaurante_status, r.slug AS restaurante_slug, r.nome AS restaurante_nome
                 FROM desktop_agent_devices d
                 JOIN `user` u ON u.id = d.id_user AND u.id_restaurante = d.id_restaurante
                 JOIN restaurantes r ON r.id = d.id_restaurante

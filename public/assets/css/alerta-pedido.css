@@ -12,6 +12,9 @@
 .alerta-som-on, .alerta-som-off { display: inline-flex; }
 .alerta-som[aria-pressed="false"] .alerta-som-on { display: none; }
 .alerta-som[aria-pressed="true"] .alerta-som-off { display: none; }
+/* Agent conectado: o som esta no computador do caixa, o botao so informa. */
+.alerta-som.is-agent { cursor: default; color: var(--c-muted); }
+.alerta-som.is-agent:hover { border-color: var(--c-line); }
 
 /* Luz em volta da tela */
 .alerta-luz {
