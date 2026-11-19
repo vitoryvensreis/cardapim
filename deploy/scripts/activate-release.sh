@@ -8,11 +8,17 @@ root="$1"
 release_id="$2"
 site_url="$3"
 migrations="$4"
+desktop_agent_schema="${5:-false}"
 
 [[ "$root" =~ ^/home/[A-Za-z0-9._-]+/apps/cardapim$ ]] || { echo "Diretorio inseguro"; exit 1; }
 [[ "$release_id" =~ ^[0-9a-f]{40}-[0-9]+-[0-9]+$ ]] || { echo "Release invalida"; exit 1; }
 [[ "$site_url" =~ ^https://[A-Za-z0-9.-]+/?$ ]] || { echo "URL invalida"; exit 1; }
 [[ "$migrations" == "false" || "$migrations" == "true" ]] || exit 1
+[[ "$desktop_agent_schema" == "false" || "$desktop_agent_schema" == "true" ]] || exit 1
+if [[ "$desktop_agent_schema" == "true" && "$migrations" != "true" ]]; then
+  echo "Schema do desktop requer migracoes explicitamente habilitadas."
+  exit 1
+fi
 [[ "$EUID" -ne 0 ]] || { echo "Nao execute o deploy como root"; exit 1; }
 
 release="$root/releases/$release_id"
@@ -55,6 +61,18 @@ find "$release/app" "$release/bootstrap" "$release/database" "$release/public" "
 echo "Validacao PHP concluida."
 
 if [[ "$migrations" == "true" ]]; then
+  if [[ "$desktop_agent_schema" == "true" ]]; then
+    # A tag de entrega nao pode aplicar migrations de outras funcionalidades.
+    status="$("$php_bin" "$release/database/migrate.php" --status)"
+    pending="$(printf '%s\n' "$status" | sed -n 's/^PENDENTE //p')"
+    expected="$(printf '%s\n' \
+      20261119010000_create_desktop_agent_devices.php \
+      20261119020000_create_desktop_agent_pesagens.php)"
+    if [[ -n "$pending" && "$pending" != "$expected" ]]; then
+      echo "Existem migrations pendentes fora do escopo do Desktop Agent. Deploy abortado antes de mudar current."
+      exit 1
+    fi
+  fi
   cnf="$shared/mysql-backup.cnf"
   command -v mysqldump >/dev/null || { echo "mysqldump nao instalado"; exit 1; }
   command -v gzip >/dev/null || { echo "gzip nao instalado"; exit 1; }
@@ -82,6 +100,9 @@ if [[ "$migrations" == "true" ]]; then
   chmod 600 "$backup"
   echo "Backup criado e validado: $backup"
   "$php_bin" "$release/database/migrate.php" --apply
+  if [[ "$desktop_agent_schema" == "true" ]]; then
+    "$php_bin" "$release/database/verify-desktop-balanca.php" --verify
+  fi
 fi
 
 old_target=""
@@ -107,6 +128,11 @@ check_health() {
   curl -fsS --max-time 20 "$site_url/assets/vendor/qrcode-generator/qrcode.js" >/dev/null || return 1
   # /status so retorna HTTP 200 quando o PHP acessa o MySQL.
   curl -fsS --max-time 20 -H 'Accept: application/json' "$site_url/status" >/dev/null || return 1
+  if [[ "$desktop_agent_schema" == "true" ]]; then
+    # Rota protegida deve existir; sem login, acesso deve ser negado.
+    code="$(curl -sS --max-time 20 -o /dev/null -w '%{http_code}' "$site_url/api/v1/desktop/balancas" || true)"
+    [[ "$code" == "403" ]] || return 1
+  fi
 }
 if ! check_health; then
   echo "Falha de healthcheck HTTP: revertendo symlink."
