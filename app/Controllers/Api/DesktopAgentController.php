@@ -100,7 +100,7 @@ final class DesktopAgentController
                 if ($id < 1) continue;
                 $p = $pedidos->buscar((int) $dispositivo['id_restaurante'], $id);
                 if (!$p || !in_array($p['tipo'], ['entrega', 'retirada'], true)
-                    || in_array($p['status'], ['aguardando_pagamento', 'cancelado'], true)) {
+                    || !in_array($p['status'], ['recebido', 'em_preparo', 'pronto'], true)) {
                     continue;
                 }
                 $resposta[] = [
