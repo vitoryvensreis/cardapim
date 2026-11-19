@@ -50,7 +50,12 @@ class GuiSmokeTests(unittest.TestCase):
         app._show_link_state()
         self.pump()
         app._select_mode("auto")
+        from agent.app import MODE_LABELS, WHITE
+        chosen = app.mode_selector.buttons[MODE_LABELS["auto"]]
+        self.assertEqual(chosen.cget("text_color"), WHITE)  # escolhido: letra branca no vinho
+        self.assertNotEqual(app.mode_selector.buttons[MODE_LABELS["manual"]].cget("text_color"), WHITE)
         app._select_mode("manual")
+        self.assertEqual(tuple(app.root.resizable()), (False, False))  # janela de tamanho fixo
         app.logo_var.set(False)
         app._save_preferences()
         self.pump()

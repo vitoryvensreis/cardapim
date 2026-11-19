@@ -35,7 +35,8 @@ final class PesagemRepository
                     CASE WHEN p.atualizado_em >= NOW(6) - INTERVAL 3 SECOND
                         AND p.estavel = 1 THEN p.peso_kg ELSE NULL END AS peso_kg,
                     CASE WHEN p.atualizado_em >= NOW(6) - INTERVAL 3 SECOND
-                        AND p.estavel = 1 THEN 1 ELSE 0 END AS estavel
+                        AND p.estavel = 1 THEN 1 ELSE 0 END AS estavel,
+                    CASE WHEN p.atualizado_em >= NOW(6) - INTERVAL 60 SECOND THEN 1 ELSE 0 END AS ligada
                FROM desktop_agent_devices d
                JOIN `user` u ON u.id = d.id_user AND u.id_restaurante = d.id_restaurante
                LEFT JOIN desktop_agent_pesagens p ON p.id_dispositivo = d.id
@@ -52,6 +53,8 @@ final class PesagemRepository
                 'nome' => (string) $row['nome'],
                 'peso_kg' => $row['peso_kg'] === null ? null : (string) $row['peso_kg'],
                 'estavel' => (int) $row['estavel'] === 1,
+                // Agent com balanca ativa manda leitura a cada ~1 s; sem noticia ha 60 s = desligada.
+                'ligada' => (int) $row['ligada'] === 1,
             ];
         }
         return $devices;

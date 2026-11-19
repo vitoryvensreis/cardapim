@@ -14,7 +14,7 @@ use Cardapim\Shared\Seguranca\Cripto;
 final class VinculoBalanca
 {
     public const COOKIE = 'deliveryzim_balanca';
-    private const PRAZO_LINK = 120;
+    private const PRAZO_LINK = 600; // 10 min: da tempo de entrar (com 2FA) quando o Agent abre o navegador
     private const PRAZO_COOKIE = 7776000; // 90 dias
 
     public static function gerarTicket(int $restaurante, int $dispositivo, ?int $agora = null): string

@@ -47,11 +47,20 @@ jobs:
         shell: pwsh
         run: |
           pyinstaller --noconfirm --clean --onefile --windowed --name Deliveryzim-Agent --icon "desktop-agent/agent/assets/deliveryzim.ico" --add-data "desktop-agent/agent/assets/icone.png;agent/assets" --add-data "desktop-agent/agent/assets/logo-branca.png;agent/assets" --add-data "desktop-agent/agent/assets/deliveryzim.ico;agent/assets" --collect-data customtkinter desktop-agent/main.py
-      - name: Publicar EXE
+      - name: Gerar instalador (Inno Setup)
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $iscc = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=${{ steps.versao.outputs.versao }}" desktop-agent/installer/deliveryzim-agent.iss
+          if (-not (Test-Path dist/Deliveryzim-Agent-Setup.exe)) { throw "Instalador não gerado." }
+      - name: Publicar EXE e instalador
         uses: actions/upload-artifact@v4
         with:
           name: Deliveryzim-Agent-Windows-v${{ steps.versao.outputs.versao }}
-          path: dist/Deliveryzim-Agent.exe
+          path: |
+            dist/Deliveryzim-Agent-Setup.exe
+            dist/Deliveryzim-Agent.exe
           if-no-files-found: error
       - name: Publicar versão em Releases (main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -64,9 +73,9 @@ jobs:
           $tag = "agent-v$env:VERSAO"
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag dist/Deliveryzim-Agent.exe --clobber --repo $env:GITHUB_REPOSITORY
+            gh release upload $tag dist/Deliveryzim-Agent-Setup.exe dist/Deliveryzim-Agent.exe --clobber --repo $env:GITHUB_REPOSITORY
           } else {
-            gh release create $tag dist/Deliveryzim-Agent.exe --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA `
+            gh release create $tag dist/Deliveryzim-Agent-Setup.exe dist/Deliveryzim-Agent.exe --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA `
               --title "Deliveryzim Agent $env:VERSAO (Windows)" `
-              --notes "Gerado automaticamente a partir da main ($env:GITHUB_SHA). Veja desktop-agent/README.md para as novidades desta versão."
+              --notes "Baixe e abra o Deliveryzim-Agent-Setup.exe (instala, abre com o Windows e cria o atalho). O Deliveryzim-Agent.exe é a versão sem instalação. Gerado a partir da main ($env:GITHUB_SHA)."
           }

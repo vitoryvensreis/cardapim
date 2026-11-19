@@ -206,36 +206,53 @@ final class DesktopAgentController
         ]);
     }
 
-    /** O navegador precisa estar autenticado na MESMA loja antes de consumir o link do Agent. */
+    /**
+     * Link do Agent: associa este navegador a balanca do computador e abre o painel.
+     * Sem login, guarda o pedido na sessao, manda para /login e conclui logo depois de entrar
+     * (o Agent abre este link sozinho quando o Windows liga). destino=gerencia abre a gerencia para o gerente.
+     */
     public function parearNavegador(): Response
     {
+        $semCache = ['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer'];
+        $ticket = (string) ($_GET['ticket'] ?? '');
+        $destino = ($_GET['destino'] ?? '') === 'gerencia' ? 'gerencia' : 'caixa';
+        if ($ticket === '') {
+            $pendente = Session::flash('desktop_pareamento');
+            if (is_array($pendente)) {
+                $ticket = (string) ($pendente['ticket'] ?? '');
+                $destino = ($pendente['destino'] ?? '') === 'gerencia' ? 'gerencia' : 'caixa';
+            }
+        }
         $usuario = Autenticacao::usuario();
+        if ($usuario === null && $ticket !== '' && strlen($ticket) <= 256) {
+            Session::set('desktop_pareamento', ['ticket' => $ticket, 'destino' => $destino]);
+            Session::set('login_destino', '/api/v1/desktop/parear');
+            return Response::redirect('/login', 303)->comCabecalhos($semCache);
+        }
         if ($usuario === null || $usuario->idRestaurante === null
             || !in_array($usuario->cargo, self::CARGOS, true)
             || !Autorizacao::contaLiberada($usuario)) {
             return Response::html('Entre no Deliveryzim como gerente ou caixa antes de abrir pelo Agent.', 403)
-                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+                ->comCabecalhos($semCache);
         }
+        // Gerente vai para a gerencia quando o Agent pede; caixa sempre para o caixa.
+        $area = $destino === 'gerencia' && $usuario->cargo === 'gerente' ? 'gerencia' : 'caixa';
         $idRestaurante = (int) $usuario->idRestaurante;
-        $idDispositivo = VinculoBalanca::verificarTicket((string) ($_GET['ticket'] ?? ''), $idRestaurante);
+        $idDispositivo = VinculoBalanca::verificarTicket($ticket, $idRestaurante);
         if ($idDispositivo === null) {
-            return Response::html('Link de conexão expirado ou pertencente a outro restaurante. Abra novamente pelo Agent.', 403)
-                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+            // Link vencido ou de outra loja: abre o painel mesmo assim, sem associar a balanca.
+            return Response::redirect($usuario->urlRestaurante($area))->comCabecalhos($semCache);
         }
         try {
             $balancas = (new PesagemRepository(Database::connect()))->listar($idRestaurante);
             $valida = array_filter($balancas, static fn (array $d): bool => (int) $d['id'] === $idDispositivo);
-            if ($valida === []) {
-                return Response::html('Dispositivo desconectado ou sem permissão para esta loja.', 403)
-                    ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+            if ($valida !== []) {
+                VinculoBalanca::gravarCookie($idRestaurante, $idDispositivo);
             }
-            VinculoBalanca::gravarCookie($idRestaurante, $idDispositivo);
-            return Response::redirect($usuario->urlRestaurante('caixa'))
-                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+            return Response::redirect($usuario->urlRestaurante($area))->comCabecalhos($semCache);
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: pareamento indisponivel (' . get_class($e) . ').');
-            return Response::html('Não foi possível associar este caixa agora.', 503)
-                ->comCabecalhos(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer']);
+            return Response::redirect($usuario->urlRestaurante($area))->comCabecalhos($semCache);
         }
     }
 
@@ -261,7 +278,17 @@ final class DesktopAgentController
                     break;
                 }
             }
-            return Response::json(['balancas' => $balancas, 'selecionada' => $vinculada]);
+            // Sem vinculo neste navegador: se o restaurante tem UMA so balanca ligada agora, usa ela.
+            // Com duas ou mais, cada caixa precisa abrir pelo seu Agent (nunca mistura balancas).
+            $automatica = false;
+            if ($vinculada === null) {
+                $ligadas = array_values(array_filter($balancas, static fn (array $b): bool => $b['ligada']));
+                if (count($ligadas) === 1) {
+                    $vinculada = $ligadas[0];
+                    $automatica = true;
+                }
+            }
+            return Response::json(['balancas' => $balancas, 'selecionada' => $vinculada, 'automatica' => $automatica]);
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: leitura de balancas indisponivel (' . get_class($e) . ').');
             return Response::json(['erro' => 'Balancas indisponiveis.'], 503);

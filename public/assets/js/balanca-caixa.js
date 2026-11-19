@@ -1,5 +1,6 @@
 /* Integração com a balança configurada no Agent Windows deste computador.
- * Pareamento feito ao clicar "Abrir Deliveryzim" no Agent; nunca escolhe o equipamento no PDV.
+ * Pareamento feito pelo Agent (ao ligar o Windows ou em "Abrir Deliveryzim"); com uma só balança ligada
+ * no restaurante, o servidor já escolhe ela. Nunca se escolhe o equipamento no PDV.
  * Peso estável e recente entra automaticamente no campo, mas o lançamento é sempre confirmado.
  */
 (() => {

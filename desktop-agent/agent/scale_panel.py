@@ -51,8 +51,8 @@ class ScalePanel:
     def _combo(self, parent, variable, values, command=None):
         return ctk.CTkComboBox(
             parent, variable=variable, values=list(values), state="readonly", height=38,
-            corner_radius=6, border_width=1, border_color=BORDER, button_color=WINE,
-            button_hover_color=ORANGE, fg_color=WHITE, text_color=DARK, font=self.ui._font(10),
+            corner_radius=6, border_width=1, border_color=BORDER, button_color=SUBTLE,
+            button_hover_color=BORDER, fg_color=WHITE, text_color=DARK, font=self.ui._font(10),
             dropdown_font=self.ui._font(10), command=command,
         )
 
