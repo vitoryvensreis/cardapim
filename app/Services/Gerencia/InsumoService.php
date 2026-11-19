@@ -39,6 +39,9 @@ final class InsumoService
             if ($antes === null) {
                 return Resultado::falha('Insumo não encontrado. Ele pode ter sido excluído.');
             }
+            if (($dono = $this->insumos->produtoDono($this->idRestaurante, $id)) !== null) {
+                return Resultado::falha('Este estoque é do produto "' . $dono['nome'] . '". Altere pela tela do produto.');
+            }
         }
         [$dados, $erros] = $this->validar($entrada, $id);
         if ($antes !== null && !isset($erros['unidade']) && $dados['unidade'] !== $antes['unidade']) {
@@ -127,6 +130,9 @@ final class InsumoService
         $insumo = $this->insumos->buscar($this->idRestaurante, $id);
         if ($insumo === null) {
             return Resultado::falha('Insumo não encontrado. Ele pode já ter sido excluído.');
+        }
+        if (($dono = $this->insumos->produtoDono($this->idRestaurante, $id)) !== null) {
+            return Resultado::falha('Este estoque é do produto "' . $dono['nome'] . '". Para parar de contar, mude o produto para outra opção de estoque.');
         }
         // Keep historical recipes and movements intact. Deactivating the ingredient also
         // marks any active recipes that still depend on it as unavailable for sale.

@@ -96,3 +96,24 @@ Custos e consumo de oleo por porcao sao estimativas de demonstracao.
 
 Aplicado em producao pela execucao GitHub Actions **#57** (commit `2324846`), com backup
 `shared/backups/cardapim-before-cardapio-exemplo-20261110T101637Z.sql.gz`. Gatilho temporario removido no commit seguinte.
+
+
+## Estoque contado no proprio produto (revenda)
+
+Para o que e comprado pronto e revendido (refrigerante, agua, cerveja lata), o produto tem a opcao
+**Contar as unidades deste produto** em `Estoque deste produto`. O gerente informa **Quanto tem agora**,
+**Avisar quando chegar a** (opcional) e **Quanto voce paga por unidade** (opcional).
+
+- Por tras, o sistema cria um **insumo proprio** (`insumos.id_produto_proprio` = id do produto, unico por restaurante)
+  com o nome do produto (ou "Nome (produto)" se ja existir um insumo comum igual), na mesma unidade da venda
+  (un, kg ou L), e a ficha tecnica automatica de **1 unidade** (ou 1 kg/L). Assim baixa, devolucao no cancelamento,
+  disponibilidade (zerou = sai de venda), iFood, resumo do estoque, Visao geral e venda por peso usam a regra de sempre.
+- O insumo proprio **nao aparece** na aba Insumos nem na escolha de insumos das fichas; aparece no **resumo**
+  ("Acabaram", "Estoque baixo", "Precisa comprar") com link para o produto. Editar ou excluir pela aba Insumos e recusado.
+- Lista de produtos: "Restam N" e o campo **Chegou mais** + **Somar** (usa `POST /estoque/insumos/{id}/repor`).
+- Editar o produto sem mexer no numero **nao sobrescreve** o estoque (vendas feitas com a tela aberta continuam valendo);
+  so muda se o numero for alterado ou se mudar "como vende".
+- Trocar para outra opcao, arquivar ou excluir o produto **arquiva** o insumo proprio (historico preservado).
+- Migration `20261119180000_estoque_proprio_produto`, aplicada com backup por `deploy/scripts/apply-estoque-produto.sh`
+  (gatilho `[cardapim-estoque-produto]`); antes dela a opcao aparece com aviso e o restante funciona como antes
+  (`Esquema::tem($db, 'estoque_produto')`). Teste: `tests/integration/estoque-produto.php`.

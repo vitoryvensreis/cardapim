@@ -18,7 +18,8 @@ foreach ($categorias as $c) {
     $opcoesCategoria[(string) $c['id']] = $c['nome'];
 }
 $opcoesCategoria[ProdutoService::CATEGORIA_NOVA] = '+ Criar nova categoria';
-$controle = $v('controle') === 'livre' ? 'livre' : 'estoque';
+$controle = ProdutoService::controle($v('controle'));
+$siglaVenda = ['un' => 'un', 'kg' => 'kg', 'l' => 'L'];
 $unidadeVenda = in_array($v('unidade_venda'), ['kg', 'l'], true) ? $v('unidade_venda') : 'un';
 $porPeso = $unidadeVenda !== 'un';
 $porcoesValores = array_values(array_filter(is_array($valores['porcoes'] ?? null) ? $valores['porcoes'] : [], 'is_string'));
@@ -167,13 +168,18 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
         <section class="bloco" aria-labelledby="titulo-estoque">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-estoque"><?= Icon::svg('package') ?>Estoque deste produto</h2>
-                <p>Escolha se cada venda deve baixar os insumos do estoque.</p>
+                <p>Escolha como cada venda mexe no estoque.</p>
             </div>
+            <?php if (isset($erros['controle'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['controle']) ?></p><?php endif; ?>
             <fieldset class="opcoes-modo">
                 <legend class="sr-only">Como controlar o estoque</legend>
                 <label class="opcao-modo">
                     <input type="radio" name="controle" value="estoque"<?= $controle === 'estoque' ? ' checked' : '' ?> data-controle>
-                    <span><strong>Baixar dos insumos (recomendado)</strong><small>Cada venda tira do estoque os insumos da ficha abaixo. Se um insumo acabar, o produto sai de venda sozinho.</small></span>
+                    <span><strong>Baixar dos insumos (ficha técnica)</strong><small>Para o que você prepara: pizza, lanche, açaí. Cada venda tira os insumos da ficha abaixo; se um acabar, o produto sai de venda sozinho.</small></span>
+                </label>
+                <label class="opcao-modo">
+                    <input type="radio" name="controle" value="proprio"<?= $controle === 'proprio' ? ' checked' : '' ?> data-controle>
+                    <span><strong>Contar as unidades deste produto</strong><small>Para o que você compra pronto e revende: refrigerante, água, cerveja lata. Cada venda tira 1 e, quando zerar, sai de venda sozinho.</small></span>
                 </label>
                 <label class="opcao-modo">
                     <input type="radio" name="controle" value="livre"<?= $controle === 'livre' ? ' checked' : '' ?> data-controle>
@@ -181,7 +187,23 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                 </label>
             </fieldset>
 
-            <div class="ficha-area" data-ficha-area<?= $controle === 'livre' ? ' hidden' : '' ?>>
+            <div class="ficha-area proprio-area" data-proprio-area<?= $controle === 'proprio' ? '' : ' hidden' ?>>
+                <input type="hidden" name="estoque_quantidade_antes" value="<?= $e($v('estoque_quantidade_antes')) ?>">
+                <div class="proprio-campos">
+                    <?= Campo::texto(['nome' => 'estoque_quantidade', 'rotulo' => 'Quanto tem agora', 'valor' => $v('estoque_quantidade'), 'icone' => 'package',
+                        'erro' => $erros['estoque_quantidade'] ?? null, 'opcional' => true, 'sufixo' => $siglaVenda[$unidadeVenda],
+                        'attrs' => ['inputmode' => 'decimal', 'data-mask' => 'quantity', 'placeholder' => 'Ex.: 10', 'autocomplete' => 'off']]) ?>
+                    <?= Campo::texto(['nome' => 'estoque_minimo_produto', 'rotulo' => 'Avisar quando chegar a', 'valor' => $v('estoque_minimo_produto'), 'icone' => 'bell',
+                        'erro' => $erros['estoque_minimo_produto'] ?? null, 'opcional' => true, 'sufixo' => $siglaVenda[$unidadeVenda], 'dica' => 'Opcional. Entra em "Precisa comprar".',
+                        'attrs' => ['inputmode' => 'decimal', 'data-mask' => 'quantity', 'placeholder' => 'Ex.: 3', 'autocomplete' => 'off']]) ?>
+                    <?= Campo::texto(['nome' => 'estoque_custo', 'rotulo' => 'Quanto você paga por unidade', 'valor' => $v('estoque_custo'), 'icone' => 'banknote',
+                        'erro' => $erros['estoque_custo'] ?? null, 'opcional' => true, 'dica' => 'Opcional. Mostra quanto sobra em cada venda.',
+                        'attrs' => ['inputmode' => 'numeric', 'data-mask' => 'money', 'placeholder' => '0,00', 'autocomplete' => 'off']]) ?>
+                </div>
+                <p class="ficha-ajuda">Chegou mais? Use <strong>Somar</strong> na lista de produtos ou em <strong>Precisa comprar</strong>, no resumo do estoque.</p>
+            </div>
+
+            <div class="ficha-area" data-ficha-area<?= $controle === 'estoque' ? '' : ' hidden' ?>>
                 <h3 class="ficha-titulo" id="campo-ficha">Ficha técnica: o que vai em <strong data-ficha-unidade-venda><?= $e($nomeUnidade) ?></strong> do produto</h3>
                 <?php if ($insumos === []): ?>
                     <div class="notice notice-info">

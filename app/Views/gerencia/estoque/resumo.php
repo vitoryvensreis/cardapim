@@ -82,7 +82,7 @@ $vazio = $analise['totalInsumos'] === 0 && $analise['totalProdutos'] === 0;
                             <div class="lista-principal">
                                 <span class="lista-icone" aria-hidden="true"><?= Icon::svg($falta ? 'package-x' : 'triangle-exclamation-point', 'icon-sm') ?></span>
                                 <span class="lista-titulo">
-                                    <a href="<?= $e($base . '/estoque/insumos/' . (int) $insumo['id']) ?>"><strong><?= $e((string) $insumo['nome']) ?></strong></a>
+                                    <a href="<?= $e($base . (!empty($insumo['id_produto_proprio']) ? '/estoque/produtos/' . (int) $insumo['id_produto_proprio'] : '/estoque/insumos/' . (int) $insumo['id'])) ?>"><strong><?= $e((string) $insumo['nome']) ?></strong></a>
                                     <small><?= $falta ? 'Acabou' : 'Faltam ' . $e($u->formatar($a['faltaParaMinimo'])) . ' para o mínimo' ?></small>
                                 </span>
                             </div>

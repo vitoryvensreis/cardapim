@@ -32,8 +32,13 @@ final class ProdutoService
         'nome' => 'Nome', 'categoria' => 'Categoria', 'preco' => 'Preço', 'codigo' => 'Código', 'descricao' => 'Descrição',
         'controla_estoque' => 'Controla estoque', 'disponivel' => 'Disponível', 'ficha' => 'Ficha técnica',
         'unidade_venda' => 'Como vende', 'venda_minima' => 'Venda mínima', 'porcoes' => 'Porções do cardápio online',
-        'complementos' => 'Complementos', 'foto' => 'Foto',
+        'complementos' => 'Complementos', 'foto' => 'Foto', 'estoque_proprio' => 'Estoque do produto',
     ];
+
+    /** Opcoes de "Estoque deste produto". */
+    public const CONTROLE_FICHA = 'estoque';
+    public const CONTROLE_PROPRIO = 'proprio';
+    public const CONTROLE_LIVRE = 'livre';
 
     /** Rotulos de "Como vende" (produtos.unidade_venda). */
     public const UNIDADES_VENDA = ['un' => 'Por unidade', 'kg' => 'Por quilo (kg)', 'l' => 'Por litro (L)'];
@@ -66,6 +71,10 @@ final class ProdutoService
             $porcoesAntes = $this->produtos->porcoes($this->idRestaurante, $id);
         }
         [$dados, $ficha, $novaCategoria, $erros] = $this->validar($entrada, $id);
+        $insumos = new InsumoRepository($this->db);
+        $proprioAntes = $id !== null ? $insumos->doProduto($this->idRestaurante, $id) : null;
+        [$proprio, $errosProprio] = $this->validarProprio($entrada, $dados['unidade_venda'], $proprioAntes);
+        $erros += $errosProprio;
         [$porcoes, $erroPorcoes] = $this->validarPorcoes($dados['unidade_venda'], $entrada['porcoes'] ?? []);
         if ($erroPorcoes !== null) {
             $erros['porcoes'] = $erroPorcoes;
@@ -106,6 +115,14 @@ final class ProdutoService
             } else {
                 $this->produtos->atualizar($this->idRestaurante, $id, $dados);
             }
+            if ($proprio !== null) {
+                // Estoque contado no produto: um insumo proprio (mesmo nome) e ficha de 1 unidade (ou 1 kg/L).
+                $ficha = [$this->salvarProprio($insumos, $id, $dados, $proprio, $proprioAntes) => [
+                    'nome' => $dados['nome'], 'unidade' => $dados['unidade_venda'], 'quantidade' => Quantidade::paraDecimal(1000)]];
+            } elseif ($proprioAntes !== null) {
+                // Saiu da opcao "contar unidades": o estoque proprio e arquivado (historico preservado).
+                $insumos->arquivar($this->idRestaurante, $proprioAntes['id'], $proprioAntes['nome']);
+            }
             $this->produtos->salvarFicha($this->idRestaurante, $id, array_map(static fn (array $i): string => $i['quantidade'], $ficha));
             $this->produtos->salvarPorcoes($this->idRestaurante, $id, $porcoes);
             if ($novaFoto !== null || $tirarFoto) {
@@ -140,7 +157,8 @@ final class ProdutoService
         if ($novaCategoria !== null) {
             Auditoria::registrar($this->autor, 'Categoria cadastrada', $novaCategoria . ' (criada no cadastro do produto ' . $dados['nome'] . ').');
         }
-        $depoisLog = $this->paraLog($dados, $novaCategoria ?? $this->nomeCategoria($dados['id_categoria']), $ficha, $porcoes)
+        $depoisLog = $this->paraLog($dados, $novaCategoria ?? $this->nomeCategoria($dados['id_categoria']), $proprio !== null ? [] : $ficha, $porcoes)
+            + ['estoque_proprio' => $proprio !== null ? $this->textoProprio($proprio, $dados['unidade_venda'], $proprioAntes) : 'não conta']
             + ['complementos' => $this->nomesGrupos($grupos), 'foto' => ($novaFoto !== null ? 'nova' : ($tirarFoto ? 'sem foto' : ($fotoAntes !== null ? 'mantida' : 'sem foto')))];
         if ($antes === null) {
             Auditoria::registrar($this->autor, 'Produto cadastrado', sprintf(
@@ -148,7 +166,8 @@ final class ProdutoService
                 $dados['nome'],
                 Numero::reais($dados['preco']) . QuantidadeVenda::sufixoPreco($dados['unidade_venda']),
                 $depoisLog['categoria'] ?? 'nenhuma',
-                $depoisLog['ficha'] !== '' ? 'ficha: ' . $depoisLog['ficha'] : 'sem ficha técnica',
+                $proprio !== null ? 'estoque do produto: ' . $depoisLog['estoque_proprio']
+                    : ($depoisLog['ficha'] !== '' ? 'ficha: ' . $depoisLog['ficha'] : 'sem ficha técnica'),
             ));
             return Resultado::sucesso('Produto "' . $dados['nome'] . '" cadastrado.', $id);
         }
@@ -156,7 +175,8 @@ final class ProdutoService
             ...$antes,
             'controla_estoque' => (int) $antes['controla_estoque'],
             'disponivel' => (int) $antes['disponivel'],
-        ], $antes['categoria'], array_map(static fn (array $i): array => $i + ['quantidade' => $i['quantidade']], $fichaAntes), $porcoesAntes)
+        ], $antes['categoria'], $proprioAntes !== null ? [] : array_map(static fn (array $i): array => $i + ['quantidade' => $i['quantidade']], $fichaAntes), $porcoesAntes)
+            + ['estoque_proprio' => $proprioAntes !== null ? $this->textoProprio(['estoque' => null, 'minimo' => $proprioAntes['estoque_minimo'], 'custo' => $proprioAntes['custo_unitario']], (string) $proprioAntes['unidade'], $proprioAntes) : 'não conta']
             + ['complementos' => $this->nomesGrupos($gruposAntes), 'foto' => $fotoAntes !== null ? 'mantida' : 'sem foto'];
         Auditoria::registrar($this->autor, 'Produto editado', $antes['nome'] . ' - ' . Auditoria::diferencas($antesLog, $depoisLog, self::ROTULOS));
         return Resultado::sucesso('Produto "' . $dados['nome'] . '" atualizado.', $id);
@@ -190,6 +210,10 @@ final class ProdutoService
         $arquivado = $temPedidos || $vinculadoIfood || $publicadoIfood;
         $this->db->beginTransaction();
         try {
+            $proprio = (new InsumoRepository($this->db))->doProduto($this->idRestaurante, $id);
+            if ($proprio !== null) {
+                (new InsumoRepository($this->db))->arquivar($this->idRestaurante, $proprio['id'], $proprio['nome']);
+            }
             if ($arquivado) {
                 $this->produtos->arquivar($this->idRestaurante, $id, (string) $produto['nome']);
             } else {
@@ -276,12 +300,19 @@ final class ProdutoService
             }
         }
 
-        $controla = ($e['controle'] ?? '') === 'estoque';
-        [$ficha, $erroFicha] = $this->validarFicha($e['ficha_insumo'] ?? [], $e['ficha_quantidade'] ?? []);
-        if ($erroFicha !== null) {
-            $erros['ficha'] = $erroFicha;
-        } elseif ($controla && $ficha === []) {
-            $erros['ficha'] = 'Adicione pelo menos um insumo, ou escolha "Não controlar estoque".';
+        $modo = self::controle($e['controle'] ?? '');
+        if ($modo === self::CONTROLE_PROPRIO && !Esquema::tem($this->db, 'estoque_produto')) {
+            $erros['controle'] = 'Esta opção ainda está sendo liberada. Use a ficha técnica por enquanto.';
+        }
+        $controla = $modo !== self::CONTROLE_LIVRE;
+        $ficha = [];
+        if ($modo === self::CONTROLE_FICHA) {
+            [$ficha, $erroFicha] = $this->validarFicha($e['ficha_insumo'] ?? [], $e['ficha_quantidade'] ?? []);
+            if ($erroFicha !== null) {
+                $erros['ficha'] = $erroFicha;
+            } elseif ($ficha === []) {
+                $erros['ficha'] = 'Adicione pelo menos um insumo, ou escolha outra opção de estoque.';
+            }
         }
 
         return [[
@@ -295,6 +326,114 @@ final class ProdutoService
             'controla_estoque' => $controla ? 1 : 0,
             'disponivel' => ($e['disponivel'] ?? '') === '1' ? 1 : 0,
         ], $ficha, $novaCategoria, $erros];
+    }
+
+    public static function controle(mixed $valor): string
+    {
+        return in_array($valor, [self::CONTROLE_PROPRIO, self::CONTROLE_LIVRE], true) ? $valor : self::CONTROLE_FICHA;
+    }
+
+    /**
+     * "Contar as unidades deste produto": quanto tem agora, aviso de estoque baixo e custo (opcional).
+     * Na edicao, o estoque so muda se a pessoa alterou o numero (vendas feitas com a tela aberta nao se perdem).
+     * @param array<string,mixed> $e
+     * @param array<string,mixed>|null $antes insumo proprio atual
+     * @return array{0: ?array{estoque:?string, minimo:string, custo:?string}, 1: array<string,string>}
+     */
+    private function validarProprio(array $e, string $unidade, ?array $antes): array
+    {
+        if (self::controle($e['controle'] ?? '') !== self::CONTROLE_PROPRIO) {
+            return [null, []];
+        }
+        $erros = [];
+        $nomeUnidade = ['un' => 'unidades', 'kg' => 'kg', 'l' => 'litros'][$unidade];
+        $ler = static function (string $campo, bool $obrigatorio) use ($e, $unidade, &$erros, $nomeUnidade): ?string {
+            $texto = is_string($e[$campo] ?? null) ? trim($e[$campo]) : '';
+            if ($texto === '') {
+                if ($obrigatorio) {
+                    $erros[$campo] = 'Digite quantas ' . $nomeUnidade . ' você tem agora (pode ser 0).';
+                }
+                return null;
+            }
+            try {
+                $m = Quantidade::paraMilesimos($texto);
+            } catch (InvalidArgumentException) {
+                $m = -1;
+            }
+            if ($m < 0 || $m > 999_999_999_999 || ($unidade === 'un' && $m % 1000 !== 0)) {
+                $erros[$campo] = $unidade === 'un' ? 'Use um número inteiro de unidades. Exemplo: 10' : 'Use até 3 casas decimais. Exemplo: 2,500';
+                return null;
+            }
+            return Quantidade::paraDecimal($m);
+        };
+        $estoque = $ler('estoque_quantidade', $antes === null || (string) $antes['unidade'] !== $unidade);
+        if ($antes !== null && $estoque !== null) {
+            $original = is_string($e['estoque_quantidade_antes'] ?? null) ? trim($e['estoque_quantidade_antes']) : '';
+            try {
+                $igual = $original !== '' && Quantidade::paraMilesimos($original) === Quantidade::paraMilesimos($estoque);
+            } catch (InvalidArgumentException) {
+                $igual = false;
+            }
+            // Mudou "como vende" (un/kg/L): o numero digitado vale na unidade nova, mesmo igual ao anterior.
+            if ($igual && (string) $antes['unidade'] === $unidade) {
+                $estoque = null; // nao mexeu no numero: preserva o que foi vendido com a tela aberta
+            }
+        }
+        $minimo = $ler('estoque_minimo_produto', false) ?? '0.000';
+        $custoTexto = is_string($e['estoque_custo'] ?? null) ? trim($e['estoque_custo']) : '';
+        $custo = null;
+        if ($custoTexto !== '') {
+            $custo = Numero::dinheiroParaDecimal($custoTexto);
+            if ($custo === null) {
+                $erros['estoque_custo'] = 'Digite quanto você paga por unidade. Exemplo: 3,50';
+            }
+        }
+        return [$erros === [] ? ['estoque' => $estoque, 'minimo' => $minimo, 'custo' => $custo] : null, $erros];
+    }
+
+    /**
+     * Cria ou atualiza o insumo proprio do produto (dentro da transacao do produto). Devolve o id dele.
+     * @param array<string,mixed> $dados produto validado
+     * @param array{estoque:?string, minimo:string, custo:?string} $proprio
+     * @param array<string,mixed>|null $antes
+     */
+    private function salvarProprio(InsumoRepository $insumos, int $idProduto, array $dados, array $proprio, ?array $antes): int
+    {
+        $nome = $this->nomeProprio($insumos, (string) $dados['nome'], $antes['id'] ?? null);
+        if ($antes === null) {
+            return $insumos->criarDoProduto($this->idRestaurante, $idProduto, [
+                'nome' => $nome, 'unidade' => $dados['unidade_venda'], 'estoque_atual' => $proprio['estoque'] ?? '0.000',
+                'estoque_minimo' => $proprio['minimo'], 'custo_unitario' => $proprio['custo'],
+            ]);
+        }
+        $this->db->prepare('UPDATE insumos SET nome = ?, unidade = ?, estoque_minimo = ?, custo_unitario = ?, ativo = 1
+            WHERE id = ? AND id_restaurante = ?')
+            ->execute([$nome, $dados['unidade_venda'], $proprio['minimo'], $proprio['custo'], $antes['id'], $this->idRestaurante]);
+        if ($proprio['estoque'] !== null) {
+            $insumos->definirEstoque($this->idRestaurante, $antes['id'], $proprio['estoque']);
+        }
+        return (int) $antes['id'];
+    }
+
+    /** Mesmo nome do produto; se ja houver um insumo comum com esse nome, acrescenta "(produto)". */
+    private function nomeProprio(InsumoRepository $insumos, string $nomeProduto, ?int $idProprio): string
+    {
+        $base = mb_substr($nomeProduto, 0, 100);
+        foreach ([$base, $base . ' (produto)'] as $opcao) {
+            if (!$insumos->nomeEmUso($this->idRestaurante, $opcao, $idProprio)) {
+                return $opcao;
+            }
+        }
+        return $base . ' (produto ' . bin2hex(random_bytes(2)) . ')';
+    }
+
+    /** @param array{estoque:?string, minimo:string, custo:?string} $p @param array<string,mixed>|null $antes */
+    private function textoProprio(array $p, string $unidade, ?array $antes): string
+    {
+        $u = UnidadeMedida::from($unidade);
+        $estoque = $p['estoque'] ?? ($antes['estoque_atual'] ?? '0');
+        return 'tem ' . $u->formatar(Quantidade::paraMilesimos((string) $estoque)) . ', aviso com ' . $u->formatar(Quantidade::paraMilesimos($p['minimo']))
+            . ($p['custo'] !== null ? ', custo ' . Numero::reais($p['custo']) : '');
     }
 
     /**

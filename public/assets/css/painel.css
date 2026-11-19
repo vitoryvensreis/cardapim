@@ -418,6 +418,8 @@
 .campo-simples { padding-right: .85rem; }
 .repor-campo input:focus, .campo-simples:focus { outline: none; border-color: var(--c-wine); background: var(--c-white); box-shadow: 0 0 0 4px rgb(101 20 36 / 12%); }
 .repor-campo span { position: absolute; right: .8rem; top: 50%; translate: 0 -50%; color: var(--c-muted); font-size: .8rem; font-weight: 700; pointer-events: none; }
+.repor-produto { margin-top: .45rem; max-width: 16rem; }
+.repor-produto .repor-campo input { min-height: 2.3rem; padding-block: .35rem; }
 .linha-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 0; }
 .linha-form .campo-simples { flex: 1 1 12rem; width: auto; }
 .form-acoes { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .6rem; margin: 0 calc(var(--gutter) * -1) 1.25rem; padding: .85rem var(--gutter); border-top: 1px solid var(--c-line); background: rgb(255 255 255 / 92%); backdrop-filter: blur(8px); }
@@ -429,6 +431,8 @@
 .ficha-ajuda { margin-bottom: .9rem; color: var(--c-muted); font-size: .9rem; }
 .ficha-erro { margin-bottom: .75rem; color: var(--c-danger); font-weight: 400; }
 .ficha-area .link-acao { margin-top: .6rem; }
+.proprio-campos { display: grid; gap: .9rem; margin-top: 1rem; }
+@media (min-width: 48rem) { .proprio-campos { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } }
 .erros-form ul a { color: inherit; }
 .alternador { margin-top: .25rem; }
 

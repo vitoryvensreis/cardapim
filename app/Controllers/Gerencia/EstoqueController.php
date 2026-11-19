@@ -36,7 +36,7 @@ final class EstoqueController extends BaseGerencia
             return $r;
         }
         $id = $this->restaurante['id'];
-        $insumos = (new InsumoRepository($this->db))->listar($id);
+        $insumos = (new InsumoRepository($this->db))->listar($id, true); // inclui o estoque contado nos produtos
         $produtos = (new ProdutoRepository($this->db))->listar($id);
         $analise = AnaliseEstoque::analisar($insumos, $produtos, (new DisponibilidadeProdutos($this->db))->verificar($id));
         return $this->tela('gerencia/estoque/resumo', 'estoque', 'Estoque', [
@@ -89,13 +89,24 @@ final class EstoqueController extends BaseGerencia
             return $this->naoEncontrado('Produto', $this->url('estoque/produtos'));
         }
         $ficha = (new ProdutoRepository($this->db))->ficha($this->restaurante['id'], $id);
-        return $this->formProduto($produto, [
+        $proprio = (new InsumoRepository($this->db))->doProduto($this->restaurante['id'], $id);
+        $campoQtd = static fn (string $d, string $u): string => $u === 'un' ? (string) intdiv(\Cardapim\Modules\Inventory\Quantidade::paraMilesimos($d), 1000) : Numero::decimalCampo($d);
+        $extraProprio = $proprio === null ? [] : [
+            'estoque_quantidade' => $campoQtd($proprio['estoque_atual'], $proprio['unidade']),
+            'estoque_quantidade_antes' => $campoQtd($proprio['estoque_atual'], $proprio['unidade']),
+            'estoque_minimo_produto' => (float) $proprio['estoque_minimo'] > 0 ? $campoQtd($proprio['estoque_minimo'], $proprio['unidade']) : '',
+            'estoque_custo' => $proprio['custo_unitario'] !== null ? Numero::dinheiroCampo($proprio['custo_unitario']) : '',
+        ];
+        if ($proprio !== null) {
+            $ficha = []; // a ficha automatica (1 unidade) nao aparece: o estoque e mostrado nos campos acima
+        }
+        return $this->formProduto($produto, $extraProprio + [
             'nome' => (string) $produto['nome'],
             'categoria' => $produto['id_categoria'] === null ? '' : (string) $produto['id_categoria'],
             'preco' => Numero::dinheiroCampo((string) $produto['preco']),
             'codigo' => (string) ($produto['codigo'] ?? ''),
             'descricao' => (string) ($produto['descricao'] ?? ''),
-            'controle' => (int) $produto['controla_estoque'] === 1 ? 'estoque' : 'livre',
+            'controle' => (int) $produto['controla_estoque'] !== 1 ? 'livre' : ($proprio !== null ? 'proprio' : 'estoque'),
             'disponivel' => (int) $produto['disponivel'] === 1 ? '1' : '',
             'ficha_insumo' => array_map(static fn (array $i): string => (string) $i['id_insumo'], $ficha),
             'ficha_quantidade' => array_map(static fn (array $i): string => Numero::decimalCampo($i['quantidade']), $ficha),
@@ -187,6 +198,11 @@ final class EstoqueController extends BaseGerencia
         $insumo = $id === null ? null : (new InsumoRepository($this->db))->buscar($this->restaurante['id'], $id);
         if ($insumo === null) {
             return $this->naoEncontrado('Insumo', $this->url('estoque/insumos'));
+        }
+        // Estoque contado no proprio produto: e editado na tela do produto.
+        $dono = (new InsumoRepository($this->db))->produtoDono($this->restaurante['id'], (int) $id);
+        if ($dono !== null) {
+            return Response::redirect($this->url('estoque/produtos/' . $dono['id']), 303);
         }
         return $this->formInsumo($insumo, [
             'nome' => (string) $insumo['nome'],
@@ -549,7 +565,8 @@ final class EstoqueController extends BaseGerencia
         $contar = function (string $tabela) use ($id): int {
             $sql = match ($tabela) {
                 'produtos' => 'SELECT COUNT(*) FROM produtos WHERE id_restaurante = ? AND ativo = 1',
-                'insumos' => 'SELECT COUNT(*) FROM insumos WHERE id_restaurante = ? AND excluido_em IS NULL',
+                'insumos' => 'SELECT COUNT(*) FROM insumos WHERE id_restaurante = ? AND excluido_em IS NULL'
+                    . (\Cardapim\Shared\Esquema::tem($this->db, 'estoque_produto') ? ' AND id_produto_proprio IS NULL' : ''),
                 'categorias' => 'SELECT COUNT(*) FROM categorias WHERE id_restaurante = ?',
             };
             $q = $this->db->prepare($sql);
