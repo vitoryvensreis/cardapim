@@ -37,6 +37,7 @@ enviar() { # jar url-da-pagina-do-token url [campo=valor ...] -> "codigo locatio
 pagina() { curl -s -c "$1" -b "$1" -o "$tmp/pagina.html" -w '%{http_code}' "$2"; }
 flash() { curl -s -c "$1" -b "$1" "$2" | grep -o 'painel-flash-[a-z]*' | head -1; }
 aviso() { curl -s -c "$1" -b "$1" "$2" > "$tmp/aviso.html"; php -r 'if (preg_match("~data-flash>.*?<p>(.*?)</p>~s", file_get_contents($argv[1]), $m)) echo html_entity_decode($m[1]);' "$tmp/aviso.html"; }
+abertura_publica() { php -r '$s=json_decode(file_get_contents($argv[1]),true); echo ($s["aberto"] ?? false) ? "true" : "false";' "$1"; }
 rodar() { $rotina > "$tmp/rotina.log" 2>&1 || { cat "$tmp/rotina.log"; falha "rotina do iFood rodou sem erro"; }; }
 registro() { curl -s "$fake/_teste/registro" > "$tmp/registro.json"; }
 no_registro() { registro; if grep -q -- "$2" "$tmp/registro.json"; then ok "$1"; else falha "$1 (iFood nao recebeu: $2)"; php -r '$d = json_decode(file_get_contents($argv[1]), true); echo "    ultimas chamadas: ", implode(" | ", array_slice($d["linhas"] ?? [], -8)), "\n";' "$tmp/registro.json"; fi; }
@@ -252,6 +253,10 @@ esperar "aviso do perfil fala do iFood" "$(aviso "$gj" "$g/perfil")" 'Horário d
 esperar "iFood segue o perfil (madrugada no dia seguinte)" "$(turnos_ifood)" "WEDNESDAY@18:00+360 THURSDAY@00:00+120"
 
 echo "Botao Abrir loja no iFood (gerencia e caixa)"
+curl -s -o "$tmp/estado-publico-referencia.json" "$base/api/v1/restaurantes/$slug/situacao"
+situacao_referencia="$(abertura_publica "$tmp/estado-publico-referencia.json")"
+contem "API publica retorna horario informado" "$tmp/estado-publico-referencia.json" '"horario_informado":true'
+contem "API publica mantem contrato anterior sem bloqueio externo" "$tmp/estado-publico-referencia.json" '"fechado_integracao":false'
 pagina "$gj" "$g" >/dev/null
 contem "botao no topo da gerencia" "$tmp/pagina.html" 'data-ifood-loja'
 pagina "$cx" "$c" >/dev/null
@@ -273,9 +278,15 @@ nao_contem "nunca informa fechada antes do GET" "$tmp/sit.json" '"estado":"fecha
 curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa aguarda confirmacao antes de permitir reabrir" "$tmp/sit.json" '"pode_abrir":false'
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
-contem "cardapio publico bloqueia novos pedidos imediatamente" "$tmp/estado-publico.json" '"fechado_integracao":true'
+esperar "pausa no iFood nao fecha cardapio proprio" "$(abertura_publica "$tmp/estado-publico.json")" "$situacao_referencia"
+esperar "checkout proprio responde mesmo com pausa no iFood" "$(pagina "$gj" "$base/$slug/finalizar")" "200"
+if [[ "$situacao_referencia" == "true" ]]; then
+  nao_contem "checkout segue aberto pelo horario do Perfil" "$tmp/pagina.html" 'ck-alerta-fechado'
+else
+  contem "checkout fechado apenas pelo horario do Perfil" "$tmp/pagina.html" 'ck-alerta-fechado'
+fi
 esperar "cardapio mostra fechamento temporario" "$(pagina "$gj" "$base/$slug")" "200"
-contem "cardapio informa pausa do restaurante" "$tmp/pagina.html" 'Fechado temporariamente'
+nao_contem "cardapio nao mostra fechamento do iFood" "$tmp/pagina.html" 'Fechado temporariamente'
 # Comportamento observado na loja TEST: interrupcao existe mas status Merchant ainda informa OK.
 curl -s -o /dev/null -H 'Content-Type: application/json' -X POST \
   --data '{"ativa":true}' "$fake/_teste/ifood-status-forcar-aberta"
@@ -288,7 +299,7 @@ contem "caixa tambem detecta a divergencia" "$tmp/sit.json" '"estado":"divergent
 pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "aviso visivel na tela da loja" "$tmp/pagina.html" 'Pausa vigente, mas loja aberta no iFood.'
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
-contem "nao abre checkout local com pausa propria vigente" "$tmp/estado-publico.json" '"fechado_integracao":true'
+esperar "divergencia do iFood nao altera cardapio proprio" "$(abertura_publica "$tmp/estado-publico.json")" "$situacao_referencia"
 curl -s -o /dev/null -H 'Content-Type: application/json' -X POST \
   --data '{"ativa":false}' "$fake/_teste/ifood-status-forcar-aberta"
 rodar
@@ -301,7 +312,7 @@ esperar "caixa abre a loja" "$(curl -s -o "$tmp/abrir.json" -w '%{http_code}' -b
 contem "resposta do botao informa estado real" "$tmp/abrir.json" '"situacao":'
 rodar
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
-contem "cardapio reabre somente depois de confirmar no Merchant" "$tmp/estado-publico.json" '"fechado_integracao":false'
+esperar "abertura no Merchant nao altera cardapio proprio" "$(abertura_publica "$tmp/estado-publico.json")" "$situacao_referencia"
 pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
 contem "pausa removida pelo botao" "$tmp/pagina.html" 'Nenhuma pausa ativa.'
 t="$(token "$cx" "$c")"
@@ -320,11 +331,11 @@ pausa_remota="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); ech
 if [[ -z "$pausa_remota" ]]; then falha "portal recebeu ID da pausa"; fi
 rodar
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
-contem "pausa feita no Portal fecha o Deliveryzim" "$tmp/estado-publico.json" '"fechado_integracao":true'
+esperar "pausa feita no Portal nao fecha o Deliveryzim" "$(abertura_publica "$tmp/estado-publico.json")" "$situacao_referencia"
 curl -s -o /dev/null -X DELETE -H 'Authorization: Bearer acc-ci' "$fake/merchant/v1.0/merchants/$loja/interruptions/$pausa_remota"
 rodar
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
-contem "reabertura externa restaura disponibilidade" "$tmp/estado-publico.json" '"fechado_integracao":false'
+esperar "reabertura externa nao altera Deliveryzim" "$(abertura_publica "$tmp/estado-publico.json")" "$situacao_referencia"
 
 
 echo "Cardapio do iFood ligado aos produtos"
