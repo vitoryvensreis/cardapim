@@ -100,6 +100,7 @@ jobs:
           php tests/unit/smtp.php
           php tests/unit/recuperar-senha.php
           php tests/unit/peso.php
+          php tests/unit/desktop-balanca.php
           php tests/unit/cozinha.php
           php tests/unit/saudacao.php
           php tests/unit/complementos.php
