@@ -66,7 +66,7 @@
       feedback("Sem leitura", "Aguardando peso estável. Para digitar, desmarque Usar balança.");
     } else {
       writeWeight(kg);
-      feedback("Conectada", "Peso preenchido automaticamente. Confira o visor antes de lançar.");
+      feedback("Conectada", "");
     }
   };
 
