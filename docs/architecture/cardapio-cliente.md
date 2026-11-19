@@ -14,7 +14,7 @@ visivel), web.dev (formulario de codigo por SMS/WhatsApp) e boas praticas de OTP
 - **Paginas legais pelo cardapio** (`/privacidade?r={slug}`, `/termos-de-uso?r={slug}`): mostram so "Voltar ao cardapio",
   sem menu nem rodape do site; os links entre as politicas mantem o `?r=`. Slug invalido ou inativo: pagina normal.
 - **Capa**: logo, nome, status com texto e icone (nao so cor), bairro/cidade e "Ver endereco e horarios".
-  Restaurante fechado mostra aviso, mas o cliente pode montar a sacola.
+  Restaurante fechado mostra aviso, mas o cliente pode montar a sacola. O selo e o checkout seguem somente o horário do Perfil do gerente; a disponibilidade do iFood não interfere no cardápio próprio.
 - **Busca + abas de categoria** fixas, com scroll-spy (a aba ativa acompanha a rolagem); busca ignora acentos.
 - **Produto em lista**: nome, descricao curta, preco e botao laranja "+"; selo "2x" quando ja esta na sacola;
   indisponivel aparece no fim da categoria, desabilitado e com texto.
