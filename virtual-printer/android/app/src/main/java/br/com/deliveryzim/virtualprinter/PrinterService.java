@@ -68,7 +68,7 @@ public final class PrinterService extends Service {
         return new Notification.Builder(this, CHANNEL)
             .setContentTitle("Deliveryzim Virtual Printer")
             .setContentText("Recebendo trabalhos TCP na porta 9100")
-            .setSmallIcon(android.R.drawable.ic_menu_print)
+            .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setOngoing(true)
             .setContentIntent(activity)
             .addAction(new Notification.Action.Builder(null, "Parar", stopAction).build())
