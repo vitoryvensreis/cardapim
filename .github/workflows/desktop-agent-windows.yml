@@ -33,10 +33,13 @@ jobs:
         run: |
           python -m compileall -q .
           python -m unittest discover -s tests -v
+      - name: Preparar ícone e logo oficiais
+        shell: pwsh
+        run: python desktop-agent/tools/prepare_brand.py
       - name: Gerar executavel unico
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name Deliveryzim-Agent --add-data "public/assets/img/pwa/icon-192.png;agent/assets" desktop-agent/main.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name Deliveryzim-Agent --icon "desktop-agent/agent/assets/deliveryzim.ico" --add-data "desktop-agent/agent/assets/icone.png;agent/assets" --add-data "desktop-agent/agent/assets/logo-branca.png;agent/assets" desktop-agent/main.py
       - name: Publicar EXE
         uses: actions/upload-artifact@v4
         with:
