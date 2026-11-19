@@ -4,11 +4,35 @@ import win32print
 
 
 def printers():
+    """Lista impressoras locais e conectadas usando o formato real do pywin32.
+
+    EnumPrinters nivel 4 retorna dicts e e rapido (nao acessa cada driver).
+    O nivel 1 usa tuplas legadas; o 2 tambem retorna dicts.
+    """
     flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
-    try:
-        return sorted({p[2] for p in win32print.EnumPrinters(flags, None, 2)})
-    except Exception:
-        return []
+    found = set()
+    last_error = None
+    succeeded = False
+    for level in (4, 2, 1):
+        try:
+            rows = win32print.EnumPrinters(flags, None, level)
+            succeeded = True
+            for row in rows:
+                if isinstance(row, dict):
+                    name = row.get("pPrinterName")
+                elif isinstance(row, (tuple, list)) and len(row) >= 3:
+                    name = row[2]
+                else:
+                    name = None
+                if isinstance(name, str) and name.strip():
+                    found.add(name.strip())
+            if found:
+                break
+        except Exception as error:
+            last_error = error
+    if not found and not succeeded and last_error is not None:
+        raise RuntimeError("Windows nao conseguiu listar as impressoras: " + str(last_error))
+    return sorted(found, key=str.casefold)
 
 
 def money(value):
