@@ -68,10 +68,24 @@ com mais de **3 segundos** são descartadas. Só existe uma leitura recente por
 computador (sem histórico de clientes), preservada em
 `desktop_agent_pesagens`, com FK composta para o restaurante.
 
-No modal de produto com unidade `kg`, o operador escolhe a balança,
-visualiza a última leitura e clica em **Usar peso da balança**.
-Isso somente preenche o campo de quantidade; o botão **Lançar** continua
-separado. O endpoint de lançamento existente continua validando produto,
+No Agent Windows, o gerente configura porta, protocolo e unidade. Depois de entrar no
+Deliveryzim no navegador do mesmo computador, clica em **Abrir Deliveryzim** no Agent.
+O Agent gera um ticket assinado com validade de 2 minutos, vinculado a um único
+dispositivo e restaurante. O navegador autenticado valida o ticket e recebe um
+cookie assinado HttpOnly, SameSite=Lax, válido por 90 dias. O servidor só devolve
+como `selecionada` a balança vinculada àquele navegador; outro equipamento,
+mesmo do mesmo restaurante, não é escolhido automaticamente. O vínculo é
+verificado em cada consulta e deixa de funcionar após revogação.
+
+No modal de produto em `kg`, com balança vinculada, aparece somente
+**Usar balança** (marcado por padrão), o peso e o estado da leitura.
+O campo recebe o peso automaticamente enquanto a balança está estável e a
+leitura tem menos de 3 segundos. Não há escolha de equipamento, nem botão
+**Usar peso da balança**. O operador confere o visor e clica em **Lançar**.
+Ao desmarcar o checkbox, o campo fica livre para digitação manual.
+Sem vínculo ou com produto por litro/unidade, não há checkbox de balança.
+Leituras vencidas, nulas ou instáveis limpam o peso no modo automático;
+nenhuma leitura isolada lança um produto. O endpoint de lançamento existente continua validando produto,
 quantidade mínima, estoque e cálculo financeiro no PHP. Produtos por litro
 (`l`) e unidades (`un`) **não** recebem leitura de balança em kg.
 
@@ -82,7 +96,4 @@ protegido por DPAPI; não existe servidor HTTP local aberto pelo agente ou
 acesso direto do navegador ao hardware. A venda manual permanece disponível
 caso a balança esteja sem conexão.
 
-**Publicação:** a criação da tabela de dispositivos e da tabela de pesagens
-depende das duas migrations do PR #104, com backup e aplicação controlada
-antes de colocar as rotas no ar. A implementação em branch não significa
-que a integração já esteja funcionando na VPS.
+**Publicação:** esta atualização de UX e pareamento não adiciona migration. Ela depende das tabelas de dispositivos e pesagens existentes. Após deploy, é necessário obter o EXE Windows atualizado e realizar o vínculo com o navegador pelo botão **Abrir Deliveryzim** no Agent. O funcionamento com uma balança física exige teste no equipamento homologado.
