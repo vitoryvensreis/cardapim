@@ -279,6 +279,12 @@ curl -s -b "$cx" -o "$tmp/sit.json" "$c/ifood/situacao"
 contem "caixa aguarda confirmacao antes de permitir reabrir" "$tmp/sit.json" '"pode_abrir":false'
 curl -s -o "$tmp/estado-publico.json" "$base/api/v1/restaurantes/$slug/situacao"
 esperar "pausa no iFood nao fecha cardapio proprio" "$(abertura_publica "$tmp/estado-publico.json")" "$situacao_referencia"
+esperar "checkout proprio responde mesmo com pausa no iFood" "$(pagina "$gj" "$base/$slug/finalizar")" "200"
+if [[ "$situacao_referencia" == "true" ]]; then
+  nao_contem "checkout segue aberto pelo horario do Perfil" "$tmp/pagina.html" 'ck-alerta-fechado'
+else
+  contem "checkout fechado apenas pelo horario do Perfil" "$tmp/pagina.html" 'ck-alerta-fechado'
+fi
 esperar "cardapio mostra fechamento temporario" "$(pagina "$gj" "$base/$slug")" "200"
 nao_contem "cardapio nao mostra fechamento do iFood" "$tmp/pagina.html" 'Fechado temporariamente'
 # Comportamento observado na loja TEST: interrupcao existe mas status Merchant ainda informa OK.
