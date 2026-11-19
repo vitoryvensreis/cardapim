@@ -1,120 +1,127 @@
-/* Balança no caixa: consulta o último peso estável do Agent pelo backend.
- * Apenas sugere a quantidade; operador deve clicar para preencher e lançar.
- * O preço e o estoque continuam calculados pelo PHP.
+/* Integração com a balança configurada no Agent Windows deste computador.
+ * Pareamento feito ao clicar "Abrir Deliveryzim" no Agent; nunca escolhe o equipamento no PDV.
+ * Peso estável e recente entra automaticamente no campo, mas o lançamento é sempre confirmado.
  */
 (() => {
   "use strict";
+
   const dialog = document.querySelector("[data-dialogo-produto]");
   if (!dialog) return;
 
-  const panel = dialog.querySelector("[data-balanca-pdv]");
-  const selector = dialog.querySelector("[data-balanca-seletor]");
+  const mode = dialog.querySelector("[data-balanca-pdv]");
+  const toggle = dialog.querySelector("[data-balanca-automatica]");
+  const badge = dialog.querySelector("[data-balanca-selo]");
   const status = dialog.querySelector("[data-balanca-status]");
-  const useButton = dialog.querySelector("[data-balanca-usar]");
-  const weightInput = dialog.querySelector("[data-peso-campo]");
-  if (!panel || !selector || !status || !useButton || !weightInput) return;
+  const input = dialog.querySelector("[data-peso-campo]");
+  const block = dialog.querySelector("[data-peso-bloco]");
+  if (!mode || !toggle || !badge || !status || !input || !block) return;
 
-  let devices = [];
   let loading = false;
-  let selectedId = "";
+  let generation = 0;
+  let paired = false;
 
-  const show = (message) => { status.textContent = message; };
-  const selected = () => devices.find((d) => String(d.id) === selectedId);
-  const formatWeight = (value) => {
-    const weight = Number(value);
-    return Number.isFinite(weight) && weight > 0 && weight <= 99.999
-      ? weight.toFixed(3).replace(".", ",") : null;
+  const writeWeight = (value) => {
+    if (input.value === value) return;
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   };
-  const render = () => {
-    const previous = selector.value || selectedId;
-    selector.replaceChildren();
-    for (const device of devices) {
-      const option = document.createElement("option");
-      option.value = String(device.id);
-      option.textContent = device.nome || "Balança sem nome";
-      selector.append(option);
-    }
-    if (!devices.some((device) => String(device.id) === previous)) {
-      selectedId = devices.length ? String(devices[0].id) : "";
-    } else selectedId = previous;
-    selector.value = selectedId;
 
-    const device = selected();
-    const kg = device && device.estavel ? formatWeight(device.peso_kg) : null;
-    useButton.disabled = !kg;
-    useButton.textContent = kg ? "Usar " + kg + " kg" : "Aguardando peso estável";
-    if (!device) show("Nenhuma balança vinculada. Configure a balança no Agent Windows ou digite o peso.");
-    else if (!kg) show("Balança " + device.nome + ": aguardando leitura estável e recente.");
-    else show("Leitura pronta: " + kg + " kg. Confira o visor físico antes de aplicar.");
+  const formatWeight = (value) => {
+    const kg = Number(value);
+    return Number.isFinite(kg) && kg > 0 && kg <= 99.999
+      ? kg.toFixed(3).replace(".", ",") : null;
+  };
+
+  const feedback = (name, message) => {
+    badge.textContent = name;
+    status.hidden = !message;
+    status.textContent = message || "";
+  };
+
+  const auto = () => paired && toggle.checked && !mode.hidden;
+
+  const apply = (device) => {
+    // Sem vínculo com o Agent desta estação, o campo continua manual.
+    if (!device) {
+      if (auto()) writeWeight("");
+      paired = false;
+      mode.hidden = true;
+      input.readOnly = false;
+      feedback("", "");
+      return;
+    }
+    const firstLink = !paired;
+    paired = true;
+    mode.hidden = false;
+    if (firstLink) toggle.checked = true;
+    if (!toggle.checked) {
+      input.readOnly = false;
+      feedback("Manual", "Digite o peso no campo abaixo.");
+      return;
+    }
+    input.readOnly = true;
+    const kg = device.estavel === true ? formatWeight(device.peso_kg) : null;
+    if (kg === null) {
+      writeWeight(""); // Jamais conservar peso após perda de estabilidade, conexão ou prazo de 3 s.
+      feedback("Sem leitura", "Aguardando peso estável. Para digitar, desmarque Usar balança.");
+    } else {
+      writeWeight(kg);
+      feedback("Conectada", "Peso preenchido automaticamente. Confira o visor antes de lançar.");
+    }
   };
 
   const refresh = async () => {
-    if (!dialog.open || panel.hidden || loading || document.hidden) return;
+    if (!dialog.open || block.hidden || block.querySelector("[data-peso-rotulo]")?.textContent?.trim() !== "Peso (kg)"
+        || loading || document.hidden) return;
+    const turn = generation;
     loading = true;
     try {
       const response = await fetch("/api/v1/desktop/balancas", {
         credentials: "same-origin", cache: "no-store",
-        headers: { "Accept": "application/json" },
+        headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error(String(response.status));
-      const json = await response.json();
-      if (!Array.isArray(json.balancas)) throw new Error("Resposta inválida");
-      devices = json.balancas;
-      render();
-    } catch (_) {
-      devices = [];
-      useButton.disabled = true;
-      useButton.textContent = "Aguardando peso estável";
-      show("Sem conexão com a leitura da balança. O peso manual continua disponível.");
-    } finally { loading = false; }
+      const payload = await response.json();
+      if (turn !== generation || !dialog.open) return;
+      // O servidor seleciona exclusivamente o dispositivo pareado a este navegador.
+      apply(payload.selecionada || null);
+    } catch {
+      if (turn !== generation || !dialog.open) return;
+      if (auto()) {
+        writeWeight("");
+        feedback("Sem conexão", "Não foi possível confirmar o peso. Desmarque Usar balança para digitar.");
+      }
+    } finally {
+      loading = false;
+    }
   };
 
+  // O caixa.js prepara o produto antes de abrir a folha.
   document.addEventListener("click", (event) => {
     if (!event.target.closest("[data-produto-abrir]")) return;
-    // O caixa.js atualiza o produto e a unidade antes desta rotina.
-    window.setTimeout(() => {
-      const label = dialog.querySelector("[data-peso-rotulo]");
-      const isKg = label && label.textContent.trim() === "Peso (kg)"
-        && !dialog.querySelector("[data-peso-bloco]").hidden;
-      panel.hidden = !isKg;
-      devices = [];
-      useButton.disabled = true;
-      if (isKg) { show("Buscando balanças do restaurante..."); refresh(); }
-    }, 0);
+    generation++;
+    paired = false;
+    mode.hidden = true;
+    toggle.checked = true;
+    input.readOnly = false;
+    feedback("", "");
+    window.setTimeout(refresh, 0);
   });
 
-  selector.addEventListener("change", () => {
-    selectedId = selector.value;
-    render();
-  });
-
-  useButton.addEventListener("click", async () => {
-    // Nunca aplicar uma leitura armazenada no navegador sem consultar
-    // novamente o servidor. O peso deve estar recente NO INSTANTE da ação.
-    const deviceId = selectedId;
-    if (!deviceId || useButton.disabled) return;
-    useButton.disabled = true;
-    try {
-      const response = await fetch("/api/v1/desktop/balancas", {
-        credentials: "same-origin", cache: "no-store",
-        headers: { "Accept": "application/json" },
-      });
-      if (!response.ok) throw new Error("API indisponível");
-      const payload = await response.json();
-      const fresh = (payload.balancas || []).find((d) => String(d.id) === deviceId);
-      const kg = fresh && fresh.estavel ? formatWeight(fresh.peso_kg) : null;
-      if (!kg || !dialog.open || panel.hidden || selector.value !== deviceId) {
-        show("A leitura mudou ou expirou. Confira o visor e tente novamente.");
-        return;
-      }
-      weightInput.value = kg;
-      weightInput.dispatchEvent(new Event("input", { bubbles: true }));
-      weightInput.focus();
-      show("Peso preenchido. Confira o valor e clique em Lançar para adicionar à comanda.");
-    } catch (_) {
-      show("Não foi possível confirmar o peso agora. Digite manualmente ou tente novamente.");
+  toggle.addEventListener("change", () => {
+    if (!paired) return;
+    writeWeight("");
+    input.readOnly = toggle.checked;
+    if (toggle.checked) {
+      feedback("Conectando...", "Aguardando leitura da balança...");
+      refresh();
+    } else {
+      feedback("Manual", "Digite o peso no campo abaixo.");
+      input.focus();
     }
   });
 
-  window.setInterval(refresh, 1700);
+  dialog.addEventListener("close", () => { generation++; });
+  window.setInterval(refresh, 1500);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 })();
