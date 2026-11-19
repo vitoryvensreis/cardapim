@@ -8,7 +8,6 @@ use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
-use Cardapim\Services\Ifood\EstadoLoja;
 use Cardapim\Repositories\Gerencia\PerfilRepository;
 use Cardapim\Shared\Numero;
 use DateTimeImmutable;
@@ -190,11 +189,9 @@ final class CardapioPublico
             (string) ($r['bairro'] ?? ''),
             trim(implode('/', array_filter([(string) ($r['cidade'] ?? ''), (string) ($r['estado'] ?? '')]))),
         ])));
-        $sincronizado = EstadoLoja::consultar($this->db, $idRestaurante);
         return [
-            'aberto' => (($sempre || $turnos !== []) && HorarioFuncionamento::abertoEm($sempre, $turnos, $agora)) && !$sincronizado['fechado'],
-            'fechado_integracao' => $sincronizado['fechado'],
-            'motivo_integracao' => $sincronizado['motivo'],
+            // O cardápio próprio segue exclusivamente os horários do Perfil, nunca o status do iFood.
+            'aberto' => ($sempre || $turnos !== []) && HorarioFuncionamento::abertoEm($sempre, $turnos, $agora),
             'horario_informado' => $sempre || $turnos !== [],
             'sempre_aberto' => $sempre,
             'horarios' => $horarios,
