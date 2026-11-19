@@ -427,9 +427,12 @@ class DeliveryzimApp:
             self.messages.put(("login_error", str(exc)))
 
     def _start_worker(self):
-        if self.worker and self.worker.is_alive():
-            return
         if not self.token:
+            return
+        # Um vínculo novo não deve ficar sem polling porque o worker anterior
+        # ainda aguarda timeout de uma requisição de rede.
+        if (self.worker and self.worker.is_alive() and self.client is not None
+                and self.client.token == self.token):
             return
         self.client = ApiClient()
         self.client.token = self.token
