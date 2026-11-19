@@ -2,7 +2,7 @@ name: Deliveryzim Agent Windows EXE
 
 on:
   push:
-    branches: [feature/desktop-agent-windows]
+    branches: [feature/desktop-agent-windows, feature/android-virtual-scale]
     paths:
       - 'desktop-agent/**'
       - '.github/workflows/desktop-agent-windows.yml'
