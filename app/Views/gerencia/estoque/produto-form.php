@@ -191,13 +191,14 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                 <input type="hidden" name="estoque_quantidade_antes" value="<?= $e($v('estoque_quantidade_antes')) ?>">
                 <div class="proprio-campos">
                     <?= Campo::texto(['nome' => 'estoque_quantidade', 'rotulo' => 'Quanto tem agora', 'valor' => $v('estoque_quantidade'), 'icone' => 'package',
-                        'erro' => $erros['estoque_quantidade'] ?? null, 'opcional' => true, 'sufixo' => $siglaVenda[$unidadeVenda],
-                        'attrs' => ['inputmode' => 'decimal', 'data-mask' => 'quantity', 'placeholder' => 'Ex.: 10', 'autocomplete' => 'off']]) ?>
+                        'erro' => $erros['estoque_quantidade'] ?? null, 'sufixo' => $siglaVenda[$unidadeVenda], 'dica' => 'O que você tem hoje.',
+                        // Nao e "required" no HTML: o campo fica escondido nas outras opcoes; o servidor confere.
+                        'attrs' => ['inputmode' => 'decimal', 'data-mask' => 'quantity', 'placeholder' => 'Ex.: 10', 'autocomplete' => 'off', 'required' => false]]) ?>
                     <?= Campo::texto(['nome' => 'estoque_minimo_produto', 'rotulo' => 'Avisar quando chegar a', 'valor' => $v('estoque_minimo_produto'), 'icone' => 'bell',
-                        'erro' => $erros['estoque_minimo_produto'] ?? null, 'opcional' => true, 'sufixo' => $siglaVenda[$unidadeVenda], 'dica' => 'Opcional. Entra em "Precisa comprar".',
+                        'erro' => $erros['estoque_minimo_produto'] ?? null, 'opcional' => true, 'sufixo' => $siglaVenda[$unidadeVenda], 'dica' => 'Entra em "Precisa comprar".',
                         'attrs' => ['inputmode' => 'decimal', 'data-mask' => 'quantity', 'placeholder' => 'Ex.: 3', 'autocomplete' => 'off']]) ?>
-                    <?= Campo::texto(['nome' => 'estoque_custo', 'rotulo' => 'Quanto você paga por unidade', 'valor' => $v('estoque_custo'), 'icone' => 'banknote',
-                        'erro' => $erros['estoque_custo'] ?? null, 'opcional' => true, 'dica' => 'Opcional. Mostra quanto sobra em cada venda.',
+                    <?= Campo::texto(['nome' => 'estoque_custo', 'rotulo' => 'Custo por unidade', 'valor' => $v('estoque_custo'), 'icone' => 'banknote',
+                        'erro' => $erros['estoque_custo'] ?? null, 'opcional' => true, 'dica' => 'Mostra quanto sobra em cada venda.',
                         'attrs' => ['inputmode' => 'numeric', 'data-mask' => 'money', 'placeholder' => '0,00', 'autocomplete' => 'off']]) ?>
                 </div>
                 <p class="ficha-ajuda">Chegou mais? Use <strong>Somar</strong> na lista de produtos ou em <strong>Precisa comprar</strong>, no resumo do estoque.</p>

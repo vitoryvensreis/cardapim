@@ -432,6 +432,8 @@
 .ficha-erro { margin-bottom: .75rem; color: var(--c-danger); font-weight: 400; }
 .ficha-area .link-acao { margin-top: .6rem; }
 .proprio-campos { display: grid; gap: .9rem; margin-top: 1rem; }
+/* Rotulo numa linha so: campos e dicas ficam na mesma altura nas tres colunas. */
+.proprio-campos .field > label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (min-width: 48rem) { .proprio-campos { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } }
 .erros-form ul a { color: inherit; }
 .alternador { margin-top: .25rem; }
