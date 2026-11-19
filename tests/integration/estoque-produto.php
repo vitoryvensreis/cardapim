@@ -94,10 +94,10 @@ try {
 
     // Edicao com a tela aberta: 2 vendidas enquanto isso; salvar sem mexer no numero preserva 8.
     $baixa->baixar($rest, [$idProduto => 2]);
-    $res = $servico->salvar($idProduto, $base + ['nome' => 'Coca-Cola Lata', 'estoque_quantidade' => '10', 'estoque_quantidade_antes' => '10', 'estoque_minimo_produto' => '3']);
+    $res = $servico->salvar($idProduto, ['nome' => 'Coca-Cola Lata', 'estoque_quantidade' => '10', 'estoque_quantidade_antes' => '10', 'estoque_minimo_produto' => '3'] + $base);
     $ok($res->ok && $estoque($idInsumo) === '8.000', 'editar sem mudar o numero nao apaga vendas');
     $ok(($insumos->doProduto($rest, $idProduto)['nome'] ?? '') === 'Coca-Cola Lata', 'estoque proprio acompanha o nome do produto');
-    $res = $servico->salvar($idProduto, $base + ['nome' => 'Coca-Cola Lata', 'estoque_quantidade' => '24', 'estoque_quantidade_antes' => '10']);
+    $res = $servico->salvar($idProduto, ['nome' => 'Coca-Cola Lata', 'estoque_quantidade' => '24', 'estoque_quantidade_antes' => '10'] + $base);
     $ok($res->ok && $estoque($idInsumo) === '24.000', 'mudar o numero corrige o estoque');
 
     $baixa->baixar($rest, [$idProduto => 24]);
@@ -116,6 +116,7 @@ try {
     $ok($insumoServico->repor($idInsumo, '6')->ok && $estoque($idInsumo) === '6.000', 'Somar (chegou mais) funciona');
 
     // Trocar para "Nao controlar": estoque proprio arquivado; voltar cria outro.
+    $base['nome'] = 'Coca-Cola Lata';
     $res = $servico->salvar($idProduto, ['controle' => 'livre'] + $base);
     $ok($res->ok && $insumos->doProduto($rest, $idProduto) === null, 'trocar de opcao arquiva o estoque proprio');
     $res = $servico->salvar($idProduto, $base + ['estoque_quantidade' => '12']);
