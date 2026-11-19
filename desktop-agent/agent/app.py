@@ -10,7 +10,7 @@ import webbrowser
 import winreg
 import winsound
 import pystray
-from PIL import Image
+from PIL import Image, ImageTk
 
 from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
@@ -20,16 +20,21 @@ WINE = "#651424"
 ORANGE = "#FF5825"
 WHITE = "#FFFFFF"
 DARK = "#272727"
-GRAY = "#666666"
+GRAY = "#6C6770"
+BACKGROUND = "#F7F5F5"
+BORDER = "#E8E3E4"
+SUBTLE = "#F8F4F4"
 
 
 class DeliveryzimApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Deliveryzim Agent")
-        self.root.geometry("550x690")
-        self.root.minsize(460, 515)
-        self.root.configure(bg=WHITE)
+        self.root.geometry("580x730")
+        self.root.resizable(False, False)
+        self.root.minsize(580, 730)
+        self.root.maxsize(580, 730)
+        self.root.configure(bg=BACKGROUND)
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
         self.preferences = Preferences()
         self.store = EventStore()
@@ -55,103 +60,282 @@ class DeliveryzimApp:
             self._start_worker()
         self.root.after(500, self._recover_jobs)
 
-    def _label(self, parent, text, size=10, color=DARK, bold=False):
-        return tk.Label(parent, text=text, font=("Segoe UI", size, "bold" if bold else "normal"),
-                        bg=parent.cget("bg"), fg=color, anchor="w")
+    def _label(self, parent, text, size=10, color=DARK, bold=False, wrap=0):
+        return tk.Label(
+            parent, text=text, font=("Segoe UI", size, "bold" if bold else "normal"),
+            bg=parent.cget("bg"), fg=color, anchor="w", justify="left",
+            wraplength=wrap or 0,
+        )
+
+    def _button(self, parent, text, command, primary=True, **options):
+        color = WINE if primary else WHITE
+        foreground = WHITE if primary else WINE
+        button = tk.Button(
+            parent, text=text, command=command,
+            font=("Segoe UI", 10, "bold"), bg=color, fg=foreground,
+            activebackground=ORANGE if primary else SUBTLE,
+            activeforeground=WHITE if primary else WINE,
+            relief="flat", bd=0, cursor="hand2",
+            padx=18, pady=11, highlightthickness=1,
+            highlightbackground=WINE if primary else BORDER,
+            highlightcolor=ORANGE, takefocus=True,
+            **options,
+        )
+        return button
 
     def _render(self):
-        header = tk.Frame(self.root, bg=WINE, padx=22, pady=18)
+        self.style = ttk.Style(self.root)
+        self.style.theme_use("clam")
+        self.style.configure(
+            "Agent.TEntry", fieldbackground=WHITE, foreground=DARK,
+            bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER,
+            insertcolor=DARK, relief="flat", padding=(12, 9),
+            font=("Segoe UI", 11),
+        )
+        self.style.map("Agent.TEntry", bordercolor=[("focus", ORANGE)])
+        self.style.configure(
+            "Agent.TCombobox", fieldbackground=WHITE, background=WHITE,
+            foreground=DARK, arrowcolor=WINE, bordercolor=BORDER,
+            lightcolor=BORDER, darkcolor=BORDER, padding=(12, 8),
+            font=("Segoe UI", 10),
+        )
+        self.style.map(
+            "Agent.TCombobox",
+            bordercolor=[("focus", ORANGE)],
+            fieldbackground=[("readonly", WHITE)],
+            selectbackground=[("readonly", WHITE)],
+            selectforeground=[("readonly", DARK)],
+        )
+        self.root.option_add("*TCombobox*Listbox.font", ("Segoe UI", 10))
+        self.root.option_add("*TCombobox*Listbox.background", WHITE)
+
+        header = tk.Frame(self.root, bg=WINE, padx=30, pady=18, height=138)
         header.pack(fill="x")
-        tk.Label(header, text="Deliveryzim Agent", bg=WINE, fg=WHITE,
-                 font=("Segoe UI", 20, "bold")).pack(anchor="w")
-        tk.Label(header, text="Pedidos, impressao termica e alertas", bg=WINE, fg=WHITE,
-                 font=("Segoe UI", 10)).pack(anchor="w")
-        outer = tk.Frame(self.root, bg=WHITE)
-        outer.pack(fill="both", expand=True)
-        canvas = tk.Canvas(outer, bg=WHITE, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
-        scrollbar.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        body = tk.Frame(canvas, bg=WHITE, padx=22, pady=16)
-        canvas.create_window((0, 0), window=body, anchor="nw", tags="content")
-        body.bind("<Configure>", lambda _: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.bind("<Configure>", lambda e: canvas.itemconfigure("content", width=e.width))
-        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units"))
+        header.pack_propagate(False)
+        brand = tk.Frame(header, bg=WINE)
+        brand.pack(fill="x", anchor="w")
+        try:
+            original = self._icon_image()
+            self.brand_photo = ImageTk.PhotoImage(original.resize((52, 52), Image.Resampling.LANCZOS))
+            tk.Label(brand, image=self.brand_photo, bg=WINE, bd=0).pack(side="left", padx=(0, 13))
+        except Exception:
+            self.brand_photo = None
+        title = tk.Frame(brand, bg=WINE)
+        title.pack(side="left", anchor="center")
+        tk.Label(
+            title, text="Deliveryzim", bg=WINE, fg=WHITE,
+            font=("Segoe UI", 22, "bold"),
+        ).pack(anchor="w")
+        tk.Label(
+            title, text="AGENT  /  WINDOWS", bg=WINE, fg="#F9C9D1",
+            font=("Segoe UI", 9, "bold"),
+        ).pack(anchor="w", pady=(0, 1))
+        tk.Label(
+            header, text="Pedidos em tempo real, sem complicação.", bg=WINE,
+            fg="#F6EAED", font=("Segoe UI", 10),
+        ).pack(anchor="w", pady=(11, 0))
+        tk.Frame(self.root, bg=ORANGE, height=4).pack(fill="x")
 
-        self._label(body, "STATUS DO RESTAURANTE", size=10, color=WINE, bold=True).pack(anchor="w")
-        self._label(body, "", size=2).pack()
-        self.status_label = tk.Label(body, textvariable=self.status_var, fg=WINE,
-                                     bg=WHITE, font=("Segoe UI", 11, "bold"), anchor="w")
-        self.status_label.pack(fill="x")
-        self.name_label = tk.Label(body, textvariable=self.name_var, bg=WHITE, fg=GRAY, anchor="w")
+        self.screen = tk.Frame(self.root, bg=BACKGROUND)
+        self.screen.pack(fill="both", expand=True)
+        self.login_page = tk.Frame(self.screen, bg=BACKGROUND, padx=34, pady=25)
+        self.settings_page = tk.Frame(self.screen, bg=BACKGROUND, padx=27, pady=16)
+
+        # Etapa 1: a interface de operacao so fica visivel com vinculo aprovado.
+        self._label(self.login_page, "ETAPA 01  /  ACESSO SEGURO", 9, WINE, True).pack(anchor="w")
+        self._label(self.login_page, "Conecte seu restaurante", 19, DARK, True).pack(anchor="w", pady=(7, 4))
+        self._label(
+            self.login_page, "Use a conta de gerente ou caixa cadastrada no Deliveryzim.",
+            10, GRAY, wrap=500,
+        ).pack(anchor="w")
+
+        card = tk.Frame(
+            self.login_page, bg=WHITE, padx=24, pady=22,
+            highlightbackground=BORDER, highlightthickness=1,
+        )
+        card.pack(fill="x", pady=(22, 0))
+
+        self._label(card, "E-mail ou usuário", 10, DARK, True).pack(anchor="w", pady=(0, 7))
+        self.username = ttk.Entry(card, style="Agent.TEntry", font=("Segoe UI", 11))
+        self.username.pack(fill="x", ipady=3)
+        self._label(card, "Senha", 10, DARK, True).pack(anchor="w", pady=(17, 7))
+        self.password = ttk.Entry(card, show="●", style="Agent.TEntry", font=("Segoe UI", 11))
+        self.password.pack(fill="x", ipady=3)
+
+        self.code_holder = tk.Frame(card, bg=WHITE)
+        self._label(self.code_holder, "Código de verificação", 10, DARK, True).pack(anchor="w", pady=(0, 7))
+        self.code = ttk.Entry(self.code_holder, style="Agent.TEntry", font=("Segoe UI", 11))
+        self.code.pack(fill="x", ipady=3)
+
+        self.login_feedback = tk.StringVar(value="")
+        self.login_feedback_label = tk.Label(
+            card, textvariable=self.login_feedback, fg=WINE, bg=WHITE,
+            font=("Segoe UI", 9), wraplength=438, justify="left", anchor="w",
+        )
+        self.login_feedback_label.pack(fill="x", pady=(15, 1))
+        self.login_button = self._button(card, "Entrar e conectar computador", self._login)
+        self.login_button.pack(fill="x", pady=(7, 0), ipady=4)
+
+        info = tk.Frame(self.login_page, bg=SUBTLE, padx=15, pady=13,
+                        highlightbackground=BORDER, highlightthickness=1)
+        info.pack(fill="x", pady=(17, 0))
+        self._label(info, "CONEXÃO PROTEGIDA", 9, WINE, True).pack(anchor="w")
+        self._label(
+            info, "A senha não é armazenada neste computador. O vínculo é exclusivo do restaurante.",
+            9, GRAY, wrap=460,
+        ).pack(anchor="w", pady=(3, 0))
+
+        # Etapa 2: configuracoes do equipamento, carregada apos vinculo.
+        heading = tk.Frame(self.settings_page, bg=BACKGROUND)
+        heading.pack(fill="x")
+        self._label(heading, "ETAPA 02  /  CONFIGURAÇÃO", 9, WINE, True).pack(anchor="w")
+        self._label(heading, "Central de impressão", 19, DARK, True).pack(anchor="w", pady=(3, 0))
+
+        statecard = tk.Frame(
+            self.settings_page, bg=WHITE, padx=16, pady=12,
+            highlightbackground=BORDER, highlightthickness=1,
+        )
+        statecard.pack(fill="x", pady=(15, 11))
+        self.name_label = tk.Label(
+            statecard, textvariable=self.name_var, bg=WHITE, fg=WINE,
+            font=("Segoe UI", 11, "bold"), anchor="w",
+        )
         self.name_label.pack(fill="x")
-        self._label(body, "", size=5).pack()
+        self.status_label = tk.Label(
+            statecard, textvariable=self.status_var, bg=WHITE, fg=GRAY,
+            font=("Segoe UI", 9), anchor="w", justify="left", wraplength=472,
+        )
+        self.status_label.pack(fill="x", pady=(4, 0))
 
-        self.login_frame = tk.Frame(body, bg="#F7F7F7", padx=10, pady=10)
-        self.login_frame.pack(fill="x")
-        self._label(self.login_frame, "VINCULAR COMPUTADOR", color=WINE, bold=True).pack(anchor="w")
-        self._label(self.login_frame, "Entre com uma conta gerente ou caixa do Deliveryzim.").pack(anchor="w")
-        self.username = ttk.Entry(self.login_frame)
-        self.username.pack(fill="x", pady=(8, 3))
-        self.username.insert(0, "")
-        self.password = ttk.Entry(self.login_frame, show="*")
-        self.password.pack(fill="x", pady=3)
-        self._label(self.login_frame, "E-mail/usuario acima; senha abaixo.", size=9, color=GRAY).pack(anchor="w")
-        self.code = ttk.Entry(self.login_frame)
-        self.login_button = ttk.Button(self.login_frame, text="Entrar e vincular", command=self._login)
-        self.login_button.pack(fill="x", pady=7)
-        self.linked_frame = tk.Frame(body, bg=WHITE)
-        self.linked_frame.pack(fill="x")
-        ttk.Button(self.linked_frame, text="Desvincular este computador", command=self._unlink).pack(anchor="w")
+        modecard = tk.Frame(
+            self.settings_page, bg=WHITE, padx=16, pady=14,
+            highlightbackground=BORDER, highlightthickness=1,
+        )
+        modecard.pack(fill="x", pady=(0, 11))
+        self._label(modecard, "COMO RECEBER PEDIDOS", 9, WINE, True).pack(anchor="w")
+        modes = tk.Frame(modecard, bg=WHITE)
+        modes.pack(fill="x", pady=(11, 0))
+        self.mode_buttons = {}
+        for key, title, detail in (
+            ("auto", "Automático", "Imprime ao receber"),
+            ("manual", "Com confirmação", "Pergunta antes de imprimir"),
+        ):
+            container = tk.Frame(modes, bg=WHITE)
+            container.pack(side="left", fill="x", expand=True, padx=(0, 5) if key == "auto" else (5, 0))
+            button = tk.Button(
+                container, text=title + "\n" + detail,
+                command=lambda chosen=key: self._select_mode(chosen),
+                font=("Segoe UI", 10, "bold"),
+                bg=WHITE, fg=DARK, justify="center", cursor="hand2",
+                relief="flat", highlightthickness=2, bd=0, pady=11,
+                activeforeground=WINE, activebackground=SUBTLE,
+            )
+            button.pack(fill="both", expand=True)
+            self.mode_buttons[key] = button
+        self._paint_mode_buttons()
+        self._label(
+            modecard, "O alerta sonoro toca sempre, inclusive no modo automático.",
+            9, GRAY, wrap=476,
+        ).pack(anchor="w", pady=(12, 0))
 
-        self._label(body, "", size=8).pack()
-        self._label(body, "COMO IMPRIMIR NOVOS PEDIDOS", color=WINE, bold=True).pack(anchor="w")
-        ttk.Radiobutton(body, text="Imprimir automaticamente", variable=self.mode_var,
-                        value="auto", command=self._save_preferences).pack(anchor="w", pady=3)
-        ttk.Radiobutton(body, text="Perguntar antes de imprimir", variable=self.mode_var,
-                        value="manual", command=self._save_preferences).pack(anchor="w", pady=3)
-        self._label(body, "O alerta sonoro toca nos dois modos.", size=9, color=GRAY).pack(anchor="w")
-
-        self._label(body, "", size=6).pack()
-        self._label(body, "IMPRESSORA DO WINDOWS", color=WINE, bold=True).pack(anchor="w")
-        self.printer_selector = ttk.Combobox(body, textvariable=self.printer_var, state="readonly",
-                                             values=printers())
-        self.printer_selector.pack(fill="x", pady=(4, 4))
+        printcard = tk.Frame(
+            self.settings_page, bg=WHITE, padx=16, pady=14,
+            highlightbackground=BORDER, highlightthickness=1,
+        )
+        printcard.pack(fill="x", pady=(0, 11))
+        row = tk.Frame(printcard, bg=WHITE)
+        row.pack(fill="x")
+        self._label(row, "IMPRESSORA DO WINDOWS", 9, WINE, True).pack(side="left")
+        self._button(row, "Atualizar", self._reload_printers, primary=False, padx=9, pady=4).pack(side="right")
+        self.printer_selector = ttk.Combobox(
+            printcard, textvariable=self.printer_var,
+            state="readonly", style="Agent.TCombobox", font=("Segoe UI", 10),
+        )
+        self.printer_selector.pack(fill="x", pady=(10, 0), ipady=3)
         self.printer_selector.bind("<<ComboboxSelected>>", lambda _: self._save_preferences())
-        ttk.Button(body, text="Atualizar lista de impressoras", command=self._reload_printers).pack(anchor="w")
-        paper = tk.Frame(body, bg=WHITE)
-        paper.pack(anchor="w", pady=(7, 2))
-        self._label(paper, "Papel: ").pack(side="left")
-        ttk.Radiobutton(paper, text="58 mm", value="58", variable=self.paper_var,
-                        command=self._save_preferences).pack(side="left")
-        ttk.Radiobutton(paper, text="80 mm", value="80", variable=self.paper_var,
-                        command=self._save_preferences).pack(side="left", padx=10)
+        self.printer_hint = tk.Label(
+            printcard, text="", bg=WHITE, fg=GRAY, justify="left",
+            anchor="w", font=("Segoe UI", 9), wraplength=466,
+        )
+        self.printer_hint.pack(fill="x", pady=(6, 0))
+        paper = tk.Frame(printcard, bg=WHITE)
+        paper.pack(fill="x", pady=(8, 0))
+        self._label(paper, "Largura do papel", 9, DARK, True).pack(side="left")
+        for value in ("58", "80"):
+            tk.Radiobutton(
+                paper, text=value + " mm", variable=self.paper_var, value=value,
+                command=self._save_preferences, bg=WHITE, fg=DARK,
+                font=("Segoe UI", 9), activebackground=WHITE, selectcolor=WHITE,
+            ).pack(side="right", padx=(12, 0))
 
-        ttk.Checkbutton(body, text="Iniciar automaticamente com o Windows",
-                        variable=self.start_var, command=self._save_preferences).pack(anchor="w", pady=12)
-        actions = tk.Frame(body, bg=WHITE)
-        actions.pack(fill="x", pady=(1, 0))
-        ttk.Button(actions, text="Testar pedido e alerta", command=self._test).pack(side="left")
-        ttk.Button(actions, text="Abrir Deliveryzim", command=lambda: webbrowser.open("https://deliveryzim.com.br")).pack(side="right")
-        self._label(body, "Fechar a janela nao encerra o agente: ele permanece na bandeja do Windows.",
-                    size=9, color=GRAY).pack(anchor="w", pady=12)
+        foot = tk.Frame(self.settings_page, bg=BACKGROUND)
+        foot.pack(fill="x")
+        tk.Checkbutton(
+            foot, text="Iniciar com o Windows", variable=self.start_var,
+            command=self._save_preferences, bg=BACKGROUND, fg=DARK,
+            activebackground=BACKGROUND, selectcolor=BACKGROUND,
+            font=("Segoe UI", 10),
+        ).pack(anchor="w", pady=(1, 8))
+        self._button(
+            foot, "Testar alerta e impressão", self._test, primary=True,
+        ).pack(fill="x", ipady=3)
+        footer = tk.Frame(foot, bg=BACKGROUND)
+        footer.pack(fill="x", pady=(10, 0))
+        self._button(footer, "Desvincular", self._unlink, primary=False, padx=12, pady=7).pack(side="left")
+        self._button(
+            footer, "Abrir Deliveryzim",
+            lambda: webbrowser.open("https://deliveryzim.com.br"),
+            primary=False, padx=12, pady=7,
+        ).pack(side="right")
         self._show_link_state()
+
+    def _select_mode(self, mode):
+        self.mode_var.set(mode)
+        self._paint_mode_buttons()
+        self._save_preferences()
+
+    def _paint_mode_buttons(self):
+        for mode, widget in self.mode_buttons.items():
+            selected = mode == self.mode_var.get()
+            widget.config(
+                bg=SUBTLE if selected else WHITE,
+                fg=WINE if selected else GRAY,
+                activebackground=SUBTLE if selected else WHITE,
+                highlightbackground=ORANGE if selected else BORDER,
+            )
 
     def _show_link_state(self):
         if self.token:
-            self.login_frame.pack_forget()
-            self.linked_frame.pack(fill="x", after=self.name_label)
+            self.login_page.pack_forget()
+            self.settings_page.pack(fill="both", expand=True)
+            self._reload_printers()
         else:
-            self.linked_frame.pack_forget()
-            self.login_frame.pack(fill="x", after=self.name_label)
+            self.settings_page.pack_forget()
+            self.login_page.pack(fill="both", expand=True)
+            self.root.after(50, self.username.focus_set)
 
     def _reload_printers(self):
-        available = printers()
-        self.printer_selector["values"] = available
-        if not self.printer_var.get() and available:
-            self.printer_var.set(available[0])
-            self._save_preferences()
+        try:
+            available = printers()
+            self.printer_selector["values"] = available
+            selected = self.printer_var.get()
+            if selected not in available:
+                self.printer_var.set(available[0] if available else "")
+                if available:
+                    self._save_preferences()
+            if available:
+                self.printer_hint.config(
+                    text=str(len(available)) + " impressora(s) disponível(is). Escolha onde enviar os cupons.",
+                    fg=GRAY,
+                )
+            else:
+                self.printer_hint.config(
+                    text="Nenhuma impressora encontrada. Instale uma nas configurações do Windows e clique em Atualizar.",
+                    fg=WINE,
+                )
+        except Exception as exc:
+            self.printer_selector["values"] = []
+            self.printer_hint.config(text=str(exc)[:230], fg=WINE)
 
     def _save_preferences(self):
         self.preferences.set(
