@@ -24,6 +24,9 @@ use PDO;
  */
 final class IfoodLojaService extends BaseIntegracao
 {
+    /** @var array{inicio:string, fim:string}|null */
+    private ?array $ultimoPeriodo = null;
+
     public const MAX_TURNOS_DIA = 4;
     public const NOMES_DIAS = ['MONDAY' => 'Segunda', 'TUESDAY' => 'Terça', 'WEDNESDAY' => 'Quarta', 'THURSDAY' => 'Quinta',
         'FRIDAY' => 'Sexta', 'SATURDAY' => 'Sábado', 'SUNDAY' => 'Domingo'];
@@ -161,6 +164,63 @@ final class IfoodLojaService extends BaseIntegracao
                 . $ini->format('d/m \à\s H:i') . ' até ' . $fi->format('d/m \à\s H:i')
                 . ' (horário de Brasília). Aguarde a confirmação na lista e no status operacional do iFood.');
         });
+    }
+
+    /** Pausa rapida "so o iFood": o link proprio continua recebendo pelo horario do Perfil (cardapio independe do iFood). */
+    public const PAUSAS_RAPIDAS = [
+        '30min' => '30 minutos',
+        '1h' => '1 hora',
+        '2h' => '2 horas',
+        'fim_do_dia' => 'Até o fim do dia',
+    ];
+    public const MOTIVO_PAUSA_RAPIDA = 'Pausa do iFood pelo Deliveryzim (link próprio segue aberto)';
+
+    /**
+     * Periodo da pausa rapida no horario de Brasilia, no formato do formulario (Y-m-d\TH:i:s).
+     * Comeca 10 s a frente (como a pausa manual). "Ate o fim do dia" termina 23:59:59 de hoje.
+     * @return array{inicio:string, fim:string}|null null = opcao desconhecida ou dia ja no fim
+     */
+    public static function periodoRapido(string $duracao, ?DateTimeImmutable $agora = null): ?array
+    {
+        if (!isset(self::PAUSAS_RAPIDAS[$duracao])) {
+            return null;
+        }
+        $zona = FusoLojaIfood::timezone(FusoLojaIfood::PADRAO);
+        $inicio = ($agora ?? new DateTimeImmutable('now', $zona))->setTimezone($zona)->modify('+10 seconds');
+        $fim = match ($duracao) {
+            '30min' => $inicio->modify('+30 minutes'),
+            '1h' => $inicio->modify('+1 hour'),
+            '2h' => $inicio->modify('+2 hours'),
+            'fim_do_dia' => $inicio->setTime(23, 59, 59),
+        };
+        if ($fim->getTimestamp() - $inicio->getTimestamp() < 60) {
+            return null;
+        }
+        return ['inicio' => $inicio->format('Y-m-d\TH:i:s'), 'fim' => $fim->format('Y-m-d\TH:i:s')];
+    }
+
+    /** Cria a pausa rapida no iFood pelas mesmas regras da pausa manual (sobreposicao, 201 com ID, log). */
+    public function pausaRapida(string $duracao): Resultado
+    {
+        $periodo = self::periodoRapido($duracao);
+        if ($periodo === null) {
+            return Resultado::falha(isset(self::PAUSAS_RAPIDAS[$duracao])
+                ? 'Falta menos de um minuto para o fim do dia. Escolha outro tempo.'
+                : 'Escolha por quanto tempo pausar o iFood.', ['duracao' => 'Escolha uma das opções.']);
+        }
+        $this->ultimoPeriodo = $periodo;
+        $res = $this->criarPausa(self::MOTIVO_PAUSA_RAPIDA, $periodo['inicio'], $periodo['fim']);
+        if ($res->ok) {
+            return Resultado::sucesso('iFood pausado (' . mb_strtolower(self::PAUSAS_RAPIDAS[$duracao])
+                . '). Seu link próprio continua recebendo pedidos no horário do Perfil. Aguarde a confirmação do iFood abaixo.');
+        }
+        return $res;
+    }
+
+    /** @return array{inicio:string, fim:string}|null periodo da ultima pausa rapida (para a tela acompanhar a confirmacao) */
+    public function periodoDaUltimaRapida(): ?array
+    {
+        return $this->ultimoPeriodo;
     }
 
     /** Valores iniciais em Brasilia: 10 segundos no futuro, ate o JS assumir o relogio. */

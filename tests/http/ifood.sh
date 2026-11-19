@@ -93,7 +93,7 @@ contem "navegacao tem Cardapio" "$tmp/pagina.html" '/integracoes/ifood/cardapio'
 contem "navegacao tem Dados" "$tmp/pagina.html" '/integracoes/ifood/dados'
 contem "Status ativo e acessivel" "$tmp/pagina.html" 'href="'
 contem "disponibilidade somente em Status" "$tmp/pagina.html" 'Disponibilidade agora'
-contem "pausas somente em Status" "$tmp/pagina.html" 'Nova pausa'
+contem "pausas somente em Status" "$tmp/pagina.html" 'Pausa com horário escolhido'
 contem "inicio com segundos no navegador" "$tmp/pagina.html" 'id="pausa-inicio" type="datetime-local" step="1"'
 contem "inicio atualizado automaticamente" "$tmp/pagina.html" 'data-ifood-inicio-auto'
 contem "retorno ao inicio automatico" "$tmp/pagina.html" 'data-ifood-retomar-inicio'
@@ -229,6 +229,24 @@ pausa_js="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); if (pre
 esperar "remover pela tela" "$(por_js "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_js")" "200"
 contem "aviso de removida no card" "$tmp/js.json" 'recebeu a solicitação de remoção'
 contem "lista vazia no card" "$tmp/js.json" 'Nenhuma pausa ativa.'
+echo "Pausar so o iFood (pausa rapida): o link proprio continua recebendo"
+pagina "$gj" "$g/integracoes/ifood/status" >/dev/null
+contem "cartao Pausar so o iFood na tela" "$tmp/pagina.html" 'Pausar só o iFood'
+contem "explica que o link continua" "$tmp/pagina.html" 'Seu link próprio continua recebendo pedidos normalmente'
+esperar "pausa rapida com tempo invalido recusada" "$(por_js "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/rapida" duracao=3dias)" "422"
+contem "erro do tempo dentro do card" "$tmp/js.json" 'erro-pausa-duracao'
+esperar "pausa rapida sem token" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'X-Requested-With: fetch' --data 'duracao=1h' "$g/integracoes/ifood/pausas/rapida")" "419"
+esperar "pausa rapida de 30 minutos" "$(por_js "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/rapida" duracao=30min)" "200"
+contem "aviso da pausa rapida" "$tmp/js.json" 'Seu link próprio continua recebendo pedidos'
+contem "pausa rapida na lista do iFood" "$tmp/js.json" 'Pausa do iFood pelo Deliveryzim'
+contem "pausa rapida informa ID para acompanhar" "$tmp/js.json" '"id_pausa":"'
+contem "pausa rapida devolve o periodo calculado" "$tmp/js.json" '"inicio":"20'
+curl -s -o "$tmp/estado-publico-rapida.json" "$base/api/v1/restaurantes/$slug/situacao"
+contem "pausa rapida nao fecha o link proprio" "$tmp/estado-publico-rapida.json" '"fechado_integracao":false'
+esperar "checkout do link responde com o iFood pausado" "$(pagina "$gj" "$base/$slug/finalizar")" "200"
+pausa_rapida="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); if (preg_match("~name=\"pausa\" value=\"([a-f0-9-]+)\"~", $d["html"] ?? "", $m)) echo $m[1];' "$tmp/js.json")"
+esperar "voltar o iFood removendo a pausa rapida" "$(por_js "$gj" "$g/integracoes/ifood/status" "$g/integracoes/ifood/pausas/remover" pausa="$pausa_rapida")" "200"
+contem "sem pausas depois de voltar o iFood" "$tmp/js.json" 'Nenhuma pausa ativa.'
 esperar "horarios sobrepostos recusados" "$(enviar "$gj" "$g/integracoes/ifood/loja" "$g/integracoes/ifood/horarios" horario_proprio=1 'h[SUNDAY][0][abre]=09:00' 'h[SUNDAY][0][fecha]=12:00' 'h[SUNDAY][1][abre]=11:00' 'h[SUNDAY][1][fecha]=16:00' | cut -d' ' -f1)" "422"
 esperar "enviar horarios do checklist" "$(enviar "$gj" "$g/integracoes/ifood/loja" "$g/integracoes/ifood/horarios" horario_proprio=1 \
   'h[SATURDAY][0][abre]=10:00' 'h[SATURDAY][0][fecha]=19:00' \
