@@ -45,6 +45,30 @@ O workflow \`.github/workflows/desktop-agent-windows.yml\` usa runner Windows, P
 6. No modo de confirmacao, surge janela com **Receber e imprimir** e **Somente receber**. O som toca nos dois casos, mas a segunda opcao nao imprime.
 7. Feche a janela principal e confira que o agente continua na bandeja.
 
+## Teste de balança com APK Android (Wi-Fi, sem equipamento)
+
+O projeto virtual-scale/android gera o APK **Deliveryzim Balança Virtual**.
+Digite, por exemplo, 0,350 kg no celular e marque a leitura como estável;
+o app envia tramas de balança na porta TCP 9101 em rede Wi-Fi privada.
+
+1. No APK, pressione **Iniciar servidor** e anote o IP mostrado.
+2. No Deliveryzim Agent Windows, clique **Configurar balança**, escolha
+   **Wi-Fi (celular)** e digite o IP do Android.
+3. Para **ASCII** ou **Urano PROT3**, selecione **Fluxo contínuo**.
+   Para **Toledo Prix III Prt5**, selecione **Solicitar com ENQ**.
+4. Clique **Conectar e salvar**. O Agent exige três amostras consistentes,
+   mostra **SIMULAÇÃO** e publica o peso no restaurante de teste vinculado.
+5. Experimente **Instável**, **Sobrecarga** e **Parar**; a última leitura
+   deve ser invalidada. O simulador não é medição nem balança comercial.
+
+O IP precisa ser IPv4 privado (faixas 10.x, 172.16–31.x e 192.168.x).
+O Agent bloqueia destinos públicos e não abre porta TCP de escuta no Windows.
+Portas COM físicas continuam funcionando como antes. O APK não transforma
+o celular em periférico USB, RS-232 ou Bluetooth. O teste físico com
+balança comercial permanece obrigatório para homologação.
+
+Detalhes e instruções: virtual-scale/README.md
+
 ## Balança para açaí (leitura local + integração via API)
 
 O Agent também pode capturar peso de uma **balança serial ASCII** ligada ao
@@ -81,7 +105,7 @@ balanças de rede e protocolos binários exigem adaptadores futuros e
 homologação específica. Para uso comercial, respeitar os requisitos
 metrológicos e de verificação aplicáveis à balança.
 
-**Integração do PDV (em branch, ainda sem deploy):** o Agent publica em
+**Integração do PDV (publicada no backend):** o Agent publica em
 \`POST /api/v1/desktop/pesagem\` com seu token de dispositivo, sem aceitar
 identificador de restaurante no payload. O caixa e o gerente consultam
 \`GET /api/v1/desktop/balancas\` em sessão autenticada. Pesos com mais de 3 s
@@ -117,7 +141,4 @@ SQLite registra cada evento antes do cursor ser atualizado, evitando reprocessar
 - GET \`/api/v1/desktop/balancas\` — sessão de gerente/caixa, lista exclusivamente dispositivos da própria loja
 - Migrations \`20261119010000_create_desktop_agent_devices.php\` e \`20261119020000_create_desktop_agent_pesagens.php\`
 
-**Ainda sem deploy nesta branch.** Validar CI, merge, aplicar as duas migrations
-com backup e verificação antes do uso, testar com balança real e confirmar o
-funcionamento ponta a ponta. O EXE isolado pode mostrar falha de sincronização
-com o PDV enquanto a API não estiver publicada.
+**Backend**: a API de pesagem do PR #104 foi publicada na VPS com backup e migrations em 19/11/2026. O modo de simulação Android/Windows é exclusivo da branch de teste e não foi publicado na main. Homologação física e teste comercial continuam pendentes.
