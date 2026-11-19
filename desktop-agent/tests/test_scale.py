@@ -49,10 +49,9 @@ class ParseScaleTests(unittest.TestCase):
         self.assertEqual(monitor.snapshot(), ("Conectada", None))
         monitor.stop()
 
-
     def test_serial_monitor_marks_stable_only_after_consistent_frames(self):
-        frames = [b"ST,+0.350kg\\r\\n", b"ST,+0.351kg\\r\\n",
-                  b"ST,+0.350kg\\r\\n", b"ST,+0.350kg\\r\\n"]
+        frames = [b"ST,+0.350kg\r\n", b"ST,+0.351kg\r\n",
+                  b"ST,+0.350kg\r\n", b"ST,+0.350kg\r\n"]
 
         class Port:
             def __enter__(self):
