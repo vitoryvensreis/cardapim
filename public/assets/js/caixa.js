@@ -276,7 +276,7 @@
       const valido = m > 0 && m <= 99999 && m >= minimo;
       botaoLancar.disabled = !valido;
       botaoLancar.textContent = m > 0 ? `Lançar ${textoPeso(m)} · ${reais(Math.floor((preco * m + 500) / 1000))}` : "Digite o peso";
-      ajudaPeso.textContent = m > 0 && m < minimo ? `O mínimo para este produto é ${textoPeso(minimo)}.` : "Digite só os números da balança: 8 4 6 vira 0,846.";
+      ajudaPeso.textContent = m > 0 && m < minimo ? `O mínimo para este produto é ${textoPeso(minimo)}.` : (campoPeso.readOnly ? "Confira o peso no visor antes de lançar." : "Digite só os números da balança: 8 4 6 vira 0,846.");
     };
     document.addEventListener("click", (ev) => {
       const b = ev.target.closest("[data-produto-abrir]");
