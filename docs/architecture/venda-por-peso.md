@@ -8,7 +8,7 @@ O gerente escolhe, produto por produto, como ele é vendido (`produtos.unidade_v
 | `kg` | Por quilo (kg) | do quilo | 3 casas = grama (0,846 kg = 846 g), até 99,999 kg |
 | `l` | Por litro (L) | do litro | 3 casas = mililitro (0,350 L = 350 ml), até 99,999 L |
 
-Sem integração com balança: a equipe digita o peso.
+Sem agente vinculado, a equipe continua digitando o peso. A integração com balança utiliza a leitura estável mais recente do Deliveryzim Agent quando ele está online e autorizado; o operador **confere e confirma** o peso antes de lançar.
 
 ## Regras
 
@@ -53,3 +53,36 @@ Linha da sacola / pedido / prévia de desconto: `{id, quantidade, porcao?, obser
 Migration `20261114100000_venda_por_peso` (2 etapas: schema com o gatilho `[cardapim-peso]`, backup e
 `verify-peso.php`; depois o código). Testes: `tests/unit/peso.php`, `tests/integration/peso.php` (arredondamento do PHP
 igual ao `ROUND` do MySQL), `tests/http/peso.sh`.
+
+
+## Balança no caixa (integração preparada no PR #104)
+
+O agente Windows lê a porta COM local (RS-232 ou USB/serial, quando o driver instala COM),
+identifica peso estável e, enquanto vinculado a um restaurante, publica o último peso
+por `POST /api/v1/desktop/pesagem` usando o token de dispositivo. O backend usa
+`id_restaurante` do próprio dispositivo — nunca do payload da requisição.
+
+O navegador, já autenticado como caixa/gerente, obtém apenas as balanças do seu
+restaurante em `GET /api/v1/desktop/balancas`. Leituras instáveis, revogadas ou
+com mais de **3 segundos** são descartadas. Só existe uma leitura recente por
+computador (sem histórico de clientes), preservada em
+`desktop_agent_pesagens`, com FK composta para o restaurante.
+
+No modal de produto com unidade `kg`, o operador escolhe a balança,
+visualiza a última leitura e clica em **Usar peso da balança**.
+Isso somente preenche o campo de quantidade; o botão **Lançar** continua
+separado. O endpoint de lançamento existente continua validando produto,
+quantidade mínima, estoque e cálculo financeiro no PHP. Produtos por litro
+(`l`) e unidades (`un`) **não** recebem leitura de balança em kg.
+
+**Limitações de segurança e homologação:** somente modelos cujo protocolo
+serial esteja implementado; verificar no equipamento real, respeitar tara/zero
+na balança e exigências metrológicas pertinentes. O token do agente permanece
+protegido por DPAPI; não existe servidor HTTP local aberto pelo agente ou
+acesso direto do navegador ao hardware. A venda manual permanece disponível
+caso a balança esteja sem conexão.
+
+**Publicação:** a criação da tabela de dispositivos e da tabela de pesagens
+depende das duas migrations do PR #104, com backup e aplicação controlada
+antes de colocar as rotas no ar. A implementação em branch não significa
+que a integração já esteja funcionando na VPS.
