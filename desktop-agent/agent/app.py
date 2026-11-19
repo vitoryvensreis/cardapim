@@ -387,12 +387,6 @@ class DeliveryzimApp:
     def _select_mode(self, mode):
         self.mode_var.set(mode)
         self._paint_mode_buttons()
-        tk.Checkbutton(alertcard, text="Imprimir a logo do Deliveryzim no cupom",
-                       variable=self.logo_var, command=self._save_preferences,
-                       bg=WHITE, fg=DARK, activebackground=WHITE, selectcolor=WHITE,
-                       font=("Segoe UI", 10), anchor="w").pack(fill="x", pady=(10, 0))
-        self._label(alertcard, "Se a impressora mostrar símbolos estranhos no topo, desmarque: o cupom sai só com texto.",
-                    9, GRAY, wrap=540).pack(anchor="w")
         self._save_preferences()
 
     def _paint_mode_buttons(self):
