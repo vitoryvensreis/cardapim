@@ -1,0 +1,45 @@
+name: Deliveryzim Agent Windows EXE
+
+on:
+  push:
+    branches: [feature/desktop-agent-windows]
+    paths:
+      - 'desktop-agent/**'
+      - '.github/workflows/desktop-agent-windows.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'desktop-agent/**'
+      - '.github/workflows/desktop-agent-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Gerar agente Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar bibliotecas
+        run: python -m pip install --upgrade -r desktop-agent/requirements.txt
+      - name: Sintaxe e testes
+        shell: pwsh
+        working-directory: desktop-agent
+        run: |
+          python -m compileall -q .
+          python -m unittest discover -s tests -v
+      - name: Gerar executavel unico
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name Deliveryzim-Agent --add-data "public/assets/img/pwa/icon-192.png;agent/assets" desktop-agent/main.py
+      - name: Publicar EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deliveryzim-Agent-Windows-v0.1
+          path: dist/Deliveryzim-Agent.exe
+          if-no-files-found: error
