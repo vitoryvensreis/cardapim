@@ -42,7 +42,8 @@ class DeliveryzimApp:
         self.root.resizable(True, True)
         self.root.minsize(560, 610)
         try:
-            self.root.iconphoto(True, ImageTk.PhotoImage(self._icon_image().resize((64, 64))))
+            self.window_icon_photo = ImageTk.PhotoImage(self._icon_image().resize((64, 64)))
+            self.root.iconphoto(True, self.window_icon_photo)
         except (OSError, RuntimeError):
             pass
         self.root.configure(bg=BACKGROUND)
@@ -352,6 +353,10 @@ class DeliveryzimApp:
 
     def _finish_setup(self):
         self._save_preferences()
+        if self.icon is None:
+            messagebox.showwarning("Área de notificação",
+                                   "A bandeja do Windows não está disponível. Mantenha o Agent aberto.")
+            return
         if self.mode_var.get() == "auto" and not self.printer_var.get():
             messagebox.showwarning("Impressora", "Escolha uma impressora ou use o modo com confirmação.")
             return
@@ -798,5 +803,6 @@ class DeliveryzimApp:
     def run(self):
         self._start_tray()
         if self.token and self.preferences.get("configurado") and self.icon is not None:
-            self.root.after(350, self.hide)
+            # Não pisca uma janela na tela ao iniciar automaticamente com o Windows.
+            self.root.withdraw()
         self.root.mainloop()
