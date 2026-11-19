@@ -70,6 +70,7 @@ class DeliveryzimApp:
         self.mode_var = tk.StringVar(value="auto" if self.preferences.get("automatico") else "manual")
         self.paper_var = tk.StringVar(value=str(self.preferences.get("papel") or 80))
         self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")))
+        self.logo_var = tk.BooleanVar(value=self.preferences.get("logo_cupom") is not False)
         self.sound_var = tk.BooleanVar(value=bool(self.preferences.get("som_ativo")))
         # Cópia simples para a bandeja (outra thread) ler sem tocar em variáveis do Tk.
         self.sound_on = bool(self.preferences.get("som_ativo"))
@@ -299,6 +300,12 @@ class DeliveryzimApp:
                         padx=(0, 6) if key == "auto" else (6, 0))
             self.mode_buttons[key] = button
         self._paint_mode_buttons()
+        tk.Checkbutton(alertcard, text="Imprimir a logo do Deliveryzim no cupom",
+                       variable=self.logo_var, command=self._save_preferences,
+                       bg=WHITE, fg=DARK, activebackground=WHITE, selectcolor=WHITE,
+                       font=("Segoe UI", 10), anchor="w").pack(fill="x", pady=(10, 0))
+        self._label(alertcard, "Se a impressora mostrar símbolos estranhos no topo, desmarque: o cupom sai só com texto.",
+                    9, GRAY, wrap=540).pack(anchor="w")
 
         foot = tk.Frame(self.settings_page, bg=BACKGROUND)
         foot.pack(fill="x", pady=(2, 15))
@@ -380,6 +387,12 @@ class DeliveryzimApp:
     def _select_mode(self, mode):
         self.mode_var.set(mode)
         self._paint_mode_buttons()
+        tk.Checkbutton(alertcard, text="Imprimir a logo do Deliveryzim no cupom",
+                       variable=self.logo_var, command=self._save_preferences,
+                       bg=WHITE, fg=DARK, activebackground=WHITE, selectcolor=WHITE,
+                       font=("Segoe UI", 10), anchor="w").pack(fill="x", pady=(10, 0))
+        self._label(alertcard, "Se a impressora mostrar símbolos estranhos no topo, desmarque: o cupom sai só com texto.",
+                    9, GRAY, wrap=540).pack(anchor="w")
         self._save_preferences()
 
     def _paint_mode_buttons(self):
@@ -433,6 +446,7 @@ class DeliveryzimApp:
             papel=int(self.paper_var.get()),
             iniciar_windows=bool(self.start_var.get()),
             som_ativo=bool(self.sound_var.get()),
+            logo_cupom=bool(self.logo_var.get()),
         )
         self.sound_on = bool(self.sound_var.get())
         if self.icon is not None:
@@ -708,11 +722,12 @@ class DeliveryzimApp:
         self.store.update(event_id, "imprimindo")
         target = self.printer_var.get()
         paper = int(self.paper_var.get())
-        threading.Thread(target=self._print_task, args=(order, target, paper), daemon=True).start()
+        logo = bool(self.logo_var.get())
+        threading.Thread(target=self._print_task, args=(order, target, paper, logo), daemon=True).start()
 
-    def _print_task(self, order, printer_name, paper):
+    def _print_task(self, order, printer_name, paper, logo=True):
         try:
-            payload = receipt(order, paper)
+            payload = receipt(order, paper, logo)
             spool(printer_name, payload, "Deliveryzim pedido #" + str(order.get("numero", "")))
             self.messages.put(("printed", order))
         except Exception as exc:

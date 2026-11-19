@@ -1,4 +1,4 @@
-# Deliveryzim Agent para Windows — v0.3 (teste controlado)
+# Deliveryzim Agent para Windows — v0.4 (teste controlado)
 
 A versão fica em `agent/__init__.py` (`__version__`) e vai no nome do EXE gerado no GitHub Actions.
 
@@ -26,7 +26,10 @@ Agente nativo Python para Windows. **Sem WebView.** Fica na bandeja, toca som na
 
 - A opcao de imprimir automaticamente fica salva neste computador, nao na conta do restaurante.
 - Impressora: selecione uma impressora **RAW ESC/POS** cadastrada no Windows. O Android Virtual Printer pode ser usado no lugar do equipamento fisico.
-- A impressao usa cp850, sem imagens. O sucesso do spooler nao garante a saida fisica do papel.
+- A impressao usa cp850. Desde a 0.4.0 o topo do cupom leva a **logo oficial do Deliveryzim** (arquivo
+  `agent/assets/logo-branca.png`, convertido em imagem ESC/POS `GS v 0`, centralizada e com até 72% da largura do papel).
+  Se a impressora mostrar símbolos estranhos no topo, desmarque **Imprimir a logo do Deliveryzim no cupom**: sai o nome em texto.
+- O sucesso do spooler nao garante a saida fisica do papel.
 
 ## Experiência de configuração (Windows)
 

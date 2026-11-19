@@ -1,6 +1,12 @@
 """Composicao de cupom termico em ESC/POS e envio RAW pelo spooler do Windows."""
 from decimal import Decimal, InvalidOperation
+import os
+import sys
 import win32print
+
+# Pontos por linha das térmicas comuns (203 dpi): 58 mm = 384, 80 mm = 576.
+DOTS = {58: 384, 80: 576}
+LOGO_FILE = "logo-branca.png"
 
 
 def printers():
@@ -50,10 +56,55 @@ def cut_text(value, width):
     return [text[i:i + width] for i in range(0, len(text), width)]
 
 
-def receipt(order, paper=80):
-    """Cupom em CP850 + ESC/POS, compativel com drivers que deixam RAW passar."""
+def _asset(name):
+    base = getattr(sys, "_MEIPASS", None)
+    if getattr(sys, "frozen", False) and base:
+        return os.path.join(base, "agent", "assets", name)
+    return os.path.join(os.path.dirname(__file__), "assets", name)
+
+
+def logo_raster(paper=80, path=None):
+    """Logo oficial do Deliveryzim (arquivo da marca, sem redesenhar) como imagem ESC/POS centralizada.
+
+    Usa a logo branca com fundo transparente: o que é logo vira ponto preto no papel. Comando GS v 0
+    (imagem raster), aceito pela maioria das térmicas ESC/POS. Devolve b"" se a imagem não puder ser lida.
+    """
+    try:
+        from PIL import Image
+        with Image.open(path or _asset(LOGO_FILE)) as source:
+            image = source.convert("RGBA")
+    except Exception:
+        return b""
+    max_width = int(DOTS.get(int(paper), 576) * 0.72)
+    if image.width > max_width:
+        height = max(1, round(image.height * max_width / image.width))
+        image = image.resize((max_width, height), Image.Resampling.LANCZOS)
+    alpha = image.getchannel("A")
+    width, height = image.size
+    row_bytes = (width + 7) // 8
+    data = bytearray()
+    pixels = alpha.load()
+    for y in range(height):
+        for xb in range(row_bytes):
+            byte = 0
+            for bit in range(8):
+                x = xb * 8 + bit
+                if x < width and pixels[x, y] >= 128:
+                    byte |= 0x80 >> bit
+            data.append(byte)
+    header = b"\x1d\x76\x30\x00" + bytes((row_bytes & 0xFF, row_bytes >> 8, height & 0xFF, height >> 8))
+    # ESC a 1 centraliza; depois volta para a esquerda e pula uma linha.
+    return b"\x1ba\x01" + header + bytes(data) + b"\n\x1ba\x00"
+
+
+def receipt(order, paper=80, logo=True):
+    """Cupom em CP850 + ESC/POS, compativel com drivers que deixam RAW passar.
+
+    Com logo=True o topo leva a logo do Deliveryzim; sem a imagem (ou desligado) sai o nome em texto.
+    """
     width = 32 if int(paper) == 58 else 48
-    lines = ["DELIVERYZIM", "-" * width, "PEDIDO #" + str(order.get("numero", "")), "-" * width]
+    image = logo_raster(paper) if logo else b""
+    lines = ([] if image else ["DELIVERYZIM"]) + ["-" * width, "PEDIDO #" + str(order.get("numero", "")), "-" * width]
     lines.append("ENTREGA" if order.get("tipo") == "entrega" else "RETIRADA")
     if order.get("cliente"):
         lines.extend(cut_text("Cliente: " + str(order["cliente"]), width))
@@ -78,7 +129,7 @@ def receipt(order, paper=80):
     lines.append("")
     lines.append("")
     # ESC @ inicializa, LF avanca, GS V 0 corta (quando suportado pela impressora).
-    return b"\x1b@" + ("\n".join(lines) + "\n").encode("cp850", errors="replace") + b"\x1dV\x00"
+    return b"\x1b@" + image + ("\n".join(lines) + "\n").encode("cp850", errors="replace") + b"\x1dV\x00"
 
 
 def spool(printer, payload, label):
