@@ -45,12 +45,15 @@ O workflow \`.github/workflows/desktop-agent-windows.yml\` usa runner Windows, P
 6. No modo de confirmacao, surge janela com **Receber e imprimir** e **Somente receber**. O som toca nos dois casos, mas a segunda opcao nao imprime.
 7. Feche a janela principal e confira que o agente continua na bandeja.
 
-## Balança para açaí (fase local Windows)
+## Balança para açaí (leitura local + integração via API)
 
 O Agent também pode capturar peso de uma **balança serial ASCII** ligada ao
 computador via RS-232 ou adaptador USB/serial que crie uma porta `COM`.
-A comunicação é **local**: nesta fase, peso **não altera** carrinho, pedido,
-comanda, estoque ou preço no PHP. Não existe API de pesagem publicada.
+A leitura física é local. Com a API do PR #104 implantada, o Agent envia somente
+uma leitura recente e estável via HTTPS para o restaurante vinculado; o caixa
+pode escolher a balança e usar o peso na comanda. **O operador precisa confirmar
+o lançamento**; a leitura isolada não cria pedidos, não movimenta estoque e
+não calcula preço.
 
 1. Depois de entrar no Agent, abra **Configurar balança**.
 2. Instale o driver do fabricante quando necessário e conecte a balança.
@@ -78,13 +81,14 @@ balanças de rede e protocolos binários exigem adaptadores futuros e
 homologação específica. Para uso comercial, respeitar os requisitos
 metrológicos e de verificação aplicáveis à balança.
 
-**Integração futura com o sistema:** o leitor fica separado da impressão e
-expõe o estado/último peso estável para o processo local do Agent. A etapa
-seguinte deverá criar uma ponte segura entre PDV e Agent, associada ao
-restaurante/dispositivo, com autorização, expiração do peso, validação de
-unidades e cálculo **server-side** em DECIMAL. Não confiar em peso ou
-preço vindo de JavaScript, nem disponibilizar endpoint local sem autenticação
-que possa ser acionado por sites arbitrários.
+**Integração do PDV (em branch, ainda sem deploy):** o Agent publica em
+\`POST /api/v1/desktop/pesagem\` com seu token de dispositivo, sem aceitar
+identificador de restaurante no payload. O caixa e o gerente consultam
+\`GET /api/v1/desktop/balancas\` em sessão autenticada. Pesos com mais de 3 s
+ou não estáveis são ignorados. No modal de produto por quilo, o funcionário
+clica em **Usar peso da balança** e depois em **Lançar**. O PHP aplica
+\`QuantidadeVenda\` e revalida os valores. Produtos por litro permanecem
+com digitação manual. Não existe servidor HTTP local exposto no Windows.
 
 ## Protecoes de fila
 
@@ -109,6 +113,11 @@ SQLite registra cada evento antes do cursor ser atualizado, evitando reprocessar
 - POST \`/api/v1/desktop/vincular\` — sessão PHP + \`X-CSRF-Token\` + JSON \`{"nome":"CAIXA-1"}\`
 - GET \`/api/v1/desktop/eventos?desde={id}\` — Bearer token (dispositivo, escopo do restaurante), retorna cupom e cursor
 - POST \`/api/v1/desktop/desconectar\` — revoga o token em uso
-- Migration \`20261119010000_create_desktop_agent_devices.php\`
+- POST \`/api/v1/desktop/pesagem\` — Bearer do agente, somente peso estável em kg ou limpeza de leitura
+- GET \`/api/v1/desktop/balancas\` — sessão de gerente/caixa, lista exclusivamente dispositivos da própria loja
+- Migrations \`20261119010000_create_desktop_agent_devices.php\` e \`20261119020000_create_desktop_agent_pesagens.php\`
 
-**Sem deploy automatico de PHP neste PR.** Validar testes, merge e deploy posteriormente.
+**Ainda sem deploy nesta branch.** Validar CI, merge, aplicar as duas migrations
+com backup e verificação antes do uso, testar com balança real e confirmar o
+funcionamento ponta a ponta. O EXE isolado pode mostrar falha de sincronização
+com o PDV enquanto a API não estiver publicada.
