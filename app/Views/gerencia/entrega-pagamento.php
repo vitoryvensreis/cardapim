@@ -163,7 +163,7 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
             <fieldset class="opcoes-modo">
                 <legend class="sr-only">Pagamento pelo app</legend>
                 <label class="opcao-modo">
-                    <input type="checkbox" name="pag_pix_online" value="1"<?= $marcado('pag_pix_online') && $asaasConectado ? ' checked' : '' ?><?= $asaasConectado ? '' : ' disabled' ?>>
+                    <input type="checkbox" name="pag_pix_online" value="1" data-pix-online<?= $marcado('pag_pix_online') && $asaasConectado ? ' checked' : '' ?><?= $asaasConectado ? '' : ' disabled' ?>>
                     <span>
                         <strong><?= Icon::svg('smartphone', 'icon-sm') ?>Pix pelo app</strong>
                         <small>O cliente paga na hora e o dinheiro cai na sua conta Asaas. O pedido só chega para você depois de pago.</small>
@@ -176,10 +176,13 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
             <h3 class="rotulo-grupo">Pago na entrega ou na retirada</h3>
             <fieldset class="opcoes-modo formas-grade">
                 <legend class="sr-only">Pagamento na entrega ou na retirada</legend>
-                <?php foreach ($formas as $campo => [$rotulo, $icone, $explica]): ?>
-                    <label class="opcao-modo">
-                        <input type="checkbox" name="<?= $e($campo) ?>" value="1"<?= $marcado($campo) ? ' checked' : '' ?>>
-                        <span><strong><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></strong><small><?= $e($explica) ?></small></span>
+                <?php $pixAppLigado = $marcado('pag_pix_online') && $asaasConectado; ?>
+                <?php foreach ($formas as $campo => [$rotulo, $icone, $explica]): $ehPixEntrega = $campo === 'pag_pix_entrega'; ?>
+                    <label class="opcao-modo"<?= $ehPixEntrega ? ' data-pix-entrega-opcao' : '' ?>>
+                        <input type="checkbox" name="<?= $e($campo) ?>" value="1"<?= $ehPixEntrega ? ' data-pix-entrega' : '' ?><?= $marcado($campo) && !($ehPixEntrega && $pixAppLigado) ? ' checked' : '' ?><?= $ehPixEntrega && $pixAppLigado ? ' disabled' : '' ?>>
+                        <span><strong><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></strong><small><?= $e($explica) ?></small>
+                            <?php if ($ehPixEntrega): ?><small class="opcao-aviso" data-pix-entrega-aviso<?= $pixAppLigado ? '' : ' hidden' ?>><?= Icon::svg('info', 'icon-sm') ?>Desligado porque o Pix pelo app está ligado.</small><?php endif; ?>
+                        </span>
                     </label>
                 <?php endforeach; ?>
             </fieldset>
