@@ -11,6 +11,27 @@
     atualizar();
   });
 
+  // Pix pelo app ligado desliga o Pix na entrega (o servidor tambem garante).
+  var pixApp = document.querySelector('[data-pix-online]');
+  var pixEntrega = document.querySelector('[data-pix-entrega]');
+  var pixAviso = document.querySelector('[data-pix-entrega-aviso]');
+  if (pixApp && pixEntrega) {
+    var pixEntregaAntes = pixEntrega.checked;
+    var travarPix = function () {
+      var ligado = pixApp.checked && !pixApp.disabled;
+      if (ligado) {
+        if (!pixEntrega.disabled) { pixEntregaAntes = pixEntrega.checked; }
+        pixEntrega.checked = false;
+      } else if (pixEntrega.disabled) {
+        pixEntrega.checked = pixEntregaAntes;
+      }
+      pixEntrega.disabled = ligado;
+      if (pixAviso) { pixAviso.hidden = !ligado; }
+    };
+    pixApp.addEventListener('change', travarPix);
+    travarPix();
+  }
+
   // "Usar a localizacao deste aparelho"
   var form = document.querySelector('[data-local-form]');
   var botao = document.querySelector('[data-usar-local]');

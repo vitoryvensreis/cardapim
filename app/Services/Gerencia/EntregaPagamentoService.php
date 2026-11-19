@@ -83,6 +83,11 @@ final class EntregaPagamentoService
         if ($c['pag_pix_online'] === 1 && !$this->asaasConectado()) {
             $erros['formas'] = 'Para aceitar Pix pelo app, conecte primeiro sua conta Asaas em Integrações.';
         }
+        // Com Pix pelo app ligado, o Pix na entrega desliga: o cliente paga o Pix antes, pelo app.
+        $pixEntregaDesligado = $c['pag_pix_online'] === 1 && $c['pag_pix_entrega'] === 1;
+        if ($c['pag_pix_online'] === 1) {
+            $c['pag_pix_entrega'] = 0;
+        }
         if ($erros !== []) {
             return Resultado::falha('Confira os campos destacados.', $erros);
         }
@@ -100,7 +105,8 @@ final class EntregaPagamentoService
         if (!$algumModo) {
             return Resultado::sucesso('Salvo. Os pedidos pelo cardápio online estão desligados.');
         }
-        return Resultado::sucesso('Pronto! Formas de pagamento e modos de pedido salvos.');
+        return Resultado::sucesso('Pronto! Formas de pagamento e modos de pedido salvos.'
+            . ($pixEntregaDesligado ? ' O Pix na entrega foi desligado porque o Pix pelo app está ligado.' : ''));
     }
 
     /** @param array<string,mixed> $e */

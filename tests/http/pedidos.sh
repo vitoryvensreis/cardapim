@@ -165,6 +165,10 @@ contem "forma na retirada" "$tmp/r.json" 'na retirada'
 echo "Pix pelo app (Asaas do restaurante)"
 esperar "conectar Asaas (fake)" "$(enviar "$gj" "$g/integracoes/asaas" ambiente=sandbox chave='$aact_ci_valida_1234567890abcdef' email_avisos=financeiro@example.test | cut -d' ' -f1)" "303"
 esperar "ligar Pix pelo app" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_online=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1 | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/entrega-pagamento" > "$tmp/pagina.html"
+contem "Pix na entrega desligado com o Pix pelo app" "$tmp/pagina.html" 'Desligado porque o Pix pelo app está ligado.'
+pix_entrega="{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_entrega\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}"
+esperar "Pix na entrega recusado com o Pix pelo app ligado" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "$pix_entrega")" "422"
 pix="{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_online\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}"
 esperar "Pix sem CPF (422)" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "$pix")" "422"
 esperar "erro aponta o CPF" "$(json "$tmp/r.json" campo)" "cpf"

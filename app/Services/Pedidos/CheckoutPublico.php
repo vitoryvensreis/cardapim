@@ -27,7 +27,8 @@ final class CheckoutPublico
             $formas[] = 'pix_online';
         }
         foreach (['pix_entrega' => 'pag_pix_entrega', 'debito' => 'pag_debito', 'credito' => 'pag_credito', 'dinheiro' => 'pag_dinheiro'] as $forma => $campo) {
-            if ($c[$campo] === 1) {
+            // Pix pelo app ligado substitui o Pix na entrega (o cliente nao ve os dois Pix).
+            if ($c[$campo] === 1 && !($forma === 'pix_entrega' && $pixOnline)) {
                 $formas[] = $forma;
             }
         }

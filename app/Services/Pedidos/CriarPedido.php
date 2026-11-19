@@ -69,7 +69,9 @@ final class CriarPedido
             return self::erro(422, 'Escolha como quer receber o pedido.', 'tipo');
         }
         $forma = is_string($e['forma_pagamento'] ?? null) ? $e['forma_pagamento'] : '';
-        if (!isset(self::FORMAS[$forma]) || $config[self::FORMAS[$forma]] !== 1 || ($forma === 'pix_online' && !$this->pix->disponivel($idRest))) {
+        $pixOnlineAtivo = $config['pag_pix_online'] === 1 && $this->pix->disponivel($idRest);
+        if (!isset(self::FORMAS[$forma]) || $config[self::FORMAS[$forma]] !== 1 || ($forma === 'pix_online' && !$pixOnlineAtivo)
+            || ($forma === 'pix_entrega' && $pixOnlineAtivo)) {
             return self::erro(422, 'Escolha uma forma de pagamento.', 'forma_pagamento');
         }
         $info = (new CardapioPublico($this->db))->informacoes($idRest);
