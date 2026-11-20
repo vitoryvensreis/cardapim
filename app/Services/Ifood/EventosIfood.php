@@ -158,6 +158,9 @@ final class EventosIfood
                 return;
             case 'CONFIRMED':
                 $this->mudar($p, ['recebido'], 'em_preparo', 'Pedido aceito no iFood. Em preparo.');
+                if ($p['status'] === 'recebido') {
+                    \Cardapim\Services\Impressao\FilaImpressao::producaoDoSistema($this->db, $this->conta->idRestaurante, $id);
+                }
                 return;
             case 'READY_TO_PICKUP':
                 $this->mudar($p, ['recebido', 'em_preparo'], 'pronto', 'Pedido pronto (informado ao iFood).');

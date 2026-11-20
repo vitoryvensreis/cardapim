@@ -86,6 +86,7 @@ final class GarcomController
             'impressaoAtiva' => $impressao->disponivel(),
             'itensNovos' => $impressao->itensNovos($c),
             'impressoras' => $impressao->opcoes('garcom'),
+            'producaoAtiva' => $impressao->producaoAtiva(),
             'voltar' => $this->url(),
             'subtitulo' => 'Pedido #' . (int) $c['pedido']['numero'],
         ]);

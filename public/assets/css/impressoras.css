@@ -23,3 +23,22 @@
 .impressao-ponto-lista li:not(:has(input[type="checkbox"]:checked)) .impressao-ponto-padrao { visibility: hidden; }
 .impressao-ponto-vazio { display: none; margin: .6rem 0 0; color: var(--c-muted); font-size: .85rem; }
 .impressao-ponto:not(:has(input[type="checkbox"]:checked)) .impressao-ponto-vazio { display: block; }
+
+/* Estoque > Categorias: impressora de producao por categoria (apelidos do Agent) */
+.categoria-impressoras { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; }
+.categoria-impressoras form {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .75rem;
+  padding: .8rem .95rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
+}
+.categoria-impressoras fieldset { flex: 1 1 18rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.categoria-impressoras legend { margin-bottom: .45rem; color: var(--c-ink); }
+.categoria-impressoras legend small { color: var(--c-muted); font-size: .82rem; }
+.categoria-impressoras-opcoes { display: flex; flex-wrap: wrap; gap: .4rem; }
+.categoria-impressoras .chip-opcao { position: relative; display: inline-flex; }
+.categoria-impressoras .chip-opcao input { position: absolute; opacity: 0; pointer-events: none; }
+.categoria-impressoras .chip-opcao span {
+  display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 .9rem; border: 1.5px solid var(--c-line);
+  border-radius: var(--r-pill, 999px); background: var(--c-white); color: var(--c-ink); font-size: .9rem; cursor: pointer;
+}
+.categoria-impressoras .chip-opcao input:checked + span { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); font-weight: 700; }
+.categoria-impressoras .chip-opcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }

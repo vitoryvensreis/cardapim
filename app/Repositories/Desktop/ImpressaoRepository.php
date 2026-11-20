@@ -25,9 +25,9 @@ final class ImpressaoRepository
      * @param list<array<string,mixed>> $blocos
      * @param int|null $idImpressora impressora escolhida (null = qualquer Agent, na impressora principal dele)
      */
-    public function criar(int $idRestaurante, ?int $idPedido, string $tipo, string $titulo, array $blocos, ?int $ateItem, ?int $idUser, ?int $idImpressora = null): int
+    public function criar(int $idRestaurante, ?int $idPedido, string $tipo, string $titulo, array $blocos, ?int $ateItem, ?int $idUser, ?int $idImpressora = null, ?string $lote = null): int
     {
-        $colunas = 'id_restaurante, id_pedido, tipo, titulo, conteudo, ate_item, id_user' . ($idImpressora !== null ? ', id_impressora' : '');
+        $colunas = 'id_restaurante, id_pedido, tipo, titulo, conteudo, ate_item, id_user' . ($idImpressora !== null ? ', id_impressora' : '') . ($lote !== null ? ', lote' : '');
         $valores = [
             $idRestaurante, $idPedido, $tipo, mb_substr($titulo, 0, 80),
             json_encode($blocos, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -35,6 +35,9 @@ final class ImpressaoRepository
         ];
         if ($idImpressora !== null) {
             $valores[] = $idImpressora;
+        }
+        if ($lote !== null) {
+            $valores[] = $lote;
         }
         $this->db->prepare('INSERT INTO impressoes (' . $colunas . ', criado_em) VALUES ('
             . implode(', ', array_fill(0, count($valores), '?')) . ', NOW())')->execute($valores);
@@ -50,6 +53,37 @@ final class ImpressaoRepository
         $q->execute([$id, $idRestaurante]);
         $r = $q->fetch(PDO::FETCH_ASSOC);
         return $r === false ? null : $r;
+    }
+
+    /**
+     * Cupons de uma impressao dividida por estacao (mesmo lote), com o apelido da impressora.
+     * @return list<array<string,mixed>>
+     */
+    public function lote(int $idRestaurante, string $lote): array
+    {
+        $q = $this->db->prepare('SELECT im.entregue_em, im.resultado, im.erro, COALESCE(i.apelido, \'\') AS apelido,
+                im.criado_em < NOW() - INTERVAL ' . self::EXPIRA_SEGUNDOS . ' SECOND AS vencido
+            FROM impressoes im LEFT JOIN impressoras i ON i.id = im.id_impressora
+            WHERE im.id_restaurante = ? AND im.lote = ? ORDER BY im.id');
+        $q->execute([$idRestaurante, $lote]);
+        return $q->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Lote do cupom (null = cupom avulso ou migracao ainda nao aplicada). */
+    public function loteDe(int $idRestaurante, int $id): ?string
+    {
+        $q = $this->db->prepare('SELECT lote FROM impressoes WHERE id = ? AND id_restaurante = ?');
+        $q->execute([$id, $idRestaurante]);
+        $lote = $q->fetchColumn();
+        return is_string($lote) && $lote !== '' ? $lote : null;
+    }
+
+    /** O pedido do delivery ja teve as vias de producao enviadas? (nao repete ao aceitar de novo) */
+    public function temProducao(int $idRestaurante, int $idPedido): bool
+    {
+        $q = $this->db->prepare("SELECT 1 FROM impressoes WHERE id_restaurante = ? AND id_pedido = ? AND tipo = 'producao' LIMIT 1");
+        $q->execute([$idRestaurante, $idPedido]);
+        return $q->fetchColumn() !== false;
     }
 
     /** Maior item da comanda ja impresso (cupom entregue a um Agent e sem erro). 0 = nada impresso ainda. */

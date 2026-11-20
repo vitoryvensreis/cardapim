@@ -2,7 +2,8 @@
 /**
  * Cadastro/edicao de produto com ficha tecnica.
  * Espera: $produto (null = novo), $valores, $erros, $categorias, $insumos (mapaParaFicha), $base, $csrf.
- * Opcional: $gruposComplemento (null = complementos ainda nao liberados), $fotoAtual.
+ * Opcional: $gruposComplemento (null = complementos ainda nao liberados), $fotoAtual,
+ * $impressorasProducao (impressoras do Agent pelos apelidos; null = recurso ainda nao liberado).
  */
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Inventory\UnidadeMedida;
@@ -135,6 +136,32 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                         <?php endforeach; ?>
                     </fieldset>
                     <p class="texto-suave">Ordem: 1 aparece primeiro. Gerencie os grupos em <a href="<?= $e($base . '/estoque/complementos') ?>">Complementos</a>.</p>
+                <?php endif; ?>
+            </section>
+        <?php endif; ?>
+
+        <?php if (isset($impressorasProducao) && is_array($impressorasProducao)):
+            $impMarcadas = array_map('strval', is_array($valores['impressoras'] ?? null) ? $valores['impressoras'] : []);
+        ?>
+            <section class="bloco" aria-labelledby="titulo-impressoras" id="campo-impressoras">
+                <div class="bloco-cabecalho">
+                    <h2 id="titulo-impressoras"><?= Icon::svg('printer') ?>Sai na impressora</h2>
+                    <p>Na via de produção, este produto sai só nas impressoras marcadas (pelo apelido do <?= marca_html() ?> Agent). Sem nenhuma marcada, sai na impressora padrão da produção.</p>
+                </div>
+                <?php if ($impressorasProducao === []): ?>
+                    <p class="texto-suave">Nenhuma impressora cadastrada ainda. Cadastre no <?= marca_html() ?> Agent do computador e veja em <a href="<?= $e($base . '/integracoes/impressoras') ?>">Integrações &gt; Impressoras</a>.</p>
+                <?php else: ?>
+                    <input type="hidden" name="impressoras_enviado" value="1">
+                    <fieldset class="produto-grupos produto-impressoras">
+                        <legend class="sr-only">Impressoras onde este produto sai</legend>
+                        <?php foreach ($impressorasProducao as $imp): $iid = (string) $imp['id']; ?>
+                            <div class="produto-grupo">
+                                <input type="checkbox" id="impressora-<?= $e($iid) ?>" name="impressoras[]" value="<?= $e($iid) ?>"<?= in_array($iid, $impMarcadas, true) ? ' checked' : '' ?>>
+                                <label for="impressora-<?= $e($iid) ?>"><span><strong><?= $e($imp['apelido']) ?></strong><small>Computador: <?= $e($imp['computador']) ?></small></span></label>
+                            </div>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <p class="texto-suave">Para marcar vários produtos de uma vez, use <a href="<?= $e($base . '/estoque/categorias') ?>">Categorias</a>.</p>
                 <?php endif; ?>
             </section>
         <?php endif; ?>

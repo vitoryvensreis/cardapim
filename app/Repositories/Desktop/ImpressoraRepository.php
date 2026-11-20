@@ -19,6 +19,7 @@ final class ImpressoraRepository
         'caixa_fechamento' => 'Caixa: resumo do caixa',
         'garcom' => 'Garçom: comanda',
         'delivery_novo' => 'Pedido novo do delivery (impressão automática)',
+        'producao' => 'Produção: itens sem impressora marcada no produto',
     ];
     public const MAX_POR_AGENT = 50;
 

@@ -47,7 +47,12 @@ final class ImportarPedidoIfood
 
         for ($tentativa = 1; ; $tentativa++) {
             try {
-                return $this->gravar($p, $aceitarAutomatico) + ['novo' => true];
+                $gravado = $this->gravar($p, $aceitarAutomatico);
+                if ($aceitarAutomatico) {
+                    // Aceito sozinho: as vias de producao saem agora (fora da transacao do pedido).
+                    \Cardapim\Services\Impressao\FilaImpressao::producaoDoSistema($this->db, $this->idRestaurante, $gravado['id']);
+                }
+                return $gravado + ['novo' => true];
             } catch (\PDOException $erro) {
                 // Numero repetido (outro pedido entrou no mesmo instante) ou o mesmo pedido gravado em paralelo.
                 if ($erro->getCode() !== '23000' || $tentativa >= 3) {
