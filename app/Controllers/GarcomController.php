@@ -85,6 +85,7 @@ final class GarcomController
             // "Imprimir": comanda inteira ou so o que entrou depois da ultima impressao (pelo Agent do computador).
             'impressaoAtiva' => $impressao->disponivel(),
             'itensNovos' => $impressao->itensNovos($c),
+            'impressoras' => $impressao->opcoes('garcom'),
             'voltar' => $this->url(),
             'subtitulo' => 'Pedido #' . (int) $c['pedido']['numero'],
         ]);
@@ -224,7 +225,7 @@ final class GarcomController
             $c === null => Resultado::falha('Conta não encontrada.'),
             !$c['aberta'] => Resultado::falha('Esta conta já foi fechada.'),
             $modo === '' => Resultado::falha('Escolha o que imprimir.'),
-            default => $this->impressao()->comanda((int) $idComanda, $modo),
+            default => $this->impressao()->comanda((int) $idComanda, $modo, 'garcom', self::id($this->post('impressora'))),
         };
         if ($json) {
             return Response::json(

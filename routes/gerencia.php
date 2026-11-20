@@ -11,6 +11,7 @@ use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
 use Cardapim\Controllers\Gerencia\FinanceiroController;
 use Cardapim\Controllers\Gerencia\ImportarCardapioController;
+use Cardapim\Controllers\Gerencia\ImpressorasController;
 use Cardapim\Controllers\Gerencia\IntegracoesController;
 use Cardapim\Controllers\Gerencia\SuporteController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
@@ -138,6 +139,8 @@ return static function (Router $router): void {
 
     // Integracoes (iFood, WhatsApp, Asaas)
     $router->get($g . '/integracoes', [IntegracoesController::class, 'inicio']);
+    $router->get($g . '/integracoes/impressoras', [ImpressorasController::class, 'inicio']);
+    $router->post($g . '/integracoes/impressoras', [ImpressorasController::class, 'salvar']);
     $router->get($g . '/integracoes/asaas', [IntegracoesController::class, 'asaas']);
     $router->post($g . '/integracoes/asaas', [IntegracoesController::class, 'asaasConectar']);
     $router->post($g . '/integracoes/asaas/webhook', [IntegracoesController::class, 'asaasWebhook']);

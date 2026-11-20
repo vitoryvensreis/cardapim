@@ -59,6 +59,25 @@ class GuiSmokeTests(unittest.TestCase):
         app.logo_var.set(False)
         app._save_preferences()
         self.pump()
+        # Lista de impressoras: adicionar "Cozinha", trocar papel, testar sem impressora e remover.
+        panel_p = app.printer_panel
+        self.assertEqual(len(panel_p.row_list), 1)  # a principal (migrada da versão antiga)
+        with patch.object(app, "_sync_printers") as sync:
+            panel_p.add()
+            row = panel_p.row_list[-1]
+            row.alias.set("Cozinha")
+            row.paper_choice.select("58 mm")
+            self.pump()
+            self.assertTrue(sync.called)
+        self.assertEqual(app.printer_items[-1]["apelido"], "Cozinha")
+        self.assertEqual(app.printer_items[-1]["papel"], 58)
+        with patch("agent.app.messagebox.showwarning") as warn:
+            row.test()
+            self.assertTrue(warn.called)  # sem impressora do Windows escolhida
+        with patch("agent.printer_panel.messagebox.askyesno", return_value=True), patch.object(app, "_sync_printers"):
+            row.remove()
+        self.pump()
+        self.assertEqual(len(app.printer_items), 1)
         panel = app.scale_panel
         panel.source.set("Wi-Fi (rede local)")
         panel._toggle_source()

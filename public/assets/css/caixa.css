@@ -480,3 +480,19 @@
 .form-imprimir[aria-busy="true"] button { cursor: progress; }
 .impressao-aviso[data-tipo="info"] { background: var(--c-wine-900); }
 .impressao-aviso[data-tipo="sucesso"] { background: var(--c-success); }
+
+/* Escolha da impressora (so quando o ponto tem duas ou mais) */
+.imprimir-escolha { position: relative; }
+.imprimir-escolha > summary { list-style: none; cursor: pointer; }
+.imprimir-escolha > summary::-webkit-details-marker { display: none; }
+.imprimir-escolha[open] > summary .icon:last-child { transform: rotate(180deg); }
+.imprimir-escolha-lista {
+  position: absolute; top: calc(100% + .4rem); right: 0; z-index: 40; display: grid; gap: .45rem;
+  min-width: min(16rem, 86vw); padding: .75rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
+  background: var(--c-white); box-shadow: var(--sh-lg);
+}
+.imprimir-escolha-lista p { margin: 0 0 .15rem; color: var(--c-muted); font-size: .82rem; font-weight: 700; }
+.imprimir-escolha-lista .btn { justify-content: flex-start; min-height: 2.9rem; }
+.imprimir-escolha-lista small { font-weight: 400; opacity: .8; }
+.imprimir-escolha-lista[aria-busy="true"] button { cursor: progress; }
+@media (prefers-reduced-motion: reduce) { .imprimir-escolha[open] > summary .icon:last-child { transform: none; } }

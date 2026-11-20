@@ -1,4 +1,11 @@
-# Deliveryzim Agent para Windows — v0.7 (teste controlado)
+# Deliveryzim Agent para Windows — v0.8 (teste controlado)
+
+**Desde 0.8.0 — várias impressoras:** no cartão **Impressoras**, cadastre quantas quiser, cada uma com apelido
+(Balcão, Cozinha, Bar...), impressora do Windows e papel; **Testar** imprime um cupom curto nela. A primeira é a
+principal. No painel, em **Gerência > Integrações > Impressoras**, o gerente escolhe onde cada parte do sistema
+imprime (com uma impressora imprime direto; com várias, quem imprime escolhe) e em quais o pedido novo do delivery sai.
+Quem atualiza da 0.7 ganha a impressora antiga como "Principal".
+
 
 **Desde 0.7.0 — botões Imprimir do sistema:** o Agent imprime os cupons pedidos no caixa (conta, pedido do delivery,
 resumo do caixa) e no garçom (comanda inteira ou só os itens novos), na impressora escolhida aqui, na hora e

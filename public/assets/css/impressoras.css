@@ -1,0 +1,25 @@
+/* Gerencia > Integracoes > Impressoras: lista dos Agents e pontos de impressao */
+.impressoras-lista, .impressao-ponto-lista { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.impressoras-lista li {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .75rem .9rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
+}
+.impressoras-nome strong { display: block; color: var(--c-ink); font: 700 1rem/1.3 var(--f-head); }
+.impressoras-nome small { color: var(--c-muted); font-size: .85rem; }
+
+.impressao-ponto { min-width: 0; }
+.impressao-ponto legend { display: flex; align-items: center; gap: .5rem; float: left; width: 100%; margin-bottom: .35rem; color: var(--c-ink); font: 700 1.05rem/1.3 var(--f-head); }
+.impressao-ponto legend .icon { color: var(--c-orange); }
+.impressao-ponto-ajuda { clear: both; margin: 0 0 .75rem; color: var(--c-muted); font-size: .9rem; }
+.impressao-ponto-lista li {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .55rem .8rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
+}
+.impressao-ponto-lista li:has(input[type="checkbox"]:checked) { border-color: var(--c-wine-400); background: var(--c-blush); }
+.impressao-ponto-usar, .impressao-ponto-padrao { display: inline-flex; align-items: center; gap: .55rem; min-height: 2.75rem; cursor: pointer; }
+.impressao-ponto-usar span { color: var(--c-ink); font-weight: 700; }
+.impressao-ponto-padrao span { color: var(--c-muted); font-size: .88rem; }
+.impressao-ponto-usar input, .impressao-ponto-padrao input { width: 1.2rem; height: 1.2rem; accent-color: var(--c-wine); }
+.impressao-ponto-lista li:not(:has(input[type="checkbox"]:checked)) .impressao-ponto-padrao { visibility: hidden; }
+.impressao-ponto-vazio { display: none; margin: .6rem 0 0; color: var(--c-muted); font-size: .85rem; }
+.impressao-ponto:not(:has(input[type="checkbox"]:checked)) .impressao-ponto-vazio { display: block; }

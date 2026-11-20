@@ -23,7 +23,7 @@ $todas = CaixaService::ENTRADAS + CaixaService::SAIDAS;
             <p>Aberto às <?= $e(date('H:i', (int) strtotime((string) $caixa['aberto_em']))) ?> por <?= $e((string) $caixa['aberto_por']) ?><?php if ($fechado): ?>, fechado <?= $e(date('d/m \à\s H:i', (int) strtotime((string) $caixa['fechado_em']))) ?> por <?= $e((string) $caixa['fechado_por']) ?><?php endif; ?>.</p>
         </div>
         <div class="painel-acoes">
-            <form method="post" action="<?= $e($base . '/imprimir/caixa/' . (int) $caixa['id']) ?>" class="form-imprimir" data-imprimir-agent><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>"><button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('printer', 'icon-sm') ?>Imprimir</button></form>
+            <?php $acaoImprimir = $base . '/imprimir/caixa/' . (int) $caixa['id']; $rotuloImprimir = 'Imprimir'; require __DIR__ . '/_imprimir.php'; ?>
             <a class="btn btn-outline btn-sm" href="<?= $e($base . '/historico') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Fechamentos</a>
         </div>
     </header>

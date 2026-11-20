@@ -43,7 +43,7 @@ $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em']
             <p><?php if ($doIfood): ?><span class="etiqueta etiqueta-ifood"><?= Icon::svg('shopping-bag') ?>iFood<?= $p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '' ?></span> <?php endif; ?><?= $entrega ? ($entregaIfood ? 'Entrega pelo iFood' : 'Entrega') : 'Retirada no local' ?> · feito às <?= $e(date('H:i', (int) strtotime((string) $p['criado_em']))) ?><?= $emAndamento ? ' (' . ($minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT)) . ')' : '' ?></p>
         </div>
         <div class="painel-acoes">
-            <form method="post" action="<?= $e($base . '/imprimir/pedido/' . (int) $p['id']) ?>" class="form-imprimir" data-imprimir-agent><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>"><button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('printer', 'icon-sm') ?>Imprimir</button></form>
+            <?php $acaoImprimir = $base . '/imprimir/pedido/' . (int) $p['id']; $rotuloImprimir = 'Imprimir'; require __DIR__ . '/_imprimir.php'; ?>
             <a class="btn btn-outline btn-sm" href="<?= $e($base . '/delivery') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Delivery</a>
         </div>
     </header>

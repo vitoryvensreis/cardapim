@@ -111,6 +111,7 @@ final class CaixaController extends BaseCaixa
             'resumo' => $servico->resumo($caixa),
             'movimentos' => $repo->movimentos($this->restaurante['id'], (int) $caixa['id']),
             'pagamentos' => $repo->pagamentos($this->restaurante['id'], (int) $caixa['id']),
+            'impressoras' => $this->impressoras('caixa_fechamento'),
         ]);
     }
 }

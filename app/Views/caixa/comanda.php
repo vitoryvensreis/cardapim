@@ -107,7 +107,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
             <div class="bloco conta" data-regiao="conta">
                 <div class="bloco-cabecalho">
                     <h2 id="titulo-conta"><?= Icon::svg('receipt') ?>Conta</h2>
-                    <?php if ($ativos !== []): ?><form method="post" action="<?= $e($base . '/imprimir/comanda/' . (int) $p['id']) ?>" class="form-imprimir" data-imprimir-agent><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>"><button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('printer', 'icon-sm') ?>Imprimir conta</button></form><?php endif; ?>
+                    <?php if ($ativos !== []): ?><?php $acaoImprimir = $base . '/imprimir/comanda/' . (int) $p['id']; $rotuloImprimir = 'Imprimir conta'; require __DIR__ . '/_imprimir.php'; ?><?php endif; ?>
                 </div>
                 <?php if ($c['itens'] === []): ?>
                     <div class="conta-vazia">

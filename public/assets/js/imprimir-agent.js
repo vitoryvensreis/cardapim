@@ -60,6 +60,20 @@
     avisar("O computador da impressora não confirmou. Confira se o cupom saiu.", "erro");
   };
 
+  // Escolha da impressora: fecha ao tocar fora ou com Esc.
+  document.addEventListener("click", (ev) => {
+    document.querySelectorAll("[data-imprimir-escolha][open]").forEach((d) => {
+      if (!d.contains(ev.target)) d.removeAttribute("open");
+    });
+  });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape") return;
+    document.querySelectorAll("[data-imprimir-escolha][open]").forEach((d) => {
+      d.removeAttribute("open");
+      d.querySelector("summary")?.focus();
+    });
+  });
+
   document.addEventListener("submit", async (ev) => {
     const form = ev.target;
     if (!(form instanceof HTMLFormElement) || !form.matches("[data-imprimir-agent]")) return;

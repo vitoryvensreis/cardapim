@@ -22,6 +22,8 @@ class Preferences:
             "som_ativo": True, "configurado": False, "logo_cupom": True, "abrir_painel": True,
             "balanca_ativa": False, "balanca_porta": "", "balanca_baudrate": 9600,
             "balanca_protocolo": "continuo", "balanca_unidade": "kg",
+            # Varias impressoras (0.8.0+): [{chave, apelido, windows, papel}]; a primeira e a principal.
+            "impressoras": [],
         }
         if PREFERENCES.exists():
             try:

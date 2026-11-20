@@ -3,7 +3,8 @@
  * Comanda da mesa: abas das comandas da mesa (uma por pessoa), o que ja foi lancado, total e as acoes (Adicionar / Fechar conta).
  * "Adicionar" abre a folha do cardapio (#adicionar, funciona sem JavaScript pelo :target).
  * "Imprimir": comanda inteira ou so os itens novos, pelo Deliveryzim Agent (imprimir-agent.js).
- * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf, $impressaoAtiva, $itensNovos.
+ * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf, $impressaoAtiva, $itensNovos, $impressoras
+ * (com mais de uma impressora no ponto, o garcom escolhe; a padrao ja vem marcada).
  */
 use Cardapim\Controllers\GarcomController;
 use Cardapim\Core\Icon;
@@ -75,7 +76,18 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
             <summary><?= Icon::svg('printer', 'icon-sm') ?>Imprimir</summary>
             <form method="post" action="<?= $e($url . '/imprimir') ?>" class="comanda-imprimir-opcoes" data-imprimir-agent>
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                <p>Sai na impressora do caixa, com a <?= $e((string) $c['rotulo']) ?> no topo.</p>
+                <?php $impressoras ??= []; if (count($impressoras) > 1): ?>
+                    <fieldset class="comanda-imprimir-destino">
+                        <legend>Imprimir em</legend>
+                        <?php foreach ($impressoras as $imp): ?>
+                            <label class="chip-opcao"><input type="radio" name="impressora" value="<?= (int) $imp['id'] ?>"<?= $imp['padrao'] ? ' checked' : '' ?>><span><?= $e($imp['apelido']) ?><?= $imp['ligada'] ? '' : ' (desligada)' ?></span></label>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <p>A <?= $e((string) $c['rotulo']) ?> sai no topo do cupom.</p>
+                <?php else: ?>
+                    <?php if (count($impressoras) === 1): ?><input type="hidden" name="impressora" value="<?= (int) $impressoras[0]['id'] ?>"><?php endif; ?>
+                    <p>Sai na impressora <?= count($impressoras) === 1 ? $e($impressoras[0]['apelido']) : 'do caixa' ?>, com a <?= $e((string) $c['rotulo']) ?> no topo.</p>
+                <?php endif; ?>
                 <button class="comanda-imprimir-opcao" type="submit" name="modo" value="toda">
                     <?= Icon::svg('receipt') ?><span><strong>Comanda inteira</strong><small>Todos os itens e o total até agora</small></span>
                 </button>
