@@ -47,7 +47,7 @@ visivel), web.dev (formulario de codigo por SMS/WhatsApp) e boas praticas de OTP
 | GET | `/{slug}` | Cardapio publico |
 | POST | `/api/v1/restaurantes/{slug}/sacola` | Confere itens da sacola: preco atual, indisponiveis e removidos |
 | GET | `/api/v1/cliente` | Sessao: `csrf`, `cliente` (ou null) e `login_disponivel` |
-| POST | `/api/v1/cliente/codigo` | `{telefone}` envia o codigo pelo WhatsApp da plataforma |
+| POST | `/api/v1/cliente/codigo` | `{telefone}` envia o codigo pelo WhatsApp da plataforma ou, se falhar, por SMS; responde `canal: whatsapp \| sms` |
 | POST | `/api/v1/cliente/entrar` | `{codigo}` -> `etapa: pronto` (conta existente) ou `etapa: nome` |
 | POST | `/api/v1/cliente/cadastro` | `{nome}` conclui conta nova (ate 15 min depois do codigo) |
 | POST | `/api/v1/cliente/sair` | Encerra a sessao e apaga o aparelho lembrado |
@@ -67,7 +67,11 @@ POSTs do cliente exigem o cabecalho `X-CSRF-Token` (419 sem ele) e corpo JSON de
 - O nome e pedido **depois** do codigo: a API nao revela quais numeros ja tem conta.
 - Codigo guardado so como HMAC (`Cripto::derivarChave('cliente-codigo-v1')`) na sessao PHP; 10 min; 5 tentativas; uso unico.
 - Limites: reenviar apos 60 s; 5 envios/hora por numero; 20/hora por IP; 30 verificacoes/15 min por IP.
-- Enviado pela integracao WhatsApp da **plataforma** (`id_restaurante` NULL). Desconectada -> login indisponivel (503) e o botao mostra o aviso.
+- Enviado pela integracao WhatsApp da **plataforma** (`id_restaurante` NULL). Se ela estiver desconectada ou o envio falhar
+  (numero sem WhatsApp, Evolution fora do ar), o **mesmo codigo** vai por **SMS** automaticamente (SMSGate,
+  [docs/deploy/sms.md](../deploy/sms.md)). A tela mostra por onde o codigo foi. Sem WhatsApp e sem SMS -> login indisponivel (503).
+- SMS: texto curto sem acentos; a ultima linha `@deliveryzim.com.br #123456` deixa o Chrome no Android preencher o codigo
+  sozinho (WebOTP, `cliente.js`); no iPhone o campo usa `autocomplete="one-time-code"`.
 - Sessao do cliente (`cliente_id`) separada da equipe; `session_regenerate_id` ao entrar.
 - "Lembrar aparelho": cookie `cardapim_cliente` (60 dias, HttpOnly, Secure, SameSite=Lax), seletor + validador com hash SHA-256 em `cliente_sessoes`,
   rotacionado a cada uso; reuso de cookie antigo revoga todas as sessoes do cliente.

@@ -14,10 +14,20 @@ use PDO;
  * Envio de mensagens pelo WhatsApp DA PLATAFORMA (conectado pelo adm_master em /painel/integracoes/whatsapp).
  * Usado para os codigos de verificacao do cliente final. Nunca usa o WhatsApp de um restaurante.
  */
-final class WhatsAppPlataforma
+final class WhatsAppPlataforma implements CanalCodigo
 {
     public function __construct(private readonly PDO $db, private readonly ?ProvedorWhatsApp $api = null)
     {
+    }
+
+    public function canal(): string
+    {
+        return 'whatsapp';
+    }
+
+    public function enviarCodigo(string $telefone, string $codigo): void
+    {
+        $this->enviar($telefone, CodigoVerificacao::mensagem($codigo));
     }
 
     public function disponivel(): bool

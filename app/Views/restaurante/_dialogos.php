@@ -75,13 +75,13 @@ use Cardapim\Core\Icon;
                 <button type="submit" class="btn btn-primary btn-block cd-login-btn" data-enviar>
                     <?= Icon::svg('send', 'icon-sm') ?><span>Receber código no WhatsApp</span>
                 </button>
-                <p class="cd-login-nota" data-login-indisponivel hidden><?= Icon::svg('info', 'icon-sm') ?>O login pelo WhatsApp está indisponível no momento. Você pode montar a sacola normalmente.</p>
+                <p class="cd-login-nota" data-login-indisponivel hidden><?= Icon::svg('info', 'icon-sm') ?>O login está indisponível no momento. Você pode montar a sacola normalmente.</p>
                 <p class="cd-login-legal">Ao continuar, você concorda com os <a href="/termos-de-uso?r=<?= htmlspecialchars(rawurlencode((string) $restaurante['slug']), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade?r=<?= htmlspecialchars(rawurlencode((string) $restaurante['slug']), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Política de Privacidade</a>.</p>
             </form>
 
             <form class="cd-login-etapa" data-etapa="codigo" novalidate hidden>
                 <h2>Digite o código</h2>
-                <p class="cd-login-texto">Enviamos um código de 6 números para o WhatsApp <strong data-login-numero></strong>.</p>
+                <p class="cd-login-texto">Enviamos um código de 6 números <span data-login-canal>para o WhatsApp</span> <strong data-login-numero></strong>.</p>
                 <label class="cd-campo">
                     <span>Código de verificação</span>
                     <input class="cd-codigo" type="text" name="codigo" inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}" maxlength="6" required

@@ -11,7 +11,9 @@ use Cardapim\Shared\Seguranca\Cripto;
 use Cardapim\Shared\Validation\Documento;
 
 /**
- * Codigo de 6 digitos enviado pelo WhatsApp da plataforma para o cliente entrar ou se cadastrar.
+ * Codigo de 6 digitos para o cliente entrar ou se cadastrar.
+ * Envio: primeiro pelo WhatsApp da plataforma; se ele estiver indisponivel ou falhar, o MESMO codigo vai
+ * por SMS automaticamente (SMSGate). O canal usado volta na resposta (canal: whatsapp | sms).
  * O codigo fica so na sessao deste navegador (HMAC, nunca em texto), vale 10 minutos e aceita 5 tentativas.
  * Limites: novo envio so depois de 60 s; 5 envios por numero e 20 por IP a cada hora.
  */
@@ -22,13 +24,23 @@ final class CodigoVerificacao
     public const MAX_TENTATIVAS = 5;
     private const CHAVE = 'cliente_codigo';
 
-    public function __construct(private readonly WhatsAppPlataforma $whatsapp, private readonly ?\Closure $gerador = null)
+    /** @param CanalCodigo|null $sms canal de reserva (null = so WhatsApp) */
+    public function __construct(
+        private readonly CanalCodigo $whatsapp,
+        private readonly ?\Closure $gerador = null,
+        private readonly ?CanalCodigo $sms = null,
+    ) {
+    }
+
+    /** Algum canal pode entregar o codigo agora? */
+    public function disponivel(): bool
     {
+        return $this->whatsapp->disponivel() || ($this->sms?->disponivel() ?? false);
     }
 
     /**
-     * @return array{ok:bool, mensagem:string, campo?:string, espera?:int, telefone?:string, status?:int}
-     *         telefone = numero formatado para mostrar na tela
+     * @return array{ok:bool, mensagem:string, campo?:string, espera?:int, telefone?:string, canal?:string, status?:int}
+     *         telefone = numero formatado para mostrar na tela; canal = whatsapp | sms
      */
     public function solicitar(string $telefoneDigitado, string $ip): array
     {
@@ -48,17 +60,26 @@ final class CodigoVerificacao
         if ($porNumero->excedido('cliente-codigo|' . $telefone) || $porIp->excedido('cliente-codigo-ip|' . $ip)) {
             return ['ok' => false, 'status' => 429, 'mensagem' => 'Muitos códigos pedidos em pouco tempo. Tente de novo em uma hora.'];
         }
-        if (!$this->whatsapp->disponivel()) {
-            return ['ok' => false, 'status' => 503, 'mensagem' => 'O envio de códigos pelo WhatsApp está indisponível no momento. Tente de novo em alguns minutos.'];
+        $canais = array_values(array_filter([$this->whatsapp, $this->sms], static fn (?CanalCodigo $c): bool => $c !== null && $c->disponivel()));
+        if ($canais === []) {
+            return ['ok' => false, 'status' => 503, 'mensagem' => 'O envio de códigos está indisponível no momento. Tente de novo em alguns minutos.'];
         }
         $porNumero->permitir('cliente-codigo|' . $telefone);
         $porIp->permitir('cliente-codigo-ip|' . $ip);
 
         $codigo = $this->gerador !== null ? (string) ($this->gerador)() : sprintf('%06d', random_int(0, 999999));
-        try {
-            $this->whatsapp->enviar($telefone, self::mensagem($codigo));
-        } catch (IntegracaoErro $erro) {
-            return ['ok' => false, 'status' => 503, 'mensagem' => 'Não conseguimos enviar o código para este número. Confira se ele tem WhatsApp e tente de novo.'];
+        $canal = null;
+        foreach ($canais as $c) {
+            try {
+                $c->enviarCodigo($telefone, $codigo);
+                $canal = $c->canal();
+                break;
+            } catch (IntegracaoErro $erro) {
+                error_log('[Deliveryzim] Codigo do cliente: falha no canal ' . $c->canal() . ' (' . get_class($erro) . '), tentando o proximo.');
+            }
+        }
+        if ($canal === null) {
+            return ['ok' => false, 'status' => 503, 'mensagem' => 'Não conseguimos enviar o código para este número. Confira o número e tente de novo.'];
         }
         Session::set(self::CHAVE, [
             'tel' => $telefone,
@@ -66,9 +87,10 @@ final class CodigoVerificacao
             'expira' => time() + self::VALIDADE,
             'tentativas' => 0,
             'enviado_em' => time(),
+            'canal' => $canal,
         ]);
-        return ['ok' => true, 'espera' => self::ESPERA_REENVIO, 'telefone' => Documento::formatarTelefone($telefone),
-            'mensagem' => 'Enviamos um código para o seu WhatsApp.'];
+        return ['ok' => true, 'espera' => self::ESPERA_REENVIO, 'telefone' => Documento::formatarTelefone($telefone), 'canal' => $canal,
+            'mensagem' => $canal === 'sms' ? 'Enviamos um código por SMS para o seu celular.' : 'Enviamos um código para o seu WhatsApp.'];
     }
 
     /** @return array{ok:bool, mensagem:string, telefone?:string, status?:int} telefone = digitos verificados */
