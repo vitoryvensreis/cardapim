@@ -112,14 +112,24 @@
 .comanda-item-obs { display: inline-flex; align-items: flex-start; gap: .3rem; color: var(--c-orange-700); font-size: .86rem; font-weight: 400; }
 .comanda-item-obs .icon { flex: 0 0 auto; margin-top: .15rem; }
 .comanda-item-valor { padding-top: .35rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.comanda-item-remover { display: contents; }
-.comanda-item-remover summary {
-  display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; color: var(--c-muted); cursor: pointer; list-style: none;
+/* Lixeira do item: checkbox escondido + rotulo. O formulario e filho direto da grade e ocupa a linha inteira
+   (details com display: contents nao funciona de forma confiavel nos navegadores atuais). */
+.comanda-item-remover {
+  display: grid; place-items: center; width: 2.75rem; height: 2.75rem; margin-top: -.25rem; border-radius: 50%; color: var(--c-muted); cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
 }
-.comanda-item-remover summary::-webkit-details-marker { display: none; }
-.comanda-item-remover summary:hover, .comanda-item-remover[open] summary { background: var(--c-danger-bg); color: var(--c-danger); }
-.comanda-item-remover summary:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
-.remover-form { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; grid-column: 1 / -1; padding: .75rem; border-radius: var(--r-md); background: #fdf3f2; }
+.comanda-item-remover:hover, .comanda-item-alternar:checked + .comanda-item-remover { background: var(--c-danger-bg); color: var(--c-danger); }
+.comanda-item-alternar:focus-visible + .comanda-item-remover { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+@media (max-width: 25.99rem) { /* celular estreito: o valor desce para baixo do nome e o nome ganha espaco */
+  .comanda-item { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: .2rem; }
+  .comanda-item-texto { grid-column: 2; grid-row: 1; }
+  .comanda-item-valor { grid-column: 2; grid-row: 2; padding-top: 0; }
+  .comanda-item-remover { grid-column: 3; grid-row: 1 / span 2; }
+  .comanda-item > .remover-form { grid-row: 3; margin-top: .45rem; }
+}
+.comanda-item > .remover-form { display: none; }
+.comanda-item-alternar:checked ~ .remover-form { display: flex; }
+.remover-form { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; grid-column: 1 / -1; min-width: 0; padding: .75rem; border-radius: var(--r-md); background: #fdf3f2; }
 .remover-form fieldset { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; border: 0; }
 .remover-form legend { width: 100%; margin-bottom: .4rem; color: var(--c-ink); font: 700 .85rem var(--f-head); }
 .chip-opcao input { position: absolute; opacity: 0; pointer-events: none; }
