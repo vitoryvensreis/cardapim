@@ -4,50 +4,42 @@ declare(strict_types=1);
 
 namespace Cardapim\Modules\Integracoes;
 
-use Cardapim\Core\Config;
-
 /**
- * Escolhe o servidor de WhatsApp de cada restaurante.
+ * Servidor de WhatsApp do Deliveryzim: Evolution API (VPS de mensageria, docs/deploy/evolution.md).
+ * Os servicos dependem do contrato ProvedorWhatsApp, nao da classe concreta; trocar de servidor no
+ * futuro e implementar o contrato e ajustar esta fabrica.
  *
- * - Sessao ja gravada: usa o servidor gravado em dados.provedor (sem o campo = WPPConnect,
- *   porque todas as sessoes anteriores a Evolution foram criadas no WPPConnect).
- * - Sessao nova: usa WHATSAPP_PROVEDOR_PADRAO (evolution | wppconnect). Se o escolhido nao estiver
- *   configurado no .env, usa o outro que estiver.
- * - Nomes novos: deliveryzim_r{id}_{8 hex} e deliveryzim_plataforma_{8 hex}. Os nomes antigos
- *   (cardapim_...) continuam aceitos ate a ultima loja reconectar.
+ * Nomes das sessoes (instancias): deliveryzim_r{id}_{8 hex} (lojas) e deliveryzim_plataforma_{8 hex}.
  */
 final class WhatsAppProvedores
 {
-    public const WPPCONNECT = 'wppconnect';
     public const EVOLUTION = 'evolution';
 
-    /** Sessoes do Deliveryzim (novas e antigas). Grupo 2 = id do restaurante ou "plataforma". */
-    public const PADRAO_SESSAO = '/\A(deliveryzim|cardapim)_(r[1-9][0-9]{0,17}|plataforma)_[a-f0-9]{8}\z/';
+    /** Sessoes do Deliveryzim. Grupo 1 = r{id} ou "plataforma". */
+    public const PADRAO_SESSAO = '/\Adeliveryzim_(r[1-9][0-9]{0,17}|plataforma)_[a-f0-9]{8}\z/';
 
-    public static function criar(string $id): ProvedorWhatsApp
+    public static function criar(): ProvedorWhatsApp
     {
-        return $id === self::EVOLUTION ? new EvolutionApi() : new WppConnectApi();
+        return new EvolutionApi();
     }
 
-    /** @param array<string,mixed> $dados integracoes.dados */
+    /** @param array<string,mixed> $dados integracoes.dados (todas as sessoes sao da Evolution) */
     public static function daIntegracao(array $dados): ProvedorWhatsApp
     {
-        return self::criar(($dados['provedor'] ?? null) === self::EVOLUTION ? self::EVOLUTION : self::WPPCONNECT);
+        return self::criar();
     }
 
     /** Servidor para uma conexao nova. */
     public static function padrao(): ProvedorWhatsApp
     {
-        $preferido = Config::get('WHATSAPP_PROVEDOR_PADRAO') === self::WPPCONNECT ? self::WPPCONNECT : self::EVOLUTION;
-        $outro = $preferido === self::EVOLUTION ? self::WPPCONNECT : self::EVOLUTION;
-        $api = self::criar($preferido);
-        return $api->configurado() ? $api : self::criar($outro);
+        return self::criar();
     }
 
     /** @return list<ProvedorWhatsApp> servidores configurados no .env */
     public static function configurados(): array
     {
-        return array_values(array_filter([new WppConnectApi(), new EvolutionApi()], static fn (ProvedorWhatsApp $p): bool => $p->configurado()));
+        $api = self::criar();
+        return $api->configurado() ? [$api] : [];
     }
 
     public static function algumDisponivel(): bool
@@ -61,7 +53,7 @@ final class WhatsAppProvedores
         return 'deliveryzim_' . ($idRestaurante === null ? 'plataforma' : 'r' . $idRestaurante) . '_' . bin2hex(random_bytes(4));
     }
 
-    /** Sessao com nome do Deliveryzim (atual ou antigo)? */
+    /** Sessao com nome do Deliveryzim? */
     public static function doDeliveryzim(string $sessao): bool
     {
         return preg_match(self::PADRAO_SESSAO, $sessao) === 1;
@@ -70,10 +62,10 @@ final class WhatsAppProvedores
     /** Restaurante dono do nome da sessao (null = plataforma ou nome invalido). */
     public static function restauranteDaSessao(string $sessao): ?int
     {
-        if (preg_match(self::PADRAO_SESSAO, $sessao, $m) !== 1 || $m[2] === 'plataforma') {
+        if (preg_match(self::PADRAO_SESSAO, $sessao, $m) !== 1 || $m[1] === 'plataforma') {
             return null;
         }
-        return (int) substr($m[2], 1);
+        return (int) substr($m[1], 1);
     }
 
     /** Valida o nome antes de usa-lo em uma URL do servidor. */

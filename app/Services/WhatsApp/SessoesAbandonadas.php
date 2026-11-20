@@ -10,15 +10,14 @@ use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use PDO;
 
 /**
- * Fecha no servidor do WhatsApp (WPPConnect ou Evolution) as sessoes do Deliveryzim que nenhum restaurante usa mais.
+ * Fecha no servidor do WhatsApp (Evolution API) as instancias do Deliveryzim que nenhum restaurante usa mais.
  *
- * Por que existe: o WPPConnect guarda toda sessao criada e, ao reiniciar, religa todas de uma vez
- * (startAllSession). Sessao que ficou para tras (desconectar com o servidor travado, QR Code que
- * ninguem leu, reconexao com nome novo) abre um navegador a toa, gasta memoria e derruba as outras.
+ * Por que existe: instancia que ficou para tras (QR Code que ninguem leu, desconectar com o servidor
+ * fora do ar, reconexao com nome novo) continua guardada na Evolution e ocupa recursos a toa.
  *
  * Regras de seguranca:
- * - So mexe em sessoes com nome do Deliveryzim (deliveryzim_r{id}_..., deliveryzim_plataforma_... e os nomes
- *   antigos cardapim_...). Instancias de outros projetos no mesmo servidor nunca sao tocadas.
+ * - So mexe em instancias com nome do Deliveryzim (deliveryzim_r{id}_... e deliveryzim_plataforma_...).
+ *   Instancias de outros projetos no mesmo servidor nunca sao tocadas.
  * - Nunca mexe numa sessao gravada no banco (conectada, aguardando QR Code ou com erro).
  * - So fecha uma sessao abandonada na SEGUNDA rodada em que ela aparece (rodadas com 10+ minutos
  *   de intervalo), para nao derrubar uma conexao que acabou de ser iniciada e ainda nao foi gravada.
@@ -31,8 +30,8 @@ final class SessoesAbandonadas
     {
     }
 
-    /** Sessao com nome do Deliveryzim (atual ou antigo)? */
-    public static function doCardapim(string $sessao): bool
+    /** Sessao com nome do Deliveryzim? */
+    public static function doDeliveryzim(string $sessao): bool
     {
         return WhatsAppProvedores::doDeliveryzim($sessao);
     }
@@ -51,7 +50,7 @@ final class SessoesAbandonadas
         $aguardando = [];
         $novasVistas = [];
         foreach (array_unique($noServidor) as $s) {
-            if (!self::doCardapim($s) || isset($usadas[$s])) {
+            if (!self::doDeliveryzim($s) || isset($usadas[$s])) {
                 continue;
             }
             $desde = $vistas[$s] ?? $agora;
@@ -118,7 +117,7 @@ final class SessoesAbandonadas
         }
         $saida = [];
         foreach ($d as $s => $t) {
-            if (is_string($s) && is_int($t) && self::doCardapim($s)) {
+            if (is_string($s) && is_int($t) && self::doDeliveryzim($s)) {
                 $saida[$s] = $t;
             }
         }

@@ -43,6 +43,6 @@ Preferir DocumentRoot /caminho/cardapim/public, AllowOverride All e mod_rewrite.
 - Login real, sessoes, autorizacao RBAC e isolamento de empresas (tenants).
 - Migracoes MySQL e onboarding de restaurantes/unidades.
 - Dashboards e modulos operacionais.
-- WebSocket, Asaas, WPPConnect e iFood conforme o roadmap do README.
+- WebSocket, Asaas, WhatsApp (Evolution API) e iFood conforme o roadmap do README.
 
 **Importante:** dados da previa do painel sao ficticios e ilustrativos. Esta entrega e o inicio do codigo, nao a finalizacao do SaaS.

@@ -17,8 +17,8 @@
 
 ## Servidor do WhatsApp para várias lojas
 
-- O WhatsApp das lojas roda num servidor WPPConnect só do Deliveryzim (`wppconnect-deliveryzim`, `127.0.0.1:21467`), com 6 GB para 8 a 10 lojas conectadas ao mesmo tempo. Configuração versionada em `deploy/wppconnect/`.
-- A tela de WhatsApp avisa quando a sessão aparece conectada mas não responde, e a rotina `bin/whatsapp-sessoes.php` (cron a cada 15 min) fecha sessões abandonadas que gastavam a memória das lojas conectadas. Ver `docs/deploy/wppconnect-docker.md`.
+- O WhatsApp das lojas e da plataforma roda na **Evolution API** (canal Baileys), numa VPS de mensageria separada (`https://wpp.escotilhaprodutora.com`), com uma instância por loja (`deliveryzim_r{id}_*`). Não abre um navegador por loja, então muitas lojas cabem no mesmo servidor.
+- A rotina `bin/whatsapp-sessoes.php` (cron a cada 15 min) apaga instâncias abandonadas do Deliveryzim, sem tocar nas de outros projetos. Ver [docs/deploy/evolution.md](docs/deploy/evolution.md).
 
 ## Importar cardápio por planilha
 
@@ -55,8 +55,8 @@
 
 - Em **Gerência > Integrações > WhatsApp**, a loja pode ativar uma saudação personalizada com o link do próprio cardápio.
 - Envia uma vez por número e por dia, somente no horário de funcionamento do restaurante, ignorando grupos, mensagens próprias e eventos antigos.
-- Usa a mesma sessão WPPConnect dos avisos de pedido, sem interferir no WhatsApp da plataforma.
-- Requer configurar o webhook de mensagens recebidas no container WPPConnect; inicia desligada.
+- Usa a mesma instância da Evolution dos avisos de pedido, sem interferir no WhatsApp da plataforma.
+- O webhook de mensagens recebidas é registrado sozinho em cada instância (`EVOLUTION_WEBHOOK_TOKEN`); a saudação inicia desligada.
 - [Arquitetura e habilitação na VPS](docs/architecture/saudacao-whatsapp.md).
 
 ## Avisos do pedido pelo WhatsApp do restaurante
@@ -134,7 +134,7 @@
 - **Assinatura**: plano atual, faturas com botao "Pagar agora" (pagina do Asaas: Pix, boleto ou cartao), assinar, trocar, cancelar e desfazer, historico. Cobranca recorrente pelo Asaas da plataforma. [Detalhes](docs/architecture/assinaturas.md).
 - **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
 - Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
-- **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (Evolution API na VPS de mensageria ou WPPConnect proprio em Docker, QR Code e mensagem de teste) e iFood (vinculo da loja, pedidos com entregador e codigo de coleta, aceitar/pronto/cancelar indo para o iFood e estoque sincronizado). [Detalhes](docs/architecture/integracoes.md) · [iFood](docs/architecture/ifood.md) · [WPPConnect em Docker](docs/deploy/wppconnect-docker.md) · [Evolution API](docs/deploy/evolution.md).
+- **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (Evolution API na VPS de mensageria, QR Code e mensagem de teste) e iFood (vinculo da loja, pedidos com entregador e codigo de coleta, aceitar/pronto/cancelar indo para o iFood e estoque sincronizado). [Detalhes](docs/architecture/integracoes.md) · [iFood](docs/architecture/ifood.md) · [Evolution API](docs/deploy/evolution.md).
   Navegação da integração iFood: abas **Status** (`/integracoes/ifood/status`), **Loja** (`/integracoes/ifood/loja`), **Cardápio** (`/integracoes/ifood/cardapio`) e **Dados** (`/integracoes/ifood/dados`). O fuso das pausas é fixo em `America/Sao_Paulo`, sem seletor de alteração.
   A aba **Cardápio** consulta os itens atuais do iFood ao abrir e compara com os produtos ativos no Deliveryzim, separando vínculos ativos dos arquivados. Respostas remotas incompletas não alteram o cache e deixam a contagem marcada como **Não confirmado**. [Comportamento e testes](docs/architecture/ifood.md#contagem-atual-do-cardápio-em-cada-sistema).
 - **Suporte**: abrir chamado (assunto, sobre o que e, mensagem), conversa com a equipe da plataforma, selo "Resposta nova" no menu, resolver e reabrir respondendo. So o restaurante dono ve o chamado. [Detalhes](docs/architecture/suporte.md).
@@ -303,7 +303,7 @@ A proposta é centralizar a operação diária de cada negócio em uma experiên
 - **Delivery:** despacho, atribuição de entregadores, acompanhamento de status e rastreamento consentido durante entregas próprias.
 - **Gestão empresarial:** painéis de vendas, margem, desempenho, ticket médio, produtos mais vendidos e auditoria.
 - **SaaS multi-restaurante:** cadastro de empresas, unidades, usuários, permissões, planos, assinaturas e limites de uso.
-- **WhatsApp por restaurante (WPPConnect):** cada unidade conecta seu número por QR Code, atende conversas em uma caixa de entrada própria, recebe solicitações, acompanha pedidos e configura mensagens/fluxos automáticos com supervisão humana.
+- **WhatsApp por restaurante (Evolution API):** cada unidade conecta seu número por QR Code, atende conversas em uma caixa de entrada própria, recebe solicitações, acompanha pedidos e configura mensagens/fluxos automáticos com supervisão humana.
 - **Pix Asaas por restaurante:** cada unidade conecta sua conta Asaas própria para receber os pedidos online, com QR dinâmico, confirmação, conciliação e financeiro isolado.
 
 ### Princípios
@@ -542,7 +542,7 @@ POST   /webhooks/asaas/{connectionKey}
 > **Implementação pendente:** homologar a API no Sandbox com duas contas/unidades e validar condições comerciais, credenciais de terceiros, retorno de webhooks, pagamento tardio, duplicação e estornos antes da produção.
 
 ---
-### 4.11 WhatsApp por restaurante — WPPConnect Server (módulo planejado)
+### 4.11 WhatsApp por restaurante — Evolution API (conexão, avisos e saudação prontos; atendimento planejado)
 
 **Objetivo:** permitir que **cada estabelecimento conecte e utilize seu próprio WhatsApp** dentro do Cardapim para atendimento, solicitações de pedidos, confirmações e acompanhamento, sem acessar a sessão de outra empresa. Prever inicialmente **1 sessão por unidade**, com expansão para mais números por plano/necessidade.
 
@@ -555,29 +555,29 @@ POST   /webhooks/asaas/{connectionKey}
 5. **Automação configurável por loja:** saudação, horário de funcionamento, menu de opções, respostas frequentes, aviso de indisponibilidade, consulta de status, transferência para humano e disparos por eventos de pedido. Fila de envio, tentativas limitadas, prevenção de loops, pausa manual e agendamento em horário adequado.
 6. **Operação assistida:** funcionário assume conversa a qualquer momento, suspende automação para aquele contato, registra responsável e histórico de interações. Uma falha no WhatsApp não pode impedir o PDV, a cozinha nem pedidos de outros canais.
 7. **Relatórios:** volume de mensagens, tempo de primeira resposta, conversas atendidas, pedidos originados do WhatsApp e falhas de envio por loja, sem confundir mensagens com vendas.
-8. **Mídia e segurança:** mídia suportada pelo WPPConnect pode ser exibida após validação de tamanho/tipo, acesso autenticado e armazenamento privado com retenção configurada. Nunca expor link interno do servidor WPPConnect ao cliente final.
+8. **Mídia e segurança:** mídia suportada pela Evolution API pode ser exibida após validação de tamanho/tipo, acesso autenticado e armazenamento privado com retenção configurada. Nunca expor link interno do servidor de WhatsApp ao cliente final.
 
 #### Arquitetura e isolamento
 
-- **WPPConnect Server** é um serviço **Node.js separado**, hospedado na VPS ou em instância dedicada, acessado **somente pelo backend PHP** via API REST autenticada. O frontend nunca recebe a chave mestra nem tokens de sessão do WPPConnect.
-- **PHP MVC continua sendo o cérebro do negócio:** controla tenant/unidade, RBAC, regras comerciais, inbox, automações, pedidos e banco MySQL. O WPPConnect cuida das **sessões WhatsApp e transporte de mensagens**, não decide valores, pagamentos ou autorização.
-- **Mapeamento obrigatório:** cada sessão WPPConnect recebe identificador interno opaco e vínculo persistente com `tenant_id` + `establishment_id`; IDs de sessão, callbacks e eventos recebidos são resolvidos **no servidor**. Não confiar em tenant, unidade ou sessão informados em payload externo.
-- **Fluxo inbound:** evento do WPPConnect → endpoint interno `/webhooks/wppconnect` autenticado/protegido → resolução da sessão → registro de evento bruto/deduplicação → job → contato, conversa e mensagem → WebSocket autorizado da inbox → opcional automação ou rascunho de pedido.
-- **Fluxo outbound:** usuário autorizado ou evento de pedido → comando PHP validado → mensagem persistida como `queued` → fila/worker com rate limit e idempotência → chamada à API do WPPConnect → atualização de status e recibos quando disponíveis. Não prometer entrega apenas pelo aceite HTTP.
+- **Evolution API** é um serviço **Node.js separado**, numa VPS de mensageria, acessado **somente pelo backend PHP** via API REST autenticada (HTTPS). O frontend nunca recebe a chave global nem os tokens das instâncias.
+- **PHP MVC continua sendo o cérebro do negócio:** controla tenant/unidade, RBAC, regras comerciais, inbox, automações, pedidos e banco MySQL. A Evolution API cuida das **sessões WhatsApp e transporte de mensagens**, não decide valores, pagamentos ou autorização.
+- **Mapeamento obrigatório:** cada instância da Evolution recebe identificador interno opaco e vínculo persistente com `tenant_id` + `establishment_id`; IDs de sessão, callbacks e eventos recebidos são resolvidos **no servidor**. Não confiar em tenant, unidade ou sessão informados em payload externo.
+- **Fluxo inbound:** evento da Evolution → endpoint `/webhooks/evolution/{segredo}` autenticado/protegido → resolução da sessão → registro de evento bruto/deduplicação → job → contato, conversa e mensagem → WebSocket autorizado da inbox → opcional automação ou rascunho de pedido.
+- **Fluxo outbound:** usuário autorizado ou evento de pedido → comando PHP validado → mensagem persistida como `queued` → fila/worker com rate limit e idempotência → chamada à API da Evolution → atualização de status e recibos quando disponíveis. Não prometer entrega apenas pelo aceite HTTP.
 - **Conexão e QR:** o PHP obtém o QR Code/estado do serviço de sessão e o expõe somente em endpoint protegido da unidade; dados de pareamento têm vida curta e não entram em logs. Estados de conexão são refletidos na UI pelo WebSocket PHP.
-- **Escalabilidade:** múltiplas sessões consomem processos/Chromium, CPU e memória; adotar limites por plano e por nó, monitorar recursos e reiniciar sessões com supervisão. Para múltiplos nós, usar atribuição persistida de sessão a uma instância e roteamento correto; não presumir que sessões possam ser movidas sem restaurar estado.
+- **Escalabilidade:** cada instância (Baileys, sem navegador) consome pouca memória, mas CPU, rede e banco crescem com o volume; adotar limites por plano e por nó, monitorar recursos e reiniciar sessões com supervisão. Para múltiplos nós, usar atribuição persistida de sessão a uma instância e roteamento correto; não presumir que sessões possam ser movidas sem restaurar estado.
 - **Resiliência:** eventos recebidos podem ser duplicados, atrasar ou chegar fora de ordem. Deduplicar por sessão + tipo + ID externo da mensagem/evento, registrar falhas, aplicar retry/backoff, dead-letter e reconciliação possível. As filas MySQL/Outbox e Redis são separadas da lógica de sessão.
 - **Privacidade e conformidade:** coletar apenas dados necessários, restringir acesso por tenant, controlar consentimento/preferência para campanhas e mensagens não transacionais, permitir retenção/exclusão adequada e aplicar LGPD. Respeitar regras da plataforma e limites de envio; **sem disparos em massa não solicitados**.
-- **Risco de integração:** WPPConnect é projeto independente, **não é a API oficial WhatsApp Business da Meta**; sessões podem desconectar, requerer novo QR Code ou sofrer limitações/bloqueios conforme o serviço e termos aplicáveis. Prever adaptador de provedor para eventual migração à API oficial, sem reescrever pedidos e inbox.
+- **Risco de integração:** o canal Baileys da Evolution **não é a API oficial WhatsApp Business da Meta**; sessões podem desconectar, requerer novo QR Code ou sofrer limitações/bloqueios conforme o serviço e termos aplicáveis. O contrato `ProvedorWhatsApp` isola o servidor; a própria Evolution também oferece o canal oficial (Cloud API), para migrar sem reescrever pedidos e inbox.
 - **Webhook:** proteger por rede privada/reverse proxy, credencial de serviço ou outro mecanismo de autenticação implementado e verificar origem do evento. **Não presumir assinatura criptográfica nativa** se não estiver comprovada na versão instalada.
 
 #### Dependências e documentação
 
-- [WPPConnect Server — repositório oficial](https://github.com/wppconnect-team/wppconnect-server)
-- [WPPConnect Server — documentação](https://wppconnect.io/pt-BR/docs/projects/wppserver/introduction/)
-- [WPPConnect Server — referência de API](https://wppconnect.io/swagger/wppconnect-server/)
+- [Evolution API — repositório oficial](https://github.com/evolution-foundation/evolution-api)
+- [Evolution API — documentação](https://docs.evolutionfoundation.com.br)
+- Instalação e operação no Deliveryzim: [docs/deploy/evolution.md](docs/deploy/evolution.md)
 
-A integração está **planejada e não implementada**. Antes do desenvolvimento validar a versão escolhida, endpoints, licenças, persistência de sessões, política de backup, capacidade de hardware, regras de uso e requisitos de autenticação/webhook.
+Conexão por QR Code, avisos de pedido, saudação e códigos de verificação estão **implementados**. A central de atendimento (inbox), automações de menu e relatórios continuam **planejados**.
 
 ---
 
@@ -593,9 +593,9 @@ A integração está **planejada e não implementada**. Antes do desenvolvimento
 | Eventos/jobs | **Redis** para pub/sub, cache, filas e controle de presença; worker PHP supervisionado |
 | Persistência de eventos | **Transactional Outbox** em MySQL, com retry e idempotência |
 | API | REST JSON versionada em `/api/v1`, com sessão/token conforme o consumidor |
-| WhatsApp | **WPPConnect Server em Node.js**, processo separado, com múltiplas sessões e webhooks; adaptador REST no PHP MVC |
+| WhatsApp | **Evolution API (Node.js, canal Baileys)** em VPS de mensageria, uma instância por loja e webhooks; adaptador REST no PHP MVC (`ProvedorWhatsApp`) |
 | Pix online | **Asaas API por estabelecimento**, com chave própria protegida, QR Code, webhook autenticado e conciliação |
-| Integrações | Adaptadores HTTP/Webhook separados (iFood, WPPConnect, cobrança e mapas) |
+| Integrações | Adaptadores HTTP/Webhook separados (iFood, Evolution API, cobrança e mapas) |
 | Aplicação móvel | Web responsivo e PWA, com restrições de navegador respeitadas |
 | Operação | systemd/Supervisor, cron/worker, logs estruturados, métricas, backup e deploy via GitHub Actions (planejado) |
 
@@ -604,7 +604,7 @@ A integração está **planejada e não implementada**. Antes do desenvolvimento
 ```mermaid
 flowchart LR
   A[Garçom / Caixa / Cliente / iFood] --> B[HTTP API PHP MVC]
-  W[WPPConnect Server: sessões WhatsApp] -->|Webhook autenticado| B
+  W[Evolution API: instâncias WhatsApp] -->|Webhook autenticado| B
   B --> C[(MySQL: Pedido + Outbox)]
   C --> D[Worker de eventos]
   D --> E[(Redis Pub/Sub)]
@@ -671,7 +671,7 @@ cardapim/
 │   │   ├── WhatsApp/          # inbox, contatos, atendentes, mensagens, automações
 │   │   ├── Integrations/
 │   │   │   ├── IFood/
-│   │   │   ├── WPPConnect/     # adaptador REST, sessões e normalização de webhooks
+│   │   │   ├── Integracoes/    # EvolutionApi (WhatsApp), ProvedorWhatsApp e normalização de webhooks
 │   │   │   ├── Asaas/          # Pix API, conta por loja, eventos
 │   │   │   ├── Billing/
 │   │   │   └── Maps/
@@ -934,7 +934,7 @@ PATCH  /api/v1/establishments/{id}/whatsapp/conversations/{conversationId}/assig
 GET    /api/v1/establishments/{id}/whatsapp/automations
 POST   /api/v1/establishments/{id}/whatsapp/automations
 POST   /webhooks/asaas/{connectionKey}
-POST   /webhooks/wppconnect
+POST   /webhooks/evolution/{segredo}
 POST   /webhooks/ifood
 POST   /webhooks/billing/{provider}
 GET    /loja/{slug}
@@ -952,8 +952,8 @@ Rotas ilustrativas, sujeitas a desenho de autorização, rate limit, paginação
 - RBAC no backend, separação por tenant/unidade, MFA para perfis críticos quando implementado e auditoria de ações sensíveis.
 - `prepared statements`/PDO, validação server-side, escape de templates, Content Security Policy e proteção de upload.
 - Segredos fora do Git; criptografia de tokens de integrações em repouso; rotação de credenciais.
-- Webhook com autenticação/assinatura conforme provedor, replay protection e deduplicação persistente. Para WPPConnect, definir autenticação no reverse proxy/serviço quando a versão não fornecer assinatura nativa.
-- Sessões WPPConnect, chaves mestras, tokens e perfis de navegador criptografados/protegidos em disco; serviço WPPConnect sem acesso público administrativo, com allowlist de webhook e segregação de permissões.
+- Webhook com autenticação/assinatura conforme provedor, replay protection e deduplicação persistente. Na Evolution: segredo longo na URL do webhook e conferência do token da instância enviado no corpo.
+- Chave global e tokens das instâncias da Evolution só no servidor (tokens cifrados no banco); painel `/manager` protegido, API apenas por HTTPS e, quando possível, restrita ao IP do Deliveryzim.
 - Tratar conversas como dados pessoais: políticas de retenção, acesso por perfil, anonimização/exclusão legalmente cabível e opt-in de comunicações promocionais. Evitar exibir mensagens privadas em auditoria/telemetria.
 - Backup automatizado do MySQL e uploads privados, retenção, restauração testada e alarmes para filas paradas.
 - Logs estruturados por `request_id`, `tenant_id` e `establishment_id`, **sem gravar tokens, dados completos de cartão ou localização desnecessária**.
@@ -976,15 +976,15 @@ Nginx → public/index.php → PHP-FPM
    ├── Redis
    ├── Worker Outbox / Jobs (systemd)
    ├── WebSocket PHP (systemd + proxy Nginx em WSS)
-   └── WPPConnect Server Node.js (container/processo isolado + volumes persistentes)
-         └── webhook privado → PHP /webhooks/wppconnect
+   └── Evolution API em VPS de mensageria (Docker: Evolution, Postgres, Redis, Caddy/HTTPS)
+         └── webhook HTTPS → PHP /webhooks/evolution/{segredo}
 ```
 
 - Publicar **somente** `public/` no webroot.
 - Processos de worker e websocket independentes do pool PHP-FPM, com restart automático.
 - `wss://<dominio-configurado>/realtime` via Nginx com upgrade e TLS; o domínio exato deve ser confirmado.
-- Healthchecks para HTTP, DB, Redis, workers, WebSocket e WPPConnect; deploy com rollback e backup antes de migrations destrutivas.
-- Isolar a API/Manager do WPPConnect por firewall/rede interna, com credenciais próprias, volumes de sessão persistentes e backups protegidos; verificar CPU/RAM, dependências do Chromium e limites de sessões simultâneas.
+- Healthchecks para HTTP, DB, Redis, workers, WebSocket e Evolution API; deploy com rollback e backup antes de migrations destrutivas.
+- Isolar a API/Manager da Evolution por firewall (ufw), HTTPS e chave própria, com backup diário do Postgres das instâncias; acompanhar CPU/RAM e o número de instâncias conectadas.
 - Ambientes `local`, `staging` e `production`, cada qual com segredos próprios.
 - Não executar automaticamente migrations destrutivas em produção.
 
@@ -1001,8 +1001,9 @@ MAIL_PORT=587
 MAIL_ENCRYPTION=tls # tls (STARTTLS na 587), ssl (465) ou none
 MAIL_USERNAME=
 MAIL_PASSWORD=      # so no shared/.env da VPS
-WPPCONNECT_BASE_URL=http://127.0.0.1:21467   # WPPConnect proprio (docs/deploy/wppconnect-docker.md)
-WPPCONNECT_SECRET_KEY=
+EVOLUTION_BASE_URL=https://wpp.escotilhaprodutora.com   # Evolution API (docs/deploy/evolution.md)
+EVOLUTION_API_KEY=          # chave global, so no shared/.env da VPS
+EVOLUTION_WEBHOOK_TOKEN=    # segredo da URL do webhook (openssl rand -hex 32)
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=cardapim
@@ -1016,10 +1017,6 @@ WS_PORTA=8091       # servidor WebSocket local (bin/tempo-real.php)
 WS_URL=             # opcional; padrao wss://{APP_URL}/ws
 IFOOD_CLIENT_ID=
 IFOOD_CLIENT_SECRET=
-WPPCONNECT_BASE_URL=http://127.0.0.1:21465
-WPPCONNECT_SECRET_KEY=
-WPPCONNECT_WEBHOOK_SHARED_SECRET=
-WPPCONNECT_WEBHOOK_ALLOWED_URL=
 WHATSAPP_CONNECTIONS_LIMIT_DEFAULT=1
 ASAAS_SANDBOX_BASE_URL=https://api-sandbox.asaas.com/v3
 ASAAS_PRODUCTION_BASE_URL=https://api.asaas.com/v3
@@ -1042,7 +1039,7 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 | **3 — Estoque + financeiro** | Insumos, fichas técnicas, reservas/baixas, compras, relatórios, despesas e recebíveis | Venda e cancelamento geram lançamentos corretos e reversíveis |
 | **4 — Cardápio online + delivery** | QR Code, checkout público, retirada, áreas/taxas, despacho, entregador e rastreamento consentido | Cliente acompanha pedido; entregador vê apenas as suas entregas |
 | **5 — SaaS comercial** | Onboarding, planos, assinatura, cobrança, inadimplência, painel plataforma e limites | Tenant é criado, assina e acessa somente recursos do plano |
-| **6 — WhatsApp/WPPConnect** | Conexão por QR Code por estabelecimento, sessão e webhook, inbox com RBAC, fila de envio, automações supervisionadas e métricas | Duas lojas conectam números diferentes; mensagens e sessões não vazam entre tenants; pedido via chat exige confirmação |
+| **6 — WhatsApp/Evolution API** | Conexão por QR Code por estabelecimento, sessão e webhook, inbox com RBAC, fila de envio, automações supervisionadas e métricas | Duas lojas conectam números diferentes; mensagens e sessões não vazam entre tenants; pedido via chat exige confirmação |
 | **7 — Pix Asaas por unidade** | Conexão de conta própria, QR dinâmico, checkout, webhook seguro, financeiro e reconciliação | Duas lojas usam contas distintas; confirmação não duplica financeiro ou pagamento; Pix tardio tratado | 
 | **8 — iFood** | Cadastro developer, OAuth/conexões, webhook/polling, status, retries, homologação e conciliação | Pedido iFood entra uma vez, percorre fluxo correto e mantém rastreabilidade |
 | **9 — Expansão** | Fiscal, impressão, BI avançado, promoções, fidelidade, integrações e múltiplas unidades avançadas | Recursos validados com usuários reais |
@@ -1067,7 +1064,7 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 - [x] Backend: PHP MVC; hospedagem em VPS com domínio/SSL provisionados.
 - [x] Realtime: WebSocket **próprio no servidor**, sem depender de serviço SaaS de push.
 - [x] Multi-restaurante e múltiplas funções de equipe/clientes.
-- [x] Módulo WhatsApp **planejado** via WPPConnect Server, com sessão e atendimento isolados por estabelecimento.
+- [x] WhatsApp via Evolution API, com instância isolada por estabelecimento (conexão, avisos de pedido, saudação e códigos).
 - [x] **Asaas Pix por restaurante planejado**, com conta própria por unidade e recebimento direto, distinto da cobrança da assinatura SaaS.
 - [ ] Definir domínio definitivo do app, subdomínios de lojas e ambiente de staging.
 - [ ] Validar stack real da VPS e a forma de inicialização dos workers.
@@ -1076,7 +1073,7 @@ Valores acima são **exemplos de nomes**, não credenciais válidas. O `.env.exa
 - [ ] Escolher serviço de mapas/roteamento e retenção do rastreamento.
 - [ ] Homologar integração iFood; avaliar módulo de catálogo e financeiro separadamente.
 - [ ] Homologar API Asaas para diferentes contas de restaurantes, webhooks individuais, segurança, conciliação, estornos, falhas e regras comerciais da integração.
-- [ ] Escolher versão/infra do WPPConnect Server, validar webhooks/autenticação, requisitos de memória e limites de sessões simultâneas.
+- [x] Infra do WhatsApp: Evolution API em VPS de mensageria, webhooks autenticados e backup diário.
 - [ ] Definir regras de retenção, consentimento e categorias de mensagens WhatsApp; testar suspensão/desconexão e eventual caminho para API oficial Meta.
 - [ ] Avaliar regras de NFC-e/NF-e, impressoras, TEF e dados fiscais por município/estado.
 - [ ] Especificar operação offline/degradação de conexão no PDV (fase futura).

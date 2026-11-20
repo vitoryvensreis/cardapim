@@ -78,10 +78,10 @@ final class SaudacaoWhatsApp
         return Documento::normalizarTelefone(substr($m[1], 2)) === null ? null : $m[1];
     }
 
-    /** Nao aceitar mensagens antigas reemitidas pelo WPPConnect ao reiniciar. */
+    /** Nao aceitar mensagens antigas reemitidas pelo servidor ao reiniciar. */
     public static function instanteMensagem(array $evento, DateTimeImmutable $agora): ?DateTimeImmutable
     {
-        // As versoes de WPPConnect podem fornecer t ou timestamp (segundos Unix).
+        // t ou timestamp em segundos Unix (EventoEvolution entrega em t).
         $segundos = $evento['t'] ?? $evento['timestamp'] ?? null;
         if (!is_int($segundos) && !(is_string($segundos) && ctype_digit($segundos))) {
             return null;
@@ -95,12 +95,12 @@ final class SaudacaoWhatsApp
 
     /**
      * Diagnostico opcional e sem PII: nao grava telefone, sessao, texto ou token.
-     * Ativar temporariamente com WPPCONNECT_SAUDACAO_DIAGNOSTICO=1 no .env compartilhado.
+     * Ativar temporariamente com WHATSAPP_SAUDACAO_DIAGNOSTICO=1 no .env compartilhado.
      */
     private static function ignorado(string $motivo, array $evento): bool
     {
         if (($evento['event'] ?? null) === 'onmessage'
-            && Config::get('WPPCONNECT_SAUDACAO_DIAGNOSTICO') === '1') {
+            && Config::get('WHATSAPP_SAUDACAO_DIAGNOSTICO') === '1') {
             error_log('[Cardapim] Saudacao WhatsApp ignorada: ' . $motivo);
         }
         return false;
@@ -159,7 +159,7 @@ final class SaudacaoWhatsApp
 
     private static array $agendados = [];
 
-    /** Responde HTTP 200 antes de contatar o WPPConnect; evita a repeticao do webhook por timeout. */
+    /** Responde HTTP 200 antes de contatar a Evolution; evita a repeticao do webhook por timeout. */
     public static function agendarEnvio(int $id): void
     {
         if (isset(self::$agendados[$id])) return;

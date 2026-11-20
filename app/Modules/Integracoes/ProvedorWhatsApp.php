@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Cardapim\Modules\Integracoes;
 
 /**
- * Contrato comum dos servidores de WhatsApp do Deliveryzim (WPPConnect e Evolution API).
- * Os servicos (conexao, avisos, saudacao, codigos da plataforma, limpeza) so conhecem este contrato;
- * qual servidor atende cada restaurante fica gravado em integracoes.dados.provedor.
+ * Contrato do servidor de WhatsApp do Deliveryzim (hoje a Evolution API).
+ * Os servicos (conexao, avisos, saudacao, codigos da plataforma, limpeza) so conhecem este contrato.
  */
 interface ProvedorWhatsApp
 {
-    /** Identificador gravado no banco: wppconnect | evolution. */
+    /** Identificador gravado em integracoes.dados.provedor (evolution). */
     public function id(): string;
 
     /** O servidor esta configurado no .env? */
@@ -28,9 +27,6 @@ interface ProvedorWhatsApp
      * @return array{status:string, qrcode:?string} status: CONNECTED, QRCODE, INITIALIZING ou CLOSED
      */
     public function estado(string $sessao, string $token): array;
-
-    /** true = responde; false = travada; null = nao da para saber (segue o estado normal). */
-    public function respondendo(string $sessao, string $token): ?bool;
 
     /** Numero do aparelho conectado (so digitos, com DDI), se o servidor informar. */
     public function numero(string $sessao, string $token): ?string;

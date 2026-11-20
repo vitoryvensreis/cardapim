@@ -111,12 +111,6 @@ class EvolutionApi implements ProvedorWhatsApp
             : ['status' => 'INITIALIZING', 'qrcode' => null];
     }
 
-    /** A Evolution nao usa navegador por sessao, entao nao existe o "conectado mas travado" do WPPConnect. */
-    public function respondendo(string $sessao, string $token): ?bool
-    {
-        return null;
-    }
-
     public function numero(string $sessao, string $token): ?string
     {
         try {

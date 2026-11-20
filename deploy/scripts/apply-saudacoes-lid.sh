@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Executar apenas no job de deploy dedicado a ampliar o identificador de destinatario.
-# Backup completo antes de DDL; nao modifica volumes do WPPConnect.
+# Backup completo antes de DDL; nao modifica o servidor de WhatsApp.
 set -Eeuo pipefail
 umask 077
 root="/home/escotilhaprodutora-cardapim/apps/cardapim"

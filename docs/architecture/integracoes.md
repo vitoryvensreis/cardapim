@@ -7,7 +7,7 @@ Aba `/{slug}/gerencia/integracoes` (só gerente do restaurante ou adm_master). C
 - Tabelas: `integracoes` (uma linha por restaurante e provedor) e `integracao_eventos` (avisos recebidos por webhook).
   Migration `20261110080000_create_integracoes.php`, verificação `database/verify-integracoes.php --verify`.
 - `credenciais`: JSON **cifrado** (AES-256-GCM, `Shared/Seguranca/Cripto`, chave fora do banco). `dados`: só o que pode aparecer na tela.
-- Clientes das APIs: `Modules/Integracoes/{AsaasApi, WppConnectApi, IfoodApi}` sobre `Shared/Http/ClienteHttp` (cURL, tempo limite curto, sem seguir redirecionamentos).
+- Clientes das APIs: `Modules/Integracoes/{AsaasApi, EvolutionApi, IfoodApi}` sobre `Shared/Http/ClienteHttp` (cURL, tempo limite curto, sem seguir redirecionamentos).
 - Regras: `Services/Gerencia/Integracoes/{AsaasService, WhatsAppService, IfoodService}`. Controller: `Gerencia/IntegracoesController`.
 - Configuração do servidor: `Core/Config` (variável de ambiente ou `shared/.env`).
 - Toda conexão, desconexão, teste e mensagem de teste gera log em `log_user` (sem chaves, tokens ou conteúdo sensível).
@@ -19,8 +19,8 @@ usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-p
 
 - **Asaas da plataforma**: recebe o pagamento das assinaturas dos restaurantes. O webhook usa a mesma rota
   `/webhooks/asaas/{id}`; avisos da plataforma ficam em `integracao_eventos` com `id_restaurante` NULL.
-- **WhatsApp da plataforma**: sessão própria (`deliveryzim_plataforma_*`; antigas: `cardapim_plataforma_*`), separada das sessões
-  dos restaurantes (`deliveryzim_r{id}_*`; antigas: `cardapim_r{id}_*`). Será usado para enviar os códigos de verificação do cliente final.
+- **WhatsApp da plataforma**: instância própria (`deliveryzim_plataforma_*`), separada das instâncias
+  dos restaurantes (`deliveryzim_r{id}_*`). Envia os códigos de verificação do cliente final.
 - Migration `20261110100000_integracoes_plataforma.php`: `id_restaurante` aceita NULL e a coluna gerada `escopo`
   (id do restaurante ou 0) garante uma integração por provedor em cada escopo (`UNIQUE(escopo, provedor)`).
 - No código: `IntegracaoRepository` e os serviços recebem `?int $idRestaurante` (`null` = plataforma).
@@ -57,24 +57,18 @@ usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-p
 Endereços configuráveis (testes): `ASAAS_URL_PRODUCAO` (padrão `https://api.asaas.com/v3`) e `ASAAS_URL_SANDBOX` (padrão `https://api-sandbox.asaas.com/v3`).
 O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de pedidos.
 
-## WhatsApp (Evolution API ou WPPConnect)
+## WhatsApp (Evolution API)
 
-- Dois servidores atrás do mesmo contrato `Modules/Integracoes/ProvedorWhatsApp`: `EvolutionApi` (VPS de mensageria,
-  [passo a passo](../deploy/evolution.md)) e `WppConnectApi` (abaixo). `WhatsAppProvedores` escolhe: sessão gravada usa
-  `dados.provedor` (sem o campo = WPPConnect); conexão nova usa `WHATSAPP_PROVEDOR_PADRAO` (padrão `evolution`).
-- Sessões novas: `deliveryzim_r{id}_{aleatório}` e `deliveryzim_plataforma_{aleatório}`. Os nomes antigos `cardapim_...` continuam aceitos.
-- Migrar uma loja para a Evolution: Desconectar e Conectar de novo no painel da loja.
-- Webhook da Evolution: `POST /webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}` (`EvolutionWebhookController` + `Services/WhatsApp/EventoEvolution`).
-
-### WPPConnect próprio
-
-- Servidor: container Docker isolado, só em `127.0.0.1` ([passo a passo](../deploy/wppconnect-docker.md)).
-  `shared/.env`: `WPPCONNECT_BASE_URL=http://127.0.0.1:21467` e `WPPCONNECT_SECRET_KEY=...`. Sem isso, a tela diz que ainda não foi liberado.
-- Conectar: cria a sessão `deliveryzim_r{id}_{aleatório}`, gera o token com a SECRET_KEY (`/api/{sessao}/{secret}/generate-token`, guardado cifrado)
-  e chama `start-session`. A tela consulta `GET .../integracoes/whatsapp/estado` (JSON) a cada 3 s e mostra o QR Code (`status-session`).
-  Quando o estado vira `CONNECTED`, grava o número (`host-device`) e registra o log.
-- Mensagem de teste: número com DDD (vira `55` + DDD + número), até 1000 caracteres, no máximo 10 por hora por restaurante (`send-message`).
-- Desconectar: `logout-session` + `close-session` e apaga o token.
+- Servidor: Evolution API (canal Baileys) na VPS de mensageria, por HTTPS ([passo a passo](../deploy/evolution.md)).
+  `shared/.env`: `EVOLUTION_BASE_URL`, `EVOLUTION_API_KEY` e `EVOLUTION_WEBHOOK_TOKEN`. Sem isso, a tela diz que ainda não foi liberado.
+- Código: contrato `Modules/Integracoes/ProvedorWhatsApp`, implementado por `EvolutionApi`; `WhatsAppProvedores` cria o cliente,
+  gera os nomes e reconhece as instâncias do Deliveryzim.
+- Conectar: cria a instância `deliveryzim_r{id}_{aleatório}` (`POST /instance/create`, já com webhook, sem grupos e sem histórico),
+  guarda o token da instância (cifrado) e pede o QR Code (`/instance/connect`). A tela consulta `GET .../integracoes/whatsapp/estado`
+  a cada 3 s; quando o estado vira `open`, grava o número e registra o log.
+- Mensagem de teste: número com DDD (vira `55` + DDD + número), até 1000 caracteres, no máximo 10 por hora por restaurante (`/message/sendText`).
+- Desconectar: `logout` e `delete` da instância; apaga o token.
+- Webhook: `POST /webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}` (`EvolutionWebhookController` + `Services/WhatsApp/EventoEvolution`).
 - **Avisos automáticos do pedido** para o cliente (recebido, preparo, pronto, saiu com link do mapa, entregue, cancelado): [avisos-whatsapp.md](avisos-whatsapp.md).
 
 ## iFood (aplicativo distribuído)
@@ -92,8 +86,8 @@ O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de 
 
 ## Testes
 
-- `tests/unit/integracoes.php`: clientes das três APIs com respostas simuladas (sem rede).
-- `tests/fakes/integracoes-fake.php`: servidor **falso** de iFood, Asaas e WPPConnect usado no CI.
+- `tests/unit/integracoes.php` (Asaas e iFood) e `tests/unit/whatsapp-evolution.php` (Evolution): clientes com respostas simuladas (sem rede).
+- `tests/fakes/integracoes-fake.php`: servidor **falso** de iFood, Asaas e Evolution API usado no CI.
 - `tests/http/integracoes.sh`: fluxo completo pelo navegador simulado (chave errada/certa, webhook com token certo/errado/repetido,
   QR Code → conectado → mensagem de teste, código de vínculo → escolher loja → testar, isolamento e CSRF).
 

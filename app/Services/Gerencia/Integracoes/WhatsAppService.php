@@ -16,8 +16,7 @@ use PDO;
 /**
  * WhatsApp do restaurante: uma sessao por restaurante, conectada lendo o QR Code no celular
  * (como o WhatsApp Web). Permite mandar uma mensagem de teste.
- * O servidor (WPPConnect ou Evolution API) fica gravado em dados.provedor; conexoes novas usam
- * WHATSAPP_PROVEDOR_PADRAO. $api injetado (testes) vale para tudo.
+ * Servidor: Evolution API (dados.provedor = evolution). $api injetado (testes) vale para tudo.
  */
 final class WhatsAppService extends BaseIntegracao
 {
@@ -64,14 +63,13 @@ final class WhatsAppService extends BaseIntegracao
     /**
      * Situacao atual (consultada pela tela a cada poucos segundos).
      * @return array{estado:string, qrcode:?string, numero:?string, mensagem:string}
-     *         estado: conectado | sem_resposta | qrcode | iniciando | expirado | desconectado | indisponivel | erro
+     *         estado: conectado | qrcode | iniciando | expirado | desconectado | indisponivel | erro
      */
     public function estado(): array
     {
         $atual = $this->integracoes->buscar($this->idRestaurante, 'whatsapp');
         $numero = is_string($atual['dados']['numero'] ?? null) ? $atual['dados']['numero'] : null;
-        // Desconectado: a proxima conexao usa o servidor padrao; senao, o servidor gravado na sessao.
-        $api = $atual['status'] === 'desconectado' ? ($this->api ?? WhatsAppProvedores::padrao()) : $this->provedor($atual['dados']);
+        $api = $this->provedor($atual['dados']);
         if (!$api->configurado()) {
             return ['estado' => 'indisponivel', 'qrcode' => null, 'numero' => null, 'mensagem' => 'O WhatsApp ainda não está disponível neste servidor.'];
         }
@@ -85,7 +83,7 @@ final class WhatsAppService extends BaseIntegracao
         } catch (IntegracaoErro $erro) {
             return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => $erro->getMessage()];
         }
-        if ($e['status'] === 'CONNECTED' || $e['status'] === 'INCHAT' || $e['status'] === 'ISLOGGED') {
+        if ($e['status'] === 'CONNECTED') {
             if ($atual['status'] !== 'conectado' || $numero === null) {
                 $numero = $api->numero($sessao, (string) $cred['token']) ?? $numero;
                 $this->integracoes->salvar($this->idRestaurante, 'whatsapp', [
@@ -100,16 +98,12 @@ final class WhatsAppService extends BaseIntegracao
                     $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'conectado']);
                 }
             }
-            if ($api->respondendo($sessao, (string) $cred['token']) === false) {
-                return ['estado' => 'sem_resposta', 'qrcode' => null, 'numero' => $numero,
-                    'mensagem' => 'O WhatsApp aparece conectado, mas não está respondendo e as mensagens podem não sair. Espere 2 minutos. Se continuar assim, clique em Desconectar e conecte de novo.'];
-            }
             return ['estado' => 'conectado', 'qrcode' => null, 'numero' => $numero, 'mensagem' => 'WhatsApp conectado.'];
         }
         if ($e['status'] === 'QRCODE' && $e['qrcode'] !== null) {
             return ['estado' => 'qrcode', 'qrcode' => $e['qrcode'], 'numero' => null, 'mensagem' => 'Leia o QR Code com o celular.'];
         }
-        if (in_array($e['status'], ['CLOSED', 'NOTLOGGED', 'DESCONNECTEDMOBILE', 'DISCONNECTED', 'BROWSERCLOSE', 'QRREADFAIL'], true)) {
+        if ($e['status'] === 'CLOSED') {
             if ($atual['status'] === 'conectado') {
                 $this->integracoes->salvar($this->idRestaurante, 'whatsapp', ['status' => 'erro', 'ultimo_erro' => 'O WhatsApp foi desconectado do celular.']);
                 $this->log('WhatsApp desconectado pelo celular', 'A sessão caiu ou foi encerrada no aparelho.');

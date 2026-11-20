@@ -11,7 +11,7 @@ Resumo do que fica rodando:
 | Servidor de tempo real | serviço systemd `cardapim-tempo-real` (PHP 8.4, usuário do site) | 8091 |
 | Nginx (CloudPanel) | `location = /ws` no vhost do site | 443 (`wss://deliveryzim.com.br/ws`) |
 
-Nada disso mexe nos Redis do mailcow nem nos WPPConnect existentes.
+Nada disso mexe nos Redis do mailcow nem no servidor de WhatsApp.
 
 ## 1. Redis isolado do Cardapim
 

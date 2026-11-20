@@ -28,7 +28,6 @@
 # Python
 __pycache__/
 *.pyc
-/deploy/wppconnect/.env
 
 # Graphify: versiona so o relatorio e o grafo
 /graphify-out/*

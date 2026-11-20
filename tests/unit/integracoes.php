@@ -10,7 +10,6 @@ use Cardapim\Modules\Integracoes\AplicativosParceiros;
 use Cardapim\Modules\Integracoes\AsaasApi;
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
-use Cardapim\Modules\Integracoes\WppConnectApi;
 use Cardapim\Shared\Http\ClienteHttp;
 use Cardapim\Shared\Http\RespostaHttp;
 use Cardapim\Shared\Validation\Documento;
@@ -67,36 +66,7 @@ $ok((new AsaasApi($http))->criarWebhook('x', 'sandbox', 'https://c.test/webhooks
 $corpo = $http->pedidos[0]['corpo'];
 $ok(is_array($corpo) && $corpo['authToken'] === str_repeat('b', 48) && $corpo['sendType'] === 'SEQUENTIALLY' && in_array('PAYMENT_RECEIVED', $corpo['events'], true), 'corpo do webhook');
 
-/* ---------- WPPConnect ---------- */
-putenv('WPPCONNECT_BASE_URL=http://127.0.0.1:21466');
-putenv('WPPCONNECT_SECRET_KEY=segredo/teste');
-$ok(WppConnectApi::disponivel(), 'WPPConnect configurado');
-$http = new ClienteFalso([new RespostaHttp(201, '{"status":"success","token":"tok123"}')]);
-$ok((new WppConnectApi($http))->gerarToken('cardapim_r1_ab12') === 'tok123', 'token gerado');
-$ok($http->pedidos[0]['url'] === 'http://127.0.0.1:21466/api/cardapim_r1_ab12/segredo%2Fteste/generate-token', 'segredo codificado na URL');
-$ok($erro(fn () => WppConnectApi::sessao('../etc')) !== null, 'sessao com caracteres invalidos recusada');
-$http = new ClienteFalso([new RespostaHttp(200, '{"status":"qrcode","qrcode":"data:image/png;base64,AAAA"}')]);
-$e = (new WppConnectApi($http))->estado('cardapim_r1_ab12', 'tok');
-$ok($e['status'] === 'QRCODE' && $e['qrcode'] === 'data:image/png;base64,AAAA', 'estado com QR Code');
-$e = (new WppConnectApi(new ClienteFalso([new RespostaHttp(200, '{"status":"CONNECTED","qrcode":"javascript:alert(1)"}')])))->estado('cardapim_r1_ab12', 'tok');
-$ok($e['status'] === 'CONNECTED' && $e['qrcode'] === null, 'QR que nao e imagem e descartado');
-$ok((new WppConnectApi(new ClienteFalso([new RespostaHttp(200, '{"response":{"wid":{"user":"5585988887777"}}}')])))->numero('cardapim_r1_ab12', 't') === '5585988887777', 'numero do aparelho');
-$ok($erro(fn () => (new WppConnectApi(new ClienteFalso([new RespostaHttp(200, '{"status":"error"}')])))->enviarTexto('cardapim_r1_ab12', 't', '5585999990000', 'oi')) !== null, 'falha no envio vira erro');
-// Sessao responde de verdade? (check-connection-session no cliente rapido)
-$rapido = static fn (RespostaHttp $r): WppConnectApi => new WppConnectApi(new ClienteFalso([]), new ClienteFalso([$r]));
-$ok($rapido(new RespostaHttp(200, '{"status":true,"message":"Connected"}'))->respondendo('cardapim_r1_ab12', 't') === true, 'sessao respondendo');
-$ok($rapido(new RespostaHttp(200, '{"status":false,"message":"Disconnected"}'))->respondendo('cardapim_r1_ab12', 't') === false, 'sessao desconectada');
-$ok($rapido(new RespostaHttp(404, ''))->respondendo('cardapim_r1_ab12', 't') === null, 'servidor sem a rota: nao sabe');
-$travado = new class (1) extends ClienteHttp {
-    public function enviar(string $metodo, string $url, array $cabecalhos = [], array|string|null $corpo = null): RespostaHttp
-    {
-        throw new \Cardapim\Shared\Http\ErroHttp('O serviço demorou demais para responder.');
-    }
-};
-$ok((new WppConnectApi(new ClienteFalso([]), $travado))->respondendo('cardapim_r1_ab12', 't') === false, 'sessao travada (tempo esgotado)');
-$h = new ClienteFalso([new RespostaHttp(200, '{"status":true}')]);
-(new WppConnectApi(new ClienteFalso([]), $h))->respondendo('cardapim_r1_ab12', 'tok9');
-$ok($h->pedidos[0]['url'] === 'http://127.0.0.1:21466/api/cardapim_r1_ab12/check-connection-session' && $h->pedidos[0]['cabecalhos']['Authorization'] === 'Bearer tok9', 'rota e token do teste rapido');
+/* WhatsApp (Evolution API): tests/unit/whatsapp-evolution.php */
 
 /* ---------- iFood ---------- */
 putenv('IFOOD_CLIENT_ID=app-id');
@@ -155,4 +125,4 @@ if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s).\n");
     exit(1);
 }
-echo "OK: integracoes (Asaas, WPPConnect e iFood sem rede).\n";
+echo "OK: integracoes (Asaas e iFood sem rede).\n";
