@@ -22,6 +22,8 @@ final class Esquema
         'impressoes' => ['desktop_agent_devices', 'impressao_em'],
         // Varias impressoras por restaurante e pontos de impressao (coluna criada no fim da migracao).
         'impressoras' => ['impressoes', 'id_impressora'],
+        // Impressao por produto / vias de producao (coluna criada no fim da migracao).
+        'impressao_produto' => ['impressoes', 'lote'],
     ];
 
     /** @var array<string,bool> */

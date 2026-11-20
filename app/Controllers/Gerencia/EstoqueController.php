@@ -114,7 +114,7 @@ final class EstoqueController extends BaseGerencia
             'venda_minima' => $produto['venda_minima'] !== null ? \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($produto['venda_minima'])) : '',
             'porcoes' => array_map(static fn (string $p): string => \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($p)),
                 (new ProdutoRepository($this->db))->porcoes($this->restaurante['id'], $id)),
-        ] + $this->gruposDoProdutoParaForm($id), []);
+        ] + $this->gruposDoProdutoParaForm($id) + $this->impressorasDoProdutoParaForm($id), []);
     }
 
     public function criarProduto(string $slug): Response
@@ -260,6 +260,9 @@ final class EstoqueController extends BaseGerencia
             'categorias' => (new CategoriaRepository($this->db))->listar($this->restaurante['id']),
             'contagem' => $this->contagem(null, null),
             'abaAtual' => 'categorias',
+            'impressorasProducao' => $this->impressorasProducao(),
+            'impressorasCategoria' => Esquema::tem($this->db, 'impressao_produto')
+                ? (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))->resumoCategorias($this->restaurante['id']) : [],
         ]);
     }
 
@@ -283,6 +286,34 @@ final class EstoqueController extends BaseGerencia
         }
         $resultado = (new CategoriaService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $this->post('nome'));
         return $this->responder($this->avisarEstoque($resultado, 'categoria', 'editado', $id), $this->url('estoque/categorias'));
+    }
+
+    /** Atalho: marca as mesmas impressoras de producao (apelidos) em todos os produtos da categoria. */
+    public function impressorasCategoria(string $slug, string $idTexto): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $volta = $this->url('estoque/categorias');
+        $id = self::id($idTexto);
+        $categoria = null;
+        foreach ((new CategoriaRepository($this->db))->listar($this->restaurante['id']) as $c) {
+            if ((int) $c['id'] === $id) {
+                $categoria = $c;
+            }
+        }
+        if ($categoria === null) {
+            return $this->voltar($volta, 'erro', 'Categoria não encontrada.');
+        }
+        if (!Esquema::tem($this->db, 'impressao_produto')) {
+            return $this->voltar($volta, 'erro', 'As impressoras por produto ainda estão sendo ativadas.');
+        }
+        $ids = self::idsMarcados($_POST['impressoras'] ?? null);
+        $n = (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))->aplicarCategoria($this->restaurante['id'], (int) $id, $ids);
+        \Cardapim\Services\Auditoria::registrar($this->usuario, 'Impressoras da categoria', 'Categoria "' . $categoria['nome'] . '": impressoras de produção aplicadas a ' . $n . ' produto(s).');
+        return $this->voltar($volta, 'sucesso', $n === 0 ? 'A categoria "' . $categoria['nome'] . '" ainda não tem produtos.'
+            : ($ids === [] ? 'Os ' . $n . ' produto(s) de "' . $categoria['nome'] . '" voltam a sair na impressora padrão da produção.'
+                : 'Impressoras aplicadas aos ' . $n . ' produto(s) de "' . $categoria['nome'] . '".'));
     }
 
     public function excluirCategoria(string $slug, string $idTexto): Response
@@ -466,6 +497,7 @@ final class EstoqueController extends BaseGerencia
         }
         $resultado = (new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST, is_array($_FILES['foto'] ?? null) ? $_FILES['foto'] : null);
         if ($this->avisarEstoque($resultado, 'produto', $id === null ? 'criado' : 'editado', $id ?? $resultado->id)->ok) {
+            $this->salvarImpressorasDoProduto($id ?? $resultado->id);
             return $this->voltar($this->url('estoque/produtos'), 'sucesso', $resultado->mensagem);
         }
         $produto = $id === null ? null : (new ProdutoRepository($this->db))->buscar($this->restaurante['id'], $id);
@@ -506,10 +538,55 @@ final class EstoqueController extends BaseGerencia
             'categorias' => (new CategoriaRepository($this->db))->listar($idRest),
             'insumos' => (new InsumoRepository($this->db))->mapaParaFicha($idRest),
             'gruposComplemento' => Esquema::tem($this->db, 'complementos') ? (new ComplementoRepository($this->db))->grupos($idRest) : null,
+            'impressorasProducao' => $this->impressorasProducao(),
             'fotoAtual' => $produto['imagem_path'] ?? null,
             'pageStyles' => ['css/complementos.css'],
             'pageScripts' => ['js/forms.js', 'js/estoque.js'],
         ], $status);
+    }
+
+    /**
+     * Impressoras cadastradas nos Agents (pelos apelidos) para marcar onde o produto sai na via de producao.
+     * null = recurso ainda nao liberado (migracao pendente).
+     * @return list<array{id:int,apelido:string,computador:string,ligada:bool}>|null
+     */
+    private function impressorasProducao(): ?array
+    {
+        if (!Esquema::tem($this->db, 'impressao_produto')) {
+            return null;
+        }
+        return (new \Cardapim\Repositories\Desktop\ImpressoraRepository($this->db))->listar($this->restaurante['id']);
+    }
+
+    /** @return array{impressoras?:list<string>} */
+    private function impressorasDoProdutoParaForm(int $idProduto): array
+    {
+        if (!Esquema::tem($this->db, 'impressao_produto')) {
+            return [];
+        }
+        return ['impressoras' => array_map('strval', (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))->doProduto($this->restaurante['id'], $idProduto))];
+    }
+
+    /** Grava as impressoras marcadas (so quando o formulario mostrou a secao, para nao apagar sem querer). */
+    private function salvarImpressorasDoProduto(?int $idProduto): void
+    {
+        if ($idProduto === null || ($_POST['impressoras_enviado'] ?? '') !== '1' || !Esquema::tem($this->db, 'impressao_produto')) {
+            return;
+        }
+        (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))
+            ->salvar($this->restaurante['id'], $idProduto, self::idsMarcados($_POST['impressoras'] ?? null));
+    }
+
+    /** @return list<int> */
+    private static function idsMarcados(mixed $valor): array
+    {
+        $ids = [];
+        foreach (is_array($valor) ? $valor : [] as $v) {
+            if (is_string($v) && ctype_digit($v) && strlen($v) <= 18 && (int) $v > 0) {
+                $ids[] = (int) $v;
+            }
+        }
+        return $ids;
     }
 
     /** Grupos de complementos do produto para o formulario. @return array{grupos?:list<string>, ordem_grupo?:array<int,string>} */

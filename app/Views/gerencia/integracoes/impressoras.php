@@ -11,7 +11,8 @@ $ajuda = [
     'caixa_delivery' => 'Botão "Imprimir" no pedido do delivery, no caixa.',
     'caixa_fechamento' => 'Botão "Imprimir" no resumo do caixa.',
     'garcom' => 'Botão "Imprimir" na comanda do app do garçom.',
-    'delivery_novo' => 'Quando chega pedido do cardápio ou do iFood. Sai em TODAS as impressoras marcadas (ex.: Cozinha e Balcão).',
+    'delivery_novo' => 'Via completa quando chega pedido do cardápio ou do iFood. Sai em TODAS as impressoras marcadas (ex.: Balcão).',
+    'producao' => 'Liga as vias de produção: "Só os itens novos" (garçom e caixa) e o pedido do delivery aceito saem divididos, cada item na impressora marcada no produto (Estoque > produto ou Categorias). Itens sem impressora marcada saem na padrão.',
 ];
 $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
 ?>
@@ -60,7 +61,7 @@ $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
             <?php foreach ($rotulos as $ponto => $rotulo): $cfg = $pontos[$ponto] ?? ['ids' => [], 'padrao' => null]; $automatico = $ponto === 'delivery_novo'; ?>
                 <fieldset class="bloco impressao-ponto">
-                    <legend><?= Icon::svg($automatico ? 'bell' : ($ponto === 'garcom' ? 'hand-platter' : 'monitor')) ?><?= $e($rotulo) ?></legend>
+                    <legend><?= Icon::svg($automatico ? 'bell' : ($ponto === 'garcom' ? 'hand-platter' : ($ponto === 'producao' ? 'chef-hat' : 'monitor'))) ?><?= $e($rotulo) ?></legend>
                     <p class="impressao-ponto-ajuda"><?= $e($ajuda[$ponto]) ?></p>
                     <ul class="impressao-ponto-lista">
                         <?php foreach ($impressoras as $imp): $marcada = in_array($imp['id'], $cfg['ids'], true); $idCampo = 'p-' . $ponto . '-' . $imp['id']; ?>
@@ -75,7 +76,7 @@ $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
                             </li>
                         <?php endforeach; ?>
                     </ul>
-                    <p class="impressao-ponto-vazio">Nenhuma marcada: imprime na impressora principal do Agent.</p>
+                    <p class="impressao-ponto-vazio"><?= $ponto === 'producao' ? 'Nenhuma marcada: vias de produção desligadas ("Só os itens novos" sai inteiro na impressora escolhida).' : 'Nenhuma marcada: imprime na impressora principal do Agent.' ?></p>
                 </fieldset>
             <?php endforeach; ?>
             <div class="bloco-rodape">

@@ -21,7 +21,7 @@ final class ImpressaoController extends BaseCaixa
             return $this->negado($r);
         }
         $idPedido = self::id($id);
-        $res = $idPedido !== null ? $this->fila()->comanda($idPedido, 'conta', 'caixa_conta', $this->impressora()) : Resultado::falha('Comanda não encontrada.');
+        $res = $idPedido !== null ? $this->fila()->comanda($idPedido, $this->post('modo') === 'novos' ? 'itens_novos' : 'conta', 'caixa_conta', $this->impressora()) : Resultado::falha('Comanda não encontrada.');
         return $this->resposta($res, $this->url('comandas/' . (int) $idPedido));
     }
 

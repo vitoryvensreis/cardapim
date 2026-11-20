@@ -232,6 +232,94 @@ final class CupomImpressao
         return ['titulo' => ($fechado ? 'Fechamento' : 'Caixa') . ' de ' . date('d/m', (int) strtotime((string) $caixa['aberto_em'])), 'blocos' => $blocos];
     }
 
+    /**
+     * Divide os itens por estacao: cada item vai para as impressoras marcadas no produto; sem marcacao
+     * (ou produto sem ligacao, como item do iFood nao ligado), vai para a impressora padrao da producao.
+     * @param list<array<string,mixed>> $itens
+     * @param array<int,list<int>> $porProduto id_produto => impressoras
+     * @return array<int,list<array<string,mixed>>> id_impressora => itens (na ordem em que foram lancados)
+     */
+    public static function dividir(array $itens, array $porProduto, int $padrao): array
+    {
+        $grupos = [];
+        foreach ($itens as $i) {
+            if (($i['cancelado_em'] ?? null) !== null) {
+                continue;
+            }
+            $destinos = $porProduto[(int) ($i['id_produto'] ?? 0)] ?? [];
+            foreach ($destinos !== [] ? $destinos : [$padrao] as $idImpressora) {
+                $grupos[(int) $idImpressora][] = $i;
+            }
+        }
+        return $grupos;
+    }
+
+    /**
+     * Via de producao de uma estacao (Churrasqueira, Cozinha, Bar...): so os itens dela, com a mesa (ou o pedido)
+     * em letra grande, hora, quem pediu, complementos e observacoes. Sem o total da conta.
+     * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
+     * @param list<array<string,mixed>> $itens
+     * @return list<array<string,mixed>>
+     */
+    public static function producao(array $cabeca, string $estacao, array $itens, string $quem = ''): array
+    {
+        $blocos = [
+            ['t' => 'centro', 'texto' => 'PRODUÇÃO · ' . mb_strtoupper($estacao)],
+            ['t' => 'linha'],
+            ['t' => 'titulo', 'texto' => $cabeca['titulo']],
+        ];
+        if ($cabeca['linha'] !== '') {
+            $blocos[] = ['t' => 'centro', 'texto' => $cabeca['linha']];
+        }
+        $blocos[] = ['t' => 'destaque', 'texto' => $cabeca['detalhe']];
+        $blocos[] = ['t' => 'texto', 'texto' => date('d/m/Y H:i') . ($quem !== '' ? ' · ' . $quem : '')];
+        $blocos[] = ['t' => 'linha'];
+        foreach ($itens as $i) {
+            $blocos[] = self::item($i);
+        }
+        $blocos[] = ['t' => 'linha'];
+        if (trim($cabeca['observacao']) !== '') {
+            $blocos[] = ['t' => 'destaque', 'texto' => 'OBSERVAÇÃO'];
+            $blocos[] = ['t' => 'texto', 'texto' => trim($cabeca['observacao'])];
+            $blocos[] = ['t' => 'linha'];
+        }
+        return $blocos;
+    }
+
+    /**
+     * Cabecalho da via de producao de uma comanda (mesa ou balcao).
+     * @param array<string,mixed> $c ComandaService::detalhes
+     * @return array{titulo:string,linha:string,detalhe:string,observacao:string}
+     */
+    public static function cabecaComanda(array $c): array
+    {
+        $p = $c['pedido'];
+        $mesa = $p['tipo'] === 'mesa';
+        $nome = trim((string) ($c['nome'] ?? ''));
+        return [
+            'titulo' => $mesa ? mb_strtoupper((string) $c['rotulo_mesa']) : 'BALCÃO',
+            'linha' => $nome !== '' ? ($mesa ? 'Comanda: ' : 'Cliente: ') . $nome : '',
+            'detalhe' => 'Pedido #' . (int) $p['numero'],
+            'observacao' => (string) ($p['observacao'] ?? ''),
+        ];
+    }
+
+    /**
+     * Cabecalho da via de producao de um pedido do delivery (aceito).
+     * @param array<string,mixed> $p
+     * @return array{titulo:string,linha:string,detalhe:string,observacao:string}
+     */
+    public static function cabecaPedido(array $p): array
+    {
+        $ifood = ($p['origem'] ?? '') === 'ifood';
+        return [
+            'titulo' => 'PEDIDO #' . (int) $p['numero'],
+            'linha' => ($p['tipo'] === 'entrega' ? 'ENTREGA' : 'RETIRADA') . ($ifood ? ' · iFood' . (!empty($p['ifood_display_id']) ? ' #' . $p['ifood_display_id'] : '') : ''),
+            'detalhe' => trim((string) ($p['cliente_nome'] ?? '')) !== '' ? 'Cliente: ' . trim((string) $p['cliente_nome']) : 'Delivery',
+            'observacao' => (string) ($p['observacao'] ?? ''),
+        ];
+    }
+
     /** @param array<string,mixed> $i */
     private static function item(array $i): array
     {

@@ -59,6 +59,7 @@ return static function (Router $router): void {
     $router->get($g . '/estoque/categorias', [EstoqueController::class, 'categorias']);
     $router->post($g . '/estoque/categorias', [EstoqueController::class, 'criarCategoria']);
     $router->post($g . '/estoque/categorias/{id}', [EstoqueController::class, 'atualizarCategoria']);
+    $router->post($g . '/estoque/categorias/{id}/impressoras', [EstoqueController::class, 'impressorasCategoria']);
     $router->post($g . '/estoque/categorias/{id}/excluir', [EstoqueController::class, 'excluirCategoria']);
 
     // Equipe

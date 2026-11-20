@@ -36,6 +36,30 @@ Banco: migration `20261120230000_create_impressoras.php` (`impressoras`, `impres
 `database/verify-impressoras.php`, `deploy/scripts/apply-impressoras.sh` (gatilho `[cardapim-impressoras]`).
 Testes: `tests/http/impressoras.sh`, `desktop-agent/tests/test_printer_list.py`.
 
+## Impressão por produto (vias de produção)
+
+Para restaurantes com várias estações (Churrasqueira, Cozinha, Bar, Balcão):
+
+- **Produto:** Estoque > produto > **Sai na impressora**, com um check por apelido de impressora do Agent.
+  **Atalho:** Estoque > Categorias > *Impressora de produção por categoria* aplica as impressoras marcadas a todos
+  os produtos da categoria (depois dá para ajustar produto por produto).
+- **Ponto "Produção"** (Integrações > Impressoras): a impressora padrão recebe os itens sem impressora marcada.
+  Com o ponto configurado, as vias de produção ficam ligadas.
+- **Garçom:** em Imprimir > **Só os itens novos**, cada item sai na impressora do produto (um cupom por estação, com a
+  mesa em letra grande, hora, garçom, complementos e observações, sem o total). "Comanda inteira" continua num cupom só.
+- **Caixa:** na comanda, **Itens novos para produção** faz o mesmo (balcão e mesa). "Imprimir conta" continua inteira.
+- **Delivery:** quando o pedido é **aceito** (caixa, Receber do Agent, aceite no iFood ou aceite automático), as vias
+  de produção saem por estação, uma vez por pedido. A via completa do pedido novo continua no ponto "Pedido novo do delivery".
+- **Estação desligada:** no garçom/caixa o envio inteiro é recusado com o nome da estação (nada sai pela metade);
+  os itens continuam como "novos" para tentar de novo.
+- **Item cancelado** não sai na via de produção (nem gera aviso).
+- A tela mostra uma situação única do envio dividido ("Impresso em Bar e Cozinha").
+
+Banco: migration `20261121000000_impressao_por_produto.php` (`produto_impressoras`, ponto `producao`, `impressoes.lote`,
+tipo `producao`), `database/verify-impressao-produto.php`, `deploy/scripts/apply-impressao-produto.sh`
+(gatilho `[cardapim-impressao-produto]`). Testes: `tests/unit/impressao.php`, `tests/http/impressao-produto.sh`.
+O Agent 0.8.0 já atende (não precisa atualizar).
+
 ## Fluxo
 
 1. O navegador envia `POST` (com CSRF). O servidor monta o cupom com os dados do banco (`CupomImpressao`)

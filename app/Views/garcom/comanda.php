@@ -78,7 +78,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <?php $impressoras ??= []; if (count($impressoras) > 1): ?>
                     <fieldset class="comanda-imprimir-destino">
-                        <legend>Imprimir em</legend>
+                        <legend><?= !empty($producaoAtiva) ? 'Comanda inteira sai em' : 'Imprimir em' ?></legend>
                         <?php foreach ($impressoras as $imp): ?>
                             <label class="chip-opcao"><input type="radio" name="impressora" value="<?= (int) $imp['id'] ?>"<?= $imp['padrao'] ? ' checked' : '' ?>><span><?= $e($imp['apelido']) ?><?= $imp['ligada'] ? '' : ' (desligada)' ?></span></label>
                         <?php endforeach; ?>
@@ -92,7 +92,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                     <?= Icon::svg('receipt') ?><span><strong>Comanda inteira</strong><small>Todos os itens e o total até agora</small></span>
                 </button>
                 <button class="comanda-imprimir-opcao" type="submit" name="modo" value="novos"<?= $novos === 0 ? ' disabled data-sempre-desligado' : '' ?>>
-                    <?= Icon::svg('square-plus') ?><span><strong>Só os itens novos<?= $novos > 0 ? ' (' . $novos . ')' : '' ?></strong><small><?= $novos > 0 ? 'O que foi lançado depois da última impressão' : 'Nenhum item novo desde a última impressão' ?></small></span>
+                    <?= Icon::svg('square-plus') ?><span><strong>Só os itens novos<?= $novos > 0 ? ' (' . $novos . ')' : '' ?></strong><small><?= $novos === 0 ? 'Nenhum item novo desde a última impressão' : (!empty($producaoAtiva) ? 'Cada item sai na sua estação (churrasqueira, cozinha, bar...)' : 'O que foi lançado depois da última impressão') ?></small></span>
                 </button>
             </form>
         </details>

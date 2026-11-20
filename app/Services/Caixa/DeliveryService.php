@@ -137,6 +137,10 @@ final class DeliveryService
         if ($ifood) {
             IfoodAcoes::agendarEnvio($this->idRestaurante);
         }
+        if ($acao === 'aceitar') {
+            // Vias de producao (Churrasqueira, Cozinha, Bar...) saem quando o pedido e aceito. Nunca impede o aceite.
+            (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoPedido($id);
+        }
         return Resultado::sucesso('Pedido #' . $p['numero'] . ': ' . mb_strtolower(rtrim($texto, '.')) . '.' . ($ifood ? ' O iFood foi avisado.' : ''));
     }
 

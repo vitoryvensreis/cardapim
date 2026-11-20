@@ -27,9 +27,19 @@ final class ImpressorasController extends BaseGerencia
             'ativo' => $ativo,
             'impressoras' => $ativo ? $repo->listar($this->restaurante['id']) : [],
             'pontos' => $ativo ? $repo->pontos($this->restaurante['id']) : [],
-            'rotulos' => ImpressoraRepository::PONTOS,
+            'rotulos' => $this->pontosDisponiveis(),
             'agentDownload' => IntegracoesController::AGENT_DOWNLOAD,
         ]);
+    }
+
+    /** O ponto "producao" so aparece depois da migracao da impressao por produto. @return array<string,string> */
+    private function pontosDisponiveis(): array
+    {
+        $pontos = ImpressoraRepository::PONTOS;
+        if (!Esquema::tem($this->db, 'impressao_produto')) {
+            unset($pontos['producao']);
+        }
+        return $pontos;
     }
 
     public function salvar(string $slug): Response
@@ -44,7 +54,7 @@ final class ImpressorasController extends BaseGerencia
         $marcadas = is_array($_POST['ponto'] ?? null) ? $_POST['ponto'] : [];
         $padroes = is_array($_POST['padrao'] ?? null) ? $_POST['padrao'] : [];
         $config = [];
-        foreach (array_keys(ImpressoraRepository::PONTOS) as $ponto) {
+        foreach (array_keys($this->pontosDisponiveis()) as $ponto) {
             $ids = [];
             foreach (is_array($marcadas[$ponto] ?? null) ? $marcadas[$ponto] : [] as $v) {
                 if (is_string($v) && ctype_digit($v) && strlen($v) <= 18) {

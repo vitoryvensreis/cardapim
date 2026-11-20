@@ -496,3 +496,6 @@
 .imprimir-escolha-lista small { font-weight: 400; opacity: .8; }
 .imprimir-escolha-lista[aria-busy="true"] button { cursor: progress; }
 @media (prefers-reduced-motion: reduce) { .imprimir-escolha[open] > summary .icon:last-child { transform: none; } }
+
+/* Conta: botoes Itens novos para producao e Imprimir conta lado a lado */
+.conta-imprimir { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }

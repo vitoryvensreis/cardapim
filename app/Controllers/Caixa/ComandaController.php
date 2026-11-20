@@ -48,7 +48,17 @@ final class ComandaController extends BaseCaixa
             'trocoAviso' => \Cardapim\Core\Session::flash('caixa_troco'),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'impressoras' => $this->impressoras('caixa_conta'),
+            // Vias de producao ligadas: botao "Itens novos para producao" (cada item na impressora do produto).
+            ...$this->producao($c),
         ]);
+    }
+
+    /** @param array<string,mixed> $c @return array{producaoAtiva:bool,itensNovos:int} */
+    private function producao(array $c): array
+    {
+        $fila = new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->restaurante['id'], $this->restaurante['nome'], $this->usuario);
+        $ativa = $c['aberta'] && $fila->producaoAtiva();
+        return ['producaoAtiva' => $ativa, 'itensNovos' => $ativa ? $fila->itensNovos($c) : 0];
     }
 
     public function lancar(string $slug, string $id): Response
