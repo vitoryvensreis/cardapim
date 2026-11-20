@@ -96,6 +96,18 @@ final class ComandaController extends BaseCaixa
         return $this->responder($res, $this->url('comandas/' . (int) $id));
     }
 
+    public function observacao(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $valor = $_POST['observacao'] ?? '';
+        $res = self::id($id) !== null
+            ? $this->servico()->observar((int) $id, is_string($valor) ? mb_substr($valor, 0, 400) : '')
+            : Resultado::falha('Comanda não encontrada.');
+        return $this->responder($res, $this->url('comandas/' . (int) $id));
+    }
+
     public function transferir(string $slug, string $id): Response
     {
         if ($r = $this->entrar($slug, true)) {

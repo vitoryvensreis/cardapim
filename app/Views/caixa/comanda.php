@@ -11,7 +11,7 @@ use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Shared\Numero;
 
 $pageStyles = [...($pageStyles ?? []), 'css/balanca-caixa.css'];
-$pageScripts = [...($pageScripts ?? []), 'js/balanca-caixa.js'];
+$pageScripts = [...($pageScripts ?? []), 'js/balanca-caixa.js', 'js/imprimir-agent.js'];
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $r = static fn (int $c): string => Numero::reais(CaixaService::dec($c));
 $p = $c['pedido'];
@@ -107,7 +107,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
             <div class="bloco conta" data-regiao="conta">
                 <div class="bloco-cabecalho">
                     <h2 id="titulo-conta"><?= Icon::svg('receipt') ?>Conta</h2>
-                    <?php if ($ativos !== []): ?><button class="btn btn-outline btn-sm" type="button" data-imprimir><?= Icon::svg('printer', 'icon-sm') ?>Imprimir conta</button><?php endif; ?>
+                    <?php if ($ativos !== []): ?><form method="post" action="<?= $e($base . '/imprimir/comanda/' . (int) $p['id']) ?>" class="form-imprimir" data-imprimir-agent><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>"><button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('printer', 'icon-sm') ?>Imprimir conta</button></form><?php endif; ?>
                 </div>
                 <?php if ($c['itens'] === []): ?>
                     <div class="conta-vazia">
@@ -135,6 +135,10 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                     </ul>
                 <?php endif; ?>
 
+                <?php if (trim((string) ($p['observacao'] ?? '')) !== ''): ?>
+                    <p class="conta-observacao"><?= Icon::svg('sticky-note', 'icon-sm') ?><span><strong>Observação do pedido</strong><?= nl2br($e((string) $p['observacao'])) ?></span></p>
+                <?php endif; ?>
+
                 <dl class="conta-totais">
                     <div><dt>Itens (<?= (int) $qtdItens ?>)</dt><dd><?= $e($r($c['subtotal'])) ?></dd></div>
                     <?php if ($servicoLigado || $c['servico'] > 0): ?><div><dt>Serviço (<?= $e(rtrim(rtrim(number_format((float) $p['servico_percentual'], 2, ',', ''), '0'), ',')) ?>%)</dt><dd><?= $e($r($c['servico'])) ?></dd></div><?php endif; ?>
@@ -152,6 +156,19 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                         <?= Icon::svg('wallet', 'icon-sm') ?>Receber e fechar conta
                     </a>
                     <?php if (!$caixaAberto): ?><p class="conta-aviso"><?= Icon::svg('lock', 'icon-sm') ?>O caixa está fechado. <a href="<?= $e($base) ?>">Abra o caixa</a> para receber.</p><?php endif; ?>
+
+                    <?php if ($p['tipo'] === 'balcao'): $temObs = trim((string) ($p['observacao'] ?? '')) !== ''; ?>
+                        <details class="conta-mais"<?= isset($erros['observacao']) ? ' open' : '' ?>>
+                            <summary><?= Icon::svg('sticky-note', 'icon-sm') ?><?= $temObs ? 'Editar observação do pedido' : 'Adicionar observação ao pedido' ?></summary>
+                            <form method="post" action="<?= $e($url . '/observacao') ?>" class="conta-ajustes" novalidate data-ajax>
+                                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                                <label class="campo-caixa"><span>Observação (sai na impressão)</span>
+                                    <textarea name="observacao" rows="3" maxlength="<?= ComandaService::MAX_OBSERVACAO ?>" placeholder="Ex.: para viagem, embalar separado, cliente volta às 19h"<?= isset($erros['observacao']) ? ' aria-invalid="true"' : '' ?>><?= $e($enviado['observacao'] ?? (string) ($p['observacao'] ?? '')) ?></textarea></label>
+                                <?php if (isset($erros['observacao'])): ?><p class="campo-erro"><?= $e($erros['observacao']) ?></p><?php endif; ?>
+                                <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar observação</button>
+                            </form>
+                        </details>
+                    <?php endif; ?>
 
                     <details class="conta-mais"<?= isset($erros['desconto']) || isset($erros['motivo_desconto']) || isset($erros['pessoas']) ? ' open' : '' ?>>
                         <summary><?= Icon::svg('percent', 'icon-sm') ?>Serviço, desconto e dividir a conta</summary>
@@ -283,6 +300,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
             <tr class="impressao-total"><td>Total</td><td><?= $e($r($c['total'])) ?></td></tr>
             <?php if ($pessoas > 1 && $c['total'] > 0): ?><tr><td>Por pessoa (<?= $pessoas ?>)</td><td><?= $e($r(intdiv($c['total'] + $pessoas - 1, $pessoas))) ?></td></tr><?php endif; ?>
         </table>
+        <?php if (trim((string) ($p['observacao'] ?? '')) !== ''): ?><p>Observação: <?= $e((string) $p['observacao']) ?></p><?php endif; ?>
         <p>Não é documento fiscal.</p>
     </div>
 </div>

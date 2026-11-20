@@ -36,7 +36,7 @@ Gerente: `/gerencia/mesas` leva ao cadastro de mesas e `/entregas` ao Delivery d
   fica livre quando a ultima comanda fecha. Trocar de mesa aceita mesa ocupada (entra como mais uma comanda).
   Limite: 20 comandas abertas por mesa. Dois aparelhos tocando na mesma mesa livre: `SELECT ... FOR UPDATE` na mesa,
   o segundo recebe a mesma comanda. Taxa de servico de 10% ligada por padrao
-  na mesa (desligavel), desconto exige motivo, "dividir por N pessoas", trocar de mesa, imprimir a conta (80 mm).
+  na mesa (desligavel), desconto exige motivo, "dividir por N pessoas", trocar de mesa, imprimir a conta pelo Deliveryzim Agent ([impressao-agent.md](impressao-agent.md)); no balcao, observacao do pedido (sai no cupom).
 - **Estoque**: cada item lancado na comanda baixa os insumos NA HORA pela ficha tecnica e guarda o consumo no item
   (`pedido_itens.consumo_estoque`). Item cancelado (com motivo) devolve exatamente esse consumo; comanda cancelada
   devolve tudo (o motivo do cancelamento da comanda e opcional; sem motivo grava "Cancelada no caixa"). Faltou insumo: o item nao e lancado e a mensagem diz o que falta.
@@ -76,6 +76,8 @@ Rotas novas (CSRF, caixa/gerente; as mesmas no garcom em `/{slug}/garcom/...`):
 | --- | --- | --- |
 | POST | `/{slug}/caixa/mesas/{id}/comandas` | Nova comanda na mesa (`nome` opcional, `voltar_comanda` para voltar em caso de erro) |
 | POST | `/{slug}/caixa/comandas/{id}/nome` | Da, troca ou tira (`nome` vazio) o nome da comanda; no balcao muda o nome do cliente |
+| POST | `/{slug}/caixa/comandas/{id}/observacao` | Observacao do pedido de balcao (ate 300, vazio apaga); sai na impressao |
+| POST | `/{slug}/caixa/imprimir/{comanda,pedido,caixa}/{id}` | Manda o cupom para o Deliveryzim Agent; `GET /{slug}/caixa/imprimir/{id}` = situacao |
 
 ## Funcoes de caixa pesquisadas
 

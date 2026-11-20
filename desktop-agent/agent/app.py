@@ -18,7 +18,7 @@ from agent.alerts import AlertBoard, RING_INTERVAL_MS
 from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
 from agent.notifier import OrderToasts
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
-from agent.printing import printers, receipt, spool
+from agent.printing import job_receipt, printers, receipt, spool
 from agent.scale import ScaleMonitor, ScaleSettings
 from agent.scale_panel import ScalePanel
 from agent.sound import play as play_order_sound
@@ -561,6 +561,10 @@ class DeliveryzimApp:
                         continue
                     if self.store.receive(order):
                         self.messages.put(("new", order))
+                # Cupons pedidos pelo caixa/garçom ("Imprimir"): o sistema já reservou para este computador.
+                for job in response.get("impressoes") or []:
+                    if isinstance(job, dict) and isinstance(job.get("id"), int) and isinstance(job.get("blocos"), list):
+                        self.messages.put(("print_job", job))
                 new_cursor = int(response.get("cursor", cursor))
                 if new_cursor >= cursor:
                     self.preferences.set(cursor=new_cursor)
@@ -714,6 +718,30 @@ class DeliveryzimApp:
         except Exception as exc:
             self.messages.put(("print_error", (order, str(exc))))
 
+    def _print_job(self, job):
+        """Imprime na hora o cupom pedido no sistema (independe de "Automática" / "Ao receber")."""
+        target = self.printer_var.get()
+        paper = int(self.paper_var.get())
+        logo = bool(self.logo_var.get())
+        threading.Thread(target=self._print_job_task, args=(job, target, paper, logo), daemon=True,
+                         name="deliveryzim-cupom").start()
+
+    def _print_job_task(self, job, printer_name, paper, logo=True):
+        title = str(job.get("titulo") or "Cupom")[:80]
+        try:
+            spool(printer_name, job_receipt(job, paper, logo), "Deliveryzim " + title)
+            ok, error = True, ""
+            self.messages.put(("job_status", title + ": enviado ao Windows."))
+        except Exception as exc:
+            ok, error = False, str(exc)[:160] or "Falha no Windows."
+            self.messages.put(("job_status", "Falha ao imprimir " + title + ": " + error[:100]))
+        try:
+            client = ApiClient()
+            client.token = self.token
+            client.print_result(int(job["id"]), ok, error)
+        except Exception:
+            pass  # sem internet: o caixa vê que o computador não confirmou e confere o papel
+
     def _unlink(self):
         if not messagebox.askyesno("Desvincular", "Desvincular este dispositivo do restaurante?"):
             return
@@ -795,6 +823,10 @@ class DeliveryzimApp:
                 self.scale_sync_status.set(str(payload))
             elif kind == "new":
                 self._new_order(payload)
+            elif kind == "print_job":
+                self._print_job(payload)
+            elif kind == "job_status":
+                self.status_var.set(str(payload)[:150])
             elif kind == "printed":
                 self.store.update(payload["evento_id"], "enviado_ao_windows")
                 self.status_var.set("Pedido #" + str(payload.get("numero")) + " enviado ao Windows.")

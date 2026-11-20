@@ -18,6 +18,8 @@ final class Esquema
         'complementos' => ['pedido_itens', 'complementos_texto'],
         // Estoque contado no proprio produto (revenda): insumo proprio ligado ao produto.
         'estoque_produto' => ['insumos', 'id_produto_proprio'],
+        // Fila de impressao pelo Agent (tabela impressoes + coluna criada no fim da mesma migracao).
+        'impressoes' => ['desktop_agent_devices', 'impressao_em'],
     ];
 
     /** @var array<string,bool> */

@@ -92,7 +92,8 @@ class ApiClient:
             raise AuthenticationError("Agente sem credencial.")
         response = requests.get(
             self.url("/api/v1/desktop/eventos"),
-            params={"desde": int(cursor)},
+            # impressoes=1: este Agent sabe imprimir os cupons pedidos pelo caixa/garçom (fila do sistema).
+            params={"desde": int(cursor), "impressoes": 1},
             headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
             timeout=(7, 20),
         )
@@ -178,6 +179,23 @@ class ApiClient:
         if response.status_code == 409:
             return False, str(data.get("status") or ""), str(data.get("erro") or "Este pedido já mudou de situação.")
         raise RuntimeError(str(data.get("erro") or "Não foi possível aceitar agora. Tente pelo caixa."))
+
+    def print_result(self, job_id, ok, error=""):
+        """Conta ao sistema se o Windows aceitou o cupom (o caixa/garçom vê "Impresso" ou a falha)."""
+        if not self.token:
+            raise AuthenticationError("Agente sem credencial.")
+        body = {"ok": bool(ok)}
+        if not ok:
+            body["erro"] = str(error or "Falha no Windows.")[:180]
+        response = requests.post(
+            self.url("/api/v1/desktop/impressoes/" + str(int(job_id)) + "/resultado"),
+            json=body,
+            headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
+            timeout=(4, 10),
+        )
+        if response.status_code in (401, 403):
+            raise AuthenticationError("Credencial revogada, expirada ou sem permissao.")
+        return response.status_code == 200
 
     def order_url(self, order):
         """Endereço do pedido no sistema; só aceita caminho relativo do próprio servidor."""
