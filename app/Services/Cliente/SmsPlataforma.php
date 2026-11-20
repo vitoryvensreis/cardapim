@@ -6,6 +6,9 @@ namespace Cardapim\Services\Cliente;
 
 use Cardapim\Core\Config;
 use Cardapim\Modules\Integracoes\SmsGateApi;
+use Cardapim\Repositories\Plataforma\SmsGatewayRepository;
+use Cardapim\Shared\Http\ClienteHttp;
+use PDO;
 
 /**
  * Codigo de login por SMS (SMSGate). Usado automaticamente quando o WhatsApp da plataforma
@@ -15,6 +18,18 @@ final class SmsPlataforma implements CanalCodigo
 {
     public function __construct(private readonly SmsGateApi $api = new SmsGateApi())
     {
+    }
+
+    /** Usa o que foi cadastrado no painel da plataforma; sem cadastro, o shared/.env. */
+    public static function daPlataforma(PDO $db): self
+    {
+        return new self(self::api($db));
+    }
+
+    public static function api(PDO $db, ?ClienteHttp $http = null): SmsGateApi
+    {
+        $salvo = (new SmsGatewayRepository($db))->buscar();
+        return new SmsGateApi($http ?? new ClienteHttp(15), $salvo !== null ? ['url' => $salvo['url'], 'usuario' => $salvo['usuario'], 'senha' => $salvo['senha']] : null);
     }
 
     public function canal(): string

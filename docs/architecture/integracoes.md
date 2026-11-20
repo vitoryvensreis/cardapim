@@ -21,6 +21,8 @@ usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-p
   `/webhooks/asaas/{id}`; avisos da plataforma ficam em `integracao_eventos` com `id_restaurante` NULL.
 - **WhatsApp da plataforma**: instância própria (`deliveryzim_plataforma_*`), separada das instâncias
   dos restaurantes (`deliveryzim_r{id}_*`). Envia os códigos de verificação do cliente final.
+- **SMS da plataforma** (`/painel/integracoes/sms`): servidor SMSGate (celular Android), reserva automática dos códigos
+  quando o WhatsApp falha. Configuração cifrada em `configuracoes` (chave `sms_gateway`). [Detalhes](../deploy/sms.md).
 - Migration `20261110100000_integracoes_plataforma.php`: `id_restaurante` aceita NULL e a coluna gerada `escopo`
   (id do restaurante ou 0) garante uma integração por provedor em cada escopo (`UNIQUE(escopo, provedor)`).
 - No código: `IntegracaoRepository` e os serviços recebem `?int $idRestaurante` (`null` = plataforma).

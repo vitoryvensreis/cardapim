@@ -63,6 +63,7 @@ Painel do gerente (`/{slug}/gerencia/entrega-pagamento`, gerente do restaurante 
 | GET | `/entrega-pagamento/testar?cep=&numero=&bairro=&cidade=` | Testar se entrega num endereco |
 | POST | `/entrega-pagamento/areas`, `/areas/{id}`, `/areas/{id}/pausar`, `/areas/{id}/excluir` | Areas de entrega |
 | POST | `/entrega-pagamento/localizacao`, `/localizacao/remover` | Local do restaurante |
+| POST | `/entrega-pagamento/entregador` | Painel do entregador: mostrar ou esconder os valores das taxas (`entregador_ve_valores=1` mostra) |
 
 Cliente final:
 

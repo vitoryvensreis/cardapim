@@ -45,6 +45,28 @@ final class EntregaPagamentoRepository
             . str_repeat(', ?', count(self::CAMPOS)) . ')')->execute([$idRestaurante, ...$valores]);
     }
 
+    /**
+     * O entregador ve no painel dele quanto ganhou em taxas? Padrao sim (sem linha salva ou antes da migration).
+     */
+    public function entregadorVeValores(int $idRestaurante): bool
+    {
+        try {
+            $q = $this->db->prepare('SELECT entregador_ve_valores FROM restaurante_entrega_pagamento WHERE id_restaurante = ?');
+            $q->execute([$idRestaurante]);
+            $v = $q->fetchColumn();
+        } catch (\PDOException) {
+            return true; // coluna ainda nao criada (migration 20261120180000 pendente)
+        }
+        return $v === false || (int) $v === 1;
+    }
+
+    public function salvarEntregadorVeValores(int $idRestaurante, bool $ve): void
+    {
+        $this->db->prepare('INSERT INTO restaurante_entrega_pagamento (id_restaurante, entregador_ve_valores) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE entregador_ve_valores = VALUES(entregador_ve_valores), atualizado_em = CURRENT_TIMESTAMP')
+            ->execute([$idRestaurante, $ve ? 1 : 0]);
+    }
+
     /** @return list<array<string,mixed>> bairros por nome, depois faixas de km em ordem crescente */
     public function areas(int $idRestaurante): array
     {

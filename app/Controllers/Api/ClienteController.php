@@ -98,6 +98,6 @@ final class ClienteController
 
     private function codigos(): CodigoVerificacao
     {
-        return new CodigoVerificacao(new WhatsAppPlataforma(Database::connect()), null, new SmsPlataforma());
+        return new CodigoVerificacao(new WhatsAppPlataforma(Database::connect()), null, SmsPlataforma::daPlataforma(Database::connect()));
     }
 }
