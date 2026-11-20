@@ -71,7 +71,8 @@ class GuiSmokeTests(unittest.TestCase):
             self.assertTrue(sync.called)
         self.assertEqual(app.printer_items[-1]["apelido"], "Cozinha")
         self.assertEqual(app.printer_items[-1]["papel"], 58)
-        with patch("agent.app.messagebox.showwarning") as warn:
+        with patch("agent.app.messagebox.showwarning") as warn, patch.object(app, "_sync_printers"):
+            row.windows.set("")  # o runner pode ter uma impressora (escolhida sozinha ao adicionar)
             row.test()
             self.assertTrue(warn.called)  # sem impressora do Windows escolhida
         with patch("agent.printer_panel.messagebox.askyesno", return_value=True), patch.object(app, "_sync_printers"):
