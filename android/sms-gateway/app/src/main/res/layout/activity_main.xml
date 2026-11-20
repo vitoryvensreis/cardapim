@@ -42,7 +42,7 @@
             android:textStyle="bold"/>
         <EditText
             android:id="@+id/apiUrl"
-            style="@style/Gateway.Field"
+            style="@style/GatewayField"
             android:inputType="textUri"
             android:hint="https://deliveryzim.com.br"
             android:importantForAutofill="no"
@@ -56,22 +56,22 @@
             android:textStyle="bold"/>
         <EditText
             android:id="@+id/apiToken"
-            style="@style/Gateway.Field"
+            style="@style/GatewayField"
             android:inputType="textPassword"
             android:hint="Token gerado pela VPS"
             android:importantForAutofill="no"
             android:singleLine="true"/>
         <Button
             android:id="@+id/save"
-            style="@style/Gateway.Button"
+            style="@style/GatewayButton"
             android:text="Salvar configuração"/>
         <Button
             android:id="@+id/start"
-            style="@style/Gateway.Button"
+            style="@style/GatewayButton"
             android:text="Iniciar gateway"/>
         <Button
             android:id="@+id/stop"
-            style="@style/Gateway.Button"
+            style="@style/GatewayButton"
             android:text="Parar gateway"/>
         <TextView
             android:layout_width="match_parent"
@@ -83,13 +83,13 @@
             android:textSize="18sp"/>
         <EditText
             android:id="@+id/testPhone"
-            style="@style/Gateway.Field"
+            style="@style/GatewayField"
             android:inputType="phone"
             android:hint="DDD + celular para teste"
             android:singleLine="true"/>
         <Button
             android:id="@+id/testSms"
-            style="@style/Gateway.Button"
+            style="@style/GatewayButton"
             android:text="Enviar SMS de teste"/>
         <TextView
             android:layout_width="match_parent"
