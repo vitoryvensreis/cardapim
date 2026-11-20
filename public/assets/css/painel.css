@@ -529,6 +529,31 @@
 .integracao-cartao.is-em-breve .btn[disabled] { --btn-bg: var(--c-blush); --btn-fg: var(--c-muted); border-color: var(--c-line); opacity: 1; }
 .integracao-cartao.is-asaas .integracao-icone { background: #e8f0fe; color: #1a56db; }
 .integracao-cartao.is-agent .integracao-icone { background: var(--c-orange-100); color: var(--c-orange-700); }
+.integracao-cartao.is-importar .integracao-icone { background: var(--c-success-bg); color: var(--c-success); }
+
+/* Importar cardapio por planilha */
+.importar-envio { display: grid; gap: .75rem; }
+.importar-arquivo { display: flex; align-items: center; gap: .85rem; padding: 1rem 1.1rem; border: 2px dashed var(--c-line); border-radius: var(--r-md); background: var(--c-cream); color: var(--c-wine); cursor: pointer; }
+.importar-arquivo span { display: grid; gap: .15rem; color: var(--c-ink); }
+.importar-arquivo small { color: var(--c-muted); }
+.importar-input { width: 100%; min-height: 2.75rem; padding: .55rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); font: inherit; }
+.importar-input:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.importar-envio .bloco-rodape { margin-top: 0; }
+.importar-dicas { display: grid; gap: .55rem; margin: 0; padding-left: 1.2rem; color: var(--c-ink); }
+.importar-erros { display: grid; gap: .5rem; margin: 1rem 0 1.25rem; padding: 0; list-style: none; }
+.importar-erros li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; padding: .65rem .8rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.importar-confirmar { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1.1rem 0 .6rem; }
+.importar-confirmar form { margin: 0; }
+.importar-categoria { margin: 1.1rem 0 .5rem; color: var(--c-wine); font-size: 1.05rem; font-weight: 700; }
+.importar-categoria:first-of-type { margin-top: 0; }
+.importar-previa { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--c-line); border-radius: var(--r-md); }
+.importar-previa > li { padding: .7rem .9rem; }
+.importar-previa > li + li { border-top: 1px solid var(--c-line); }
+.importar-previa-linha { display: flex; justify-content: space-between; gap: 1rem; }
+.importar-previa-linha > span:first-child { display: grid; gap: .1rem; min-width: 0; overflow-wrap: anywhere; }
+.importar-previa-linha small { color: var(--c-muted); }
+.importar-preco { flex: none; color: var(--c-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.importar-grupo { margin: .35rem 0 0; color: var(--c-ink); font-size: .9rem; overflow-wrap: anywhere; }
 .integracao-detalhe { color: var(--c-ink) !important; font-weight: 700; overflow-wrap: anywhere; }
 .chave-curta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .manual { margin-top: 1rem; padding: .9rem 1rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: #fdfafb; }

@@ -10,6 +10,7 @@ use Cardapim\Controllers\Gerencia\FidelidadeController;
 use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
 use Cardapim\Controllers\Gerencia\FinanceiroController;
+use Cardapim\Controllers\Gerencia\ImportarCardapioController;
 use Cardapim\Controllers\Gerencia\IntegracoesController;
 use Cardapim\Controllers\Gerencia\SuporteController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
@@ -148,6 +149,12 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/whatsapp/avisos', [IntegracoesController::class, 'whatsappAvisos']);
     $router->post($g . '/integracoes/whatsapp/saudacao', [IntegracoesController::class, 'whatsappSaudacao']);
     $router->post($g . '/integracoes/whatsapp/desconectar', [IntegracoesController::class, 'whatsappDesconectar']);
+    // Importar cardapio por planilha (CSV/XLSX): enviar -> conferir -> importar.
+    $router->get($g . '/integracoes/importar-cardapio', [ImportarCardapioController::class, 'inicio']);
+    $router->get($g . '/integracoes/importar-cardapio/modelo', [ImportarCardapioController::class, 'modelo']);
+    $router->post($g . '/integracoes/importar-cardapio/conferir', [ImportarCardapioController::class, 'conferir']);
+    $router->post($g . '/integracoes/importar-cardapio/importar', [ImportarCardapioController::class, 'importar']);
+    $router->post($g . '/integracoes/importar-cardapio/descartar', [ImportarCardapioController::class, 'descartar']);
     $router->get($g . '/suporte', [SuporteController::class, 'lista']);
     $router->get($g . '/suporte/novo', [SuporteController::class, 'novo']);
     $router->post($g . '/suporte', [SuporteController::class, 'criar']);
