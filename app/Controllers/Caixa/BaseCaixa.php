@@ -86,6 +86,15 @@ abstract class BaseCaixa
         ], 'layouts/caixa'), $status));
     }
 
+    /**
+     * Impressoras do ponto para o botao Imprimir (escolha so aparece com mais de uma).
+     * @return list<array{id:int,apelido:string,computador:string,ligada:bool,padrao:bool}>
+     */
+    protected function impressoras(string $ponto): array
+    {
+        return (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->restaurante['id'], $this->restaurante['nome'], $this->usuario))->opcoes($ponto);
+    }
+
     protected function post(string $campo): string
     {
         $valor = $_POST[$campo] ?? '';

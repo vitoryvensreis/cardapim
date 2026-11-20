@@ -92,8 +92,9 @@ class ApiClient:
             raise AuthenticationError("Agente sem credencial.")
         response = requests.get(
             self.url("/api/v1/desktop/eventos"),
-            # impressoes=1: este Agent sabe imprimir os cupons pedidos pelo caixa/garçom (fila do sistema).
-            params={"desde": int(cursor), "impressoes": 1},
+            # impressoes=1: sabe imprimir os cupons pedidos pelo caixa/garçom (fila do sistema).
+            # impressoras=1: tem lista de impressoras (cupom e pedido novo chegam com a impressora escolhida).
+            params={"desde": int(cursor), "impressoes": 1, "impressoras": 1},
             headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
             timeout=(7, 20),
         )
@@ -179,6 +180,26 @@ class ApiClient:
         if response.status_code == 409:
             return False, str(data.get("status") or ""), str(data.get("erro") or "Este pedido já mudou de situação.")
         raise RuntimeError(str(data.get("erro") or "Não foi possível aceitar agora. Tente pelo caixa."))
+
+    def register_printers(self, items):
+        """Lista completa de impressoras deste computador (chave + apelido) para o gerente escolher no painel."""
+        if not self.token:
+            raise AuthenticationError("Agente sem credencial.")
+        response = requests.post(
+            self.url("/api/v1/desktop/impressoras"),
+            json={"impressoras": [{"chave": str(i["chave"]), "apelido": str(i["apelido"])[:40]} for i in items][:50]},
+            headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
+            timeout=(4, 10),
+        )
+        if response.status_code in (401, 403):
+            raise AuthenticationError("Credencial revogada, expirada ou sem permissao.")
+        if response.status_code != 200:
+            try:
+                message = response.json().get("erro") or "Falha ao enviar as impressoras."
+            except ValueError:
+                message = "Falha ao enviar as impressoras."
+            raise RuntimeError(message)
+        return True
 
     def print_result(self, job_id, ok, error=""):
         """Conta ao sistema se o Windows aceitou o cupom (o caixa/garçom vê "Impresso" ou a falha)."""

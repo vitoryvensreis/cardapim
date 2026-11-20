@@ -52,6 +52,7 @@ final class DeliveryController extends BaseCaixa
             'entregadores' => $s->entregadores(),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'gestor' => in_array($this->usuario->cargo, ['gerente', 'adm_master'], true),
+            'impressoras' => $this->impressoras('caixa_delivery'),
             'ifood' => $d['pedido']['origem'] === 'ifood' ? [
                 'dados' => DadosPedidoIfood::ler($d['pedido']['ifood_dados'] ?? null),
                 'conectado' => (new IfoodConta($this->db, $this->restaurante['id']))->conectada(),

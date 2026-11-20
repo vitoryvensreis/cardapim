@@ -58,7 +58,7 @@ class PrintResultApiTests(unittest.TestCase):
         with patch("agent.api.requests.get") as get:
             get.return_value = MagicMock(status_code=200, json=lambda: {"cursor": 1, "pedidos": []})
             client.events(5)
-        self.assertEqual(get.call_args.kwargs["params"], {"desde": 5, "impressoes": 1})
+        self.assertEqual(get.call_args.kwargs["params"], {"desde": 5, "impressoes": 1, "impressoras": 1})
 
     def test_resultado_ok_e_erro(self):
         client = ApiClient()
@@ -71,6 +71,19 @@ class PrintResultApiTests(unittest.TestCase):
             self.assertEqual(post.call_args.kwargs["headers"]["Authorization"], "Bearer " + client.token)
             client.print_result(8, False, "Impressora offline")
             self.assertEqual(post.call_args.kwargs["json"], {"ok": False, "erro": "Impressora offline"})
+
+    def test_registra_impressoras(self):
+        client = ApiClient()
+        client.token = "dzag_" + "d" * 64
+        with patch("agent.api.requests.post") as post:
+            post.return_value = MagicMock(status_code=200)
+            client.register_printers([{"chave": "abcd1234ef", "apelido": "Cozinha", "windows": "EPSON"}])
+        self.assertTrue(post.call_args.args[0].endswith("/api/v1/desktop/impressoras"))
+        self.assertEqual(post.call_args.kwargs["json"], {"impressoras": [{"chave": "abcd1234ef", "apelido": "Cozinha"}]})
+        with patch("agent.api.requests.post") as post:
+            post.return_value = MagicMock(status_code=422, json=lambda: {"erro": "Apelido grande"})
+            with self.assertRaises(RuntimeError):
+                client.register_printers([{"chave": "abcd1234ef", "apelido": "x"}])
 
     def test_resultado_exige_credencial(self):
         with self.assertRaises(AuthenticationError):

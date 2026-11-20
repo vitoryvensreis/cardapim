@@ -6,6 +6,7 @@ namespace Cardapim\Services\Impressao;
 
 use Cardapim\Repositories\Caixa\CaixaRepository;
 use Cardapim\Repositories\Desktop\ImpressaoRepository;
+use Cardapim\Repositories\Desktop\ImpressoraRepository;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Caixa\CaixaService;
@@ -40,12 +41,13 @@ final class FilaImpressao
     /**
      * Comanda de mesa/balcao. Modos: conta (caixa), pre_conta (garcom: comanda inteira), itens_novos (garcom).
      */
-    public function comanda(int $idPedido, string $modo): Resultado
+    public function comanda(int $idPedido, string $modo, string $ponto = 'caixa_conta', ?int $idImpressora = null): Resultado
     {
         if (!in_array($modo, CupomImpressao::MODOS_COMANDA, true)) {
             return Resultado::falha('Escolha o que imprimir.');
         }
-        if ($erro = $this->conferir()) {
+        [$impressora, $erro] = $this->destino($ponto, $idImpressora);
+        if ($erro !== null) {
             return $erro;
         }
         $c = (new ComandaService($this->db, $this->idRestaurante, $this->autor))->detalhes($idPedido);
@@ -57,14 +59,15 @@ final class FilaImpressao
         if ($cupom['itens'] === 0) {
             return Resultado::falha($modo === 'itens_novos' ? 'Nenhum item novo desde a última impressão.' : 'A comanda ainda não tem itens.');
         }
-        $id = $this->repo->criar($this->idRestaurante, $idPedido, $modo, $cupom['titulo'], $cupom['blocos'], $cupom['ate_item'], $this->autor->id);
-        return Resultado::sucesso('Enviado para a impressora.', $id);
+        $id = $this->repo->criar($this->idRestaurante, $idPedido, $modo, $cupom['titulo'], $cupom['blocos'], $cupom['ate_item'], $this->autor->id, $impressora['id'] ?? null);
+        return Resultado::sucesso(self::enviado($impressora), $id);
     }
 
     /** Pedido de entrega/retirada (tela do delivery no caixa). */
-    public function pedido(int $idPedido): Resultado
+    public function pedido(int $idPedido, ?int $idImpressora = null): Resultado
     {
-        if ($erro = $this->conferir()) {
+        [$impressora, $erro] = $this->destino('caixa_delivery', $idImpressora);
+        if ($erro !== null) {
             return $erro;
         }
         $pedidos = new PedidoRepository($this->db);
@@ -73,14 +76,15 @@ final class FilaImpressao
             return Resultado::falha('Pedido não encontrado.');
         }
         $cupom = CupomImpressao::pedido($p, $pedidos->itens($this->idRestaurante, $idPedido), $this->restaurante);
-        $id = $this->repo->criar($this->idRestaurante, $idPedido, 'pedido', $cupom['titulo'], $cupom['blocos'], null, $this->autor->id);
-        return Resultado::sucesso('Enviado para a impressora.', $id);
+        $id = $this->repo->criar($this->idRestaurante, $idPedido, 'pedido', $cupom['titulo'], $cupom['blocos'], null, $this->autor->id, $impressora['id'] ?? null);
+        return Resultado::sucesso(self::enviado($impressora), $id);
     }
 
     /** Resumo de um caixa (aberto = parcial; fechado = o que foi gravado no fechamento). */
-    public function fechamento(int $idCaixa): Resultado
+    public function fechamento(int $idCaixa, ?int $idImpressora = null): Resultado
     {
-        if ($erro = $this->conferir()) {
+        [$impressora, $erro] = $this->destino('caixa_fechamento', $idImpressora);
+        if ($erro !== null) {
             return $erro;
         }
         $repo = new CaixaRepository($this->db);
@@ -93,8 +97,60 @@ final class FilaImpressao
             $caixa, $resumo, $repo->movimentos($this->idRestaurante, $idCaixa),
             count($repo->pagamentos($this->idRestaurante, $idCaixa)), $this->restaurante,
         );
-        $id = $this->repo->criar($this->idRestaurante, null, 'fechamento', $cupom['titulo'], $cupom['blocos'], null, $this->autor->id);
-        return Resultado::sucesso('Enviado para a impressora.', $id);
+        $id = $this->repo->criar($this->idRestaurante, null, 'fechamento', $cupom['titulo'], $cupom['blocos'], null, $this->autor->id, $impressora['id'] ?? null);
+        return Resultado::sucesso(self::enviado($impressora), $id);
+    }
+
+    /**
+     * Impressoras que o gerente marcou para o ponto (a padrao primeiro). Vazio = sem escolha (Agent principal).
+     * A tela so pergunta quando ha mais de uma.
+     * @return list<array{id:int,apelido:string,computador:string,ligada:bool,padrao:bool}>
+     */
+    public function opcoes(string $ponto): array
+    {
+        if (!Esquema::tem($this->db, 'impressoras')) {
+            return [];
+        }
+        try {
+            return (new ImpressoraRepository($this->db))->opcoes($this->idRestaurante, $ponto);
+        } catch (\Throwable $e) {
+            error_log('[Cardapim] Impressoras indisponiveis (' . get_class($e) . ').');
+            return [];
+        }
+    }
+
+    /**
+     * Decide a impressora do cupom: ponto sem configuracao = qualquer Agent (principal); com uma = ela;
+     * com varias = a escolhida (precisa estar na lista do ponto) ou a padrao.
+     * @return array{0:array{id:int,apelido:string}|null,1:Resultado|null}
+     */
+    private function destino(string $ponto, ?int $idImpressora): array
+    {
+        if (!$this->disponivel()) {
+            return [null, $this->conferir()];
+        }
+        $opcoes = $this->opcoes($ponto);
+        if ($opcoes === []) {
+            return [null, $this->conferir()];
+        }
+        $escolhida = $opcoes[0];
+        if ($idImpressora !== null) {
+            $achou = array_values(array_filter($opcoes, static fn (array $o): bool => $o['id'] === $idImpressora));
+            if ($achou === []) {
+                return [null, Resultado::falha('Essa impressora não está liberada aqui. Atualize a página e escolha de novo.')];
+            }
+            $escolhida = $achou[0];
+        }
+        if (!$this->repo->impressoraLigada($this->idRestaurante, $escolhida['id'])) {
+            return [null, Resultado::falha('A impressora ' . $escolhida['apelido'] . ' está desligada: abra o Deliveryzim Agent no computador "' . $escolhida['computador'] . '".')];
+        }
+        return [$escolhida, null];
+    }
+
+    /** @param array{apelido:string}|null $impressora */
+    private static function enviado(?array $impressora): string
+    {
+        return $impressora !== null ? 'Enviado para a impressora ' . $impressora['apelido'] . '.' : 'Enviado para a impressora.';
     }
 
     /** Quantos itens a comanda tem depois da ultima impressao (para o botao "So os itens novos"). */

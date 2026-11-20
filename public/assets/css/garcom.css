@@ -171,6 +171,8 @@
 .comanda-imprimir-opcao:hover:not(:disabled) { border-color: var(--c-wine-400); }
 .comanda-imprimir-opcao:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
 .comanda-imprimir-opcao:disabled { opacity: .55; cursor: not-allowed; }
+.comanda-imprimir-destino { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; margin: 0; padding: 0; border: 0; }
+.comanda-imprimir-destino legend { width: 100%; margin-bottom: .35rem; color: var(--c-ink); font: 700 .88rem var(--f-head); text-align: center; }
 .page-garcom .impressao-aviso { bottom: calc(5.75rem + env(safe-area-inset-bottom)); }
 
 /* Barra fixa de acoes (Adicionar / Fechar conta) */

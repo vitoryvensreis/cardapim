@@ -10,6 +10,7 @@ use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Repositories\Desktop\ImpressaoRepository;
+use Cardapim\Repositories\Desktop\ImpressoraRepository;
 use Cardapim\Repositories\Desktop\PesagemRepository;
 use Cardapim\Services\Desktop\VinculoBalanca;
 use Cardapim\Services\Auth\Autenticacao;
@@ -31,6 +32,7 @@ use Throwable;
  * - Situacao dos pedidos avisados, para o agente parar o som quando alguem aceitar em outro lugar;
  * - "Agent conectado" para o navegador nao tocar o som repetido enquanto o agente toca.
  * - Fila de impressao (Agent 0.7.0+): cupons pedidos pelo caixa/garcom vem junto dos eventos (impressoes=1).
+ * - Varias impressoras (Agent 0.8.0+): lista com apelidos (impressoras) e cupom destinado a uma delas (impressoras=1).
  */
 final class DesktopAgentController
 {
@@ -106,6 +108,9 @@ final class DesktopAgentController
             $q->execute([(int) $dispositivo['id_restaurante'], $cursor]);
             $pedidos = new PedidoRepository($db);
             $resposta = [];
+            // Agent 0.8.0+ (impressoras=1): diz em quais impressoras DELE o pedido novo sai (ponto delivery_novo).
+            $porImpressora = ($_GET['impressoras'] ?? '') === '1';
+            $alvos = false; // false = ainda nao calculado; null = ponto sem configuracao (impressora principal)
             foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $evento) {
                 $cursor = (int) $evento['id'];
                 $dados = json_decode((string) $evento['dados'], true);
@@ -116,8 +121,12 @@ final class DesktopAgentController
                     || !in_array($p['status'], ['recebido', 'em_preparo', 'pronto'], true)) {
                     continue;
                 }
+                if ($porImpressora && $alvos === false) {
+                    $alvos = $this->alvosPedidoNovo($db, $dispositivo);
+                }
                 $resposta[] = [
                     'evento_id' => $cursor, 'id' => (int) $p['id'],
+                    ...($porImpressora ? ['impressoras' => $alvos] : []),
                     'numero' => (int) $p['numero'], 'tipo' => (string) $p['tipo'],
                     'status' => (string) $p['status'], 'origem' => (string) $p['origem'],
                     // "Ver no sistema" do aviso: caminho relativo, o agente junta com o endereco oficial.
@@ -145,7 +154,7 @@ final class DesktopAgentController
             // Agent 0.7.0+ avisa que sabe imprimir (impressoes=1): so ele reserva cupons da fila.
             // Agent antigo nunca pega um cupom que ele nao saberia imprimir.
             if (($_GET['impressoes'] ?? '') === '1') {
-                $saida['impressoes'] = $this->reservarImpressoes($db, $dispositivo);
+                $saida['impressoes'] = $this->reservarImpressoes($db, $dispositivo, ($_GET['impressoras'] ?? '') === '1');
             }
             return Response::json($saida);
         } catch (Throwable $e) {
@@ -160,7 +169,7 @@ final class DesktopAgentController
      * @param array<string,mixed> $dispositivo
      * @return list<array{id:int,titulo:string,blocos:list<array<string,mixed>>}>
      */
-    private function reservarImpressoes(PDO $db, array $dispositivo): array
+    private function reservarImpressoes(PDO $db, array $dispositivo, bool $porImpressora = false): array
     {
         try {
             if (!Esquema::tem($db, 'impressoes')) {
@@ -168,10 +177,68 @@ final class DesktopAgentController
             }
             $repo = new ImpressaoRepository($db);
             $repo->marcarAgente((int) $dispositivo['id']);
-            return $repo->reservar((int) $dispositivo['id_restaurante'], (int) $dispositivo['id']);
+            return $repo->reservar((int) $dispositivo['id_restaurante'], (int) $dispositivo['id'], 10,
+                $porImpressora, Esquema::tem($db, 'impressoras'));
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: fila de impressao indisponivel (' . get_class($e) . ').');
             return [];
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $dispositivo
+     * @return list<string>|null chaves das impressoras deste Agent para o pedido novo; null = ponto nao configurado
+     */
+    private function alvosPedidoNovo(PDO $db, array $dispositivo): ?array
+    {
+        try {
+            if (!Esquema::tem($db, 'impressoras')) {
+                return null;
+            }
+            return (new ImpressoraRepository($db))->chavesDoPonto((int) $dispositivo['id_restaurante'], (int) $dispositivo['id'], 'delivery_novo');
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: pontos de impressao indisponiveis (' . get_class($e) . ').');
+            return null;
+        }
+    }
+
+    /**
+     * POST /api/v1/desktop/impressoras - o Agent (0.8.0+) manda a lista completa de impressoras dele:
+     * {"impressoras":[{"chave":"a1b2...","apelido":"Cozinha"}, ...]}. O nome da impressora no Windows fica no computador.
+     * Quem tirou uma impressora da lista some dos pontos de impressao (ativo = 0).
+     */
+    public function registrarImpressoras(): Response
+    {
+        $autorizado = $this->dispositivo();
+        if ($autorizado instanceof Response) return $autorizado;
+        [$db, $d] = $autorizado;
+        if (!RateLimiter::padrao(120, 600)->permitir('desktop-impressoras|' . (int) $d['id'])) {
+            return Response::json(['erro' => 'Muitas tentativas.'], 429);
+        }
+        $corpo = file_get_contents('php://input');
+        $dados = is_string($corpo) && strlen($corpo) <= 16384 ? json_decode($corpo, true) : null;
+        $lista = is_array($dados) && is_array($dados['impressoras'] ?? null) ? $dados['impressoras'] : null;
+        if ($lista === null || count($lista) > ImpressoraRepository::MAX_POR_AGENT) {
+            return Response::json(['erro' => 'Lista de impressoras inválida (até ' . ImpressoraRepository::MAX_POR_AGENT . ').'], 422);
+        }
+        $limpa = [];
+        foreach ($lista as $i) {
+            $chave = is_array($i) && is_string($i['chave'] ?? null) ? $i['chave'] : '';
+            $apelido = is_array($i) && is_string($i['apelido'] ?? null) ? trim((string) preg_replace('/\s+/u', ' ', $i['apelido'])) : '';
+            if (preg_match('/\A[a-z0-9]{8,40}\z/', $chave) !== 1 || $apelido === '' || mb_strlen($apelido) > 40) {
+                return Response::json(['erro' => 'Cada impressora precisa de um apelido de até 40 letras.'], 422);
+            }
+            $limpa[$chave] = ['chave' => $chave, 'apelido' => $apelido];
+        }
+        try {
+            if (!Esquema::tem($db, 'impressoras')) {
+                return Response::json(['ok' => true, 'aguardando' => true]); // migracao ainda nao aplicada
+            }
+            (new ImpressoraRepository($db))->sincronizar((int) $d['id_restaurante'], (int) $d['id'], array_values($limpa));
+            return Response::json(['ok' => true]);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: registro de impressoras indisponivel (' . get_class($e) . ').');
+            return Response::json(['erro' => 'Falha ao registrar as impressoras.'], 503);
         }
     }
 

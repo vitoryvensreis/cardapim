@@ -61,9 +61,10 @@ $detalhe = static function (string $provedor, array $i) use ($e): string {
                 <?php endif; ?>
             </div>
             <h2><?= marca_html() ?> Agent</h2>
-            <p>Programa para o computador do caixa (Windows): avisa pedido novo com som até alguém receber, imprime o cupom e lê a balança.</p>
+            <p>Programa para o computador do caixa (Windows): avisa pedido novo com som até alguém receber, imprime em uma ou várias impressoras (Balcão, Cozinha...) e lê a balança.</p>
             <p class="integracao-detalhe">Instala em 1 minuto e abre sozinho quando o computador liga, já com o painel no navegador.</p>
             <a class="btn btn-primary btn-sm btn-block" href="<?= $e((string) $agentDownload) ?>" rel="noopener" download><?= Icon::svg('download', 'icon-sm') ?>Baixar o Agent para Windows</a>
+            <a class="btn btn-outline btn-sm btn-block" href="<?= $e($base . '/integracoes/impressoras') ?>"><?= Icon::svg('printer', 'icon-sm') ?>Impressoras e pontos de impressão</a>
         </article>
         <article class="integracao-cartao is-importar">
             <div class="integracao-topo">

@@ -20,6 +20,8 @@ final class Esquema
         'estoque_produto' => ['insumos', 'id_produto_proprio'],
         // Fila de impressao pelo Agent (tabela impressoes + coluna criada no fim da mesma migracao).
         'impressoes' => ['desktop_agent_devices', 'impressao_em'],
+        // Varias impressoras por restaurante e pontos de impressao (coluna criada no fim da migracao).
+        'impressoras' => ['impressoes', 'id_impressora'],
     ];
 
     /** @var array<string,bool> */

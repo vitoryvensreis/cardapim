@@ -19,6 +19,8 @@ from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
 from agent.notifier import OrderToasts
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
 from agent.printing import job_receipt, printers, receipt, spool
+from agent.printer_list import by_key, from_preferences, normalize, principal, resolve, server_payload
+from agent.printer_panel import PrinterPanel
 from agent.scale import ScaleMonitor, ScaleSettings
 from agent.scale_panel import ScalePanel
 from agent.sound import play as play_order_sound
@@ -108,9 +110,10 @@ class DeliveryzimApp:
         self.alerts = AlertBoard()
         self.status_thread = None
         self.icon = None
-        self.printer_var = tk.StringVar(value=self.preferences.get("impressora") or "")
+        # Lista de impressoras (Balcão, Cozinha...); a primeira é a principal. Quem vem da 0.7 ganha a "Principal".
+        self.printer_items = from_preferences(self.preferences.data)
+        self.printer_sync_lock = threading.Lock()
         self.mode_var = tk.StringVar(value="auto" if self.preferences.get("automatico") else "manual")
-        self.paper_var = tk.StringVar(value=str(self.preferences.get("papel") or 80))
         # O instalador já liga "abrir com o Windows"; a caixa de seleção mostra o que está valendo.
         self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")) or self._startup_registered())
         self.logo_var = tk.BooleanVar(value=self.preferences.get("logo_cupom") is not False)
@@ -248,33 +251,16 @@ class DeliveryzimApp:
         self.mode_hint.pack(anchor="w", pady=(4, 0))
         self._paint_mode_buttons()
 
-        # Impressora.
+        # Impressoras (lista sem limite, com apelido).
         printer = self._card(self.settings_page)
         printer.pack(**pad, pady=(0, 10))
-        box = ctk.CTkFrame(printer, fg_color=WHITE, corner_radius=0)
-        box.pack(fill="x", padx=18, pady=14)
-        row = ctk.CTkFrame(box, fg_color=WHITE, corner_radius=0)
-        row.pack(fill="x")
-        self._label(row, "Impressora", 12, DARK, True).pack(side="left")
-        self._button(row, "Atualizar lista", self._reload_printers, primary=False, width=120,
-                     height=30).pack(side="right")
-        self.printer_selector = ctk.CTkComboBox(
-            box, variable=self.printer_var, values=[], state="readonly", height=40,
-            corner_radius=RADIUS, border_width=1, border_color=BORDER, button_color=SUBTLE,
-            button_hover_color=BORDER, fg_color=WHITE, text_color=DARK, font=self._font(10),
-            dropdown_font=self._font(10), command=lambda _v: self._save_preferences(),
-        )
-        self.printer_selector.pack(fill="x", pady=(10, 4))
-        self.printer_hint = self._label(box, "", 9, GRAY, wrap=520)
-        self.printer_hint.pack(fill="x")
-        row = ctk.CTkFrame(box, fg_color=WHITE, corner_radius=0)
-        row.pack(fill="x", pady=(10, 0))
-        self._label(row, "Tamanho do papel", 10, DARK, True).pack(side="left")
-        self.paper_label_var = tk.StringVar(value=self.paper_var.get() + " mm")
-        self._segmented(row, ("58 mm", "80 mm"), self.paper_label_var, self._select_paper).pack(side="right")
-        self._checkbox(box, "Imprimir a logo do Deliveryzim no cupom", self.logo_var,
-                       self._save_preferences).pack(anchor="w", pady=(12, 0))
-        self._label(box, "Se aparecerem símbolos estranhos no topo do cupom, desmarque.", 9, GRAY,
+        self.printer_panel = PrinterPanel(printer, self.printer_items, self, self._printers_changed)
+        self.printer_panel.frame.pack(fill="x", padx=18, pady=14)
+        logo = ctk.CTkFrame(printer, fg_color=WHITE, corner_radius=0)
+        logo.pack(fill="x", padx=18, pady=(0, 14))
+        self._checkbox(logo, "Imprimir a logo do Deliveryzim no cupom", self.logo_var,
+                       self._save_preferences).pack(anchor="w")
+        self._label(logo, "Se aparecerem símbolos estranhos no topo do cupom, desmarque.", 9, GRAY,
                     wrap=520).pack(anchor="w", padx=(28, 0))
 
         # Balança.
@@ -350,8 +336,8 @@ class DeliveryzimApp:
             messagebox.showwarning("Área de notificação",
                                    "A bandeja do Windows não está disponível. Mantenha o Agent aberto.")
             return
-        if self.mode_var.get() == "auto" and not self.printer_var.get():
-            messagebox.showwarning("Impressora", "Escolha uma impressora ou use o modo com confirmação.")
+        if self.mode_var.get() == "auto" and principal(self.printer_items) is None:
+            messagebox.showwarning("Impressora", "Escolha a impressora do Windows da impressora principal ou use o modo com confirmação.")
             return
         self.preferences.set(configurado=True)
         self.status_var.set("Configurado. Monitorando novos pedidos em segundo plano.")
@@ -372,10 +358,6 @@ class DeliveryzimApp:
         self.mode_label_var.set(MODE_LABELS[mode])
         self.mode_hint.configure(text=MODE_HINTS[mode])
 
-    def _select_paper(self, label):
-        self.paper_var.set(label.split()[0])
-        self._save_preferences()
-
     def _show_link_state(self):
         if self.token:
             self.login_page.pack_forget()
@@ -389,32 +371,70 @@ class DeliveryzimApp:
     def _reload_printers(self):
         try:
             available = printers()
-            self.printer_selector.configure(values=available)
-            selected = self.printer_var.get()
-            if selected not in available:
-                # Não escolher aleatoriamente a primeira impressora em caixas com várias.
-                self.printer_var.set(available[0] if len(available) == 1 else "")
-                if len(available) == 1:
-                    self._save_preferences()
+            first = self.printer_panel.row_list[0] if self.printer_panel.row_list else None
             if available:
-                self.printer_hint.configure(
-                    text=str(len(available)) + " impressora(s) encontrada(s). Escolha onde sair os cupons.",
-                    text_color=GRAY,
-                )
+                message = str(len(available)) + " impressora(s) do Windows encontrada(s)."
             else:
-                self.printer_hint.configure(
-                    text="Nenhuma impressora encontrada. Instale uma nas configurações do Windows e clique em Atualizar lista.",
-                    text_color=WINE,
-                )
+                message = "Nenhuma impressora encontrada. Instale uma nas configurações do Windows e clique em Atualizar lista."
+            self.printer_panel.set_available(available, message, error=not available)
+            # Uma impressora só no Windows e a principal sem escolha: usa ela (não escolhe ao acaso com várias).
+            if first is not None and not first.windows.get() and len(available) == 1:
+                first.windows.set(available[0])
+                self.printer_panel.changed()
         except Exception as exc:
-            self.printer_selector.configure(values=[])
-            self.printer_hint.configure(text=str(exc)[:230], text_color=WINE)
+            self.printer_panel.set_available([], str(exc)[:230], error=True)
+
+    def _printers_changed(self):
+        self.printer_items = normalize(self.printer_panel.values())
+        self._save_preferences()
+        self._sync_printers()
+
+    def _sync_printers(self):
+        """Manda a lista (chave + apelido) para o sistema, para o gerente escolher os pontos de impressão."""
+        if not self.token:
+            return
+        items = server_payload(self.printer_items)
+        token = self.token
+
+        def task():
+            with self.printer_sync_lock:
+                try:
+                    client = ApiClient()
+                    client.token = token
+                    client.register_printers(items)
+                except AuthenticationError:
+                    pass
+                except Exception as exc:
+                    self.messages.put(("job_status", "Impressoras não enviadas ao sistema: " + str(exc)[:90]))
+        threading.Thread(target=task, daemon=True, name="deliveryzim-impressoras").start()
+
+    def _test_printer(self, printer):
+        """Botão Testar de cada impressora: cupom curto com o apelido."""
+        if not printer.get("windows"):
+            messagebox.showwarning("Impressoras", "Escolha a impressora do Windows antes de testar.")
+            return
+        name = printer.get("apelido") or "Impressora"
+        job = {"id": 0, "titulo": "Teste " + name, "blocos": [
+            {"t": "titulo", "texto": "TESTE"}, {"t": "centro", "texto": "Impressora: " + name},
+            {"t": "texto", "texto": time.strftime("%d/%m/%Y %H:%M")}, {"t": "linha"},
+            {"t": "texto", "texto": "Se você leu isto, a impressora está pronta."}]}
+        logo = bool(self.logo_var.get())
+
+        def task():
+            try:
+                spool(printer["windows"], job_receipt(job, printer["papel"], logo), "Deliveryzim teste " + name)
+                self.messages.put(("job_status", "Teste enviado para " + name + "."))
+            except Exception as exc:
+                self.messages.put(("job_status", "Falha no teste de " + name + ": " + str(exc)[:100]))
+        threading.Thread(target=task, daemon=True).start()
 
     def _save_preferences(self):
         self.preferences.set(
             automatico=self.mode_var.get() == "auto",
-            impressora=self.printer_var.get(),
-            papel=int(self.paper_var.get()),
+            impressoras=self.printer_items,
+            # Campos da 0.7 (uma impressora): continuam com a principal, caso volte para a versão antiga.
+            impressora=(principal(self.printer_items) or {}).get("windows", ""),
+            papel=int((principal(self.printer_items) or {}).get("papel", 80)),
             iniciar_windows=bool(self.start_var.get()),
             som_ativo=bool(self.sound_var.get()),
             logo_cupom=bool(self.logo_var.get()),
@@ -513,6 +533,7 @@ class DeliveryzimApp:
             name="deliveryzim-situacao-pedidos",
         )
         self.status_thread.start()
+        self._sync_printers()
 
     def _push_weights(self, client):
         """Publica apenas leitura estável e fresca; nunca altera valores de pedidos."""
@@ -703,33 +724,48 @@ class DeliveryzimApp:
         webbrowser.open(client.order_url(order) if not order.get("teste") else client.url("/login"))
 
     def _print(self, order):
-        event_id = int(order["evento_id"])
-        self.store.update(event_id, "imprimindo")
-        target = self.printer_var.get()
-        paper = int(self.paper_var.get())
-        logo = bool(self.logo_var.get())
-        threading.Thread(target=self._print_task, args=(order, target, paper, logo), daemon=True).start()
+        """Pedido do delivery: sai nas impressoras deste computador marcadas no ponto "Pedido novo do delivery".
 
-    def _print_task(self, order, printer_name, paper, logo=True):
+        Sem configuração no sistema ("impressoras" ausente ou None) sai na principal, como antes.
+        Lista vazia: o gerente escolheu impressoras de outro computador; aqui só avisa.
+        """
+        event_id = int(order["evento_id"])
+        keys = order.get("impressoras") if isinstance(order.get("impressoras"), list) else None
+        targets = resolve(self.printer_items, keys)
+        if keys is not None and not targets:
+            self.store.update(event_id, "sem_impressora_aqui")
+            return
+        self.store.update(event_id, "imprimindo")
+        logo = bool(self.logo_var.get())
+        threading.Thread(target=self._print_task, args=(order, targets, logo), daemon=True).start()
+
+    def _print_task(self, order, targets, logo=True):
         try:
-            payload = receipt(order, paper, logo)
-            spool(printer_name, payload, "Deliveryzim pedido #" + str(order.get("numero", "")))
+            if not targets:
+                raise RuntimeError("Selecione uma impressora nas configuracoes.")
+            for target in targets:
+                payload = receipt(order, target["papel"], logo)
+                spool(target["windows"], payload, "Deliveryzim pedido #" + str(order.get("numero", "")))
             self.messages.put(("printed", order))
         except Exception as exc:
             self.messages.put(("print_error", (order, str(exc))))
 
     def _print_job(self, job):
-        """Imprime na hora o cupom pedido no sistema (independe de "Automática" / "Ao receber")."""
-        target = self.printer_var.get()
-        paper = int(self.paper_var.get())
+        """Imprime na hora o cupom pedido no sistema (independe de "Automática" / "Ao receber").
+
+        job["impressora"] = chave da impressora escolhida no sistema ("" = a principal deste computador).
+        """
+        target = by_key(self.printer_items, str(job.get("impressora") or ""))
         logo = bool(self.logo_var.get())
-        threading.Thread(target=self._print_job_task, args=(job, target, paper, logo), daemon=True,
+        threading.Thread(target=self._print_job_task, args=(job, target, logo), daemon=True,
                          name="deliveryzim-cupom").start()
 
-    def _print_job_task(self, job, printer_name, paper, logo=True):
+    def _print_job_task(self, job, target, logo=True):
         title = str(job.get("titulo") or "Cupom")[:80]
         try:
-            spool(printer_name, job_receipt(job, paper, logo), "Deliveryzim " + title)
+            if target is None or not target.get("windows"):
+                raise RuntimeError("Impressora não configurada neste computador. Confira o Deliveryzim Agent.")
+            spool(target["windows"], job_receipt(job, target["papel"], logo), "Deliveryzim " + title)
             ok, error = True, ""
             self.messages.put(("job_status", title + ": enviado ao Windows."))
         except Exception as exc:

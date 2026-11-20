@@ -21,7 +21,7 @@ final class ImpressaoController extends BaseCaixa
             return $this->negado($r);
         }
         $idPedido = self::id($id);
-        $res = $idPedido !== null ? $this->fila()->comanda($idPedido, 'conta') : Resultado::falha('Comanda não encontrada.');
+        $res = $idPedido !== null ? $this->fila()->comanda($idPedido, 'conta', 'caixa_conta', $this->impressora()) : Resultado::falha('Comanda não encontrada.');
         return $this->resposta($res, $this->url('comandas/' . (int) $idPedido));
     }
 
@@ -31,7 +31,7 @@ final class ImpressaoController extends BaseCaixa
             return $this->negado($r);
         }
         $idPedido = self::id($id);
-        $res = $idPedido !== null ? $this->fila()->pedido($idPedido) : Resultado::falha('Pedido não encontrado.');
+        $res = $idPedido !== null ? $this->fila()->pedido($idPedido, $this->impressora()) : Resultado::falha('Pedido não encontrado.');
         return $this->resposta($res, $this->url('delivery/' . (int) $idPedido));
     }
 
@@ -41,7 +41,7 @@ final class ImpressaoController extends BaseCaixa
             return $this->negado($r);
         }
         $idCaixa = self::id($id);
-        $res = $idCaixa !== null ? $this->fila()->fechamento($idCaixa) : Resultado::falha('Caixa não encontrado.');
+        $res = $idCaixa !== null ? $this->fila()->fechamento($idCaixa, $this->impressora()) : Resultado::falha('Caixa não encontrado.');
         return $this->resposta($res, $this->url('historico/' . (int) $idCaixa));
     }
 
@@ -57,6 +57,12 @@ final class ImpressaoController extends BaseCaixa
             return Response::json(['erro' => 'Impressão não encontrada.'], 404)->comCabecalhos(['Cache-Control' => 'no-store']);
         }
         return Response::json($s)->comCabecalhos(['Cache-Control' => 'no-store']);
+    }
+
+    /** Impressora escolhida no botao (so quando o ponto tem mais de uma); o servico confere se e permitida. */
+    private function impressora(): ?int
+    {
+        return self::id($this->post('impressora'));
     }
 
     private function fila(): FilaImpressao

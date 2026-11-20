@@ -47,6 +47,7 @@ final class ComandaController extends BaseCaixa
             'livres' => $livres,
             'trocoAviso' => \Cardapim\Core\Session::flash('caixa_troco'),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
+            'impressoras' => $this->impressoras('caixa_conta'),
         ]);
     }
 
