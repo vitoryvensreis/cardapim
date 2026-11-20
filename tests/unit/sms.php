@@ -96,6 +96,11 @@ putenv('SMSGATE_SENHA=');
 $ok(!(new SmsGateApi())->configurado() && !(new SmsPlataforma())->disponivel(), 'sem senha = indisponivel');
 putenv('SMSGATE_SENHA=senha-ci');
 
+$h = new ClienteFalsoSms([new RespostaHttp(202, '{"id":"p1"}')]);
+(new SmsGateApi($h, ['url' => 'https://painel.exemplo/api/3rdparty/v1/', 'usuario' => 'do-painel', 'senha' => 'segredo']))->enviar('5585999990000', 'Oi');
+$ok($h->pedidos[0]['url'] === 'https://painel.exemplo/api/3rdparty/v1/messages' && $h->pedidos[0]['cabecalhos']['Authorization'] === 'Basic ' . base64_encode('do-painel:segredo'), 'configuracao do painel vale no lugar do .env');
+$ok(!(new SmsGateApi(new ClienteFalsoSms([]), ['url' => 'https://x', 'usuario' => 'a', 'senha' => '']))->configurado(), 'painel sem senha = indisponivel');
+
 /* ---------- Texto do SMS ---------- */
 $texto = SmsPlataforma::mensagem('123456');
 $ok(str_starts_with($texto, '123456 e o seu codigo para entrar no '), 'codigo no inicio');

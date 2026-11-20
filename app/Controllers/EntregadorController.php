@@ -10,6 +10,7 @@ use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Core\View;
 use Cardapim\Realtime\TempoReal;
+use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
 use Cardapim\Services\Auth\AcessoRestaurante;
 use Cardapim\Services\Auth\Autorizacao;
 use Cardapim\Services\Auth\Guard;
@@ -44,6 +45,7 @@ final class EntregadorController
             'emRota' => $s->emRota(),
             'hoje' => $s->feitas(date('Y-m-d 00:00:00')),
             'resumo' => $s->resumo(),
+            'mostrarValores' => (new EntregaPagamentoRepository(Database::connect()))->entregadorVeValores($restaurante['id']),
             'posicao' => $s->posicao(),
             'tempoReal' => TempoReal::ativo() ? '/api/v1/tempo-real/ticket?restaurante=' . rawurlencode($restaurante['slug']) : null,
         ], 'layouts/entregador')));

@@ -35,6 +35,16 @@ final class EntregaPagamentoController extends BaseGerencia
         return $this->pagina(['config' => $resultado->erros], ['config' => $_POST], 422);
     }
 
+    /** Opcao do gerente: o entregador ve ou nao os valores das taxas no painel dele. */
+    public function entregador(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $resultado = $this->servico()->salvarPainelEntregador($_POST);
+        return $this->voltar($this->url('entrega-pagamento') . '#entregador', $resultado->ok ? 'sucesso' : 'erro', $resultado->mensagem);
+    }
+
     public function criarArea(string $slug): Response
     {
         if ($r = $this->entrar($slug, true)) {
@@ -150,6 +160,7 @@ final class EntregaPagamentoController extends BaseGerencia
             'local' => $local,
             'precisaLocal' => AreaEntrega::precisaDeLocalizacao($areas),
             'asaasConectado' => $servico->asaasConectado(),
+            'entregadorVeValores' => $servico->entregadorVeValores(),
             'teste' => $teste,
             'erros' => $erros,
             'pageScripts' => ['js/forms.js', 'js/entrega-pagamento.js'],

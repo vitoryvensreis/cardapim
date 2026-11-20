@@ -15,12 +15,14 @@ use Cardapim\Services\Gerencia\Integracoes\WhatsAppService;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Plataforma\AplicativosParceirosService;
 use Cardapim\Services\Plataforma\CobrancaAssinaturas;
+use Cardapim\Services\Plataforma\SmsGatewayService;
 use Cardapim\Shared\Seguranca\Cripto;
 
 /**
  * Integracoes da PLATAFORMA (/painel/integracoes): contas da propria administracao do Cardapim.
  * - Asaas: recebe o pagamento das assinaturas dos restaurantes.
  * - WhatsApp: numero da plataforma (codigos de verificacao do cliente final), separado dos restaurantes.
+ * - SMS: servidor SMSGate (celular Android), reserva automatica dos codigos quando o WhatsApp falha.
  * - Aplicativos (iFood, 99Food): Client ID / Client Secret do app do Cardapim em cada marketplace.
  * Mesmas regras e servicos das integracoes dos restaurantes, com escopo "plataforma" (idRestaurante null).
  */
@@ -36,6 +38,7 @@ final class IntegracoesController extends BasePlataforma
             'asaas' => $repo->buscar(null, 'asaas'),
             'whatsapp' => $repo->buscar(null, 'whatsapp'),
             'whatsappDisponivel' => WhatsAppProvedores::algumDisponivel(),
+            'sms' => $this->smsServico()->resumo(),
             'aplicativos' => array_map(
                 fn (string $provedor): array => $this->aplicativosServico()->resumo($provedor),
                 array_keys(AplicativosParceiros::PROVEDORES),
@@ -181,6 +184,48 @@ final class IntegracoesController extends BasePlataforma
         return $this->acao(fn (): Resultado => $this->whatsappServico()->desconectar(), '/painel/integracoes/whatsapp');
     }
 
+    /* ---------- SMS da plataforma (SMSGate) ---------- */
+
+    public function sms(): Response
+    {
+        if ($r = $this->entrar()) {
+            return $r;
+        }
+        return $this->telaSms([], []);
+    }
+
+    public function smsSalvar(): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        if (!Cripto::disponivel()) {
+            return $this->voltar('/painel/integracoes/sms', 'erro', 'A criptografia do servidor não está disponível.');
+        }
+        $resultado = $this->smsServico()->salvar($this->post('url'), $this->post('usuario'), (string) ($_POST['senha'] ?? ''));
+        if ($resultado->ok) {
+            return $this->voltar('/painel/integracoes/sms#teste', 'sucesso', $resultado->mensagem);
+        }
+        return $this->telaSms($resultado->erros + ['_geral' => $resultado->mensagem], ['url' => $this->post('url'), 'usuario' => $this->post('usuario')], 422);
+    }
+
+    public function smsTeste(): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        $resultado = $this->smsServico()->testar($this->post('telefone'));
+        if ($resultado->ok || $resultado->erros === []) {
+            return $this->responder($resultado, '/painel/integracoes/sms#teste');
+        }
+        return $this->telaSms($resultado->erros, ['telefone' => $this->post('telefone')], 422);
+    }
+
+    public function smsRemover(): Response
+    {
+        return $this->acao(fn (): Resultado => $this->smsServico()->remover(), '/painel/integracoes/sms');
+    }
+
     /* ---------- Internos ---------- */
 
     /** @param callable():Resultado $executar */
@@ -242,6 +287,23 @@ final class IntegracoesController extends BasePlataforma
             'valores' => $valores + ['client_id' => $app['client_id']],
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
         ], $status);
+    }
+
+    /** @param array<string,string> $erros @param array<string,string> $valores */
+    private function telaSms(array $erros, array $valores, int $status = 200): Response
+    {
+        $sms = $this->smsServico()->resumo();
+        return $this->tela('plataforma/integracoes/sms', 'integracoes', 'SMS', [
+            'sms' => $sms,
+            'erros' => $erros,
+            'valores' => $valores + ['url' => $sms['origem'] === 'painel' ? $sms['url'] : 'https://sms.escotilhaprodutora.com', 'usuario' => $sms['usuario']],
+            'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
+        ], $status);
+    }
+
+    private function smsServico(): SmsGatewayService
+    {
+        return new SmsGatewayService($this->db, $this->usuario);
     }
 
     private function aplicativosServico(): AplicativosParceirosService

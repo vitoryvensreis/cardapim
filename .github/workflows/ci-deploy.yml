@@ -151,6 +151,7 @@ jobs:
           php database/verify-desktop-balanca.php --verify
           php database/verify-complementos.php --verify
           php database/verify-estoque-produto.php --verify
+          php database/verify-entregador-valores.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -441,6 +442,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-estoque-produto.sh'"
+
+      - name: Aplicar opcao de valores do entregador com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-entregador-valores]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-entregador-valores.sh'"
 
       # Mapa proprio do Ceara (docs/architecture/mapa.md): gerado aqui e enviado para a VPS so com
       # [cardapim-mapa] na mensagem do commit (primeira instalacao e atualizacoes). Roda depois do deploy do codigo.

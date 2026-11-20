@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Teste HTTP do painel da PLATAFORMA (adm_master): menu, secoes e as integracoes da plataforma
-# (Asaas das assinaturas e WhatsApp da plataforma) contra o servidor FALSO tests/fakes/integracoes-fake.php.
+# (Asaas das assinaturas, WhatsApp e SMS da plataforma) contra o servidor FALSO tests/fakes/integracoes-fake.php.
 # Uso: bash tests/http/plataforma.sh <base> <slug-restaurante> <base-do-fake>
 set -Eeuo pipefail
 base="$1"
@@ -55,6 +55,7 @@ esperar "gerente nao entra no painel da plataforma" "$(pagina "$gj" "$p/integrac
 esperar "caixa nao entra no painel da plataforma" "$(pagina "$cj" "$p/faturas")" "403"
 esperar "gerente nao conecta o Asaas da plataforma" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' -X POST "$p/integracoes/asaas/desconectar")" "403"
 esperar "gerente nao consulta o WhatsApp da plataforma" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' "$p/integracoes/whatsapp/estado")" "401"
+esperar "gerente nao abre o SMS da plataforma" "$(pagina "$gj" "$p/integracoes/sms")" "403"
 
 echo "Asaas da plataforma"
 esperar "integracoes da plataforma" "$(pagina "$aj" "$p/integracoes")" "200"
@@ -142,8 +143,31 @@ esperar "desconectar WhatsApp" "$(enviar "$aj" "$p/integracoes/whatsapp/desconec
 esperar "desconectar Asaas" "$(enviar "$aj" "$p/integracoes/asaas/desconectar")" "303 $p/integracoes/asaas"
 esperar "POST sem CSRF volta com erro" "$(curl -s -o /dev/null -b "$aj" -w '%{http_code}' -X POST "$p/integracoes/whatsapp/conectar")" "303"
 
+echo "SMS da plataforma"
+esperar "pagina do SMS" "$(pagina "$aj" "$p/integracoes/sms")" "200"
+contem "SMS ainda nao configurado" "$tmp/pagina.html" 'Não configurado'
+esperar "endereco sem https recusado" "$(enviar "$aj" "$p/integracoes/sms" url=http://sms.exemplo.test usuario=usuario-ci senha=senha-ci | cut -d' ' -f1)" "422"
+esperar "teste antes de configurar e recusado" "$(enviar "$aj" "$p/integracoes/sms/teste" telefone='(85) 98888-3333' | cut -d' ' -f1)" "303"
+esperar "aviso de que precisa configurar" "$(flash "$aj" "$p/integracoes/sms")" "painel-flash-erro"
+esperar "salvar SMS" "$(enviar "$aj" "$p/integracoes/sms" url="$fake/smsgate/api/3rdparty/v1" usuario=usuario-ci senha=senha-ci)" "303 $p/integracoes/sms#teste"
+pagina "$aj" "$p/integracoes/sms" >/dev/null
+contem "SMS configurado" "$tmp/pagina.html" 'Configurado'
+nao_contem "senha nao aparece na tela" "$tmp/pagina.html" 'senha-ci'
+esperar "numero invalido no teste (422)" "$(enviar "$aj" "$p/integracoes/sms/teste" telefone='123' | cut -d' ' -f1)" "422"
+esperar "SMS de teste" "$(enviar "$aj" "$p/integracoes/sms/teste" telefone='(85) 98888-3333' | cut -d' ' -f1)" "303"
+esperar "SMS de teste enviado" "$(flash "$aj" "$p/integracoes/sms")" "painel-flash-sucesso"
+curl -s "$fake/_teste/sms-mensagens" | grep -q '+5585988883333|Teste do SMS' && ok "SMS saiu pelo servidor de SMS" || falha "SMS nao chegou ao servidor de SMS"
+esperar "salvar sem repetir a senha mantem a salva" "$(enviar "$aj" "$p/integracoes/sms" url="$fake/smsgate/api/3rdparty/v1" usuario=usuario-ci senha=)" "303 $p/integracoes/sms#teste"
+esperar "teste com a senha mantida" "$(enviar "$aj" "$p/integracoes/sms/teste" telefone='(85) 98888-3333' | cut -d' ' -f1)" "303"
+esperar "continua enviando" "$(flash "$aj" "$p/integracoes/sms")" "painel-flash-sucesso"
+pagina "$aj" "$p/integracoes" >/dev/null
+contem "visao geral mostra o SMS" "$tmp/pagina.html" 'Usuário do app: usuario-ci'
+esperar "apagar configuracao do SMS" "$(enviar "$aj" "$p/integracoes/sms/remover")" "303 $p/integracoes/sms"
+pagina "$aj" "$p/integracoes/sms" >/dev/null
+contem "SMS volta a nao configurado" "$tmp/pagina.html" 'Não configurado'
+
 if [[ "$falhas" -gt 0 ]]; then
   echo "$falhas falha(s) no painel da plataforma."
   exit 1
 fi
-echo "OK: painel da plataforma (menu, secoes e integracoes Asaas/WhatsApp da plataforma)."
+echo "OK: painel da plataforma (menu, secoes e integracoes Asaas/WhatsApp/SMS da plataforma)."

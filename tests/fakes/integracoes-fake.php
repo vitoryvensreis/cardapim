@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Servidor FALSO de iFood, Asaas e Evolution API, somente para testes automaticos (CI/local).
+// Servidor FALSO de iFood, Asaas, Evolution API e SMSGate, somente para testes automaticos (CI/local).
 // Uso: php -S 127.0.0.1:18099 tests/fakes/integracoes-fake.php
 // Nunca usar em producao. Estado guardado em arquivos temporarios.
 
@@ -317,6 +317,24 @@ if (preg_match('~\A/_teste/wpp-conectar/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
 }
 if ($caminho === '/_teste/wpp-mensagens') {
     $responder(200, ['linhas' => is_file($pasta . '/wpp-mensagens.log') ? file($pasta . '/wpp-mensagens.log', FILE_IGNORE_NEW_LINES) : []]);
+}
+
+/* ---------- SMSGate (SMS pelo celular Android) ---------- */
+// Mensagens em sms-mensagens.log: +numero|texto (lido pelos testes HTTP).
+if ($caminho === '/smsgate/api/3rdparty/v1/messages' && $metodo === 'POST') {
+    if ($cab('Authorization') !== 'Basic ' . base64_encode('usuario-ci:senha-ci')) {
+        $responder(401, ['message' => 'Unauthorized']);
+    }
+    $numeros = $json['phoneNumbers'] ?? null;
+    $texto = $json['textMessage']['text'] ?? null;
+    if (!is_array($numeros) || count($numeros) !== 1 || preg_match('/\A\+55\d{10,11}\z/', (string) $numeros[0]) !== 1 || !is_string($texto) || $texto === '') {
+        $responder(400, ['message' => 'Bad Request']);
+    }
+    file_put_contents($pasta . '/sms-mensagens.log', $numeros[0] . '|' . str_replace("\n", ' ', $texto) . "\n", FILE_APPEND);
+    $responder(202, ['id' => 'ci' . bin2hex(random_bytes(6)), 'state' => 'Pending', 'recipients' => [['phoneNumber' => $numeros[0], 'state' => 'Pending']]]);
+}
+if ($caminho === '/_teste/sms-mensagens') {
+    $responder(200, ['linhas' => is_file($pasta . '/sms-mensagens.log') ? file($pasta . '/sms-mensagens.log', FILE_IGNORE_NEW_LINES) : []]);
 }
 
 /* ---------- iFood ---------- */

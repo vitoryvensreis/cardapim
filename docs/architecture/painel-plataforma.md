@@ -13,7 +13,7 @@ login; qualquer outro cargo recebe 403. Todo POST exige CSRF e toda ação gera 
 | Configurações | `/painel/configuracoes` | **Pronta**: nome, textos, logos, icone do app e teste do e-mail do sistema ([email.md](../deploy/email.md)) |
 | Faturas | `/painel/faturas` | **Pronta**: números do mês, lista com filtros e "Atualizar agora" ([detalhes](#faturas)) |
 | Usuários | `/painel/usuarios` | **Pronto**: todas as contas, criar, editar, senha, bloquear, 2FA e excluir ([detalhes](#usuarios)) |
-| Integrações | `/painel/integracoes` | **Pronta**: Asaas da plataforma, WhatsApp da plataforma e credenciais dos apps no iFood e na 99Food |
+| Integrações | `/painel/integracoes` | **Pronta**: Asaas da plataforma, WhatsApp da plataforma, SMS da plataforma (SMSGate) e credenciais dos apps no iFood e na 99Food |
 | Logs de auditoria | `/painel/logs` | **Pronto**: filtros por tipo, restaurante, pessoa, texto e datas; planilha ([detalhes](#logs-de-auditoria)) |
 | Suporte | `/painel/suporte` | **Pronto**: chamados dos restaurantes ([suporte.md](suporte.md)) |
 | Minha conta | `/painel/minha-conta` | **Pronta**: dados, senha, verificação em duas etapas, aparelhos e acessos ([detalhes](#minha-conta)) |

@@ -1,7 +1,8 @@
 <?php
 /**
  * Painel do entregador: localizacao em tempo real, entregas com ele (rota, contato, receber, entreguei) e historico.
- * Espera: $usuario, $csrf, $restaurante, $flash, $emRota, $hoje, $resumo, $posicao.
+ * Espera: $usuario, $csrf, $restaurante, $flash, $emRota, $hoje, $resumo, $posicao,
+ * $mostrarValores (o gerente deixa o entregador ver quanto ganhou em taxas).
  */
 use Cardapim\Core\Icon;
 use Cardapim\Services\Caixa\CaixaService;
@@ -11,6 +12,7 @@ use Cardapim\Shared\Validation\Documento;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $r = static fn (int $c): string => Numero::reais(CaixaService::dec($c));
+$mostrarValores = (bool) ($mostrarValores ?? true);
 $slug = (string) $restaurante['slug'];
 $minutos = static function (?string $desde): string {
     if (!$desde) {
@@ -34,8 +36,8 @@ $minutos = static function (?string $desde): string {
             <h1>Minhas entregas</h1>
         </div>
         <dl class="entregador-resumo">
-            <div><dt>Hoje</dt><dd><strong><?= (int) $resumo['hoje']['qtd'] ?></strong> <?= $resumo['hoje']['qtd'] === 1 ? 'entrega' : 'entregas' ?><small><?= $e($r($resumo['hoje']['taxas'])) ?> em taxas</small></dd></div>
-            <div><dt>7 dias</dt><dd><strong><?= (int) $resumo['semana']['qtd'] ?></strong> <?= $resumo['semana']['qtd'] === 1 ? 'entrega' : 'entregas' ?><small><?= $e($r($resumo['semana']['taxas'])) ?> em taxas</small></dd></div>
+            <div><dt>Hoje</dt><dd><strong><?= (int) $resumo['hoje']['qtd'] ?></strong> <?= $resumo['hoje']['qtd'] === 1 ? 'entrega' : 'entregas' ?><?php if ($mostrarValores): ?><small><?= $e($r($resumo['hoje']['taxas'])) ?> em taxas</small><?php endif; ?></dd></div>
+            <div><dt>7 dias</dt><dd><strong><?= (int) $resumo['semana']['qtd'] ?></strong> <?= $resumo['semana']['qtd'] === 1 ? 'entrega' : 'entregas' ?><?php if ($mostrarValores): ?><small><?= $e($r($resumo['semana']['taxas'])) ?> em taxas</small><?php endif; ?></dd></div>
         </dl>
     </header>
 
@@ -123,7 +125,7 @@ $minutos = static function (?string $desde): string {
                 <?php foreach ($hoje as $p): ?>
                     <li>
                         <span><strong>#<?= (int) $p['numero'] ?></strong> <?= $e((string) ($p['cliente_nome'] ?? '')) ?><small><?= $e((string) ($p['entrega_bairro'] ?? '')) ?> · entregue às <?= $e(date('H:i', (int) strtotime((string) $p['concluido_em']))) ?></small></span>
-                        <span class="feitas-valor"><?= $e(Numero::reais((string) $p['taxa_entrega'])) ?><small>taxa</small></span>
+                        <?php if ($mostrarValores): ?><span class="feitas-valor"><?= $e(Numero::reais((string) $p['taxa_entrega'])) ?><small>taxa</small></span><?php endif; ?>
                     </li>
                 <?php endforeach; ?>
             </ul>

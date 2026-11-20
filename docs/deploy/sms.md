@@ -24,7 +24,10 @@ Deliveryzim ─▶ WhatsApp da plataforma (Evolution) ─ falhou? ─▶ SMSGate
   (`Services/Cliente/CodigoVerificacao`, canais `WhatsAppPlataforma` e `SmsPlataforma`).
 - Cliente HTTP: `Modules/Integracoes/SmsGateApi` → `POST {SMSGATE_URL}/messages` com autenticação básica,
   `priority: 100` (ignora limites e horário do app) e `ttl` de 10 minutos (o celular descarta o SMS atrasado).
-- `shared/.env` do Deliveryzim:
+- **Configuração no painel da plataforma**: `/painel/integracoes/sms` (adm_master) — endereço, usuário e senha do app,
+  mensagem de teste (10 por hora) e apagar. Fica cifrada na tabela `configuracoes` (chave `sms_gateway`,
+  `SmsGatewayRepository`); a senha nunca volta para a tela. Tudo com log de auditoria.
+- Sem configuração no painel, vale o `shared/.env` do Deliveryzim:
 
 ```env
 SMSGATE_URL=https://sms.escotilhaprodutora.com/api/3rdparty/v1
@@ -32,7 +35,7 @@ SMSGATE_USUARIO=<usuário do app: Settings > Cloud Server>
 SMSGATE_SENHA=<senha do app>
 ```
 
-Sem essas variáveis, o login continua só pelo WhatsApp (comportamento anterior).
+Sem nenhuma das duas, o login continua só pelo WhatsApp (comportamento anterior).
 
 ## Outros projetos
 

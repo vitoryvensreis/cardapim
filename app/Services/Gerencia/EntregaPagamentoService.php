@@ -110,6 +110,30 @@ final class EntregaPagamentoService
     }
 
     /** @param array<string,mixed> $e */
+    public function entregadorVeValores(): bool
+    {
+        return $this->repo->entregadorVeValores($this->idRestaurante);
+    }
+
+    /** Liga ou desliga, no painel do entregador, o quanto ele ganhou em taxas de entrega. */
+    public function salvarPainelEntregador(array $e): Resultado
+    {
+        $ve = ($e['entregador_ve_valores'] ?? '') === '1';
+        $antes = $this->repo->entregadorVeValores($this->idRestaurante);
+        try {
+            $this->repo->salvarEntregadorVeValores($this->idRestaurante, $ve);
+        } catch (\PDOException) {
+            return Resultado::falha('Esta opção ainda está sendo preparada no servidor. Tente de novo em alguns minutos.');
+        }
+        if ($antes !== $ve) {
+            Auditoria::registrar($this->autor, 'Painel do entregador alterado',
+                'Valores das taxas de entrega: ' . ($antes ? 'visíveis' : 'escondidos') . ' -> ' . ($ve ? 'visíveis' : 'escondidos') . '.');
+        }
+        return Resultado::sucesso($ve
+            ? 'Pronto: o entregador volta a ver quanto ganhou em taxas.'
+            : 'Pronto: o entregador não vê mais os valores das taxas. Ele continua vendo quanto deve receber do cliente.');
+    }
+
     public function salvarArea(array $e, ?int $idArea = null): Resultado
     {
         $existente = $idArea !== null ? $this->repo->area($this->idRestaurante, $idArea) : null;

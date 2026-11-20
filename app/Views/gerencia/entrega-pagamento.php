@@ -1,6 +1,6 @@
 <?php
 /**
- * Aba Entrega e pagamento. Espera: $config, $enviado, $bairros, $faixas, $local, $precisaLocal, $asaasConectado,
+ * Aba Entrega e pagamento. Espera: $config, $enviado, $bairros, $faixas, $local, $precisaLocal, $asaasConectado, $entregadorVeValores,
  * $teste (null ou resultado do "Testar um endereco"), $erros (por formulario), $restaurante, $base, $csrf.
  */
 use Cardapim\Core\Icon;
@@ -192,6 +192,30 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
             <button class="btn btn-primary" type="submit" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar entrega e pagamento</button>
         </div>
     </form>
+
+    <section class="bloco" aria-labelledby="titulo-entregador" id="entregador">
+        <div class="bloco-cabecalho">
+            <h2 id="titulo-entregador"><?= Icon::svg('bike') ?>Painel do entregador</h2>
+            <p>Você decide o que o entregador vê no celular dele.</p>
+        </div>
+        <form method="post" action="<?= $e($base . '/entrega-pagamento/entregador') ?>">
+            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+            <fieldset class="opcoes-modo">
+                <legend class="sr-only">Valores no painel do entregador</legend>
+                <label class="opcao-modo">
+                    <input type="checkbox" name="entregador_ve_valores" value="1"<?= $entregadorVeValores ? ' checked' : '' ?>>
+                    <span>
+                        <strong><?= Icon::svg('wallet', 'icon-sm') ?>Mostrar quanto ele ganhou em taxas</strong>
+                        <small>Com a opção ligada, ele vê o total de taxas de hoje e dos últimos 7 dias e a taxa de cada entrega feita. Desligada, ele vê só a quantidade de entregas.</small>
+                        <small>O valor que ele deve receber do cliente aparece sempre, para ele poder cobrar.</small>
+                    </span>
+                </label>
+            </fieldset>
+            <div class="form-acoes">
+                <button class="btn btn-primary" type="submit" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar painel do entregador</button>
+            </div>
+        </form>
+    </section>
 
     <section class="bloco" aria-labelledby="titulo-areas" id="areas">
         <div class="bloco-cabecalho">

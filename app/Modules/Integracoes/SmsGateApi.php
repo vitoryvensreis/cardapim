@@ -12,7 +12,8 @@ use Cardapim\Shared\Http\ErroHttp;
  * SMSGate (SMS Gateway for Android, servidor privado na VPS de mensageria): o SMS sai pelo chip de um
  * celular Android conectado ao servidor. Ver docs/deploy/sms.md.
  *
- * Configuracao (so no shared/.env da VPS, nunca no Git):
+ * Configuracao: cadastrada no painel da plataforma (/painel/integracoes/sms, cifrada no banco) e passada
+ * no construtor. Sem ela, vale o shared/.env da VPS:
  * - SMSGATE_URL: base da API de terceiros, ex.: https://sms.escotilhaprodutora.com/api/3rdparty/v1
  * - SMSGATE_USUARIO e SMSGATE_SENHA: credenciais geradas pelo app no celular (Settings > Cloud Server).
  */
@@ -21,18 +22,25 @@ class SmsGateApi
     /** Prioridade >= 100: o app ignora limites, atrasos e horario de envio (codigo nao pode esperar). */
     public const PRIORIDADE_URGENTE = 100;
 
-    public function __construct(private readonly ClienteHttp $http = new ClienteHttp(15))
+    /** @var array{url:string, usuario:string, senha:string} */
+    private readonly array $acesso;
+
+    /** @param array{url:string, usuario:string, senha:string}|null $credenciais null = usa o shared/.env */
+    public function __construct(private readonly ClienteHttp $http = new ClienteHttp(15), ?array $credenciais = null)
     {
+        $this->acesso = $credenciais !== null
+            ? ['url' => rtrim($credenciais['url'], '/'), 'usuario' => $credenciais['usuario'], 'senha' => $credenciais['senha']]
+            : ['url' => rtrim(Config::get('SMSGATE_URL'), '/'), 'usuario' => Config::get('SMSGATE_USUARIO'), 'senha' => Config::get('SMSGATE_SENHA')];
     }
 
     public function configurado(): bool
     {
-        return self::urlBase() !== '' && Config::get('SMSGATE_USUARIO') !== '' && Config::get('SMSGATE_SENHA') !== '';
+        return $this->acesso['url'] !== '' && $this->acesso['usuario'] !== '' && $this->acesso['senha'] !== '';
     }
 
-    public static function urlBase(): string
+    public function urlBase(): string
     {
-        return rtrim(Config::get('SMSGATE_URL'), '/');
+        return $this->acesso['url'];
     }
 
     /**
@@ -50,9 +58,9 @@ class SmsGateApi
         if (!$this->configurado()) {
             throw new IntegracaoErro('O envio por SMS não está configurado neste servidor.');
         }
-        $autorizacao = 'Basic ' . base64_encode(Config::get('SMSGATE_USUARIO') . ':' . Config::get('SMSGATE_SENHA'));
+        $autorizacao = 'Basic ' . base64_encode($this->acesso['usuario'] . ':' . $this->acesso['senha']);
         try {
-            $r = $this->http->enviar('POST', self::urlBase() . '/messages', ['Authorization' => $autorizacao], [
+            $r = $this->http->enviar('POST', $this->acesso['url'] . '/messages', ['Authorization' => $autorizacao], [
                 'textMessage' => ['text' => $texto],
                 'phoneNumbers' => ['+' . $digitos],
                 'priority' => self::PRIORIDADE_URGENTE,

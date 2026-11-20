@@ -26,6 +26,11 @@ Rastreio: 401 sem login, 404 pedido de outro cliente.
   dinheiro entra no caixa do turno); com o caixa fechado a mensagem pede para o caixa abrir. Chama
   `DeliveryService::concluir` (mesma regra do caixa). Sem mais entregas em rota, a posicao e apagada.
 - **Feitas hoje** e resumo de hoje e 7 dias (quantidade e soma das taxas de entrega).
+- **Valores das taxas** (resumo "R$ X em taxas" e a taxa de cada entrega feita): o gerente liga ou desliga em
+  Gerencia > Entrega e pagamento > **Painel do entregador** (`restaurante_entrega_pagamento.entregador_ve_valores`,
+  padrao ligado). Desligado, o entregador ve so a quantidade de entregas. O valor a receber do cliente aparece sempre.
+  Migration `20261120180000_entregador_ve_valores.php` (aplicada com `[cardapim-entregador-valores]`, backup antes;
+  `database/verify-entregador-valores.php --verify`). Antes da migration o painel segue mostrando os valores.
 - Entrega nova despachada para ele: bipe, vibracao e a lista atualiza sozinha (evento `entrega.despachada`, canal
   `entregas`); tambem atualiza a cada 30 s.
 

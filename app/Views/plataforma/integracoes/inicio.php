@@ -1,5 +1,5 @@
 <?php
-/** Integracoes da plataforma: visao geral. Espera: $asaas, $whatsapp (integracoes), $whatsappDisponivel, $aplicativos (resumos), $base. */
+/** Integracoes da plataforma: visao geral. Espera: $asaas, $whatsapp (integracoes), $whatsappDisponivel, $sms (resumo), $aplicativos (resumos), $base. */
 use Cardapim\Core\Icon;
 use Cardapim\Shared\Validation\Documento;
 
@@ -42,6 +42,28 @@ $cartoes = [
                 </a>
             </article>
         <?php endforeach; ?>
+
+        <?php $smsConfigurado = $sms['origem'] !== ''; ?>
+        <article class="integracao-cartao is-sms">
+            <div class="integracao-topo">
+                <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('smartphone') ?></span>
+                <?php if ($smsConfigurado): ?>
+                    <span class="etiqueta etiqueta-ok"><?= Icon::svg('circle-check') ?>Configurado</span>
+                <?php else: ?>
+                    <span class="etiqueta etiqueta-neutra"><?= Icon::svg('clock') ?>Não configurado</span>
+                <?php endif; ?>
+            </div>
+            <h2>SMS da plataforma</h2>
+            <p>Reserva automática: se o WhatsApp falhar, o código de login do cliente vai por SMS pelo celular Android.</p>
+            <?php if ($sms['origem'] === 'painel'): ?>
+                <p class="integracao-detalhe">Usuário do app: <?= $e($sms['usuario']) ?></p>
+            <?php elseif ($sms['origem'] === 'env'): ?>
+                <p class="integracao-detalhe">Usando o arquivo de configuração do servidor.</p>
+            <?php endif; ?>
+            <a class="btn <?= $smsConfigurado ? 'btn-outline' : 'btn-primary' ?> btn-sm btn-block" href="<?= $e($base . '/integracoes/sms') ?>">
+                <?= Icon::svg($smsConfigurado ? 'settings' : 'link', 'icon-sm') ?><?= $smsConfigurado ? 'Gerenciar' : 'Configurar' ?>
+            </a>
+        </article>
     </div>
 
     <section class="bloco" aria-labelledby="titulo-aplicativos">
