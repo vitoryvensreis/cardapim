@@ -20,6 +20,7 @@ use Cardapim\Services\Caixa\MesaService;
 use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Services\Garcom\ComandaPix;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Impressao\FilaImpressao;
 use Cardapim\Shared\Numero;
 use PDO;
 
@@ -77,9 +78,13 @@ final class GarcomController
         if (!$c['aberta']) {
             return $this->voltar($this->url('comandas/' . (int) $c['pedido']['id'] . '/conta'), 'sucesso', '');
         }
+        $impressao = $this->impressao();
         return $this->tela('garcom/comanda', 'mesas', $c['rotulo'], [
             'c' => $c,
             'cardapio' => $this->cardapio(),
+            // "Imprimir": comanda inteira ou so o que entrou depois da ultima impressao (pelo Agent do computador).
+            'impressaoAtiva' => $impressao->disponivel(),
+            'itensNovos' => $impressao->itensNovos($c),
             'voltar' => $this->url(),
             'subtitulo' => 'Pedido #' . (int) $c['pedido']['numero'],
         ]);
@@ -198,6 +203,50 @@ final class GarcomController
     }
 
     /** Fechar a conta: total, 10% e formas de pagamento. Conta ja paga = tela de "Pago, mesa liberada". */
+    /**
+     * Imprimir a comanda pelo Deliveryzim Agent: modo=toda (pre-conta com o total) ou modo=novos
+     * (so os itens lancados depois da ultima impressao). O cupom sai com a mesa e o nome da comanda.
+     */
+    public function imprimir(string $slug, string $id): Response
+    {
+        $json = str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+        if ($r = $this->entrar($slug, true)) {
+            return $json ? Response::json(['ok' => false, 'erro' => 'Sua sessão expirou. Atualize a página e tente de novo.'], 401) : $r;
+        }
+        $idComanda = self::id($id);
+        $modo = match ($this->post('modo')) {
+            'novos' => 'itens_novos',
+            'toda' => 'pre_conta',
+            default => '',
+        };
+        $c = $idComanda !== null ? $this->comandas()->detalhes($idComanda) : null;
+        $res = match (true) {
+            $c === null => Resultado::falha('Conta não encontrada.'),
+            !$c['aberta'] => Resultado::falha('Esta conta já foi fechada.'),
+            $modo === '' => Resultado::falha('Escolha o que imprimir.'),
+            default => $this->impressao()->comanda((int) $idComanda, $modo),
+        };
+        if ($json) {
+            return Response::json(
+                $res->ok ? ['ok' => true, 'mensagem' => $res->mensagem, 'situacao' => $this->url('impressoes/' . (int) $res->id)] : ['ok' => false, 'erro' => $res->mensagem],
+                $res->ok ? 202 : 409,
+            )->comCabecalhos(['Cache-Control' => 'no-store']);
+        }
+        return $this->voltar($this->url('comandas/' . (int) $idComanda), $res->ok ? 'sucesso' : 'erro', $res->mensagem);
+    }
+
+    /** GET: situacao do cupom pedido pelo garcom (Imprimindo / Impresso / falha). */
+    public function situacaoImpressao(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return Response::json(['erro' => 'Sessão expirada.'], 401);
+        }
+        $idImpressao = self::id($id);
+        $s = $idImpressao !== null ? $this->impressao()->situacao($idImpressao) : null;
+        return ($s === null ? Response::json(['erro' => 'Impressão não encontrada.'], 404) : Response::json($s))
+            ->comCabecalhos(['Cache-Control' => 'no-store']);
+    }
+
     public function conta(string $slug, string $id): Response
     {
         if ($r = $this->entrar($slug)) {
@@ -426,6 +475,11 @@ final class GarcomController
     private function comandas(): ComandaService
     {
         return new ComandaService($this->db, $this->restaurante['id'], $this->usuario);
+    }
+
+    private function impressao(): FilaImpressao
+    {
+        return new FilaImpressao($this->db, $this->restaurante['id'], $this->restaurante['nome'], $this->usuario);
     }
 
     private function pix(): ComandaPix

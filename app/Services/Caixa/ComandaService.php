@@ -141,6 +141,40 @@ final class ComandaService
         return Resultado::sucesso($nome !== '' ? 'Comanda agora é de ' . $nome . '.' : 'Nome removido da comanda.');
     }
 
+    public const MAX_OBSERVACAO = 300;
+
+    /** Observacao do pedido de balcao (ex.: "para viagem", "embalar separado"). Sai na impressao. Vazio apaga. */
+    public function observar(int $id, string $observacao): Resultado
+    {
+        $comanda = $this->aberta($id);
+        if ($comanda instanceof Resultado) {
+            return $comanda;
+        }
+        if ($comanda['tipo'] !== 'balcao') {
+            return Resultado::falha('A observação do pedido é usada nas vendas de balcão.');
+        }
+        $observacao = trim((string) preg_replace('/[ \t]+/u', ' ', str_replace(["\r\n", "\r"], "\n", $observacao)));
+        $observacao = (string) preg_replace("/\n{3,}/", "\n\n", $observacao);
+        if (mb_strlen($observacao) > self::MAX_OBSERVACAO) {
+            return Resultado::falha('Observação com até ' . self::MAX_OBSERVACAO . ' caracteres.', ['observacao' => 'Use até ' . self::MAX_OBSERVACAO . ' caracteres.']);
+        }
+        if ((string) ($comanda['observacao'] ?? '') === $observacao) {
+            return Resultado::sucesso('Nada mudou.');
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare("UPDATE pedidos SET observacao = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ? AND status = 'aberto'")
+                ->execute([$observacao !== '' ? $observacao : null, date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
+            $this->pedidos->registrarEvento($this->idRestaurante, $id, 'aberto', $observacao !== '' ? 'Observação do pedido atualizada.' : 'Observação do pedido removida.', $this->autor->id);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
+            $this->db->commit();
+        } catch (Throwable $erro) {
+            $this->db->rollBack();
+            throw $erro;
+        }
+        return Resultado::sucesso($observacao !== '' ? 'Observação salva. Ela sai na impressão.' : 'Observação removida.');
+    }
+
     /**
      * Comandas abertas da mesma mesa, com o nome que aparece na tela ("Joao" ou "Comanda 2").
      * @return list<array{id:int, numero:int, nome:string, tem_nome:bool, total:int, itens:int}>

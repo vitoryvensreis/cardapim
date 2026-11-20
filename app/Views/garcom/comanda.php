@@ -2,13 +2,15 @@
 /**
  * Comanda da mesa: abas das comandas da mesa (uma por pessoa), o que ja foi lancado, total e as acoes (Adicionar / Fechar conta).
  * "Adicionar" abre a folha do cardapio (#adicionar, funciona sem JavaScript pelo :target).
- * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf.
+ * "Imprimir": comanda inteira ou so os itens novos, pelo Deliveryzim Agent (imprimir-agent.js).
+ * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf, $impressaoAtiva, $itensNovos.
  */
 use Cardapim\Controllers\GarcomController;
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Shared\Numero;
 
+$pageScripts = [...($pageScripts ?? []), 'js/imprimir-agent.js'];
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $p = $c['pedido'];
 $url = $base . '/comandas/' . (int) $p['id'];
@@ -66,6 +68,22 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                 </li>
             <?php endforeach; ?>
         </ul>
+    <?php endif; ?>
+
+    <?php if ($itens !== [] && ($impressaoAtiva ?? false)): $novos = (int) ($itensNovos ?? 0); ?>
+        <details class="comanda-imprimir">
+            <summary><?= Icon::svg('printer', 'icon-sm') ?>Imprimir</summary>
+            <form method="post" action="<?= $e($url . '/imprimir') ?>" class="comanda-imprimir-opcoes" data-imprimir-agent>
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <p>Sai na impressora do caixa, com a <?= $e((string) $c['rotulo']) ?> no topo.</p>
+                <button class="comanda-imprimir-opcao" type="submit" name="modo" value="toda">
+                    <?= Icon::svg('receipt') ?><span><strong>Comanda inteira</strong><small>Todos os itens e o total até agora</small></span>
+                </button>
+                <button class="comanda-imprimir-opcao" type="submit" name="modo" value="novos"<?= $novos === 0 ? ' disabled data-sempre-desligado' : '' ?>>
+                    <?= Icon::svg('square-plus') ?><span><strong>Só os itens novos<?= $novos > 0 ? ' (' . $novos . ')' : '' ?></strong><small><?= $novos > 0 ? 'O que foi lançado depois da última impressão' : 'Nenhum item novo desde a última impressão' ?></small></span>
+                </button>
+            </form>
+        </details>
     <?php endif; ?>
 
     <?php if ($c['pago'] === 0): ?>

@@ -432,8 +432,5 @@
     desenhar();
   }
 
-  /* ---------- Imprimir ---------- */
-  document.addEventListener("click", (ev) => {
-    if (ev.target.closest("[data-imprimir]")) window.print();
-  });
+  /* Imprimir: imprimir-agent.js manda o cupom para o Deliveryzim Agent do computador (sem janela do navegador). */
 })();

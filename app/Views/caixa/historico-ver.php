@@ -1,9 +1,10 @@
 <?php
-/** Detalhe de um caixa: resumo do fechamento, formas, entradas/saidas e recebimentos. Espera: $caixa, $resumo, $movimentos, $pagamentos, $base. */
+/** Detalhe de um caixa: resumo do fechamento, formas, entradas/saidas e recebimentos. Espera: $caixa, $resumo, $movimentos, $pagamentos, $base, $csrf. */
 use Cardapim\Core\Icon;
 use Cardapim\Services\Caixa\CaixaService;
 use Cardapim\Shared\Numero;
 
+$pageScripts = [...($pageScripts ?? []), 'js/imprimir-agent.js'];
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $r = static fn (int $c): string => Numero::reais(CaixaService::dec($c));
 $fechado = $caixa['status'] === 'fechado';
@@ -22,7 +23,7 @@ $todas = CaixaService::ENTRADAS + CaixaService::SAIDAS;
             <p>Aberto às <?= $e(date('H:i', (int) strtotime((string) $caixa['aberto_em']))) ?> por <?= $e((string) $caixa['aberto_por']) ?><?php if ($fechado): ?>, fechado <?= $e(date('d/m \à\s H:i', (int) strtotime((string) $caixa['fechado_em']))) ?> por <?= $e((string) $caixa['fechado_por']) ?><?php endif; ?>.</p>
         </div>
         <div class="painel-acoes">
-            <button class="btn btn-outline btn-sm" type="button" data-imprimir><?= Icon::svg('printer', 'icon-sm') ?>Imprimir</button>
+            <form method="post" action="<?= $e($base . '/imprimir/caixa/' . (int) $caixa['id']) ?>" class="form-imprimir" data-imprimir-agent><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>"><button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('printer', 'icon-sm') ?>Imprimir</button></form>
             <a class="btn btn-outline btn-sm" href="<?= $e($base . '/historico') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Fechamentos</a>
         </div>
     </header>

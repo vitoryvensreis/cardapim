@@ -28,6 +28,7 @@ return static function (Router $router): void {
     $router->get('/api/v1/desktop/pedidos/situacao', [DesktopAgentController::class, 'situacaoPedidos']);
     $router->post('/api/v1/desktop/pedidos/{id}/receber', [DesktopAgentController::class, 'receberPedido']);
     $router->get('/api/v1/desktop/agente-ativo', [DesktopAgentController::class, 'agenteAtivo']);
+    $router->post('/api/v1/desktop/impressoes/{id}/resultado', [DesktopAgentController::class, 'resultadoImpressao']);
     $router->get('/api/v1/restaurantes/{slug}/situacao', [RestauranteController::class, 'situacao']);
     $router->post('/api/v1/restaurantes/{slug}/sacola', [RestauranteController::class, 'sacola']);
     // Cliente final (login pelo WhatsApp da plataforma)

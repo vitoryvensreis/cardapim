@@ -49,3 +49,9 @@ Acesso: cargo `garcom` e `gerente` do restaurante (ou `adm_master`), conferido n
 
 `tests/http/garcom.sh`: acesso por cargo, abrir mesa, lançar vários itens com observação, remover item, 10%, dinheiro com troco,
 Pix pelo aviso e pela consulta (sem entrar duas vezes), QR trocado quando o valor muda, trocar a forma, débito e consulta do cardápio.
+
+## Imprimir a comanda
+
+Na comanda, **Imprimir** abre duas opções: **Comanda inteira** (pré-conta com o total) e **Só os itens novos**
+(o que foi lançado depois da última impressão, com a contagem no botão). O cupom sai na impressora do caixa pelo
+Deliveryzim Agent, com a mesa e o nome da comanda no topo. Detalhes em [impressao-agent.md](impressao-agent.md).

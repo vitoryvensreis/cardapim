@@ -6,6 +6,7 @@ use Cardapim\Controllers\Caixa\CaixaController;
 use Cardapim\Controllers\Caixa\ComandaController;
 use Cardapim\Controllers\Caixa\DeliveryController;
 use Cardapim\Controllers\Caixa\IfoodController;
+use Cardapim\Controllers\Caixa\ImpressaoController;
 use Cardapim\Controllers\Caixa\MesasController;
 use Cardapim\Core\Router;
 
@@ -45,11 +46,18 @@ return static function (Router $router): void {
     $router->post($c . '/comandas/{id}/itens/{item}/cancelar', [ComandaController::class, 'cancelarItem']);
     $router->post($c . '/comandas/{id}/ajustes', [ComandaController::class, 'ajustar']);
     $router->post($c . '/comandas/{id}/nome', [ComandaController::class, 'renomear']);
+    $router->post($c . '/comandas/{id}/observacao', [ComandaController::class, 'observacao']);
     $router->post($c . '/comandas/{id}/transferir', [ComandaController::class, 'transferir']);
     $router->get($c . '/comandas/{id}/pagar', [ComandaController::class, 'pagarForm']);
     $router->post($c . '/comandas/{id}/pagamentos', [ComandaController::class, 'pagamento']);
     $router->post($c . '/comandas/{id}/pagamentos/{pagamento}/remover', [ComandaController::class, 'removerPagamento']);
     $router->post($c . '/comandas/{id}/cancelar', [ComandaController::class, 'cancelar']);
+
+    // Imprimir pelo Deliveryzim Agent do computador (conta, pedido do delivery e resumo do caixa) e situacao do cupom
+    $router->post($c . '/imprimir/comanda/{id}', [ImpressaoController::class, 'comanda']);
+    $router->post($c . '/imprimir/pedido/{id}', [ImpressaoController::class, 'pedido']);
+    $router->post($c . '/imprimir/caixa/{id}', [ImpressaoController::class, 'caixa']);
+    $router->get($c . '/imprimir/{id}', [ImpressaoController::class, 'situacao']);
 
     // Delivery (pedidos do cardapio online)
     $router->get($c . '/delivery', [DeliveryController::class, 'lista']);

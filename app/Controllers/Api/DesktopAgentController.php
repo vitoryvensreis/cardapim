@@ -9,6 +9,7 @@ use Cardapim\Core\RateLimiter;
 use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Repositories\PedidoRepository;
+use Cardapim\Repositories\Desktop\ImpressaoRepository;
 use Cardapim\Repositories\Desktop\PesagemRepository;
 use Cardapim\Services\Desktop\VinculoBalanca;
 use Cardapim\Services\Auth\Autenticacao;
@@ -17,6 +18,7 @@ use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Caixa\DeliveryService;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
+use Cardapim\Shared\Esquema;
 use PDO;
 use Throwable;
 
@@ -28,6 +30,7 @@ use Throwable;
  * - "Receber" no aviso do agente aceita o pedido como o botao Aceitar do caixa (mesmo DeliveryService);
  * - Situacao dos pedidos avisados, para o agente parar o som quando alguem aceitar em outro lugar;
  * - "Agent conectado" para o navegador nao tocar o som repetido enquanto o agente toca.
+ * - Fila de impressao (Agent 0.7.0+): cupons pedidos pelo caixa/garcom vem junto dos eventos (impressoes=1).
  */
 final class DesktopAgentController
 {
@@ -138,10 +141,73 @@ final class DesktopAgentController
                     ], $pedidos->itens((int) $dispositivo['id_restaurante'], $id)),
                 ];
             }
-            return Response::json(['cursor' => $cursor, 'pedidos' => $resposta]);
+            $saida = ['cursor' => $cursor, 'pedidos' => $resposta];
+            // Agent 0.7.0+ avisa que sabe imprimir (impressoes=1): so ele reserva cupons da fila.
+            // Agent antigo nunca pega um cupom que ele nao saberia imprimir.
+            if (($_GET['impressoes'] ?? '') === '1') {
+                $saida['impressoes'] = $this->reservarImpressoes($db, $dispositivo);
+            }
+            return Response::json($saida);
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: consulta indisponivel (' . get_class($e) . ').');
             return Response::json(['erro' => 'Falha ao consultar pedidos.'], 503);
+        }
+    }
+
+    /**
+     * Cupons pedidos pelo caixa/garcom ainda sem dono, reservados para este computador.
+     * Falha aqui nunca derruba o aviso de pedidos novos.
+     * @param array<string,mixed> $dispositivo
+     * @return list<array{id:int,titulo:string,blocos:list<array<string,mixed>>}>
+     */
+    private function reservarImpressoes(PDO $db, array $dispositivo): array
+    {
+        try {
+            if (!Esquema::tem($db, 'impressoes')) {
+                return [];
+            }
+            $repo = new ImpressaoRepository($db);
+            $repo->marcarAgente((int) $dispositivo['id']);
+            return $repo->reservar((int) $dispositivo['id_restaurante'], (int) $dispositivo['id']);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: fila de impressao indisponivel (' . get_class($e) . ').');
+            return [];
+        }
+    }
+
+    /**
+     * POST /api/v1/desktop/impressoes/{id}/resultado - o Agent conta se o Windows aceitou o cupom.
+     * Corpo: {"ok": true} ou {"ok": false, "erro": "..."}. So vale para cupom que este computador reservou.
+     */
+    public function resultadoImpressao(string $id): Response
+    {
+        $autorizado = $this->dispositivo();
+        if ($autorizado instanceof Response) return $autorizado;
+        [$db, $d] = $autorizado;
+        $idImpressao = filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($idImpressao === false) {
+            return Response::json(['erro' => 'Impressão não encontrada.'], 404);
+        }
+        if (!RateLimiter::padrao(600, 600)->permitir('desktop-impressao|' . (int) $d['id'])) {
+            return Response::json(['erro' => 'Muitas tentativas.'], 429);
+        }
+        $corpo = file_get_contents('php://input');
+        $dados = is_string($corpo) && strlen($corpo) <= 2048 ? json_decode($corpo, true) : null;
+        if (!is_array($dados) || !is_bool($dados['ok'] ?? null)) {
+            return Response::json(['erro' => 'Resultado inválido.'], 422);
+        }
+        $erro = is_string($dados['erro'] ?? null) ? trim((string) preg_replace('/\s+/u', ' ', $dados['erro'])) : '';
+        try {
+            if (!Esquema::tem($db, 'impressoes')) {
+                return Response::json(['erro' => 'Impressão não encontrada.'], 404);
+            }
+            $ok = (new ImpressaoRepository($db))->registrarResultado(
+                (int) $d['id_restaurante'], (int) $d['id'], (int) $idImpressao, $dados['ok'], $erro !== '' ? $erro : 'Falha no Windows.'
+            );
+            return $ok ? Response::json(['ok' => true]) : Response::json(['erro' => 'Impressão não encontrada.'], 404);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: resultado de impressao indisponivel (' . get_class($e) . ').');
+            return Response::json(['erro' => 'Falha ao registrar.'], 503);
         }
     }
 

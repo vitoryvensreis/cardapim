@@ -132,6 +132,108 @@ def receipt(order, paper=80, logo=True):
     return b"\x1b@" + image + ("\n".join(lines) + "\n").encode("cp850", errors="replace") + b"\x1dV\x00"
 
 
+def _wrap(text, width):
+    """Quebra por palavras (sem cortar no meio quando possível)."""
+    words = " ".join(str(text or "").split()).split(" ")
+    lines, current = [], ""
+    for word in words:
+        if not word:
+            continue
+        while len(word) > width:
+            if current:
+                lines.append(current)
+                current = ""
+            lines.append(word[:width])
+            word = word[width:]
+        if not current:
+            current = word
+        elif len(current) + 1 + len(word) <= width:
+            current += " " + word
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _pair(label, value, width):
+    """Rótulo à esquerda e valor à direita na mesma linha (o rótulo quebra se não couber)."""
+    value = str(value or "")
+    label = " ".join(str(label or "").split())
+    room = width - len(value) - 1
+    if room < 6:
+        return _wrap(label, width) + [value.rjust(width)]
+    parts = _wrap(label, room) or [""]
+    return parts[:-1] + [parts[-1].ljust(room) + " " + value]
+
+
+def job_receipt(job, paper=80, logo=True):
+    """Cupom pedido pelo caixa/garçom (fila de impressão do sistema), montado a partir de blocos.
+
+    O servidor manda blocos simples (titulo, centro, destaque, texto, linha, valor, item); aqui só
+    ajustamos à largura do papel. Bloco desconhecido vira texto comum, para nunca perder conteúdo.
+    """
+    width = 32 if int(paper) == 58 else 48
+    image = logo_raster(paper) if logo else b""
+    out = bytearray(b"\x1b@")
+    out += image
+
+    def enc(text):
+        return str(text).encode("cp850", errors="replace")
+
+    def line(text=""):
+        out.extend(enc(text) + b"\n")
+
+    for block in job.get("blocos") or []:
+        if not isinstance(block, dict):
+            continue
+        kind = block.get("t")
+        text = str(block.get("texto") or "")
+        if kind == "titulo":
+            # ESC a 1 centraliza; ESC ! 0x30 = altura e largura dupla (metade dos caracteres por linha).
+            out.extend(b"\x1ba\x01\x1b!\x30")
+            for part in _wrap(text, width // 2):
+                line(part)
+            out.extend(b"\x1b!\x00\x1ba\x00")
+        elif kind == "centro":
+            out.extend(b"\x1ba\x01")
+            for part in _wrap(text, width):
+                line(part)
+            out.extend(b"\x1ba\x00")
+        elif kind == "destaque":
+            out.extend(b"\x1bE\x01")
+            for part in _wrap(text, width):
+                line(part)
+            out.extend(b"\x1bE\x00")
+        elif kind == "linha":
+            line("-" * width)
+        elif kind == "valor":
+            strong = bool(block.get("forte"))
+            if strong:
+                out.extend(b"\x1bE\x01")
+            for part in _pair(block.get("rotulo"), block.get("valor"), width):
+                line(part)
+            if strong:
+                out.extend(b"\x1bE\x00")
+        elif kind == "item":
+            name = (str(block.get("qtd") or "").strip() + " " + str(block.get("nome") or "")).strip()
+            out.extend(b"\x1bE\x01")
+            for part in _pair(name, block.get("valor") or "", width):
+                line(part)
+            out.extend(b"\x1bE\x00")
+            for detail in block.get("detalhes") or []:
+                for part in _wrap(detail, width - 2):
+                    line("  " + part)
+        else:
+            for part in _wrap(text, width):
+                line(part)
+    line()
+    line()
+    out.extend(b"\x1dV\x00")
+    return bytes(out)
+
+
 def spool(printer, payload, label):
     if not printer:
         raise RuntimeError("Selecione uma impressora nas configuracoes.")

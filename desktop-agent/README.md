@@ -1,4 +1,10 @@
-# Deliveryzim Agent para Windows — v0.6 (teste controlado)
+# Deliveryzim Agent para Windows — v0.7 (teste controlado)
+
+**Desde 0.7.0 — botões Imprimir do sistema:** o Agent imprime os cupons pedidos no caixa (conta, pedido do delivery,
+resumo do caixa) e no garçom (comanda inteira ou só os itens novos), na impressora escolhida aqui, na hora e
+independente de "Automática"/"Ao receber". O resultado volta para a tela de quem pediu (Impresso ou a falha).
+Versões antigas não recebem esses cupons: o sistema avisa para atualizar. Detalhes em
+[`docs/architecture/impressao-agent.md`](../docs/architecture/impressao-agent.md).
 
 **Instalar (desde 0.6.0):** em Gerência > Integrações > **Baixar o Agent para Windows** (ou na Release `agent-vX.Y.Z`),
 abra o `Deliveryzim-Agent-Setup.exe`. Ele instala só para o usuário (sem pedir administrador) em

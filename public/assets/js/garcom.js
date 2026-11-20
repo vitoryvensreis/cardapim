@@ -78,6 +78,8 @@
       trocarRegiao(regiaoViva);
     });
     window.setInterval(() => { if (visivel() && !folhaAberta()) trocarRegiao(regiaoViva); }, 30000);
+    // Cupom impresso pelo Agent: atualiza a contagem de "Só os itens novos".
+    document.addEventListener("cardapim:impresso", () => { if (!folhaAberta()) trocarRegiao(regiaoViva); });
   }
 
   /* ---------- Folha do cardapio: escolher quantidades ---------- */

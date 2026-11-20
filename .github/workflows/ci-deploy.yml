@@ -108,6 +108,7 @@ jobs:
           php tests/unit/whatsapp-sessoes.php
           php tests/unit/whatsapp-evolution.php
           php tests/unit/sms.php
+          php tests/unit/impressao.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -152,6 +153,7 @@ jobs:
           php database/verify-complementos.php --verify
           php database/verify-estoque-produto.php --verify
           php database/verify-entregador-valores.php --verify
+          php database/verify-impressoes.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -322,6 +324,7 @@ jobs:
           bash tests/http/peso.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/desktop-balanca.sh http://127.0.0.1:18080
           bash tests/http/desktop-pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          bash tests/http/impressao.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/complementos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           bash tests/http/importar-cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-alerta-ci.php
@@ -455,6 +458,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-entregador-valores.sh'"
+
+      - name: Aplicar fila de impressao do Agent com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-impressoes]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-impressoes.sh'"
 
       # Mapa proprio do Ceara (docs/architecture/mapa.md): gerado aqui e enviado para a VPS so com
       # [cardapim-mapa] na mensagem do commit (primeira instalacao e atualizacoes). Roda depois do deploy do codigo.

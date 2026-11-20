@@ -16,6 +16,8 @@ return static function (Router $router): void {
     $router->post($g . '/comandas/{id}/itens/{item}/cancelar', [GarcomController::class, 'cancelarItem']);
     $router->post($g . '/comandas/{id}/cancelar', [GarcomController::class, 'cancelarComanda']);
     $router->post($g . '/comandas/{id}/nome', [GarcomController::class, 'renomear']);
+    $router->post($g . '/comandas/{id}/imprimir', [GarcomController::class, 'imprimir']);
+    $router->get($g . '/impressoes/{id}', [GarcomController::class, 'situacaoImpressao']);
     $router->get($g . '/comandas/{id}/conta', [GarcomController::class, 'conta']);
     $router->post($g . '/comandas/{id}/servico', [GarcomController::class, 'servico']);
     $router->post($g . '/comandas/{id}/pagamentos', [GarcomController::class, 'pagar']);
