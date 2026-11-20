@@ -27,7 +27,7 @@ Configurar manualmente na VPS, sem gravar segredos no Git:
 1. Gerar um segredo aleatorio forte, por exemplo `openssl rand -hex 32`, e armazenar em
    `/home/escotilhaprodutora-cardapim/apps/cardapim/shared/.env` como `WPPCONNECT_WEBHOOK_TOKEN=... `.
    Mesmo valor deve permanecer estavel entre releases; fazer backup.
-2. Na configuracao do container `/opt/wppconnect-cardapim`, apontar
+2. Na configuracao do container `/opt/wppconnect-deliveryzim`, apontar
    `WEBHOOK_URL=https://deliveryzim.com.br/webhooks/wppconnect/<mesmo-segredo>`.
    Verificar a versao e o metodo de carregar as variaveis no docker-compose antes de editar; nao mudar
    `SECRET_KEY`, `PORT`, sessoes nem o volume.

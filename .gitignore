@@ -28,3 +28,4 @@
 # Python
 __pycache__/
 *.pyc
+/deploy/wppconnect/.env

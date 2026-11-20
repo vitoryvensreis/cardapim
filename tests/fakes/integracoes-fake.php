@@ -247,6 +247,18 @@ if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([^/]+)/generate-token\z~', $caminh
     }
     $responder(201, ['status' => 'success', 'session' => $m[1], 'token' => 'tok-' . $m[1], 'full' => $m[1] . ':tok-' . $m[1]]);
 }
+if ($caminho === '/wpp/api/show-all-sessions' && $metodo === 'POST') {
+    // Como o servidor real: lista as sessoes salvas (logout apaga; close so fecha).
+    if ($cab('x-secret-key') !== 'segredo-ci') {
+        $responder(401, ['response' => 'error']);
+    }
+    $nomes = array_map(static fn (string $f): string => substr(basename($f, '.json'), 4), glob($pasta . '/wpp-*.json') ?: []);
+    $responder(200, ['response' => array_values(array_filter($nomes, static fn (string $n): bool => $n !== 'mensagens'))]);
+}
+if (preg_match('~\A/_teste/wpp-sessao/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
+    $guardar('wpp-' . $m[1] . '.json', ['status' => 'CONNECTED']); // sessao esquecida no servidor (teste da limpeza)
+    $responder(200, ['ok' => true]);
+}
 if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([a-z-]+)\z~', $caminho, $m)) {
     [$sessao, $acao] = [$m[1], $m[2]];
     if ($cab('Authorization') !== 'Bearer tok-' . $sessao) {
@@ -262,6 +274,11 @@ if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([a-z-]+)\z~', $caminho, $m)) {
         case 'status-session':
             $responder(200, ['status' => $estado['status'], 'qrcode' => $estado['status'] === 'QRCODE'
                 ? 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' : null]);
+        case 'check-connection-session':
+            if (is_file($pasta . '/wpp-travada-' . $sessao)) {
+                sleep(10); // simula o navegador da sessao travado (o PHP desiste em 8 s)
+            }
+            $responder(200, ['status' => $estado['status'] === 'CONNECTED', 'message' => $estado['status'] === 'CONNECTED' ? 'Connected' : 'Disconnected']);
         case 'host-device':
             $responder(200, ['status' => 'success', 'response' => ['phoneNumber' => '5585999990000', 'pushname' => 'Restaurante']]);
         case 'send-message':
@@ -275,11 +292,19 @@ if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([a-z-]+)\z~', $caminho, $m)) {
             file_put_contents($pasta . '/wpp-mensagens.log', $sessao . '|' . $json['phone'] . '|' . $json['message'] . "\n", FILE_APPEND);
             $responder(201, ['status' => 'success', 'response' => [['id' => 'msg1']]]);
         case 'logout-session':
+            @unlink($pasta . '/wpp-' . $sessao . '.json');
+            $responder(200, ['status' => true, 'message' => 'Session successfully closed']);
         case 'close-session':
-            $guardar('wpp-' . $sessao . '.json', ['status' => 'CLOSED']);
+            if (is_file($pasta . '/wpp-' . $sessao . '.json')) { // depois do logout a sessao ja nao existe
+                $guardar('wpp-' . $sessao . '.json', ['status' => 'CLOSED']);
+            }
             $responder(200, ['status' => true, 'message' => 'Session successfully closed']);
     }
     $responder(404, ['status' => 'error']);
+}
+if (preg_match('~\A/_teste/wpp-travar/([A-Za-z0-9_-]+)/(sim|nao)\z~', $caminho, $m)) {
+    $m[2] === 'sim' ? touch($pasta . '/wpp-travada-' . $m[1]) : @unlink($pasta . '/wpp-travada-' . $m[1]);
+    $responder(200, ['ok' => true]);
 }
 if (preg_match('~\A/_teste/wpp-conectar/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
     $guardar('wpp-' . $m[1] . '.json', ['status' => 'CONNECTED']);

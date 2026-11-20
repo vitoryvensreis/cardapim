@@ -15,6 +15,11 @@
 - Somente gerente do restaurante e administrador master podem acessar; respeita isolamento por restaurante. Não requer migration.
 - [Arquitetura e testes do modo cozinha](docs/architecture/cozinha.md).
 
+## Servidor do WhatsApp para várias lojas
+
+- O WhatsApp das lojas roda num servidor WPPConnect só do Deliveryzim (`wppconnect-deliveryzim`, `127.0.0.1:21467`), com 6 GB para 8 a 10 lojas conectadas ao mesmo tempo. Configuração versionada em `deploy/wppconnect/`.
+- A tela de WhatsApp avisa quando a sessão aparece conectada mas não responde, e a rotina `bin/whatsapp-sessoes.php` (cron a cada 15 min) fecha sessões abandonadas que gastavam a memória das lojas conectadas. Ver `docs/deploy/wppconnect-docker.md`.
+
 ## Importar cardápio por planilha
 
 - Em **Gerência > Integrações > Importar cardápio**, o gerente baixa o modelo, preenche no Excel ou no Google Planilhas e envia em `.xlsx` ou `.csv`.
