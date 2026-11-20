@@ -295,7 +295,9 @@ if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([a-z-]+)\z~', $caminho, $m)) {
             @unlink($pasta . '/wpp-' . $sessao . '.json');
             $responder(200, ['status' => true, 'message' => 'Session successfully closed']);
         case 'close-session':
-            $guardar('wpp-' . $sessao . '.json', ['status' => 'CLOSED']);
+            if (is_file($pasta . '/wpp-' . $sessao . '.json')) { // depois do logout a sessao ja nao existe
+                $guardar('wpp-' . $sessao . '.json', ['status' => 'CLOSED']);
+            }
             $responder(200, ['status' => true, 'message' => 'Session successfully closed']);
     }
     $responder(404, ['status' => 'error']);
