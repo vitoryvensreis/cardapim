@@ -15,6 +15,12 @@
 - Somente gerente do restaurante e administrador master podem acessar; respeita isolamento por restaurante. Não requer migration.
 - [Arquitetura e testes do modo cozinha](docs/architecture/cozinha.md).
 
+## Importar cardápio por planilha
+
+- Em **Gerência > Integrações > Importar cardápio**, o gerente baixa o modelo, preenche no Excel ou no Google Planilhas e envia em `.xlsx` ou `.csv`.
+- Antes de gravar, a tela mostra a conferência: produtos e categorias novos, complementos (tamanho, sabor, adicionais) e cada linha com problema. Só importa quando não há erro, tudo numa transação.
+- Produtos que já existem com o mesmo nome não são alterados. Grupos de complementos iguais viram um grupo só. Sem migration. Ver `docs/architecture/importar-cardapio.md`.
+
 ## Estoque: fotos na lista de produtos
 
 - Em **Gerência > Estoque > Produtos**, os produtos exibem a fotografia cadastrada em miniatura de 48 × 48 px, seguindo o padrão visual dos complementos. Sem foto, aparece o ícone de imagem.

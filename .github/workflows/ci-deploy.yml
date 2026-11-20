@@ -104,6 +104,7 @@ jobs:
           php tests/unit/cozinha.php
           php tests/unit/saudacao.php
           php tests/unit/complementos.php
+          php tests/unit/importar-cardapio.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -318,6 +319,7 @@ jobs:
           bash tests/http/desktop-balanca.sh http://127.0.0.1:18080
           bash tests/http/desktop-pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/complementos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          bash tests/http/importar-cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-alerta-ci.php
           IFOOD_BASE_URL=http://127.0.0.1:18099/ifood IFOOD_CLIENT_ID=ifood-ci IFOOD_CLIENT_SECRET=ifood-segredo-ci APP_URL=https://cardapim.test \
             bash tests/http/ifood.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099

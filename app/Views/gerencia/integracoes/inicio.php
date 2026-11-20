@@ -65,6 +65,16 @@ $detalhe = static function (string $provedor, array $i) use ($e): string {
             <p class="integracao-detalhe">Instala em 1 minuto e abre sozinho quando o computador liga, já com o painel no navegador.</p>
             <a class="btn btn-primary btn-sm btn-block" href="<?= $e((string) $agentDownload) ?>" rel="noopener" download><?= Icon::svg('download', 'icon-sm') ?>Baixar o Agent para Windows</a>
         </article>
+        <article class="integracao-cartao is-importar">
+            <div class="integracao-topo">
+                <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('file-spreadsheet') ?></span>
+                <span class="etiqueta etiqueta-neutra"><?= Icon::svg('upload') ?>Planilha</span>
+            </div>
+            <h2>Importar cardápio</h2>
+            <p>Cadastre muitos produtos de uma vez com uma planilha do Excel ou do Google Planilhas, com categorias e complementos.</p>
+            <p class="integracao-detalhe">Você confere tudo antes de importar.</p>
+            <a class="btn btn-primary btn-sm btn-block" href="<?= $e($base . '/integracoes/importar-cardapio') ?>"><?= Icon::svg('file-spreadsheet', 'icon-sm') ?>Importar planilha</a>
+        </article>
         <article class="integracao-cartao is-99food is-em-breve">
             <div class="integracao-topo">
                 <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('utensils') ?></span>
