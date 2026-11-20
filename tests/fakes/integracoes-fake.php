@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Servidor FALSO de iFood, Asaas e WPPConnect, somente para testes automaticos (CI/local).
+// Servidor FALSO de iFood, Asaas e Evolution API, somente para testes automaticos (CI/local).
 // Uso: php -S 127.0.0.1:18099 tests/fakes/integracoes-fake.php
 // Nunca usar em producao. Estado guardado em arquivos temporarios.
 
@@ -240,74 +240,79 @@ if ($caminho === '/_teste/asaas-webhook') {
     $responder(200, $ler('asaas-webhook.json') ?? []);
 }
 
-/* ---------- WPPConnect ---------- */
-if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([^/]+)/generate-token\z~', $caminho, $m) && $metodo === 'POST') {
-    if (rawurldecode($m[2]) !== 'segredo-ci') {
-        $responder(401, ['status' => 'error', 'message' => 'secret key invalida']);
+/* ---------- Evolution API (WhatsApp) ---------- */
+// Estado de cada instancia em wpp-{instancia}.json: {"state": "close" | "connecting" | "open"}.
+// Mensagens enviadas em wpp-mensagens.log: instancia|numero|texto (lido pelos testes HTTP).
+$evoQr = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+$evoGlobal = static fn (): bool => $cab('apikey') === 'chave-global-ci';
+$evoPode = static fn (string $instancia): bool => $evoGlobal() || $cab('apikey') === 'tok-' . $instancia;
+if ($caminho === '/evo/instance/create' && $metodo === 'POST') {
+    if (!$evoGlobal()) {
+        $responder(401, ['status' => 401, 'error' => 'Unauthorized']);
     }
-    $responder(201, ['status' => 'success', 'session' => $m[1], 'token' => 'tok-' . $m[1], 'full' => $m[1] . ':tok-' . $m[1]]);
+    $nome = (string) ($json['instanceName'] ?? '');
+    if (preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $nome) !== 1 || ($json['integration'] ?? '') !== 'WHATSAPP-BAILEYS') {
+        $responder(400, ['status' => 400, 'error' => 'Bad Request']);
+    }
+    if (is_file($pasta . '/wpp-' . $nome . '.json')) {
+        $responder(403, ['status' => 403, 'response' => ['message' => ['This name "' . $nome . '" is already in use.']]]);
+    }
+    $guardar('wpp-' . $nome . '.json', ['state' => 'connecting']);
+    $responder(201, ['instance' => ['instanceName' => $nome, 'status' => 'connecting'], 'hash' => 'tok-' . $nome]);
 }
-if ($caminho === '/wpp/api/show-all-sessions' && $metodo === 'POST') {
-    // Como o servidor real: lista as sessoes salvas (logout apaga; close so fecha).
-    if ($cab('x-secret-key') !== 'segredo-ci') {
-        $responder(401, ['response' => 'error']);
+if ($caminho === '/evo/instance/fetchInstances' && $metodo === 'GET') {
+    $nomes = array_values(array_filter(array_map(static fn (string $f): string => substr(basename($f, '.json'), 4), glob($pasta . '/wpp-*.json') ?: [])));
+    $filtro = (string) ($_GET['instanceName'] ?? '');
+    if ($filtro !== '') {
+        if (!$evoPode($filtro)) {
+            $responder(401, ['status' => 401, 'error' => 'Unauthorized']);
+        }
+        $nomes = in_array($filtro, $nomes, true) ? [$filtro] : [];
+    } elseif (!$evoGlobal()) {
+        $responder(401, ['status' => 401, 'error' => 'Unauthorized']);
     }
-    $nomes = array_map(static fn (string $f): string => substr(basename($f, '.json'), 4), glob($pasta . '/wpp-*.json') ?: []);
-    $responder(200, ['response' => array_values(array_filter($nomes, static fn (string $n): bool => $n !== 'mensagens'))]);
+    $responder(200, array_map(static fn (string $n): array => ['name' => $n, 'ownerJid' => '5585999990000@s.whatsapp.net'], $nomes));
+}
+if (preg_match('~\A/evo/(instance/connect|instance/connectionState|instance/logout|instance/delete|message/sendText)/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
+    [$acao, $instancia] = [$m[1], $m[2]];
+    if (!$evoPode($instancia) || ($acao === 'instance/delete' && !$evoGlobal())) {
+        $responder(401, ['status' => 401, 'error' => 'Unauthorized']);
+    }
+    $estado = $ler('wpp-' . $instancia . '.json');
+    if ($estado === null) {
+        $responder(404, ['status' => 404, 'error' => 'Not Found', 'response' => ['message' => ['The "' . $instancia . '" instance does not exist']]]);
+    }
+    switch ($acao) {
+        case 'instance/connect':
+            if ($estado['state'] === 'open') {
+                $responder(200, ['instance' => ['instanceName' => $instancia, 'state' => 'open']]);
+            }
+            $guardar('wpp-' . $instancia . '.json', ['state' => 'connecting']);
+            $responder(200, ['pairingCode' => null, 'code' => '2@ci', 'base64' => $evoQr, 'count' => 1]);
+        case 'instance/connectionState':
+            $responder(200, ['instance' => ['instanceName' => $instancia, 'state' => $estado['state']]]);
+        case 'message/sendText':
+            $destino = (string) ($json['number'] ?? '');
+            $valido = preg_match('/\A55\d{10,11}\z/', $destino) === 1 || preg_match('/\A[0-9]{6,24}@lid\z/D', $destino) === 1;
+            if ($metodo !== 'POST' || $estado['state'] !== 'open' || !$valido || !is_string($json['text'] ?? null)) {
+                $responder(400, ['status' => 400, 'error' => 'Bad Request', 'response' => ['message' => [['exists' => false, 'number' => $destino]]]]);
+            }
+            file_put_contents($pasta . '/wpp-mensagens.log', $instancia . '|' . $destino . '|' . $json['text'] . "\n", FILE_APPEND);
+            $responder(201, ['key' => ['remoteJid' => $destino . '@s.whatsapp.net', 'fromMe' => true, 'id' => 'CI' . bin2hex(random_bytes(4))], 'status' => 'PENDING']);
+        case 'instance/logout':
+            $guardar('wpp-' . $instancia . '.json', ['state' => 'close']);
+            $responder(200, ['status' => 'SUCCESS', 'error' => false, 'response' => ['message' => 'Instance logged out']]);
+        case 'instance/delete':
+            @unlink($pasta . '/wpp-' . $instancia . '.json');
+            $responder(200, ['status' => 'SUCCESS', 'error' => false, 'response' => ['message' => 'Instance deleted']]);
+    }
 }
 if (preg_match('~\A/_teste/wpp-sessao/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
-    $guardar('wpp-' . $m[1] . '.json', ['status' => 'CONNECTED']); // sessao esquecida no servidor (teste da limpeza)
-    $responder(200, ['ok' => true]);
-}
-if (preg_match('~\A/wpp/api/([A-Za-z0-9_-]+)/([a-z-]+)\z~', $caminho, $m)) {
-    [$sessao, $acao] = [$m[1], $m[2]];
-    if ($cab('Authorization') !== 'Bearer tok-' . $sessao) {
-        $responder(401, ['status' => 'error', 'message' => 'token invalido']);
-    }
-    $estado = $ler('wpp-' . $sessao . '.json') ?? ['status' => 'CLOSED'];
-    switch ($acao) {
-        case 'start-session':
-            if ($estado['status'] !== 'CONNECTED') {
-                $guardar('wpp-' . $sessao . '.json', ['status' => 'QRCODE']);
-            }
-            $responder(200, ['status' => 'INITIALIZING']);
-        case 'status-session':
-            $responder(200, ['status' => $estado['status'], 'qrcode' => $estado['status'] === 'QRCODE'
-                ? 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' : null]);
-        case 'check-connection-session':
-            if (is_file($pasta . '/wpp-travada-' . $sessao)) {
-                sleep(10); // simula o navegador da sessao travado (o PHP desiste em 8 s)
-            }
-            $responder(200, ['status' => $estado['status'] === 'CONNECTED', 'message' => $estado['status'] === 'CONNECTED' ? 'Connected' : 'Disconnected']);
-        case 'host-device':
-            $responder(200, ['status' => 'success', 'response' => ['phoneNumber' => '5585999990000', 'pushname' => 'Restaurante']]);
-        case 'send-message':
-            $destino = (string) ($json['phone'] ?? '');
-            $numero = preg_match('/\A55\d{10,11}\z/', $destino) === 1;
-            $lid = preg_match('/\A[0-9]{6,24}@lid\z/D', $destino) === 1
-                && ($json['isLid'] ?? null) === true;
-            if ($estado['status'] !== 'CONNECTED' || (!$numero && !$lid)) {
-                $responder(400, ['status' => 'error', 'message' => 'nao conectado ou destinatario invalido']);
-            }
-            file_put_contents($pasta . '/wpp-mensagens.log', $sessao . '|' . $json['phone'] . '|' . $json['message'] . "\n", FILE_APPEND);
-            $responder(201, ['status' => 'success', 'response' => [['id' => 'msg1']]]);
-        case 'logout-session':
-            @unlink($pasta . '/wpp-' . $sessao . '.json');
-            $responder(200, ['status' => true, 'message' => 'Session successfully closed']);
-        case 'close-session':
-            if (is_file($pasta . '/wpp-' . $sessao . '.json')) { // depois do logout a sessao ja nao existe
-                $guardar('wpp-' . $sessao . '.json', ['status' => 'CLOSED']);
-            }
-            $responder(200, ['status' => true, 'message' => 'Session successfully closed']);
-    }
-    $responder(404, ['status' => 'error']);
-}
-if (preg_match('~\A/_teste/wpp-travar/([A-Za-z0-9_-]+)/(sim|nao)\z~', $caminho, $m)) {
-    $m[2] === 'sim' ? touch($pasta . '/wpp-travada-' . $m[1]) : @unlink($pasta . '/wpp-travada-' . $m[1]);
+    $guardar('wpp-' . $m[1] . '.json', ['state' => 'open']); // instancia esquecida no servidor (teste da limpeza)
     $responder(200, ['ok' => true]);
 }
 if (preg_match('~\A/_teste/wpp-conectar/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
-    $guardar('wpp-' . $m[1] . '.json', ['status' => 'CONNECTED']);
+    $guardar('wpp-' . $m[1] . '.json', ['state' => 'open']); // simula a leitura do QR Code no celular
     $responder(200, ['ok' => true]);
 }
 if ($caminho === '/_teste/wpp-mensagens') {

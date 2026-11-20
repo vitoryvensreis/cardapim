@@ -1,6 +1,6 @@
 <?php
 /**
- * WhatsApp (WPPConnect). Espera: $integracao, $disponivel, $erros, $valores, $base, $csrf.
+ * WhatsApp (Evolution API). Espera: $integracao, $disponivel, $erros, $valores, $base, $csrf.
  * Opcional: $plataforma (true = WhatsApp da administracao do Cardapim, separado dos restaurantes).
  */
 use Cardapim\Core\Icon;
@@ -31,7 +31,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             <div class="lista-vazia">
                 <?= Icon::svg('clock') ?>
                 <strong>O WhatsApp ainda não foi liberado neste servidor</strong>
-                <p><?= $plataforma ? 'Configure EVOLUTION_BASE_URL e EVOLUTION_API_KEY (ou WPPCONNECT_BASE_URL e WPPCONNECT_SECRET_KEY) no .env do servidor (docs/deploy/evolution.md).' : 'A equipe do ' . marca() . ' está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
+                <p><?= $plataforma ? 'Configure EVOLUTION_BASE_URL e EVOLUTION_API_KEY no .env do servidor (docs/deploy/evolution.md).' : 'A equipe do ' . marca() . ' está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
             </div>
         </section>
     <?php elseif ($statusIntegracao === 'desconectado'): ?>

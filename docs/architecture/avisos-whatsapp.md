@@ -30,7 +30,7 @@ A mesma tela mostra os **últimos avisos** (Enviado, Na fila, Não precisou, Nã
 - Sem conexão ou com erro: nova tentativa em 1, 3, 10 e 30 min (máx. 5). A fila do delivery do caixa (consulta a cada 60 s) e a tela do
   WhatsApp disparam as tentativas pendentes, então ao reconectar o WhatsApp os avisos atrasados saem sozinhos.
 - Aviso de uma etapa que o pedido já passou (ex.: "Em preparo" quando já saiu) é marcado como `ignorado`, para não confundir o cliente.
-- Isolamento: tudo filtrado por `id_restaurante`; cada restaurante só envia pela própria sessão do WPPConnect. O WhatsApp da plataforma
+- Isolamento: tudo filtrado por `id_restaurante`; cada restaurante só envia pela própria instância da Evolution API. O WhatsApp da plataforma
   (códigos de login) nunca é usado para avisos de pedido.
 
 ## Implantação
@@ -45,4 +45,4 @@ Gatilho removido no commit seguinte.
 
 ## Saudacao a quem envia mensagem para o restaurante
 
-A saudacao de primeiro contato do dia e **separada** da fila de status dos pedidos. O gerente a ativa na mesma tela de integracao, e os eventos chegam por webhook WPPConnect. Veja [saudacao-whatsapp.md](saudacao-whatsapp.md).
+A saudacao de primeiro contato do dia e **separada** da fila de status dos pedidos. O gerente a ativa na mesma tela de integracao, e os eventos chegam pelo webhook da Evolution API. Veja [saudacao-whatsapp.md](saudacao-whatsapp.md).

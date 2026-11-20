@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-// Sessoes dos servidores de WhatsApp (WPPConnect e Evolution): lista e fecha as que nenhum restaurante usa mais.
-// Sessao abandonada abre um navegador a toa e gasta a memoria que as lojas conectadas precisam.
+// Instancias do WhatsApp (Evolution API): lista e fecha as que nenhum restaurante usa mais.
+// Instancia abandonada ocupa o servidor a toa. Instancias de outros projetos nunca sao tocadas.
 //
 // Uso (usuario do site, na pasta current/):
 //   php8.4 bin/whatsapp-sessoes.php                 -> so mostra (nao fecha nada)
@@ -24,7 +24,7 @@ use Cardapim\Services\WhatsApp\SessoesAbandonadas;
 
 $servidores = WhatsAppProvedores::configurados();
 if ($servidores === []) {
-    echo "WhatsApp nao configurado (WPPCONNECT_* ou EVOLUTION_* no .env). Nada a fazer.\n";
+    echo "WhatsApp nao configurado (EVOLUTION_BASE_URL / EVOLUTION_API_KEY no .env). Nada a fazer.\n";
     exit(0);
 }
 
@@ -43,8 +43,7 @@ $linha = static fn (string $rotulo, array $lista): string => sprintf("  %-34s %d
 $saida = 0;
 $db = Database::connect();
 foreach ($servidores as $api) {
-    // Um arquivo de "vistas" por servidor (o do WPPConnect mantem o nome antigo).
-    $estado = $pasta . ($api->id() === WhatsAppProvedores::WPPCONNECT ? '/whatsapp-sessoes.json' : '/whatsapp-sessoes-' . $api->id() . '.json');
+    $estado = $pasta . '/whatsapp-sessoes-' . $api->id() . '.json';
     try {
         $r = (new SessoesAbandonadas($db, $api, $estado))->rodar($limpar, $semEspera);
     } catch (IntegracaoErro $erro) {

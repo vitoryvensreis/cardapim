@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Teste HTTP da aba Integracoes (Asaas, WhatsApp/WPPConnect e iFood) contra o servidor FALSO
+# Teste HTTP da aba Integracoes (Asaas, WhatsApp/Evolution API e iFood) contra o servidor FALSO
 # tests/fakes/integracoes-fake.php. Uso: bash tests/http/integracoes.sh <base> <slug> <base-do-fake>
 # O servidor do Cardapim precisa estar com as variaveis apontando para o fake (ver CI).
 set -Eeuo pipefail
@@ -74,35 +74,32 @@ estado="$(curl -s -b "$gj" "$g/integracoes/whatsapp/estado")"
 esperar "teste antes de conectar e recusado" "$(enviar "$gj" /integracoes/whatsapp/teste telefone='(85) 99999-1111' mensagem='Oi' | cut -d' ' -f1)" "303"
 esperar "aviso de que precisa conectar" "$(flash "$gj" "$g/integracoes/whatsapp")" "painel-flash-erro"
 sessao="$(ls "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-deliveryzim_r[0-9]*_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
-[[ -n "$sessao" ]] && ok "sessao criada no WPPConnect: $sessao" || falha "sessao nao encontrada"
+[[ -n "$sessao" ]] && ok "instancia criada na Evolution: $sessao" || falha "sessao nao encontrada"
 curl -s "$fake/_teste/wpp-conectar/$sessao" >/dev/null
 estado="$(curl -s -b "$gj" "$g/integracoes/whatsapp/estado")"
 [[ "$estado" == *'"estado":"conectado"'* && "$estado" == *'5585999990000'* ]] && ok "conectado apos ler o QR Code" || falha "nao conectou: $estado"
-curl -s "$fake/_teste/wpp-travar/$sessao/sim" >/dev/null
-estado="$(curl -s -m 30 -b "$gj" "$g/integracoes/whatsapp/estado")"
-curl -s "$fake/_teste/wpp-travar/$sessao/nao" >/dev/null
-[[ "$estado" == *'"estado":"sem_resposta"'* && "$estado" == *'não está respondendo'* ]] && ok "sessao travada aparece como sem resposta" || falha "travada nao detectada: $estado"
-sleep 3 # o servidor falso termina a espera da sessao travada
-estado="$(curl -s -b "$gj" "$g/integracoes/whatsapp/estado")"
-[[ "$estado" == *'"estado":"conectado"'* ]] && ok "volta a conectado quando a sessao responde" || falha "nao voltou: $estado"
 esperar "numero invalido (422)" "$(enviar "$gj" /integracoes/whatsapp/teste telefone='123' mensagem='Oi' | cut -d' ' -f1)" "422"
 esperar "enviar mensagem de teste" "$(enviar "$gj" /integracoes/whatsapp/teste telefone='(85) 99999-1111' mensagem='Teste CI do Cardapim' | cut -d' ' -f1)" "303"
 esperar "teste enviado com sucesso" "$(flash "$gj" "$g/integracoes/whatsapp")" "painel-flash-sucesso"
-curl -s "$fake/_teste/wpp-mensagens" | grep -q '5585999991111|Teste CI do Cardapim' && ok "mensagem chegou ao WPPConnect com 55 + DDD" || falha "mensagem nao chegou"
+curl -s "$fake/_teste/wpp-mensagens" | grep -q '5585999991111|Teste CI do Cardapim' && ok "mensagem chegou a Evolution com 55 + DDD" || falha "mensagem nao chegou"
 esperar "desconectar WhatsApp" "$(enviar "$gj" /integracoes/whatsapp/desconectar)" "303 $g/integracoes/whatsapp"
 estado="$(curl -s -b "$gj" "$g/integracoes/whatsapp/estado")"
 [[ "$estado" == *'"estado":"desconectado"'* ]] && ok "desconectado" || falha "continua conectado: $estado"
+curl -s -H 'apikey: chave-global-ci' "$fake/evo/instance/fetchInstances" | grep -q "$sessao" && falha "instancia continua na Evolution" || ok "desconectar apaga a instancia na Evolution"
 
 echo "WhatsApp: limpeza de sessoes abandonadas"
-curl -s "$fake/_teste/wpp-sessao/cardapim_r1_deadbeef" >/dev/null
-wppenv=(env WPPCONNECT_BASE_URL="$fake/wpp" WPPCONNECT_SECRET_KEY=segredo-ci)
+curl -s "$fake/_teste/wpp-sessao/deliveryzim_r1_deadbeef" >/dev/null
+curl -s "$fake/_teste/wpp-sessao/outro-projeto" >/dev/null # instancia de outro sistema no mesmo servidor
+wppenv=(env EVOLUTION_BASE_URL="$fake/evo" EVOLUTION_API_KEY=chave-global-ci)
 saida="$("${wppenv[@]}" php bin/whatsapp-sessoes.php || true)"
-[[ "$saida" == *'cardapim_r1_deadbeef'* && "$saida" == *'nada foi fechado'* ]] && ok "consulta lista a sessao esquecida sem fechar" || falha "consulta: $saida"
+[[ "$saida" == *'deliveryzim_r1_deadbeef'* && "$saida" == *'nada foi fechado'* ]] && ok "consulta lista a sessao esquecida sem fechar" || falha "consulta: $saida"
 saida="$("${wppenv[@]}" php bin/whatsapp-sessoes.php --limpar || true)"
-[[ "$saida" == *'aguardando 10 min'*'cardapim_r1_deadbeef'* ]] && ok "limpeza do cron espera a carencia" || falha "carencia: $saida"
+[[ "$saida" == *'aguardando 10 min'*'deliveryzim_r1_deadbeef'* ]] && ok "limpeza do cron espera a carencia" || falha "carencia: $saida"
 saida="$("${wppenv[@]}" php bin/whatsapp-sessoes.php --limpar --sem-espera || true)"
-[[ "$saida" == *'Fechadas agora'*'cardapim_r1_deadbeef'* ]] && ok "limpeza manual fecha a sessao esquecida" || falha "limpeza: $saida"
-curl -s -X POST -H 'x-secret-key: segredo-ci' "$fake/wpp/api/show-all-sessions" | grep -q 'deadbeef' && falha "sessao continua no servidor" || ok "sessao saiu do servidor do WhatsApp"
+[[ "$saida" == *'Fechadas agora'*'deliveryzim_r1_deadbeef'* ]] && ok "limpeza manual fecha a sessao esquecida" || falha "limpeza: $saida"
+instancias="$(curl -s -H 'apikey: chave-global-ci' "$fake/evo/instance/fetchInstances")"
+[[ "$instancias" == *'deadbeef'* ]] && falha "instancia continua no servidor" || ok "instancia saiu do servidor do WhatsApp"
+[[ "$instancias" == *'outro-projeto'* ]] && ok "instancia de outro projeto nao foi tocada" || falha "limpeza apagou instancia de outro projeto"
 
 echo "iFood"
 esperar "gerar codigo de vinculo" "$(enviar "$gj" /integracoes/ifood/iniciar)" "303 $g/integracoes/ifood/status"

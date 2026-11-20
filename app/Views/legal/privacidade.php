@@ -53,7 +53,7 @@ $legalLead = 'Quais dados o ' . marca() . ' usa, para quê, com quem compartilha
             <ul>
                 <li><strong>Restaurante e equipe:</strong> recebem os dados do pedido para preparar, cobrar e entregar.</li>
                 <li><strong>Asaas:</strong> processa a cobrança da assinatura e os pagamentos por Pix dos pedidos (nome, CPF, valor).</li>
-                <li><strong>WhatsApp, via WPPConnect:</strong> envio do código de acesso e dos avisos do pedido (número e texto da mensagem).</li>
+                <li><strong>WhatsApp, via servidor próprio (Evolution API):</strong> envio do código de acesso e dos avisos do pedido (número e texto da mensagem).</li>
                 <li><strong>iFood:</strong> troca de status dos pedidos que vieram de lá, quando o restaurante conecta a integração.</li>
                 <li><strong>OpenStreetMap e Nominatim:</strong> exibem o mapa e convertem endereço em localização. <strong>BrasilAPI e ViaCEP:</strong> preenchem o endereço pelo CEP e os dados do CNPJ.</li>
                 <li><strong>Google Fonts:</strong> fontes do site, carregadas só com o seu consentimento.</li>

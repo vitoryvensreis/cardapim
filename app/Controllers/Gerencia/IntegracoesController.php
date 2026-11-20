@@ -24,7 +24,7 @@ use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Ifood\IfoodDiagnostico;
 use Cardapim\Shared\Seguranca\Cripto;
 
-/** Aba Integracoes: iFood, WhatsApp (WPPConnect) e Asaas. Rotas em /{slug}/gerencia/integracoes/... */
+/** Aba Integracoes: iFood, WhatsApp (Evolution API) e Asaas. Rotas em /{slug}/gerencia/integracoes/... */
 final class IntegracoesController extends BaseGerencia
 {
     public function inicio(string $slug): Response
@@ -169,7 +169,7 @@ final class IntegracoesController extends BaseGerencia
         $id = (int) $this->restaurante['id'];
         $mensagem = (string) ($_POST['saudacao_mensagem'] ?? '');
         $ativo = isset($_POST['saudacao_ativo']);
-        if ($ativo && strlen(\Cardapim\Core\Config::get('WPPCONNECT_WEBHOOK_TOKEN')) < 32) {
+        if ($ativo && strlen(\Cardapim\Core\Config::get('EVOLUTION_WEBHOOK_TOKEN')) < 32) {
             return $this->voltar($this->url('integracoes/whatsapp') . '#saudacao', 'erro',
                 'O recebimento de mensagens ainda não foi configurado no servidor. Avise o suporte.');
         }
@@ -196,7 +196,7 @@ final class IntegracoesController extends BaseGerencia
             'avisosLigados' => AvisosWhatsApp::ligados($this->db, (int) $this->restaurante['id']),
             'avisosRecentes' => AvisosWhatsApp::recentes($this->db, (int) $this->restaurante['id']),
             'saudacao' => SaudacaoWhatsApp::configuracao($this->db, (int) $this->restaurante['id']),
-            'webhookConfigurado' => strlen(\Cardapim\Core\Config::get('WPPCONNECT_WEBHOOK_TOKEN')) >= 32,
+            'webhookConfigurado' => strlen(\Cardapim\Core\Config::get('EVOLUTION_WEBHOOK_TOKEN')) >= 32,
         ];
     }
 

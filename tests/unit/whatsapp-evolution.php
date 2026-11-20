@@ -2,14 +2,13 @@
 
 declare(strict_types=1);
 
-// Evolution API sem rede: cliente HTTP falso, escolha do servidor e conversao do webhook.
+// Evolution API sem rede: cliente HTTP falso, nomes das instancias e conversao do webhook.
 // php tests/unit/whatsapp-evolution.php
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
 use Cardapim\Modules\Integracoes\EvolutionApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Integracoes\WhatsAppProvedores as P;
-use Cardapim\Modules\Integracoes\WppConnectApi;
 use Cardapim\Services\Pedidos\SaudacaoWhatsApp;
 use Cardapim\Services\WhatsApp\EventoEvolution as E;
 use Cardapim\Services\WhatsApp\SessoesAbandonadas;
@@ -60,25 +59,15 @@ putenv('EVOLUTION_WEBHOOK_TOKEN=' . str_repeat('a', 40));
 $nova = P::novaSessao(7);
 $ok(preg_match('/\Adeliveryzim_r7_[a-f0-9]{8}\z/', $nova) === 1, 'sessao nova de loja usa deliveryzim_r{id}_');
 $ok(preg_match('/\Adeliveryzim_plataforma_[a-f0-9]{8}\z/', P::novaSessao(null)) === 1, 'sessao nova da plataforma');
-$ok(P::doDeliveryzim($nova) && P::doDeliveryzim('cardapim_r2_50f28385') && P::doDeliveryzim('cardapim_plataforma_f90007fc'), 'nomes novos e antigos reconhecidos');
+$ok(P::doDeliveryzim($nova) && P::doDeliveryzim('deliveryzim_plataforma_f90007fc'), 'nomes do Deliveryzim reconhecidos');
+$ok(!P::doDeliveryzim('cardapim_r2_50f28385'), 'nome antigo (cardapim_) nao e mais do Deliveryzim');
 $ok(!P::doDeliveryzim('teste-escotilha') && !P::doDeliveryzim('taskesc-suporte') && !P::doDeliveryzim('deliveryzim_r0_50f28385') && !P::doDeliveryzim('outro_deliveryzim_r2_50f28385'), 'instancias de outros projetos ficam de fora');
-$ok(P::restauranteDaSessao('deliveryzim_r42_abcdef01') === 42 && P::restauranteDaSessao('cardapim_r3_abcdef01') === 3, 'restaurante pelo nome');
+$ok(P::restauranteDaSessao('deliveryzim_r42_abcdef01') === 42, 'restaurante pelo nome');
 $ok(P::restauranteDaSessao('deliveryzim_plataforma_abcdef01') === null && P::restauranteDaSessao('qualquer') === null, 'plataforma e nomes invalidos sem restaurante');
-$ok(P::daIntegracao([])->id() === 'wppconnect' && P::daIntegracao(['provedor' => 'evolution'])->id() === 'evolution', 'sessao sem provedor gravado continua no WPPConnect');
+$ok(P::daIntegracao([])->id() === 'evolution' && P::padrao()->id() === 'evolution', 'servidor unico: Evolution');
 $ok($erro(fn () => P::sessao('../etc')) !== null, 'nome com caracteres invalidos recusado');
 
-putenv('WPPCONNECT_BASE_URL=');
-putenv('WPPCONNECT_SECRET_KEY=');
-putenv('WHATSAPP_PROVEDOR_PADRAO=evolution');
-$ok(P::padrao()->id() === 'evolution', 'padrao Evolution');
-putenv('WHATSAPP_PROVEDOR_PADRAO=wppconnect');
-$ok(P::padrao()->id() === 'evolution', 'padrao WPPConnect sem configuracao cai na Evolution');
-$ok(count(P::configurados()) === 1 && P::algumDisponivel(), 'so a Evolution configurada');
-putenv('WPPCONNECT_BASE_URL=http://127.0.0.1:21465');
-putenv('WPPCONNECT_SECRET_KEY=segredo');
-$ok(P::padrao()->id() === 'wppconnect' && count(P::configurados()) === 2, 'padrao WPPConnect quando configurado');
-putenv('WHATSAPP_PROVEDOR_PADRAO=evolution');
-$ok((new WppConnectApi())->configurado() && (new EvolutionApi())->configurado(), 'os dois configurados');
+$ok(count(P::configurados()) === 1 && P::algumDisponivel(), 'Evolution configurada');
 
 /* ---------- Criar instancia ---------- */
 $h = $falso(new RespostaHttp(201, '{"instance":{"instanceName":"deliveryzim_r1_ab12cd34","status":"connecting"},"hash":"tok-instancia"}'));
@@ -112,7 +101,6 @@ $e = (new EvolutionApi($falso(new RespostaHttp(200, '{"instance":{"state":"conne
 $ok($e === ['status' => 'INITIALIZING', 'qrcode' => null], 'QR Code que nao e imagem e descartado');
 $ok((new EvolutionApi($falso(new RespostaHttp(200, '{"instance":{"state":"close"}}'))))->estado('deliveryzim_r1_ab12cd34', 'tok')['status'] === 'CLOSED', 'close = fechado');
 $ok((new EvolutionApi($falso(new RespostaHttp(404, '{}'))))->estado('deliveryzim_r1_ab12cd34', 'tok')['status'] === 'CLOSED', 'instancia apagada = fechado');
-$ok((new EvolutionApi($falso()))->respondendo('deliveryzim_r1_ab12cd34', 'tok') === null, 'sem verificacao de travamento');
 $ok((new EvolutionApi($falso(new RespostaHttp(200, '[{"name":"deliveryzim_r1_ab12cd34","ownerJid":"5585988887777@s.whatsapp.net"}]'))))->numero('deliveryzim_r1_ab12cd34', 'tok') === '5585988887777', 'numero do aparelho');
 $ok((new EvolutionApi($falso(new RespostaHttp(200, '[]'))))->numero('deliveryzim_r1_ab12cd34', 'tok') === null, 'sem numero');
 
@@ -132,8 +120,8 @@ $ok((new EvolutionApi($h))->sair('deliveryzim_r1_ab12cd34', 'tok') === true, 'sa
 $ok($h->pedidos[0]['metodo'] === 'DELETE' && str_ends_with($h->pedidos[0]['url'], '/instance/logout/deliveryzim_r1_ab12cd34') && $h->pedidos[0]['cabecalhos']['apikey'] === 'tok', 'logout com o token da loja');
 $ok(str_ends_with($h->pedidos[1]['url'], '/instance/delete/deliveryzim_r1_ab12cd34') && $h->pedidos[1]['cabecalhos']['apikey'] === 'chave-global', 'apagar com a chave global');
 $ok((new EvolutionApi($falso(new RespostaHttp(500, ''), new RespostaHttp(500, ''))))->sair('deliveryzim_r1_ab12cd34', 'tok') === false, 'servidor nao confirmou');
-$lista = (new EvolutionApi($falso(new RespostaHttp(200, '[{"name":"deliveryzim_r1_ab12cd34"},{"name":"teste-escotilha"},{"instance":{"instanceName":"cardapim_r2_50f28385"}},{"name":"../x"}]'))))->sessoesNoServidor();
-$ok($lista === ['deliveryzim_r1_ab12cd34', 'teste-escotilha', 'cardapim_r2_50f28385'], 'lista de instancias do servidor');
+$lista = (new EvolutionApi($falso(new RespostaHttp(200, '[{"name":"deliveryzim_r1_ab12cd34"},{"name":"teste-escotilha"},{"instance":{"instanceName":"deliveryzim_r2_50f28385"}},{"name":"../x"}]'))))->sessoesNoServidor();
+$ok($lista === ['deliveryzim_r1_ab12cd34', 'teste-escotilha', 'deliveryzim_r2_50f28385'], 'lista de instancias do servidor');
 $ok($erro(fn () => (new EvolutionApi($falso(new RespostaHttp(401, '{}'))))->sessoesNoServidor()) !== null, 'falha ao listar vira erro');
 $ok((new EvolutionApi($falso(new RespostaHttp(404, '{}'), new RespostaHttp(404, '{}'))))->encerrar('deliveryzim_r9_aaaaaaaa') === true, 'encerrar instancia que ja nao existe');
 $d = SessoesAbandonadas::decidir(['deliveryzim_r1_ab12cd34', 'deliveryzim_r9_aaaaaaaa', 'teste-escotilha', 'taskesc-suporte'], ['deliveryzim_r1_ab12cd34'], ['deliveryzim_r9_aaaaaaaa' => 1], 1000);
@@ -184,4 +172,4 @@ if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s)\n");
     exit(1);
 }
-echo "OK: WhatsApp Evolution (escolha do servidor, cliente sem rede e webhook).\n";
+echo "OK: WhatsApp Evolution (nomes, cliente sem rede e webhook).\n";

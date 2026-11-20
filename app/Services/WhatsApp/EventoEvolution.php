@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Cardapim\Services\WhatsApp;
 
 /**
- * Converte o webhook "messages.upsert" da Evolution API para o formato de evento que a
- * SaudacaoWhatsApp ja entende (o mesmo do WPPConnect). Assim a regra de boas-vindas e unica.
+ * Converte o webhook "messages.upsert" da Evolution API para o formato de evento interno da
+ * SaudacaoWhatsApp (event, session, from, fromMe, isGroupMsg, isStatus, t).
  *
  * Evolution: {event, instance, apikey, data: {key: {remoteJid, fromMe, ...}, messageTimestamp}}
  * Saida:     {event: onmessage, session, from, fromMe, isGroupMsg, isStatus, t}

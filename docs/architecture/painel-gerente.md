@@ -14,7 +14,7 @@ Configuracao unica das secoes: `app/Services/Painel/MenuGerencia.php` (rotulo, i
 | Gestao | **Equipe** | `/{slug}/gerencia/equipe` | **pronto**: caixas, garcons e entregadores |
 | Gestao | **Financeiro** | `/{slug}/gerencia/financeiro` | **pronto**: resumo do periodo, entradas e saidas, contas a pagar e receber, fechamentos de caixa e planilha ([detalhes](financeiro.md)) |
 | Restaurante | **Perfil** | `/{slug}/gerencia/perfil` | **pronto**: nome, logo, telefone, endereco e horario |
-| Restaurante | **Integracoes** | `/{slug}/gerencia/integracoes` | **pronto**: Asaas, WhatsApp (WPPConnect), iFood ([detalhes](integracoes.md)) |
+| Restaurante | **Integracoes** | `/{slug}/gerencia/integracoes` | **pronto**: Asaas, WhatsApp (Evolution API), iFood ([detalhes](integracoes.md)) |
 | Restaurante | **Assinatura** | `/{slug}/gerencia/assinatura` | **pronto**: ver, assinar, trocar, cancelar (sem cobranca automatica) |
 | Conta | **Minha conta** | `/{slug}/gerencia/minha-conta` | **pronto**: dados, senha, 2FA, aparelhos, ultimos acessos |
 | Conta | Suporte | `/{slug}/gerencia/suporte` | em construcao (chat e chamados) |

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Teste HTTP dos AVISOS DO PEDIDO pelo WhatsApp DO RESTAURANTE (fila no banco, envio depois da resposta, sem repetir)
 # e do menu do gerente sem Entregas/Mesas (ficam so no modo caixa).
-# Usa o servidor FALSO tests/fakes/integracoes-fake.php (WPPConnect da plataforma e do restaurante).
+# Usa o servidor FALSO tests/fakes/integracoes-fake.php (Evolution API: WhatsApp da plataforma e do restaurante).
 # Uso: bash tests/http/avisos.sh <base> <slug> <base-do-fake>
 set -Eeuo pipefail
 base="$1"
@@ -80,9 +80,13 @@ sempre_antes="$(php -r 'require "bootstrap/app.php"; echo \Cardapim\Core\Databas
 esperar "horario de teste sempre aberto" "$(enviar "$gj" "$g/perfil/horarios" "$g/perfil" modo=sempre | cut -d' ' -f1)" "303"
 esperar "gerente ativa a saudacao" "$(enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" saudacao_ativo=1 'saudacao_mensagem=Bem-vindo ao {{restaurante}}! Cardápio {{cardapio}}' | cut -d' ' -f1)" "303"
 t_evento="$(date +%s)"
-wpp_callback="$base/webhooks/wppconnect/$WPPCONNECT_WEBHOOK_TOKEN"
-esperar "segredo incorreto bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{}' "$base/webhooks/wppconnect/invalido")" "401"
-evento="{\"event\":\"onmessage\",\"session\":\"$loja\",\"from\":\"5585999990000@c.us\",\"fromMe\":false,\"t\":$t_evento}"
+wpp_callback="$base/webhooks/evolution/$EVOLUTION_WEBHOOK_TOKEN"
+# Formato do webhook da Evolution (messages.upsert); apikey = token da instancia da loja.
+evo() { printf '{"event":"messages.upsert","instance":"%s","apikey":"%s","data":{"key":{"remoteJid":"%s","fromMe":false,"id":"CI%s"},"messageTimestamp":%s,"message":{"conversation":"oi"}}}' "$loja" "${2:-tok-$loja}" "$1" "$RANDOM" "$t_evento"; }
+esperar "segredo incorreto bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{}' "$base/webhooks/evolution/invalido")" "401"
+esperar "token de outra instancia bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$(evo 5585999990000@s.whatsapp.net tok-outra)" "$wpp_callback")" "401"
+esperar "evento que nao e mensagem e ignorado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "{\"event\":\"connection.update\",\"instance\":\"$loja\"}" "$wpp_callback")" "200"
+evento="$(evo 5585999990000@s.whatsapp.net)"
 esperar "recebe mensagem" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento" "$wpp_callback")" "200"
 sleep 1
 esperar "primeira saudacao enviada" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
@@ -93,7 +97,7 @@ sleep 1
 esperar "uma unica saudacao por dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
 # Endereco LID e opaco: manter @lid e nao tentar converter para um telefone.
 lid='1234567890123456@lid'
-evento_lid="{\"event\":\"onmessage\",\"session\":\"$loja\",\"from\":\"$lid\",\"fromMe\":false,\"t\":$t_evento}"
+evento_lid="$(evo "$lid")"
 esperar "webhook recebe contato LID" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento_lid" "$wpp_callback")" "200"
 sleep 1
 esperar "saudacao LID enviada" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
@@ -102,7 +106,7 @@ contem "resposta enderecada ao LID original" "$tmp/msgs.txt" "$loja|$lid|"
 esperar "LID repetido responde HTTP 200" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento_lid" "$wpp_callback")" "200"
 sleep 1
 esperar "LID sem duplicacao no dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
-grupo="{\"event\":\"onmessage\",\"session\":\"$loja\",\"from\":\"5585999990000@g.us\",\"fromMe\":false,\"t\":$t_evento}"
+grupo="$(evo 120363000000000000@g.us)"
 curl -s -o /dev/null -H 'Content-Type: application/json' -d "$grupo" "$wpp_callback"
 esperar "grupo nao recebe saudacao" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
 enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" 'saudacao_mensagem=Mensagem de teste' >/dev/null
