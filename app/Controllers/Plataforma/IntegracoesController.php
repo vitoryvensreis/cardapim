@@ -6,7 +6,7 @@ namespace Cardapim\Controllers\Plataforma;
 
 use Cardapim\Core\Response;
 use Cardapim\Modules\Integracoes\AplicativosParceiros;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Services\Auth\Guard;
 use Cardapim\Services\Gerencia\Integracoes\AsaasService;
@@ -35,7 +35,7 @@ final class IntegracoesController extends BasePlataforma
         return $this->tela('plataforma/integracoes/inicio', 'integracoes', 'Integrações', [
             'asaas' => $repo->buscar(null, 'asaas'),
             'whatsapp' => $repo->buscar(null, 'whatsapp'),
-            'whatsappDisponivel' => WppConnectApi::disponivel(),
+            'whatsappDisponivel' => WhatsAppProvedores::algumDisponivel(),
             'aplicativos' => array_map(
                 fn (string $provedor): array => $this->aplicativosServico()->resumo($provedor),
                 array_keys(AplicativosParceiros::PROVEDORES),
@@ -225,7 +225,7 @@ final class IntegracoesController extends BasePlataforma
         return $this->tela('gerencia/integracoes/whatsapp', 'integracoes', 'WhatsApp', [
             'plataforma' => true,
             'integracao' => (new IntegracaoRepository($this->db))->buscar(null, 'whatsapp'),
-            'disponivel' => WppConnectApi::disponivel(),
+            'disponivel' => WhatsAppProvedores::algumDisponivel(),
             'erros' => $erros,
             'valores' => $valores,
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],

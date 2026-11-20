@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Repositories\Gerencia;
 
 use Cardapim\Shared\Seguranca\Cripto;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use PDO;
 
 /**
@@ -123,7 +124,8 @@ final class IntegracaoRepository
     /** Sessao do WhatsApp pertencente a uma unica loja conectada (nunca a plataforma). */
     public function restaurantePorSessaoWhatsApp(string $sessao): ?int
     {
-        if (preg_match('/\Acardapim_r[1-9][0-9]*_[a-f0-9]{8}\z/', $sessao) !== 1) {
+        $dono = WhatsAppProvedores::restauranteDaSessao($sessao); // deliveryzim_r{id}_... (ou cardapim_r{id}_... antigo)
+        if ($dono === null) {
             return null;
         }
         $q = $this->db->prepare("SELECT id_restaurante FROM integracoes
@@ -135,7 +137,7 @@ final class IntegracaoRepository
             return null;
         }
         $id = (int) $ids[0];
-        return str_starts_with($sessao, 'cardapim_r' . $id . '_') ? $id : null;
+        return $id === $dono ? $id : null;
     }
 
     /** @return array{id_restaurante:?int, credenciais:array<string,mixed>}|null integracao dona do webhook (null = plataforma) */

@@ -76,7 +76,7 @@ esperar "administrador entra" "$(login_equipe "$aj" ci_master)" "303"
 t="$(token "$aj" "$base/painel/integracoes/whatsapp")"
 curl -s -o /dev/null -c "$aj" -b "$aj" --data-urlencode "_csrf=$t" "$base/painel/integracoes/whatsapp/conectar"
 # A sessao mais recente (ls -t), pois outras suites podem ter deixado sessoes antigas.
-sessao_wpp="$(ls -t "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-cardapim_plataforma_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
+sessao_wpp="$(ls -t "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-deliveryzim_plataforma_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
 curl -s "$fake/_teste/wpp-conectar/$sessao_wpp" >/dev/null
 curl -s -b "$aj" "$base/painel/integracoes/whatsapp/estado" | grep -q '"estado":"conectado"' && ok "WhatsApp da plataforma conectado" || falha "WhatsApp da plataforma nao conectou"
 

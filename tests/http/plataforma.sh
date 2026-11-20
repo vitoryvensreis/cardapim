@@ -126,7 +126,7 @@ echo "WhatsApp da plataforma"
 esperar "conectar" "$(enviar "$aj" "$p/integracoes/whatsapp/conectar")" "303 $p/integracoes/whatsapp"
 estado="$(curl -s -b "$aj" "$p/integracoes/whatsapp/estado")"
 [[ "$estado" == *'"estado":"qrcode"'* ]] && ok "QR Code da plataforma" || falha "QR Code ausente: $estado"
-sessao="$(ls "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-cardapim_plataforma_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
+sessao="$(ls "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-deliveryzim_plataforma_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
 [[ -n "$sessao" ]] && ok "sessao propria da plataforma: $sessao" || falha "sessao da plataforma nao encontrada"
 curl -s "$fake/_teste/wpp-conectar/$sessao" >/dev/null
 estado="$(curl -s -b "$aj" "$p/integracoes/whatsapp/estado")"

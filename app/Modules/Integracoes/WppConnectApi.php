@@ -13,8 +13,9 @@ use Cardapim\Shared\Http\RespostaHttp;
  * WPPConnect Server proprio do Cardapim (container Docker isolado na VPS, acessivel so por 127.0.0.1).
  * Uma sessao por restaurante. O token de cada sessao e gerado com a SECRET_KEY do servidor
  * (WPPCONNECT_SECRET_KEY no shared/.env) e guardado cifrado no banco.
+ * Implementa o contrato comum ProvedorWhatsApp (a Evolution API e o outro provedor).
  */
-class WppConnectApi
+class WppConnectApi implements ProvedorWhatsApp
 {
     /**
      * $http: chamadas normais (20 s). $httpRapido: teste rapido de "a sessao responde?" (8 s), para a
@@ -34,6 +35,32 @@ class WppConnectApi
     public static function urlBase(): string
     {
         return rtrim(Config::get('WPPCONNECT_BASE_URL'), '/');
+    }
+
+    public function id(): string
+    {
+        return WhatsAppProvedores::WPPCONNECT;
+    }
+
+    public function configurado(): bool
+    {
+        return self::disponivel();
+    }
+
+    /** No WPPConnect a sessao nasce ao gerar o token (o start-session vem depois, em iniciar()). */
+    public function criarSessao(string $sessao): string
+    {
+        return $this->gerarToken($sessao);
+    }
+
+    /** Sessao abandonada: gera um token com a chave do servidor so para fechar. */
+    public function encerrar(string $sessao): bool
+    {
+        try {
+            return $this->sair($sessao, $this->gerarToken($sessao));
+        } catch (IntegracaoErro) {
+            return false;
+        }
     }
 
     public function gerarToken(string $sessao): string
@@ -172,10 +199,7 @@ class WppConnectApi
 
     public static function sessao(string $sessao): string
     {
-        if (preg_match('/\A[a-zA-Z0-9_-]{3,60}\z/', $sessao) !== 1) {
-            throw new IntegracaoErro('Sessão do WhatsApp inválida.');
-        }
-        return $sessao;
+        return WhatsAppProvedores::sessao($sessao);
     }
 
     /** @param array<mixed>|null $corpo */

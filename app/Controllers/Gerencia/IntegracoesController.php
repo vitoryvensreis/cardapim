@@ -7,7 +7,7 @@ namespace Cardapim\Controllers\Gerencia;
 use Cardapim\Core\Response;
 use Cardapim\Modules\Integracoes\IfoodApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\SaudacaoWhatsApp;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
@@ -35,7 +35,7 @@ final class IntegracoesController extends BaseGerencia
         return $this->tela('gerencia/integracoes/inicio', 'integracoes', 'Integrações', [
             'integracoes' => (new IntegracaoRepository($this->db))->todas($this->restaurante['id']),
             'ifoodDisponivel' => IfoodApi::disponivel(),
-            'whatsappDisponivel' => WppConnectApi::disponivel(),
+            'whatsappDisponivel' => WhatsAppProvedores::algumDisponivel(),
             'agentConectado' => $this->agentConectado(),
             'agentDownload' => self::AGENT_DOWNLOAD,
         ]);
@@ -104,7 +104,7 @@ final class IntegracoesController extends BaseGerencia
         AvisosWhatsApp::agendarEnvio((int) $this->restaurante['id']); // tenta de novo o que ficou na fila
         return $this->tela('gerencia/integracoes/whatsapp', 'integracoes', 'WhatsApp', [
             'integracao' => $integracao,
-            'disponivel' => WppConnectApi::disponivel(),
+            'disponivel' => WhatsAppProvedores::algumDisponivel(),
             'erros' => [],
             'valores' => ['mensagem' => 'Olá! Esta é uma mensagem de teste do ' . $this->restaurante['nome'] . ' pelo ' . marca() . '.'],
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],
@@ -136,7 +136,7 @@ final class IntegracoesController extends BaseGerencia
         }
         return $this->tela('gerencia/integracoes/whatsapp', 'integracoes', 'WhatsApp', [
             'integracao' => (new IntegracaoRepository($this->db))->buscar($this->restaurante['id'], 'whatsapp'),
-            'disponivel' => WppConnectApi::disponivel(),
+            'disponivel' => WhatsAppProvedores::algumDisponivel(),
             'erros' => $resultado->erros,
             'valores' => ['telefone' => $this->post('telefone'), 'mensagem' => (string) ($_POST['mensagem'] ?? '')],
             'pageScripts' => ['js/forms.js', 'js/integracoes.js'],

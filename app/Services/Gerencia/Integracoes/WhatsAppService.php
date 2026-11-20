@@ -6,21 +6,24 @@ namespace Cardapim\Services\Gerencia\Integracoes;
 
 use Cardapim\Core\RateLimiter;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Shared\Validation\Documento;
 use PDO;
 
 /**
- * WhatsApp do restaurante via WPPConnect: uma sessao por restaurante, conectada lendo o QR Code
- * no celular (como o WhatsApp Web). Permite mandar uma mensagem de teste.
+ * WhatsApp do restaurante: uma sessao por restaurante, conectada lendo o QR Code no celular
+ * (como o WhatsApp Web). Permite mandar uma mensagem de teste.
+ * O servidor (WPPConnect ou Evolution API) fica gravado em dados.provedor; conexoes novas usam
+ * WHATSAPP_PROVEDOR_PADRAO. $api injetado (testes) vale para tudo.
  */
 final class WhatsAppService extends BaseIntegracao
 {
     public const TESTES_POR_HORA = 10;
 
-    public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly WppConnectApi $api = new WppConnectApi())
+    public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly ?ProvedorWhatsApp $api = null)
     {
         parent::__construct($db, $autor, $idRestaurante);
     }
@@ -28,18 +31,20 @@ final class WhatsAppService extends BaseIntegracao
     /** Cria a sessao (se preciso) e pede um QR Code novo. */
     public function conectar(): Resultado
     {
-        if (!WppConnectApi::disponivel()) {
-            return Resultado::falha('O WhatsApp ainda não está disponível neste servidor. Avise o suporte do ' . marca() . '.');
-        }
         $atual = $this->integracoes->buscar($this->idRestaurante, 'whatsapp');
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
         $sessao = is_string($atual['dados']['sessao'] ?? null) ? $atual['dados']['sessao'] : null;
+        $nova = $sessao === null || empty($cred['token']);
+        $api = $nova ? ($this->api ?? WhatsAppProvedores::padrao()) : $this->provedor($atual['dados']);
+        if (!$api->configurado()) {
+            return Resultado::falha('O WhatsApp ainda não está disponível neste servidor. Avise o suporte do ' . marca() . '.');
+        }
         try {
-            if ($sessao === null || empty($cred['token'])) {
-                $sessao = ($this->daPlataforma() ? 'cardapim_plataforma' : 'cardapim_r' . $this->idRestaurante) . '_' . bin2hex(random_bytes(4));
-                $cred = ['token' => $this->api->gerarToken($sessao)];
+            if ($nova) {
+                $sessao = WhatsAppProvedores::novaSessao($this->daPlataforma() ? null : $this->idRestaurante);
+                $cred = ['token' => $api->criarSessao($sessao)];
             }
-            $this->api->iniciar($sessao, (string) $cred['token']);
+            $api->iniciar($sessao, (string) $cred['token']);
         } catch (IntegracaoErro $erro) {
             return Resultado::falha($erro->getMessage());
         }
@@ -47,7 +52,7 @@ final class WhatsAppService extends BaseIntegracao
         $this->integracoes->salvar($this->idRestaurante, 'whatsapp', [
             'status' => $atual['status'] === 'conectado' ? 'conectado' : 'pendente',
             'credenciais' => $cred,
-            'dados' => [...$atual['dados'], 'sessao' => $sessao],
+            'dados' => [...$atual['dados'], 'sessao' => $sessao, 'provedor' => $api->id()],
             'ultimo_erro' => null,
         ]);
         if ($novo) {
@@ -65,7 +70,9 @@ final class WhatsAppService extends BaseIntegracao
     {
         $atual = $this->integracoes->buscar($this->idRestaurante, 'whatsapp');
         $numero = is_string($atual['dados']['numero'] ?? null) ? $atual['dados']['numero'] : null;
-        if (!WppConnectApi::disponivel()) {
+        // Desconectado: a proxima conexao usa o servidor padrao; senao, o servidor gravado na sessao.
+        $api = $atual['status'] === 'desconectado' ? ($this->api ?? WhatsAppProvedores::padrao()) : $this->provedor($atual['dados']);
+        if (!$api->configurado()) {
             return ['estado' => 'indisponivel', 'qrcode' => null, 'numero' => null, 'mensagem' => 'O WhatsApp ainda não está disponível neste servidor.'];
         }
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
@@ -74,13 +81,13 @@ final class WhatsAppService extends BaseIntegracao
             return ['estado' => 'desconectado', 'qrcode' => null, 'numero' => null, 'mensagem' => 'WhatsApp não conectado.'];
         }
         try {
-            $e = $this->api->estado($sessao, (string) $cred['token']);
+            $e = $api->estado($sessao, (string) $cred['token']);
         } catch (IntegracaoErro $erro) {
             return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => $erro->getMessage()];
         }
         if ($e['status'] === 'CONNECTED' || $e['status'] === 'INCHAT' || $e['status'] === 'ISLOGGED') {
             if ($atual['status'] !== 'conectado' || $numero === null) {
-                $numero = $this->api->numero($sessao, (string) $cred['token']) ?? $numero;
+                $numero = $api->numero($sessao, (string) $cred['token']) ?? $numero;
                 $this->integracoes->salvar($this->idRestaurante, 'whatsapp', [
                     'status' => 'conectado',
                     'dados' => [...$atual['dados'], 'numero' => $numero],
@@ -93,7 +100,7 @@ final class WhatsAppService extends BaseIntegracao
                     $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'conectado']);
                 }
             }
-            if ($this->api->respondendo($sessao, (string) $cred['token']) === false) {
+            if ($api->respondendo($sessao, (string) $cred['token']) === false) {
                 return ['estado' => 'sem_resposta', 'qrcode' => null, 'numero' => $numero,
                     'mensagem' => 'O WhatsApp aparece conectado, mas não está respondendo e as mensagens podem não sair. Espere 2 minutos. Se continuar assim, clique em Desconectar e conecte de novo.'];
             }
@@ -140,7 +147,7 @@ final class WhatsAppService extends BaseIntegracao
             return Resultado::falha('Você já enviou muitas mensagens de teste nesta hora. Tente mais tarde.');
         }
         try {
-            $this->api->enviarTexto($sessao, (string) $cred['token'], '55' . $digitos, $mensagem);
+            $this->provedor($atual['dados'])->enviarTexto($sessao, (string) $cred['token'], '55' . $digitos, $mensagem);
         } catch (IntegracaoErro $erro) {
             return Resultado::falha($erro->getMessage());
         }
@@ -158,8 +165,9 @@ final class WhatsAppService extends BaseIntegracao
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
         $sessao = $atual['dados']['sessao'] ?? null;
         $saiu = true;
-        if (is_string($sessao) && !empty($cred['token']) && WppConnectApi::disponivel()) {
-            $saiu = $this->api->sair($sessao, (string) $cred['token']);
+        $api = $this->provedor($atual['dados']);
+        if (is_string($sessao) && !empty($cred['token']) && $api->configurado()) {
+            $saiu = $api->sair($sessao, (string) $cred['token']);
         }
         $this->integracoes->limpar($this->idRestaurante, 'whatsapp');
         // Servidor nao confirmou: a sessao pode ter ficado aberta la. bin/whatsapp-sessoes.php --limpar (cron) fecha depois.
@@ -167,5 +175,11 @@ final class WhatsAppService extends BaseIntegracao
             : 'Sessão encerrada pelo painel. O servidor do WhatsApp não confirmou; a limpeza automática fecha o que sobrou.');
         $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'desconectado']);
         return Resultado::sucesso('WhatsApp desconectado. O celular saiu do ' . marca() . '.');
+    }
+
+    /** @param array<string,mixed> $dados */
+    private function provedor(array $dados): ProvedorWhatsApp
+    {
+        return $this->api ?? WhatsAppProvedores::daIntegracao($dados);
     }
 }

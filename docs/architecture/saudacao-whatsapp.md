@@ -20,6 +20,9 @@ Cada gerente pode ativar e editar a mensagem; novas lojas comecam com a saudacao
 O servidor atual ja envia mensagens dos restaurantes por sessao via `WppConnectApi`; para **receber** mensagens e preciso um webhook do WPPConnect.
 No 2.10.73, `callWebHook` usa o `WEBHOOK_URL` global do servidor (ou um URL de sessao autorizado).
 Recomenda-se um **unico callback global** para todas as sessoes (incluindo a plataforma, ignorada no backend).
+Lojas na Evolution API usam `POST /webhooks/evolution/{token}`: o evento `messages.upsert` e convertido para este mesmo formato
+([evolution.md](../deploy/evolution.md)), entao as regras abaixo valem para os dois servidores.
+
 A entrada `POST /webhooks/wppconnect/{token}` e publica, protegida por um token aleatorio longo (>=32 caracteres); nao usa sessao nem CSRF do navegador.
 
 Configurar manualmente na VPS, sem gravar segredos no Git:

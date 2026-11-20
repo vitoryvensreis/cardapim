@@ -6,7 +6,8 @@ namespace Cardapim\Services\Pedidos;
 
 use Cardapim\Core\Database;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Services\Gerencia\Integracoes\BaseIntegracao;
 use Cardapim\Shared\Numero;
@@ -189,7 +190,7 @@ final class AvisosWhatsApp
     }
 
     /** Envia os avisos vencidos do restaurante. @return int quantos foram enviados */
-    public static function enviarPendentes(PDO $db, int $idRestaurante, int $limite = 5, ?WppConnectApi $api = null): int
+    public static function enviarPendentes(PDO $db, int $idRestaurante, int $limite = 5, ?ProvedorWhatsApp $api = null): int
     {
         $agora = date('Y-m-d H:i:s');
         $q = $db->prepare("SELECT a.id, a.evento, a.mensagem, a.tentativas, p.cliente_whatsapp, p.status AS pedido_status
@@ -204,8 +205,8 @@ final class AvisosWhatsApp
         $integracao = $repo->buscar($idRestaurante, 'whatsapp');
         $sessao = $integracao['dados']['sessao'] ?? null;
         $token = $repo->credenciais($idRestaurante, 'whatsapp')['token'] ?? null;
-        $pronto = WppConnectApi::disponivel() && $integracao['status'] === 'conectado' && is_string($sessao) && is_string($token) && $token !== '';
-        $api ??= new WppConnectApi();
+        $api ??= WhatsAppProvedores::daIntegracao($integracao['dados']);
+        $pronto = $api->configurado() && $integracao['status'] === 'conectado' && is_string($sessao) && is_string($token) && $token !== '';
         $enviados = 0;
         foreach ($fila as $a) {
             $tentativa = (int) $a['tentativas'] + 1;

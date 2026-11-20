@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Cardapim\Services\Cliente;
 
 use Cardapim\Modules\Integracoes\IntegracaoErro;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use PDO;
 
@@ -15,17 +16,15 @@ use PDO;
  */
 final class WhatsAppPlataforma
 {
-    public function __construct(private readonly PDO $db, private readonly WppConnectApi $api = new WppConnectApi())
+    public function __construct(private readonly PDO $db, private readonly ?ProvedorWhatsApp $api = null)
     {
     }
 
     public function disponivel(): bool
     {
-        if (!WppConnectApi::disponivel()) {
-            return false;
-        }
         $integracao = (new IntegracaoRepository($this->db))->buscar(null, 'whatsapp');
-        return $integracao['status'] === 'conectado' && is_string($integracao['dados']['sessao'] ?? null);
+        return ($this->api ?? WhatsAppProvedores::daIntegracao($integracao['dados']))->configurado()
+            && $integracao['status'] === 'conectado' && is_string($integracao['dados']['sessao'] ?? null);
     }
 
     /** @param string $whatsapp DDD + numero (10 ou 11 digitos) */
@@ -35,9 +34,10 @@ final class WhatsAppPlataforma
         $integracao = $repo->buscar(null, 'whatsapp');
         $sessao = $integracao['dados']['sessao'] ?? null;
         $token = $repo->credenciais(null, 'whatsapp')['token'] ?? null;
-        if (!WppConnectApi::disponivel() || $integracao['status'] !== 'conectado' || !is_string($sessao) || !is_string($token) || $token === '') {
+        $api = $this->api ?? WhatsAppProvedores::daIntegracao($integracao['dados']);
+        if (!$api->configurado() || $integracao['status'] !== 'conectado' || !is_string($sessao) || !is_string($token) || $token === '') {
             throw new IntegracaoErro('O envio de códigos pelo WhatsApp está indisponível no momento. Tente de novo em alguns minutos.');
         }
-        $this->api->enviarTexto($sessao, $token, '55' . $whatsapp, $mensagem);
+        $api->enviarTexto($sessao, $token, '55' . $whatsapp, $mensagem);
     }
 }
