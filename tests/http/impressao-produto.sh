@@ -86,7 +86,7 @@ curl -s -b "$wj" "$w/comandas/$comanda" -o "$tmp/com.html"
 read -r cat_cerveja cerveja cat_outro outro < <(php -r '
   $html = file_get_contents($argv[1]); $prods = [];
   foreach (preg_split("~<section class=\"produtos-grupo\" id=\"cat-~", $html) as $i => $sec) {
-    if ($i === 0 || !preg_match("~^(\d+)\"~", $sec, $cm)) continue;
+    if ($i === 0 || !preg_match("~^c(\d+)\"~", $sec, $cm)) continue; // id da categoria na tela: "c12"
     foreach (explode("<li class=\"produto-linha", $sec) as $li) {
       if (preg_match("~data-nome=\"([^\"]*)\".*?name=\"qtd\[(\d+)\]\" value=\"0\" min=\"0\" max=\"(\d+)\"~s", $li, $m) && (int) $m[3] >= 6 && !str_contains($li, "data-comps")) $prods[] = [$cm[1], $m[2], $m[1]];
     }
