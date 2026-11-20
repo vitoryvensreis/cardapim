@@ -61,9 +61,9 @@ class GatewayActivity : Activity() {
         val address = urlField.text.toString().trim().trimEnd('/')
         val token = tokenField.text.toString().trim()
         val uri = try { java.net.URI(address) } catch (_: Exception) { null }
-        if (uri?.scheme != "https" || uri.host.isNullOrBlank() ||
-            uri.userInfo != null || uri.query != null || uri.fragment != null ||
-            (uri.path != null && uri.path != "" && uri.path != "/") || token.length < 20) {
+        if (uri?.scheme != "https" || uri?.host.isNullOrBlank() ||
+            uri?.userInfo != null || uri?.query != null || uri?.fragment != null ||
+            (uri?.path != null && uri.path != "" && uri.path != "/") || token.length < 20) {
             toast("Use URL HTTPS e token de no mínimo 20 caracteres")
             return false
         }
