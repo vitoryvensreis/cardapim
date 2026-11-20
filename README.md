@@ -19,6 +19,7 @@
 
 - O WhatsApp das lojas e da plataforma roda na **Evolution API** (canal Baileys), numa VPS de mensageria separada (`https://wpp.escotilhaprodutora.com`), com uma instância por loja (`deliveryzim_r{id}_*`). Não abre um navegador por loja, então muitas lojas cabem no mesmo servidor.
 - A rotina `bin/whatsapp-sessoes.php` (cron a cada 15 min) apaga instâncias abandonadas do Deliveryzim, sem tocar nas de outros projetos. Ver [docs/deploy/evolution.md](docs/deploy/evolution.md).
+- **SMS de reserva:** se o WhatsApp da plataforma falhar, o código de login do cliente vai por SMS automaticamente, pelo chip de um celular Android com o SMSGate (servidor próprio em `https://sms.escotilhaprodutora.com`). Ver [docs/deploy/sms.md](docs/deploy/sms.md).
 
 ## Importar cardápio por planilha
 

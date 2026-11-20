@@ -107,6 +107,7 @@ jobs:
           php tests/unit/importar-cardapio.php
           php tests/unit/whatsapp-sessoes.php
           php tests/unit/whatsapp-evolution.php
+          php tests/unit/sms.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash

@@ -11,6 +11,7 @@ use Cardapim\Core\Session;
 use Cardapim\Services\Cliente\CadastroCliente;
 use Cardapim\Services\Cliente\ClienteSessao;
 use Cardapim\Services\Cliente\CodigoVerificacao;
+use Cardapim\Services\Cliente\SmsPlataforma;
 use Cardapim\Services\Cliente\WhatsAppPlataforma;
 use Throwable;
 
@@ -30,12 +31,12 @@ final class ClienteController
         try {
             $cliente = ClienteSessao::atual();
             $csrf = Session::tokenCsrf();
-            $whatsapp = (new WhatsAppPlataforma(Database::connect()))->disponivel();
+            $loginDisponivel = $this->codigos()->disponivel();
         } catch (Throwable $erro) {
             error_log('[Cardapim] Sessao do cliente indisponivel: ' . get_class($erro));
             return Response::json(['erro' => 'Não foi possível carregar sua conta agora.'], 503);
         }
-        return Response::json(['csrf' => $csrf, 'cliente' => ClienteSessao::publico($cliente), 'login_disponivel' => $whatsapp]);
+        return Response::json(['csrf' => $csrf, 'cliente' => ClienteSessao::publico($cliente), 'login_disponivel' => $loginDisponivel]);
     }
 
     public function codigo(): Response
@@ -97,6 +98,6 @@ final class ClienteController
 
     private function codigos(): CodigoVerificacao
     {
-        return new CodigoVerificacao(new WhatsAppPlataforma(Database::connect()));
+        return new CodigoVerificacao(new WhatsAppPlataforma(Database::connect()), null, new SmsPlataforma());
     }
 }

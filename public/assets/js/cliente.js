@@ -1,6 +1,7 @@
 /*
  * Cardapim - cliente final no cardapio: janelas em "folha", conta e login pelo WhatsApp.
- * Fluxo (como nos apps de delivery): numero -> codigo de 6 digitos no WhatsApp -> (se for novo) nome.
+ * Fluxo (como nos apps de delivery): numero -> codigo de 6 digitos no WhatsApp (ou por SMS, se o WhatsApp
+ * falhar; o servidor decide e devolve canal) -> (se for novo) nome.
  * Expoe window.CardapimUI (abrir/fechar folhas) e window.CardapimCliente (atual, entrar, pronto, api).
  * api(url, corpo?) = fetch JSON com o token CSRF da sessao (POST quando ha corpo); dados.http = status HTTP.
  */
@@ -170,6 +171,24 @@
   let etapaAtual = "telefone";
   let resolver = null;
   let relogio = null;
+  let leituraSms = null; /* WebOTP: Chrome no Android le o codigo do SMS sozinho */
+
+  const pararLeituraSms = () => {
+    leituraSms?.abort();
+    leituraSms = null;
+  };
+  const lerCodigoDoSms = () => {
+    pararLeituraSms();
+    if (!("OTPCredential" in window) || !navigator.credentials?.get) return;
+    leituraSms = new AbortController();
+    navigator.credentials.get({ otp: { transport: ["sms"] }, signal: leituraSms.signal })
+      .then((otp) => {
+        if (etapaAtual !== "codigo" || !otp?.code) return;
+        campoCodigo.value = otp.code;
+        campoCodigo.dispatchEvent(new Event("input"));
+      })
+      .catch(() => { /* cancelado ou sem permissao: o cliente digita */ });
+  };
 
   const mascaraTelefone = (valor) => {
     const d = valor.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "").slice(0, 11);
@@ -196,6 +215,7 @@
 
   const ir = (etapa) => {
     etapaAtual = etapa;
+    if (etapa !== "codigo") pararLeituraSms();
     Object.entries(etapas).forEach(([nome, form]) => { form.hidden = nome !== etapa; });
     voltar.hidden = etapa !== "codigo";
     const campo = etapas[etapa].querySelector("input");
@@ -243,14 +263,17 @@
       return false;
     }
     dLogin.querySelector("[data-login-numero]").textContent = r.telefone || campoTel.value;
+    dLogin.querySelector("[data-login-canal]").textContent = r.canal === "sms" ? "por SMS para o celular" : "para o WhatsApp";
     campoCodigo.value = "";
     mostrarErro(etapas.codigo, "");
     ir("codigo");
     contar(r.espera || 60);
+    if (r.canal === "sms") lerCodigoDoSms();
     return true;
   };
 
   const concluir = (mensagem) => {
+    pararLeituraSms();
     fechar(dLogin);
     window.CardapimToast?.(mensagem || "Pronto, você entrou!");
     const f = resolver;
