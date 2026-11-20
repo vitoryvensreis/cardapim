@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="#FFFFFF">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="22dp">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Deliveryzim SMS Gateway"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#651424"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Transforme este Android em um gateway privado de SMS para códigos de acesso."
+            android:textSize="15sp"
+            android:textColor="#555555"/>
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:padding="15dp"
+            android:background="#F4F2F3"
+            android:text="Gateway parado"
+            android:textColor="#651424"
+            android:textSize="16sp"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="URL da API HTTPS"
+            android:textColor="#303030"
+            android:textStyle="bold"/>
+        <EditText
+            android:id="@+id/apiUrl"
+            style="@style/Gateway.Field"
+            android:inputType="textUri"
+            android:hint="https://deliveryzim.com.br"
+            android:importantForAutofill="no"
+            android:singleLine="true"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Token exclusivo deste aparelho"
+            android:textColor="#303030"
+            android:textStyle="bold"/>
+        <EditText
+            android:id="@+id/apiToken"
+            style="@style/Gateway.Field"
+            android:inputType="textPassword"
+            android:hint="Token gerado pela VPS"
+            android:importantForAutofill="no"
+            android:singleLine="true"/>
+        <Button
+            android:id="@+id/save"
+            style="@style/Gateway.Button"
+            android:text="Salvar configuração"/>
+        <Button
+            android:id="@+id/start"
+            style="@style/Gateway.Button"
+            android:text="Iniciar gateway"/>
+        <Button
+            android:id="@+id/stop"
+            style="@style/Gateway.Button"
+            android:text="Parar gateway"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="26dp"
+            android:text="Teste de envio"
+            android:textColor="#651424"
+            android:textStyle="bold"
+            android:textSize="18sp"/>
+        <EditText
+            android:id="@+id/testPhone"
+            style="@style/Gateway.Field"
+            android:inputType="phone"
+            android:hint="DDD + celular para teste"
+            android:singleLine="true"/>
+        <Button
+            android:id="@+id/testSms"
+            style="@style/Gateway.Button"
+            android:text="Enviar SMS de teste"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:paddingBottom="30dp"
+            android:text="O gateway consulta apenas a API configurada. Para uso contínuo, deixe a bateria do aplicativo sem restrições e adicione-o aos aplicativos nunca suspensos nas configurações Samsung. O envio depende do chip, das permissões e da operadora."
+            android:textSize="13sp"
+            android:textColor="#666666"/>
+    </LinearLayout>
+</ScrollView>
