@@ -50,9 +50,10 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                         <small><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small>
                     </div>
                     <span class="comanda-item-valor"><?= $e(Numero::reais((string) $i['total'])) ?></span>
-                    <details class="comanda-item-remover">
-                        <summary aria-label="Remover <?= $e((string) $i['nome']) ?>"><?= Icon::svg('trash', 'icon-sm') ?></summary>
-                        <form method="post" action="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" class="remover-form">
+                    <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
+                    <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
+                    <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover item"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover <?= $e((string) $i['nome']) ?></span></label>
+                        <form method="post" action="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" class="remover-form" id="<?= $e($idRemover) ?>-form">
                             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                             <fieldset>
                                 <legend>Por que remover?</legend>
@@ -62,7 +63,6 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                             </fieldset>
                             <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover</button>
                         </form>
-                    </details>
                 </li>
             <?php endforeach; ?>
         </ul>
