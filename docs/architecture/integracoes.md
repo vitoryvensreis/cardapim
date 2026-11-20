@@ -19,8 +19,8 @@ usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-p
 
 - **Asaas da plataforma**: recebe o pagamento das assinaturas dos restaurantes. O webhook usa a mesma rota
   `/webhooks/asaas/{id}`; avisos da plataforma ficam em `integracao_eventos` com `id_restaurante` NULL.
-- **WhatsApp da plataforma**: sessão própria no mesmo servidor WPPConnect (`cardapim_plataforma_*`), separada das sessões
-  dos restaurantes (`cardapim_r{id}_*`). Será usado para enviar os códigos de verificação do cliente final.
+- **WhatsApp da plataforma**: sessão própria (`deliveryzim_plataforma_*`; antigas: `cardapim_plataforma_*`), separada das sessões
+  dos restaurantes (`deliveryzim_r{id}_*`; antigas: `cardapim_r{id}_*`). Será usado para enviar os códigos de verificação do cliente final.
 - Migration `20261110100000_integracoes_plataforma.php`: `id_restaurante` aceita NULL e a coluna gerada `escopo`
   (id do restaurante ou 0) garante uma integração por provedor em cada escopo (`UNIQUE(escopo, provedor)`).
 - No código: `IntegracaoRepository` e os serviços recebem `?int $idRestaurante` (`null` = plataforma).
@@ -57,11 +57,20 @@ usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-p
 Endereços configuráveis (testes): `ASAAS_URL_PRODUCAO` (padrão `https://api.asaas.com/v3`) e `ASAAS_URL_SANDBOX` (padrão `https://api-sandbox.asaas.com/v3`).
 O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de pedidos.
 
-## WhatsApp (WPPConnect próprio)
+## WhatsApp (Evolution API ou WPPConnect)
+
+- Dois servidores atrás do mesmo contrato `Modules/Integracoes/ProvedorWhatsApp`: `EvolutionApi` (VPS de mensageria,
+  [passo a passo](../deploy/evolution.md)) e `WppConnectApi` (abaixo). `WhatsAppProvedores` escolhe: sessão gravada usa
+  `dados.provedor` (sem o campo = WPPConnect); conexão nova usa `WHATSAPP_PROVEDOR_PADRAO` (padrão `evolution`).
+- Sessões novas: `deliveryzim_r{id}_{aleatório}` e `deliveryzim_plataforma_{aleatório}`. Os nomes antigos `cardapim_...` continuam aceitos.
+- Migrar uma loja para a Evolution: Desconectar e Conectar de novo no painel da loja.
+- Webhook da Evolution: `POST /webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}` (`EvolutionWebhookController` + `Services/WhatsApp/EventoEvolution`).
+
+### WPPConnect próprio
 
 - Servidor: container Docker isolado, só em `127.0.0.1` ([passo a passo](../deploy/wppconnect-docker.md)).
   `shared/.env`: `WPPCONNECT_BASE_URL=http://127.0.0.1:21467` e `WPPCONNECT_SECRET_KEY=...`. Sem isso, a tela diz que ainda não foi liberado.
-- Conectar: cria a sessão `cardapim_r{id}_{aleatório}`, gera o token com a SECRET_KEY (`/api/{sessao}/{secret}/generate-token`, guardado cifrado)
+- Conectar: cria a sessão `deliveryzim_r{id}_{aleatório}`, gera o token com a SECRET_KEY (`/api/{sessao}/{secret}/generate-token`, guardado cifrado)
   e chama `start-session`. A tela consulta `GET .../integracoes/whatsapp/estado` (JSON) a cada 3 s e mostra o QR Code (`status-session`).
   Quando o estado vira `CONNECTED`, grava o número (`host-device`) e registra o log.
 - Mensagem de teste: número com DDD (vira `55` + DDD + número), até 1000 caracteres, no máximo 10 por hora por restaurante (`send-message`).

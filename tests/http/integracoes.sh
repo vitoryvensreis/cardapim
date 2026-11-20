@@ -73,7 +73,7 @@ estado="$(curl -s -b "$gj" "$g/integracoes/whatsapp/estado")"
 [[ "$estado" == *'"estado":"qrcode"'* && "$estado" == *'data:image/png;base64'* ]] && ok "QR Code disponivel" || falha "QR Code ausente: $estado"
 esperar "teste antes de conectar e recusado" "$(enviar "$gj" /integracoes/whatsapp/teste telefone='(85) 99999-1111' mensagem='Oi' | cut -d' ' -f1)" "303"
 esperar "aviso de que precisa conectar" "$(flash "$gj" "$g/integracoes/whatsapp")" "painel-flash-erro"
-sessao="$(ls "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-cardapim_r[0-9]*_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
+sessao="$(ls "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-deliveryzim_r[0-9]*_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
 [[ -n "$sessao" ]] && ok "sessao criada no WPPConnect: $sessao" || falha "sessao nao encontrada"
 curl -s "$fake/_teste/wpp-conectar/$sessao" >/dev/null
 estado="$(curl -s -b "$gj" "$g/integracoes/whatsapp/estado")"

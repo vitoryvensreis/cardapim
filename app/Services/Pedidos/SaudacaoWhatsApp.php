@@ -6,7 +6,8 @@ namespace Cardapim\Services\Pedidos;
 
 use Cardapim\Core\Config;
 use Cardapim\Core\Database;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Repositories\Gerencia\PerfilRepository;
@@ -52,8 +53,8 @@ final class SaudacaoWhatsApp
     }
 
     /**
-     * Endereco de uma conversa individual: numero BR ou LID recebido do proprio
-     * WPPConnect. LID nao e telefone; deve ser encaminhado SEM remover @lid.
+     * Endereco de uma conversa individual: numero BR ou LID recebido do servidor de
+     * WhatsApp (eventos da Evolution chegam ja convertidos por EventoEvolution). LID nao e telefone; deve ser encaminhado SEM remover @lid.
      * A idempotencia diaria usa exatamente o identificador da conversa.
      */
     public static function destinatarioDireto(array $evento): ?string
@@ -180,13 +181,14 @@ final class SaudacaoWhatsApp
     }
 
     /** No maximo uma tentativa por contato/dia. Sem repetir se o servidor falhou apos aceitar a mensagem. */
-    public static function enviarPendentes(PDO $db, int $restaurante, ?WppConnectApi $api = null): int
+    public static function enviarPendentes(PDO $db, int $restaurante, ?ProvedorWhatsApp $api = null): int
     {
         $repo = new IntegracaoRepository($db);
         $integracao = $repo->buscar($restaurante, 'whatsapp');
         $sessao = $integracao['dados']['sessao'] ?? null;
         $token = $repo->credenciais($restaurante, 'whatsapp')['token'] ?? null;
-        if (!WppConnectApi::disponivel() || $integracao['status'] !== 'conectado'
+        $api ??= WhatsAppProvedores::daIntegracao($integracao['dados']);
+        if (!$api->configurado() || $integracao['status'] !== 'conectado'
             || !is_string($sessao) || !is_string($token) || $token === '') {
             return 0;
         }
@@ -197,7 +199,6 @@ final class SaudacaoWhatsApp
             || !HorarioFuncionamento::abertoEm((bool) $loja['sempre_aberto'], $perfil->horarios($restaurante), new DateTimeImmutable('now'))) {
             return 0;
         }
-        $api ??= new WppConnectApi();
         $q = $db->prepare("SELECT id, telefone, mensagem FROM whatsapp_saudacao_diaria
             WHERE id_restaurante = ? AND status = 'pendente' AND dia_local = ? AND proxima_tentativa_em <= ?
             ORDER BY id LIMIT 5");

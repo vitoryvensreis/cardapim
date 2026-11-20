@@ -13,7 +13,9 @@ use Cardapim\Controllers\RecuperarSenhaController;
 use Cardapim\Controllers\RestauranteController;
 use Cardapim\Controllers\SeoController;
 use Cardapim\Controllers\StatusController;
-use Cardapim\Controllers\WebhookController;use Cardapim\Controllers\WppConnectWebhookController;
+use Cardapim\Controllers\WebhookController;
+use Cardapim\Controllers\EvolutionWebhookController;
+use Cardapim\Controllers\WppConnectWebhookController;
 
 use Cardapim\Core\Router;
 use Cardapim\Services\Auth\Guard;
@@ -63,6 +65,7 @@ $router->get('/midia/cartao', [SeoController::class, 'cartao']);
 $router->get('/midia/cartao/{slug}', [SeoController::class, 'cartaoRestaurante']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 $router->post('/webhooks/wppconnect/{token}', [WppConnectWebhookController::class, 'mensagem']);
+$router->post('/webhooks/evolution/{token}', [EvolutionWebhookController::class, 'mensagem']);
 (require __DIR__ . '/gerencia.php')($router);
 (require __DIR__ . '/caixa.php')($router);
 (require __DIR__ . '/garcom.php')($router);

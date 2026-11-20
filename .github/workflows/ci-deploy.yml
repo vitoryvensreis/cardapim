@@ -106,6 +106,7 @@ jobs:
           php tests/unit/complementos.php
           php tests/unit/importar-cardapio.php
           php tests/unit/whatsapp-sessoes.php
+          php tests/unit/whatsapp-evolution.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash

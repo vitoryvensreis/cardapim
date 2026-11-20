@@ -61,11 +61,11 @@ curl -s -o /dev/null -b "$gj" -c "$gj" --data-urlencode "_csrf=$t" -d tipo=bairr
 login_equipe "$aj" ci_master >/dev/null
 t="$(token "$aj" "$base/painel/integracoes/whatsapp")"
 curl -s -o /dev/null -c "$aj" -b "$aj" --data-urlencode "_csrf=$t" "$base/painel/integracoes/whatsapp/conectar"
-plat="$(sessao_nova cardapim_plataforma_)"
+plat="$(sessao_nova deliveryzim_plataforma_)"
 curl -s "$fake/_teste/wpp-conectar/$plat" >/dev/null
 curl -s -b "$aj" "$base/painel/integracoes/whatsapp/estado" >/dev/null
 esperar "WhatsApp do restaurante: conectar" "$(enviar "$gj" "$g/integracoes/whatsapp/conectar" "$g/integracoes/whatsapp" | cut -d' ' -f1)" "303"
-loja="$(sessao_nova cardapim_r)"
+loja="$(sessao_nova deliveryzim_r)"
 curl -s "$fake/_teste/wpp-conectar/$loja" >/dev/null
 curl -s -b "$gj" "$g/integracoes/whatsapp/estado" -o "$tmp/estado.json"
 esperar "WhatsApp do restaurante conectado" "$(json "$tmp/estado.json" estado)" "conectado"

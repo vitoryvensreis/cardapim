@@ -31,7 +31,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             <div class="lista-vazia">
                 <?= Icon::svg('clock') ?>
                 <strong>O WhatsApp ainda não foi liberado neste servidor</strong>
-                <p><?= $plataforma ? 'Configure WPPCONNECT_BASE_URL e WPPCONNECT_SECRET_KEY no .env do servidor (docs/deploy/wppconnect-docker.md).' : 'A equipe do ' . marca() . ' está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
+                <p><?= $plataforma ? 'Configure EVOLUTION_BASE_URL e EVOLUTION_API_KEY (ou WPPCONNECT_BASE_URL e WPPCONNECT_SECRET_KEY) no .env do servidor (docs/deploy/evolution.md).' : 'A equipe do ' . marca() . ' está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
             </div>
         </section>
     <?php elseif ($statusIntegracao === 'desconectado'): ?>

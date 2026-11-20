@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace Cardapim\Services\WhatsApp;
 
 use Cardapim\Modules\Integracoes\IntegracaoErro;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use PDO;
 
 /**
- * Fecha no servidor do WhatsApp (WPPConnect) as sessoes do Cardapim que nenhum restaurante usa mais.
+ * Fecha no servidor do WhatsApp (WPPConnect ou Evolution) as sessoes do Deliveryzim que nenhum restaurante usa mais.
  *
  * Por que existe: o WPPConnect guarda toda sessao criada e, ao reiniciar, religa todas de uma vez
  * (startAllSession). Sessao que ficou para tras (desconectar com o servidor travado, QR Code que
  * ninguem leu, reconexao com nome novo) abre um navegador a toa, gasta memoria e derruba as outras.
  *
  * Regras de seguranca:
- * - So mexe em sessoes com nome do Cardapim (cardapim_r{id}_... e cardapim_plataforma_...).
+ * - So mexe em sessoes com nome do Deliveryzim (deliveryzim_r{id}_..., deliveryzim_plataforma_... e os nomes
+ *   antigos cardapim_...). Instancias de outros projetos no mesmo servidor nunca sao tocadas.
  * - Nunca mexe numa sessao gravada no banco (conectada, aguardando QR Code ou com erro).
  * - So fecha uma sessao abandonada na SEGUNDA rodada em que ela aparece (rodadas com 10+ minutos
  *   de intervalo), para nao derrubar uma conexao que acabou de ser iniciada e ainda nao foi gravada.
@@ -25,14 +27,14 @@ final class SessoesAbandonadas
 {
     public const CARENCIA_SEGUNDOS = 600;
 
-    public function __construct(private readonly PDO $db, private readonly WppConnectApi $api, private readonly string $arquivoEstado)
+    public function __construct(private readonly PDO $db, private readonly ProvedorWhatsApp $api, private readonly string $arquivoEstado)
     {
     }
 
-    /** Sessao com nome do Cardapim? */
+    /** Sessao com nome do Deliveryzim (atual ou antigo)? */
     public static function doCardapim(string $sessao): bool
     {
-        return preg_match('/\Acardapim_(r[1-9][0-9]{0,17}|plataforma)_[a-f0-9]{8}\z/', $sessao) === 1;
+        return WhatsAppProvedores::doDeliveryzim($sessao);
     }
 
     /**
@@ -90,7 +92,7 @@ final class SessoesAbandonadas
         if ($fecharDeVerdade) {
             foreach ($decisao['fechar'] as $s) {
                 try {
-                    $ok = $this->api->sair($s, $this->api->gerarToken($s));
+                    $ok = $this->api->encerrar($s);
                 } catch (IntegracaoErro) {
                     $ok = false;
                 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Sessoes do servidor do WhatsApp (WPPConnect): lista e fecha as que nenhum restaurante usa mais.
+// Sessoes dos servidores de WhatsApp (WPPConnect e Evolution): lista e fecha as que nenhum restaurante usa mais.
 // Sessao abandonada abre um navegador a toa e gasta a memoria que as lojas conectadas precisam.
 //
 // Uso (usuario do site, na pasta current/):
@@ -19,11 +19,12 @@ require dirname(__DIR__) . '/bootstrap/app.php';
 
 use Cardapim\Core\Database;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
-use Cardapim\Modules\Integracoes\WppConnectApi;
+use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Services\WhatsApp\SessoesAbandonadas;
 
-if (!WppConnectApi::disponivel()) {
-    echo "WhatsApp nao configurado (WPPCONNECT_BASE_URL / WPPCONNECT_SECRET_KEY). Nada a fazer.\n";
+$servidores = WhatsAppProvedores::configurados();
+if ($servidores === []) {
+    echo "WhatsApp nao configurado (WPPCONNECT_* ou EVOLUTION_* no .env). Nada a fazer.\n";
     exit(0);
 }
 
@@ -38,22 +39,31 @@ if ($trava === false || !flock($trava, LOCK_EX | LOCK_NB)) {
     exit(0); // outra rodada em andamento
 }
 
-try {
-    $r = (new SessoesAbandonadas(Database::connect(), new WppConnectApi(), $pasta . '/whatsapp-sessoes.json'))->rodar($limpar, $semEspera);
-} catch (IntegracaoErro $erro) {
-    fwrite(STDERR, date('Y-m-d H:i:s') . ' ERRO: ' . $erro->getMessage() . "\n");
-    exit(2);
-}
-
 $linha = static fn (string $rotulo, array $lista): string => sprintf("  %-34s %d%s\n", $rotulo, count($lista), $lista === [] ? '' : ': ' . implode(', ', $lista));
-echo date('Y-m-d H:i:s') . ($limpar ? ' limpeza' : ' consulta (nada foi fechado)') . "\n";
-echo $linha('Sessoes no servidor do WhatsApp', $r['servidor']);
-echo $linha('Em uso (gravadas no banco)', $r['em_uso']);
-if ($limpar) {
-    echo $linha('Fechadas agora', $r['fechadas']);
-    echo $linha('Nao fecharam (tenta de novo)', $r['falharam']);
-    echo $linha('Abandonadas, aguardando 10 min', $r['aguardando']);
-} else {
-    echo $linha('Abandonadas (use --limpar)', $r['aguardando']);
+$saida = 0;
+$db = Database::connect();
+foreach ($servidores as $api) {
+    // Um arquivo de "vistas" por servidor (o do WPPConnect mantem o nome antigo).
+    $estado = $pasta . ($api->id() === WhatsAppProvedores::WPPCONNECT ? '/whatsapp-sessoes.json' : '/whatsapp-sessoes-' . $api->id() . '.json');
+    try {
+        $r = (new SessoesAbandonadas($db, $api, $estado))->rodar($limpar, $semEspera);
+    } catch (IntegracaoErro $erro) {
+        fwrite(STDERR, date('Y-m-d H:i:s') . ' ERRO (' . $api->id() . '): ' . $erro->getMessage() . "\n");
+        $saida = max($saida, 2);
+        continue;
+    }
+    echo date('Y-m-d H:i:s') . ' [' . $api->id() . ']' . ($limpar ? ' limpeza' : ' consulta (nada foi fechado)') . "\n";
+    echo $linha('Sessoes no servidor do WhatsApp', $r['servidor']);
+    echo $linha('Em uso (gravadas no banco)', $r['em_uso']);
+    if ($limpar) {
+        echo $linha('Fechadas agora', $r['fechadas']);
+        echo $linha('Nao fecharam (tenta de novo)', $r['falharam']);
+        echo $linha('Abandonadas, aguardando 10 min', $r['aguardando']);
+    } else {
+        echo $linha('Abandonadas (use --limpar)', $r['aguardando']);
+    }
+    if ($r['falharam'] !== []) {
+        $saida = max($saida, 3);
+    }
 }
-exit($r['falharam'] === [] ? 0 : 3);
+exit($saida);
