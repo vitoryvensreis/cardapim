@@ -1,13 +1,13 @@
-name: Cardapim - Validar imagem WPPConnect corrigida
+name: Deliveryzim - Validar imagem do servidor do WhatsApp (WPPConnect)
 on:
   pull_request:
     paths:
-      - 'deploy/wppconnect-hotfix/**'
+      - 'deploy/wppconnect/**'
       - '.github/workflows/wppconnect-image.yml'
   push:
     branches: [main]
     paths:
-      - 'deploy/wppconnect-hotfix/**'
+      - 'deploy/wppconnect/**'
       - '.github/workflows/wppconnect-image.yml'
   workflow_dispatch:
 
@@ -24,14 +24,19 @@ jobs:
         run: |
           set -euo pipefail
           docker build --pull --progress=plain \
-            -t cardapim/wppconnect-server:2.10.73-wa-js-4.8.2 \
-            -f deploy/wppconnect-hotfix/Dockerfile \
-            deploy/wppconnect-hotfix
+            -t deliveryzim/wppconnect-server:2.10.73-wa-js-4.8.2 \
+            -f deploy/wppconnect/Dockerfile \
+            deploy/wppconnect
+      - name: Conferir o docker-compose.yml versionado
+        run: |
+          set -euo pipefail
+          : > deploy/wppconnect/.env  # vazio so para o teste; o real fica na VPS e nunca no Git
+          docker compose -f deploy/wppconnect/docker-compose.yml config --quiet
       - name: Confirmar versoes e correcao no pacote instalado
         run: |
           set -euo pipefail
           docker run --rm --entrypoint node \
-            cardapim/wppconnect-server:2.10.73-wa-js-4.8.2 -e '
+            deliveryzim/wppconnect-server:2.10.73-wa-js-4.8.2 -e '
               const fs=require("fs");
               const p="/usr/src/wpp-server/node_modules/@wppconnect/wa-js";
               const j=JSON.parse(fs.readFileSync(p+"/package.json", "utf8"));

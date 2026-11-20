@@ -82,6 +82,21 @@ $e = (new WppConnectApi(new ClienteFalso([new RespostaHttp(200, '{"status":"CONN
 $ok($e['status'] === 'CONNECTED' && $e['qrcode'] === null, 'QR que nao e imagem e descartado');
 $ok((new WppConnectApi(new ClienteFalso([new RespostaHttp(200, '{"response":{"wid":{"user":"5585988887777"}}}')])))->numero('cardapim_r1_ab12', 't') === '5585988887777', 'numero do aparelho');
 $ok($erro(fn () => (new WppConnectApi(new ClienteFalso([new RespostaHttp(200, '{"status":"error"}')])))->enviarTexto('cardapim_r1_ab12', 't', '5585999990000', 'oi')) !== null, 'falha no envio vira erro');
+// Sessao responde de verdade? (check-connection-session no cliente rapido)
+$rapido = static fn (RespostaHttp $r): WppConnectApi => new WppConnectApi(new ClienteFalso([]), new ClienteFalso([$r]));
+$ok($rapido(new RespostaHttp(200, '{"status":true,"message":"Connected"}'))->respondendo('cardapim_r1_ab12', 't') === true, 'sessao respondendo');
+$ok($rapido(new RespostaHttp(200, '{"status":false,"message":"Disconnected"}'))->respondendo('cardapim_r1_ab12', 't') === false, 'sessao desconectada');
+$ok($rapido(new RespostaHttp(404, ''))->respondendo('cardapim_r1_ab12', 't') === null, 'servidor sem a rota: nao sabe');
+$travado = new class (1) extends ClienteHttp {
+    public function enviar(string $metodo, string $url, array $cabecalhos = [], array|string|null $corpo = null): RespostaHttp
+    {
+        throw new \Cardapim\Shared\Http\ErroHttp('O serviço demorou demais para responder.');
+    }
+};
+$ok((new WppConnectApi(new ClienteFalso([]), $travado))->respondendo('cardapim_r1_ab12', 't') === false, 'sessao travada (tempo esgotado)');
+$h = new ClienteFalso([new RespostaHttp(200, '{"status":true}')]);
+(new WppConnectApi(new ClienteFalso([]), $h))->respondendo('cardapim_r1_ab12', 'tok9');
+$ok($h->pedidos[0]['url'] === 'http://127.0.0.1:21466/api/cardapim_r1_ab12/check-connection-session' && $h->pedidos[0]['cabecalhos']['Authorization'] === 'Bearer tok9', 'rota e token do teste rapido');
 
 /* ---------- iFood ---------- */
 putenv('IFOOD_CLIENT_ID=app-id');

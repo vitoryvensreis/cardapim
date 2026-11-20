@@ -529,6 +529,10 @@
           mostrar("erro", dados.mensagem);
           espera = 15000;
           break;
+        case "sem_resposta": /* conectado no servidor, mas o navegador da sessao nao responde */
+          mostrar("erro", dados.mensagem);
+          espera = 30000;
+          break;
         case "sessao":
           mostrar("erro", dados.mensagem);
           return;

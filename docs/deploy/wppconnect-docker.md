@@ -1,162 +1,113 @@
-# WPPConnect do Cardapim em Docker (instância isolada)
+# Servidor do WhatsApp do Deliveryzim (WPPConnect em Docker)
 
-Um container **só do Cardapim**, separado do WPPConnect que já existe na VPS (`wppconnect.escotilhaprodutora.com`).
-Ele fica acessível **apenas por 127.0.0.1** (dentro da própria VPS): o Cardapim roda na mesma máquina e conversa com ele
-por `http://127.0.0.1:21467`. Não precisa de domínio, proxy reverso nem porta aberta na internet.
+Um container **só do Deliveryzim**, para **várias lojas conectadas ao mesmo tempo** (uma sessão por loja e uma da plataforma).
+Fica acessível **apenas por 127.0.0.1**: o site roda na mesma VPS e fala com ele por `http://127.0.0.1:21467`.
+Não precisa de domínio, proxy reverso nem porta aberta na internet.
 
-> Não mexa no container/serviço do WPPConnect que já existe. Os nomes, a porta e os volumes abaixo são diferentes de propósito.
-
-## 1. Conferir o Docker
-
-```bash
-docker --version
-docker compose version
-```
-
-Se os dois responderem, vá para o passo 2. Se o Docker não estiver instalado, use o script oficial e confira de novo:
-
-```bash
-curl -fsSL https://get.docker.com | sh
-systemctl enable --now docker
-docker --version && docker compose version
-```
-
-## 2. Ver o que já está rodando (para não usar a mesma porta)
-
-```bash
-docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
-ss -tlnp | grep -E ':2146[0-9]' || echo "portas 21460-21469 livres"
-```
-
-Na VPS de produção já existem dois WPPConnect de outros projetos: `taskesc-wppconnect` (porta 21465) e
-`leaguecut-wpp` (porta 21466). **Não mexa neles.** O do Cardapim usa a **21467** (conferido livre em 10/11/2026).
-Se um dia ela aparecer ocupada, troque `21467` por outra livre aqui e no `WPPCONNECT_BASE_URL` do passo 8.
-
-## 3. Criar a pasta e a chave secreta
-
-```bash
-mkdir -p /opt/wppconnect-cardapim
-cd /opt/wppconnect-cardapim
-umask 077
-SECRET=$(openssl rand -hex 32)
-printf 'SECRET_KEY=%s\n' "$SECRET" > .env
-chmod 600 .env
-echo "$SECRET"
-```
-
-Copie o valor que apareceu: ele vai no passo 8. Não mande essa chave por chat, e-mail nem para o GitHub.
-
-## 4. Criar o docker-compose.yml
-
-```bash
-cat > /opt/wppconnect-cardapim/docker-compose.yml <<'YAML'
-name: wppconnect-cardapim
-services:
-  wppconnect:
-    image: wppconnect/wppconnect-server:2.10.73
-    container_name: wppconnect-cardapim
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "127.0.0.1:21467:21465"
-    shm_size: "1gb"
-    mem_limit: 2g
-    volumes:
-      - tokens:/usr/src/wpp-server/tokens
-      - userdata:/usr/src/wpp-server/userDataDir
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-volumes:
-  tokens:
-  userdata:
-YAML
-```
-
-- `127.0.0.1:21467` = só a própria VPS enxerga. **Nunca** troque por `21467:21465` (isso abriria para a internet).
-- `tokens` e `userdata` guardam as sessões: reiniciar o container não desconecta os WhatsApps.
-- `shm_size` e `mem_limit`: o WPPConnect usa o Chromium; isso evita travamentos e protege o resto da VPS.
-
-## 5. Subir o container
-
-```bash
-cd /opt/wppconnect-cardapim
-docker compose pull
-docker compose up -d
-docker compose ps
-docker compose logs --tail=50
-```
-
-O `ps` deve mostrar `wppconnect-cardapim` como `running` (ou `Up`). Os logs não devem ter erros em loop.
-
-## 6. Testar por dentro da VPS
-
-```bash
-curl -s http://127.0.0.1:21467/healthz; echo
-curl -s -X POST "http://127.0.0.1:21467/api/teste-cardapim/$(grep SECRET_KEY /opt/wppconnect-cardapim/.env | cut -d= -f2)/generate-token"; echo
-ss -tlnp | grep 21467
-```
-
-- O primeiro comando responde algo como `ok`/`{"status":"ok"}`.
-- O segundo devolve `"status":"success"` e um `token` (prova que a chave está certa).
-- O terceiro precisa mostrar **`127.0.0.1:21467`** (e não `0.0.0.0:21467`).
-
-## 7. (Opcional) Conferir que não está exposto
-
-No seu computador (fora da VPS):
-
-```bash
-curl -m 5 http://IP_DA_VPS:21467/healthz
-```
-
-Tem que **falhar** (tempo esgotado ou conexão recusada).
-
-## 8. Ligar o Cardapim ao WPPConnect
-
-Acrescente duas linhas no `.env` compartilhado do Cardapim (troque `COLE_A_CHAVE_AQUI` pelo valor do passo 3):
-
-```bash
-ENV=/home/escotilhaprodutora-cardapim/apps/cardapim/shared/.env
-cp -p "$ENV" "$ENV.bak-$(date +%Y%m%d%H%M)"
-grep -q '^WPPCONNECT_BASE_URL=' "$ENV" || printf '\nWPPCONNECT_BASE_URL=http://127.0.0.1:21467\n' >> "$ENV"
-grep -q '^WPPCONNECT_SECRET_KEY=' "$ENV" || printf 'WPPCONNECT_SECRET_KEY=%s\n' 'COLE_A_CHAVE_AQUI' >> "$ENV"
-grep -E '^WPPCONNECT_' "$ENV" | sed 's/\(SECRET_KEY=\).*/\1********/'
-ls -l "$ENV"
-```
-
-- O `.env` continua com o mesmo dono e permissão (o `>>` só acrescenta linhas).
-- Não precisa reiniciar nada: o Cardapim lê o `.env` a cada acesso.
-- Confira também se existe `APP_URL=https://deliveryzim.com.br` nesse arquivo (é usado nos avisos do Asaas).
-
-## 9. Conectar pelo painel
-
-Entre como gerente > **Integrações** > **WhatsApp** > **Conectar WhatsApp** e leia o QR Code com o celular do restaurante
-(WhatsApp > Aparelhos conectados > Conectar um aparelho). Depois envie uma mensagem de teste pela mesma tela.
-
-## Manutenção
-
-| Tarefa | Comando (dentro de `/opt/wppconnect-cardapim`) |
+| Item | Valor |
 | --- | --- |
-| Ver se está rodando | `docker compose ps` |
-| Ver os logs | `docker compose logs --tail=100 -f` (Ctrl+C para sair) |
-| Reiniciar | `docker compose restart` |
-| Atualizar a imagem | `docker compose pull && docker compose up -d` |
-| Parar (mantém as sessões) | `docker compose down` |
-| Apagar tudo, inclusive sessões | `docker compose down -v` (todos os restaurantes precisam ler o QR de novo) |
+| Pasta na VPS | `/opt/wppconnect-deliveryzim` |
+| Container | `wppconnect-deliveryzim` |
+| Imagem | `deliveryzim/wppconnect-server:2.10.73-wa-js-4.8.2` (construída na VPS a partir de [`deploy/wppconnect/Dockerfile`](../../deploy/wppconnect/Dockerfile)) |
+| Configuração | [`deploy/wppconnect/docker-compose.yml`](../../deploy/wppconnect/docker-compose.yml) (cópia idêntica da VPS) |
+| Porta | `127.0.0.1:21467` |
+| Segredos | `/opt/wppconnect-deliveryzim/.env` (`SECRET_KEY` e `WEBHOOK_URL`), permissão 600, nunca no Git |
 
-Depois que estiver estável, fixe a versão da imagem no `docker-compose.yml` (hoje: `2.10.73`, a mesma usada pelas outras instâncias da VPS) para uma atualização
-não chegar sem você querer.
+## Capacidade
+
+Cada loja conectada é um navegador Chromium escondido: ~400 a 700 MB, mais nos primeiros minutos após ler o QR Code
+(baixa as conversas). Com `mem_limit: 6g` cabem **8 a 10 lojas** com folga para os picos.
+
+| Lojas com WhatsApp | `mem_limit` | VPS |
+| --- | --- | --- |
+| até 10 | 6g | a atual (16 GB, dividida com e-mail e site) |
+| 10 a 25 | 12g a 14g | VPS só para o WhatsApp (KVM 4: 4 vCPU, 16 GB) |
+| mais que isso | | trocar para um motor sem navegador (WAHA GOWS, Evolution/Baileys) ou API oficial da Meta |
+
+Para subir o limite: editar `mem_limit` e `memswap_limit` na VPS **e** neste repositório, depois
+`docker compose up -d --no-deps wppconnect` (as lojas podem precisar ler o QR Code de novo).
+
+## Instalação do zero
+
+1. **Docker**: `docker --version && docker compose version` (se faltar: `curl -fsSL https://get.docker.com | sh`).
+2. **Imagem** (com o código do site já publicado em `current/`):
+   ```bash
+   docker build --pull -t deliveryzim/wppconnect-server:2.10.73-wa-js-4.8.2 \
+     -f /home/escotilhaprodutora-cardapim/apps/cardapim/current/deploy/wppconnect/Dockerfile \
+     /home/escotilhaprodutora-cardapim/apps/cardapim/current/deploy/wppconnect
+   ```
+3. **Pasta, chave e webhook**:
+   ```bash
+   mkdir -p /opt/wppconnect-deliveryzim && cd /opt/wppconnect-deliveryzim && umask 077
+   SECRET=$(openssl rand -hex 32)
+   HOOK=$(openssl rand -hex 32)
+   printf 'SECRET_KEY=%s\nWEBHOOK_URL=https://deliveryzim.com.br/webhooks/wppconnect/%s\n' "$SECRET" "$HOOK" > .env
+   echo "WPPCONNECT_SECRET_KEY=$SECRET"; echo "WPPCONNECT_WEBHOOK_TOKEN=$HOOK"
+   ```
+   Os dois valores vão para o `shared/.env` do site (passo 5). Não mande essas chaves por chat, e-mail nem GitHub.
+4. **Configuração**: copiar `deploy/wppconnect/docker-compose.yml` para `/opt/wppconnect-deliveryzim/` e subir:
+   ```bash
+   cp /home/escotilhaprodutora-cardapim/apps/cardapim/current/deploy/wppconnect/docker-compose.yml .
+   docker compose config --quiet && docker compose up -d
+   sleep 45 && docker compose ps     # wppconnect-deliveryzim ... (healthy)
+   curl -s http://127.0.0.1:21467/healthz; echo
+   ```
+5. **Ligar o site** (`/home/escotilhaprodutora-cardapim/apps/cardapim/shared/.env`, com backup antes):
+   `WPPCONNECT_BASE_URL=http://127.0.0.1:21467`, `WPPCONNECT_SECRET_KEY=...` e `WPPCONNECT_WEBHOOK_TOKEN=...`.
+   O site lê o `.env` a cada acesso, não precisa reiniciar.
+6. **Cron da limpeza de sessões** (CloudPanel > Cron Jobs, usuário do site), ver [cloudpanel.md](cloudpanel.md):
+   `*/15 * * * * php8.4 /home/<usuario>/apps/cardapim/current/bin/whatsapp-sessoes.php --limpar >> /home/<usuario>/apps/cardapim/shared/storage/logs/whatsapp-sessoes.log 2>&1`
+7. **Conectar**: plataforma primeiro (painel do adm), depois cada loja, **uma de cada vez** com ~3 minutos entre elas.
+
+## Conferências rápidas
+
+```bash
+cd /opt/wppconnect-deliveryzim
+SK=$(grep '^SECRET_KEY=' .env | cut -d= -f2-)
+docker compose ps                                                         # (healthy)
+docker stats --no-stream wppconnect-deliveryzim                           # memória usada / 6GiB
+curl -s -X POST -H "x-secret-key: $SK" http://127.0.0.1:21467/api/show-all-sessions; echo
+cat /sys/fs/cgroup/system.slice/docker-$(docker inspect -f '{{.Id}}' wppconnect-deliveryzim).scope/memory.events | grep oom_kill
+docker compose logs --since 10m wppconnect 2>&1 | grep -v 'onMessage\|onAnyMessage\|onAck\|onPresence' | tail -60
+```
+
+No site (usuário do site, pasta `current/`): `php8.4 bin/whatsapp-sessoes.php` lista as sessões do servidor, as que estão em uso
+e as abandonadas (não fecha nada sem `--limpar`).
+
+- `oom_kill` maior que 0: faltou memória e o sistema derrubou um navegador. Suba `mem_limit`.
+- Sessões na lista que não são de nenhuma loja: o cron fecha depois de 10 minutos; na hora, `php8.4 bin/whatsapp-sessoes.php --limpar --sem-espera`.
+
+## Diagnóstico de 20/11/2026 (por que a segunda loja travava)
+
+- **Sintoma**: com a plataforma e uma loja conectadas tudo funcionava; ao conectar a segunda loja, uma delas passava a dar
+  "O serviço demorou demais para responder" no teste e nos avisos, e às vezes o QR Code não aparecia. O painel mostrava "Conectado".
+- **Causa**: o container tinha `mem_limit: 2g`. Com plataforma + 2 lojas + **sessões abandonadas** (desconectar com o servidor
+  travado deixava a sessão antiga aberta e o painel criava outra), o limite foi atingido 4.475 vezes e o kernel matou navegadores
+  (`memory.events`: `oom_kill 2`). O log mostrava `Runtime.callFunctionOn timed out`.
+- **Correção**: só o Deliveryzim usa a VPS para WhatsApp (servidores do TaskEsc e do LeagueCut removidos, backup em
+  `/root/backup-wpp-antigos`), servidor recriado do zero como `wppconnect-deliveryzim` com 6 GB, `init`, `shm` de 2 GB e sem swap;
+  limpeza automática de sessões abandonadas (`bin/whatsapp-sessoes.php`) e a tela de WhatsApp passou a avisar quando a sessão
+  aparece conectada mas não responde (`check-connection-session`).
 
 ## Problemas comuns
 
-- **Container reiniciando sem parar**: `docker compose logs --tail=200`. Falta de memória aparece como `Killed`; aumente `mem_limit`.
-- **QR Code não aparece no painel**: confira o passo 6 e as duas linhas do passo 8 (URL com a porta certa e chave igual à do `.env` do container).
-- **"O servidor do WhatsApp recusou a conexão"** no painel: a `WPPCONNECT_SECRET_KEY` do Cardapim é diferente da `SECRET_KEY` do container.
-- **WhatsApp cai sozinho**: o celular ficou sem internet ou o aparelho foi removido em "Aparelhos conectados". Conecte de novo pelo painel.
+| Sintoma | O que fazer |
+| --- | --- |
+| Tela de WhatsApp diz "conectado, mas não está respondendo" | Esperar 2 minutos (pode estar baixando conversas). Se continuar: Desconectar e conectar de novo. Conferir `oom_kill` e memória. |
+| QR Code não aparece | `docker compose ps` (healthy?) e o log das últimas linhas. Conferir memória. |
+| "O servidor do WhatsApp recusou a conexão" | `WPPCONNECT_SECRET_KEY` do site diferente da `SECRET_KEY` do container. |
+| Boas-vindas não saem | `WEBHOOK_URL` no `.env` do container e `WPPCONNECT_WEBHOOK_TOKEN` no site precisam ter o mesmo segredo ([saudacao-whatsapp.md](../architecture/saudacao-whatsapp.md)). |
+| WhatsApp cai sozinho | Aparelho removido em "Aparelhos conectados" ou número bloqueado. Conectar de novo pelo painel. |
 
-## Situação em produção
+## Manutenção
 
-Instalado em 10/11/2026: container `wppconnect-cardapim`, imagem `2.10.73`, em `127.0.0.1:21467`, pasta
-`/opt/wppconnect-cardapim`. Token de teste gerado com sucesso e `WPPCONNECT_*` gravados no `shared/.env` (com backup).
+| Tarefa | Comando (em `/opt/wppconnect-deliveryzim`) |
+| --- | --- |
+| Reiniciar | `docker compose restart` (as sessões devem voltar sozinhas; loja que aparecer desconectada, conectar pelo painel) |
+| Aplicar mudança no compose | `docker compose config --quiet && docker compose up -d --no-deps wppconnect` |
+| Parar (mantém as sessões) | `docker compose down` |
+| Apagar tudo, inclusive sessões | `docker compose down -v` (todas as lojas leem o QR Code de novo) |
+| Voltar para a imagem original | trocar `image:` por `wppconnect/wppconnect-server:2.10.73` e `up -d --no-deps wppconnect` |
+
+Nunca usar `npm install` nem editar `node_modules` dentro do container: mudanças de versão passam pelo `Dockerfile` e pelo
+workflow `wppconnect-image.yml` (que constrói e valida a imagem no CI).

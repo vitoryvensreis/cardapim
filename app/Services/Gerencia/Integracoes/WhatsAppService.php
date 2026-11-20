@@ -59,7 +59,7 @@ final class WhatsAppService extends BaseIntegracao
     /**
      * Situacao atual (consultada pela tela a cada poucos segundos).
      * @return array{estado:string, qrcode:?string, numero:?string, mensagem:string}
-     *         estado: conectado | qrcode | iniciando | expirado | desconectado | indisponivel | erro
+     *         estado: conectado | sem_resposta | qrcode | iniciando | expirado | desconectado | indisponivel | erro
      */
     public function estado(): array
     {
@@ -92,6 +92,10 @@ final class WhatsAppService extends BaseIntegracao
                     $this->log('WhatsApp conectado', 'Celular conectado' . ($numero !== null ? ' (final ' . substr($numero, -4) . ')' : '') . '.');
                     $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'conectado']);
                 }
+            }
+            if ($this->api->respondendo($sessao, (string) $cred['token']) === false) {
+                return ['estado' => 'sem_resposta', 'qrcode' => null, 'numero' => $numero,
+                    'mensagem' => 'O WhatsApp aparece conectado, mas não está respondendo e as mensagens podem não sair. Espere 2 minutos. Se continuar assim, clique em Desconectar e conecte de novo.'];
             }
             return ['estado' => 'conectado', 'qrcode' => null, 'numero' => $numero, 'mensagem' => 'WhatsApp conectado.'];
         }
@@ -153,11 +157,14 @@ final class WhatsAppService extends BaseIntegracao
         }
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
         $sessao = $atual['dados']['sessao'] ?? null;
+        $saiu = true;
         if (is_string($sessao) && !empty($cred['token']) && WppConnectApi::disponivel()) {
-            $this->api->sair($sessao, (string) $cred['token']);
+            $saiu = $this->api->sair($sessao, (string) $cred['token']);
         }
         $this->integracoes->limpar($this->idRestaurante, 'whatsapp');
-        $this->log('WhatsApp desconectado', 'Sessão encerrada pelo painel.');
+        // Servidor nao confirmou: a sessao pode ter ficado aberta la. bin/whatsapp-sessoes.php --limpar (cron) fecha depois.
+        $this->log('WhatsApp desconectado', $saiu ? 'Sessão encerrada pelo painel.'
+            : 'Sessão encerrada pelo painel. O servidor do WhatsApp não confirmou; a limpeza automática fecha o que sobrou.');
         $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'desconectado']);
         return Resultado::sucesso('WhatsApp desconectado. O celular saiu do ' . marca() . '.');
     }

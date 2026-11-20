@@ -16,8 +16,14 @@ use Cardapim\Shared\Http\RespostaHttp;
  */
 class WppConnectApi
 {
-    public function __construct(private readonly ClienteHttp $http = new ClienteHttp(20))
-    {
+    /**
+     * $http: chamadas normais (20 s). $httpRapido: teste rapido de "a sessao responde?" (8 s), para a
+     * tela nao ficar presa quando o navegador da sessao travou no servidor.
+     */
+    public function __construct(
+        private readonly ClienteHttp $http = new ClienteHttp(20),
+        private readonly ClienteHttp $httpRapido = new ClienteHttp(8),
+    ) {
     }
 
     public static function disponivel(): bool
@@ -61,6 +67,29 @@ class WppConnectApi
         ];
     }
 
+    /**
+     * A sessao responde de verdade? O status-session pode dizer CONNECTED mesmo com o navegador da
+     * sessao travado (ex.: sem memoria). check-connection-session executa algo dentro da pagina.
+     * true = respondeu conectado; false = demorou demais ou respondeu desconectado; null = nao deu para saber
+     * (servidor sem essa rota ou outro erro): nesse caso a tela segue o status normal.
+     */
+    public function respondendo(string $sessao, string $token): ?bool
+    {
+        if (!self::disponivel()) {
+            return null;
+        }
+        try {
+            $r = $this->httpRapido->enviar('GET', self::urlBase() . '/api/' . self::sessao($sessao) . '/check-connection-session', ['Authorization' => 'Bearer ' . $token]);
+        } catch (ErroHttp) {
+            return false; // nao respondeu a tempo: e o sintoma da sessao travada
+        }
+        if ($r->status === 404 || $r->status === 401) {
+            return null;
+        }
+        $status = $r->json()['status'] ?? null;
+        return is_bool($status) ? $status : null;
+    }
+
     /** Numero do aparelho conectado (se o servidor informar). */
     public function numero(string $sessao, string $token): ?string
     {
@@ -101,16 +130,44 @@ class WppConnectApi
         }
     }
 
-    /** Desconecta o aparelho (sai do WhatsApp Web) e fecha a sessao. Erros sao ignorados. */
-    public function sair(string $sessao, string $token): void
+    /**
+     * Desconecta o aparelho (sai do WhatsApp Web) e fecha a sessao. Erros sao ignorados.
+     * Devolve true se o servidor confirmou a saida (logout). false = a sessao pode ter ficado aberta
+     * no servidor (ex.: travada); a rotina bin/whatsapp-sessoes.php fecha as que sobrarem.
+     */
+    public function sair(string $sessao, string $token): bool
     {
+        $confirmou = false;
         foreach (['/logout-session', '/close-session'] as $acao) {
             try {
-                $this->chamar('POST', '/api/' . self::sessao($sessao) . $acao, $token);
+                $r = $this->chamar('POST', '/api/' . self::sessao($sessao) . $acao, $token);
+                $confirmou = $confirmou || ($acao === '/logout-session' && $r->ok());
             } catch (IntegracaoErro) {
                 // segue: o objetivo e limpar o que der
             }
         }
+        return $confirmou;
+    }
+
+    /**
+     * Nomes de todas as sessoes que o servidor conhece (abertas ou salvas para religar).
+     * @return list<string>
+     */
+    public function sessoesNoServidor(): array
+    {
+        if (!self::disponivel()) {
+            throw new IntegracaoErro('O WhatsApp ainda não está disponível neste servidor.');
+        }
+        try {
+            $r = $this->http->enviar('POST', self::urlBase() . '/api/show-all-sessions', ['x-secret-key' => Config::get('WPPCONNECT_SECRET_KEY')], []);
+        } catch (ErroHttp $erro) {
+            throw new IntegracaoErro('O servidor do WhatsApp não respondeu: ' . $erro->getMessage());
+        }
+        $lista = $r->json()['response'] ?? null;
+        if (!$r->ok() || !is_array($lista)) {
+            throw new IntegracaoErro('O servidor do WhatsApp não listou as sessões (código ' . $r->status . ').');
+        }
+        return array_values(array_filter($lista, static fn ($s): bool => is_string($s) && preg_match('/\A[a-zA-Z0-9_-]{3,60}\z/', $s) === 1));
     }
 
     public static function sessao(string $sessao): string
