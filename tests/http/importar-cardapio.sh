@@ -51,7 +51,7 @@ contem "envio em multipart" "$tmp/pagina.html" 'enctype="multipart/form-data"'
 nao_contem "sem script inline" "$tmp/pagina.html" 'onclick='
 curl -s -b "$gj" -D "$tmp/modelo.h" -o "$tmp/modelo.csv" "$imp/modelo"
 contem "modelo e CSV para baixar" "$tmp/modelo.h" 'attachment; filename="modelo-cardapio-'
-contem "modelo com os titulos" "$tmp/modelo.csv" 'Categoria;Produto;Descrição;Preço;Código;Complemento;Obrigatório;Máximo;Opção;Preço da opção'
+contem "modelo com os titulos" "$tmp/modelo.csv" 'Categoria;Produto;Descrição;Preço;Código;Complemento;Obrigatório;Máximo;Opção;"Preço da opção"'
 esperar "garcom nao abre a importacao" "$(pagina "$wj" "$imp")" "403"
 esperar "gerente de outro restaurante nao abre" "$(pagina "$oj" "$imp")" "403"
 esperar "garcom nao envia planilha" "$(enviar_planilha "$wj" "$tmp/modelo.csv" modelo.csv)" "403"
