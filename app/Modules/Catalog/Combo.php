@@ -64,6 +64,22 @@ final class Combo
             $q->execute([$idRestaurante, ...$idsCombos]);
             $fixosRaw = $q->fetchAll(PDO::FETCH_ASSOC);
             $grupos = Complementos::carregar($db, $idRestaurante, $idsCombos);
+            // Dentro do combo vale o limite do combo (sem configuracao: opcional, ate o maximo do grupo).
+            $limites = [];
+            if (Esquema::tem($db, 'combo_grupos')) {
+                $q = $db->prepare('SELECT id_combo, id_grupo, minimo, maximo FROM combo_grupos WHERE id_restaurante = ? AND id_combo IN (' . self::marcas($idsCombos) . ')');
+                $q->execute([$idRestaurante, ...$idsCombos]);
+                foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $l) {
+                    $limites[(int) $l['id_combo']][(int) $l['id_grupo']] = [(int) $l['minimo'], (int) $l['maximo']];
+                }
+            }
+            foreach ($grupos as $idCombo => &$lista) {
+                foreach ($lista as &$g) {
+                    [$g['minimo'], $g['maximo']] = $limites[$idCombo][(int) $g['id']] ?? [0, (int) $g['maximo']];
+                }
+                unset($g);
+            }
+            unset($lista);
             $idsOpcoes = [];
             foreach ($grupos as $lista) {
                 foreach ($lista as $g) {
@@ -327,7 +343,9 @@ final class Combo
         unset($g);
         return [
             'inclusos' => array_map(static fn (array $f): string => $f['quantidade'] . 'x ' . $f['nome'], $combo['fixos']),
-            'maximo_escolhas' => $combo['maximo'] !== null ? max(0, $combo['maximo'] - self::inclusos($combo)) : null,
+            // So aparece quando o limite total restringe mais que a soma dos grupos.
+            'maximo_escolhas' => $combo['maximo'] !== null && max(0, $combo['maximo'] - self::inclusos($combo)) < array_sum(array_map(static fn (array $g): int => (int) $g['maximo'], $combo['grupos']))
+                ? max(0, $combo['maximo'] - self::inclusos($combo)) : null,
             'grupos' => $grupos,
         ];
     }

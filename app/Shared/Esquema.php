@@ -26,6 +26,8 @@ final class Esquema
         'impressao_produto' => ['impressoes', 'lote'],
         // Combos (itens separados com o preco do combo dividido); coluna criada no fim da migracao.
         'combos' => ['pedido_itens', 'combo_nome'],
+        // Limite de escolhas de cada grupo dentro do combo.
+        'combo_grupos' => ['combo_grupos', 'maximo'],
     ];
 
     /** @var array<string,bool> */
