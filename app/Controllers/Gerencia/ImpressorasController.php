@@ -32,12 +32,15 @@ final class ImpressorasController extends BaseGerencia
         ]);
     }
 
-    /** O ponto "producao" so aparece depois da migracao da impressao por produto. @return array<string,string> */
+    /** Os pontos "producao" e "garcom_lancar" so aparecem depois das migracoes deles. @return array<string,string> */
     private function pontosDisponiveis(): array
     {
         $pontos = ImpressoraRepository::PONTOS;
         if (!Esquema::tem($this->db, 'impressao_produto')) {
             unset($pontos['producao']);
+        }
+        if (!Esquema::tem($this->db, 'impressao_lancamento')) {
+            unset($pontos['garcom_lancar']);
         }
         return $pontos;
     }

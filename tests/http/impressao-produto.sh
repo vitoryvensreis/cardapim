@@ -154,6 +154,34 @@ case "$(cupom_da bar0000000001)" in *'BALCÃO'*Cerveja*) ok "balcao: cerveja no 
 confirmar_todos
 enviar "$cx" "$c/comandas/$venda/cancelar" "$c/comandas/$venda" "motivo=Teste" >/dev/null
 
+echo "Garcom: imprime sozinho ao lancar (ponto Lancamento)"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "ponto Lancamento na gerencia" "$tmp/ger.html" 'Garçom: ao lançar itens (impressão automática)'
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" \
+  "ponto[garcom_lancar][]=$bar" "ponto[garcom_lancar][]=$cozinha" "padrao[garcom_lancar]=$cozinha" >/dev/null
+curl -s -b "$wj" "$w" -o "$tmp/mesas.html"
+mesa="$(php -r 'if (preg_match("~/garcom/mesas/(\d+)/abrir~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/mesas.html")"
+r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
+comanda="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" "qtd[$outro]=1" >/dev/null
+curl -s -b "$wj" "$w/comandas/$comanda" -o "$tmp/com.html"
+contem "garcom ve que imprimiu ao lancar" "$tmp/com.html" 'itens lançados. Enviado para'
+agente "$ta" >/dev/null
+esperar "lancar ja manda Bar e Cozinha" "$(qtd_cupons)" "2"
+case "$(cupom_da bar0000000001)" in *'PRODUÇÃO · BAR'*Cerveja*) ok "cerveja no Bar ao lancar";; *) falha "via do Bar ao lancar";; esac
+[[ "$(cupom_da coz0000000001)" != *Cerveja* ]] && ok "cerveja nao sai na cozinha ao lancar" || falha "cerveja na cozinha ao lancar"
+confirmar_todos
+esperar "itens impressos ao lancar nao sao mais novos" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "409"
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" "ponto[garcom_lancar][]=$cozinha" >/dev/null
+enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" >/dev/null
+agente "$ta" >/dev/null
+esperar "cerveja (marcada so no Bar) nao sai se o ponto so tem a Cozinha" "$(qtd_cupons)" "0"
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" >/dev/null
+enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$outro]=1" >/dev/null
+agente "$ta" >/dev/null
+esperar "sem o ponto, lancar nao imprime" "$(qtd_cupons)" "0"
+enviar "$wj" "$w/comandas/$comanda/cancelar" "$w/comandas/$comanda" "motivo=Cliente desistiu" >/dev/null
+
 echo "Delivery aceito manda as vias"
 pedido="$(php tests/http/desktop-pedido-ci.php "$slug")"
 agente "$ta" >/dev/null

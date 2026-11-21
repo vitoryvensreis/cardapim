@@ -11,6 +11,7 @@ $ajuda = [
     'caixa_delivery' => 'Botão "Imprimir" no pedido do delivery, no caixa.',
     'caixa_fechamento' => 'Botão "Imprimir" no resumo do caixa.',
     'garcom' => 'Botão "Imprimir" na comanda do app do garçom.',
+    'garcom_lancar' => 'Quando o garçom toca em "Lançar", os itens novos já saem impressos. Cada item sai na impressora marcada no produto (entre as marcadas aqui); produto sem impressora marcada sai na padrão. Sem nenhuma marcada, não imprime ao lançar.',
     'delivery_novo' => 'Via completa quando chega pedido do cardápio ou do iFood. Sai em TODAS as impressoras marcadas (ex.: Balcão).',
     'producao' => 'Liga as vias de produção: "Só os itens novos" (garçom e caixa) e o pedido do delivery aceito saem divididos, cada item na impressora marcada no produto (Estoque > produto ou Categorias). Itens sem impressora marcada saem na padrão.',
 ];
@@ -59,7 +60,7 @@ $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
 
         <form method="post" action="<?= $e($base . '/integracoes/impressoras') ?>" class="impressao-pontos">
             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-            <?php foreach ($rotulos as $ponto => $rotulo): $cfg = $pontos[$ponto] ?? ['ids' => [], 'padrao' => null]; $automatico = $ponto === 'delivery_novo'; ?>
+            <?php foreach ($rotulos as $ponto => $rotulo): $cfg = $pontos[$ponto] ?? ['ids' => [], 'padrao' => null]; $automatico = in_array($ponto, ['delivery_novo', 'garcom_lancar'], true); ?>
                 <fieldset class="bloco impressao-ponto">
                     <legend><?= Icon::svg($automatico ? 'bell' : ($ponto === 'garcom' ? 'hand-platter' : ($ponto === 'producao' ? 'chef-hat' : 'monitor'))) ?><?= $e($rotulo) ?></legend>
                     <p class="impressao-ponto-ajuda"><?= $e($ajuda[$ponto]) ?></p>

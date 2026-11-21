@@ -157,6 +157,7 @@ jobs:
           php database/verify-impressoes.php --verify
           php database/verify-impressoras.php --verify
           php database/verify-impressao-produto.php --verify
+          php database/verify-impressao-lancamento.php --verify
           php database/verify-combos.php --verify
           php database/verify-combo-grupos.php --verify
           php database/seed-demo-planos.php --apply
@@ -505,6 +506,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-impressao-produto.sh'"
+
+      - name: Aplicar impressao ao lancar com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-impressao-lancamento]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-impressao-lancamento.sh'"
 
       - name: Aplicar combos com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-combos]') }}

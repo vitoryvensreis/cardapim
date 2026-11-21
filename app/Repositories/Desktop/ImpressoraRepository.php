@@ -18,6 +18,7 @@ final class ImpressoraRepository
         'caixa_delivery' => 'Caixa: pedido do delivery',
         'caixa_fechamento' => 'Caixa: resumo do caixa',
         'garcom' => 'Garçom: comanda',
+        'garcom_lancar' => 'Garçom: ao lançar itens (impressão automática)',
         'delivery_novo' => 'Pedido novo do delivery (impressão automática)',
         'producao' => 'Produção: itens sem impressora marcada no produto',
     ];
