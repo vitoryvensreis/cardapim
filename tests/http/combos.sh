@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Combos: gerente cadastra o combo (inclusos, limite total, opcoes ligadas a produtos e maximo por opcao);
 # garcom lanca (itens separados, preco do combo dividido), limites recusados, cancelar tira o combo inteiro
-# e pedido do cardapio online com combo vira os itens separados.
+# e a sacola do cardapio online confere o combo e divide o valor (mesma regra do pedido).
 # Uso: bash tests/http/combos.sh <base> <slug> <base-do-fake>
 set -Eeuo pipefail
 base="$1"
@@ -35,8 +35,6 @@ enviar() { # jar url pagina-do-token [campo=valor ...] -> "codigo location"
 }
 aviso() { curl -s -c "$1" -b "$1" "$2" > "$tmp/aviso.html"; php -r 'if (preg_match("~data-flash>.*?<p>(.*?)</p>~s", file_get_contents($argv[1]), $m)) echo html_entity_decode($m[1]);' "$tmp/aviso.html"; }
 reais() { php -r 'echo "R$ " . number_format($argv[1] / 100, 2, ",", ".");' "$1"; }
-sessao() { curl -s -c "$1" -b "$1" -o "$tmp/sessao.json" "$base/api/v1/cliente"; json "$tmp/sessao.json" csrf; }
-post() { curl -s -c "$1" -b "$1" -o "$tmp/r.json" -w '%{http_code}' -H 'Content-Type: application/json' -H "X-CSRF-Token: $2" --data "$4" "$base$3"; }
 
 gj="$tmp/gerente"; wj="$tmp/garcom"
 esperar "gerente autenticado" "$(login "$gj" ci_gerente)" "303"
@@ -96,23 +94,12 @@ contem "nenhum item do combo sobra na conta" "$tmp/cx.html" "<dt>Itens (0)</dt>"
 enviar "$wj" "$w/comandas/$comanda/cancelar" "$w/comandas/$comanda" "motivo=Cliente desistiu" >/dev/null
 
 echo "Cardapio online com combo"
-sessao_wpp="$(ls -t "$(php -r 'echo sys_get_temp_dir();')/cardapim-fake-integracoes" | grep -o 'wpp-deliveryzim_plataforma_[a-f0-9]*' | head -1 | sed 's/^wpp-//')"
-cj="$tmp/cliente"
-csrf="$(sessao "$cj")"
-post "$cj" "$csrf" /api/v1/cliente/codigo '{"telefone":"85955554444"}' >/dev/null
-codigo="$(curl -s "$fake/_teste/wpp-mensagens" | php -r '$d = json_decode(stream_get_contents(STDIN), true); $l = $d["linhas"] ?? []; for ($i = count($l) - 1; $i >= 0; $i--) { if (strpos($l[$i], $argv[1]) !== false && preg_match("/\*(\d{6})\*/", $l[$i], $m)) { echo $m[1]; exit; } }' "$sessao_wpp|5585955554444|")"
-post "$cj" "$csrf" /api/v1/cliente/entrar "{\"codigo\":\"$codigo\"}" >/dev/null
-csrf="$(json "$tmp/r.json" csrf)"
-[[ "$(json "$tmp/r.json" etapa)" == "nome" ]] && post "$cj" "$csrf" /api/v1/cliente/cadastro '{"nome":"Combo Cliente CI"}' >/dev/null
-csrf="$(sessao "$cj")"
 curl -s "$base/$slug" -o "$tmp/menu.html"
 contem "cardapio leva os dados do combo" "$tmp/menu.html" 'data-combo='
-corpo="{\"chave\":\"$(php -r 'echo bin2hex(random_bytes(16));')\",\"tipo\":\"retirada\",\"forma_pagamento\":\"debito\",\"itens\":[{\"id\":$combo,\"quantidade\":1,\"complementos\":[{\"id\":$carne,\"quantidade\":1},{\"id\":$picanha,\"quantidade\":1}]}]}"
-esperar "pedido com combo" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "$corpo")" "201"
-pedido="$(json "$tmp/r.json" pedido.id)"
-curl -s -c "$cj" -b "$cj" -o "$tmp/ped.json" "$base/api/v1/pedidos/$pedido"
-esperar "total = combo + picanha" "$(json "$tmp/ped.json" total_centavos)" "$((preco + 500))"
-esperar "itens separados no pedido" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); echo count($d["itens"]??[]);' "$tmp/ped.json")" "4"
+curl -s -o "$tmp/sacola.json" -H 'Content-Type: application/json' --data "{\"itens\":[{\"id\":$combo,\"quantidade\":1}]}" "$base/api/v1/restaurantes/$slug/sacola"
+esperar "sacola traz o maximo da opcao" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach($d["itens"][0]["grupos"][0]["opcoes"]??[] as $o){ if((int)$o["id"]===(int)$argv[2]) echo $o["maximo"]; }' "$tmp/sacola.json" "$picanha")" "1"
+esperar "sacola: combo + picanha em 4 itens, valor fechado" "$(php tests/http/combo-sacola-ci.php "$slug" "$combo" "$carne:1" "$picanha:1")" "$((preco + 500)) 4 $((preco + 500))"
+case "$(php tests/http/combo-sacola-ci.php "$slug" "$combo" "$picanha:2")" in invalida*"No máximo 1"*) ok "sacola recusa passar do maximo da opcao";; *) falha "sacola sem o limite da opcao";; esac
 
 enviar "$gj" "$g/estoque/produtos/$combo/excluir" "$g/estoque/produtos/$combo" >/dev/null # nao atrapalha os testes seguintes
 
