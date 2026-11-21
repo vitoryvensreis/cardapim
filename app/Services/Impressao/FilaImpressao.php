@@ -297,6 +297,8 @@ final class FilaImpressao
             if ($itens === []) {
                 return;
             }
+            // O item ja esta marcado como cancelado; a divisao por estacao ignoraria linhas canceladas.
+            $itens = array_map(static fn (array $i): array => ['cancelado_em' => null] + $i, $itens);
             $grupos = RotaProducao::dividir($this->db, $this->idRestaurante, $itens, $this->opcoes('producao')[0]['id'])['grupos'];
             if ($grupos === []) {
                 return;
