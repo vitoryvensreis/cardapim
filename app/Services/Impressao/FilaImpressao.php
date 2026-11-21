@@ -140,7 +140,7 @@ final class FilaImpressao
 
     /**
      * Ponto "Garcom: ao lancar itens": manda os itens novos logo depois do lancamento, cada item na impressora marcada
-     * no produto (so entre as do ponto); sem marcacao, na padrao do ponto. Null = ponto sem configuracao (nao imprime).
+     * no produto; sem marcacao, na padrao do ponto. Null = ponto sem configuracao (nao imprime).
      * Falha nunca desfaz o lancamento: os itens continuam como "novos".
      */
     public function aoLancar(int $idPedido): ?Resultado
@@ -164,8 +164,7 @@ final class FilaImpressao
         }
         $ateItem = max(array_map(static fn (array $i): int => (int) $i['id'], $ativos));
         $rotulo = $c['pedido']['tipo'] === 'mesa' ? (string) $c['rotulo'] : 'Balcão';
-        $ids = $this->enviarProducao($idPedido, 'itens_novos', $novos, CupomImpressao::cabecaComanda($c), $rotulo, $ateItem, true,
-            $opcoes[0]['id'], array_map(static fn (array $o): int => $o['id'], $opcoes));
+        $ids = $this->enviarProducao($idPedido, 'itens_novos', $novos, CupomImpressao::cabecaComanda($c), $rotulo, $ateItem, true, $opcoes[0]['id']);
         if ($ids instanceof Resultado) {
             return str_starts_with($ids->mensagem, 'Nenhuma impressora') ? null : $ids;
         }
@@ -178,15 +177,11 @@ final class FilaImpressao
      * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
      * @return array<string,int>|Resultado apelido => id do cupom
      */
-    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas, ?int $padrao = null, ?array $permitidas = null): array|Resultado
+    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas, ?int $padrao = null): array|Resultado
     {
         $padrao ??= $this->opcoes('producao')[0]['id'];
         $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_map(static fn (array $i): int => (int) ($i['id_produto'] ?? 0), $itens));
         $grupos = CupomImpressao::dividir($itens, $porProduto, $padrao);
-        if ($permitidas !== null) {
-            // So as impressoras do ponto: produto marcado apenas em outras nao sai.
-            $grupos = array_intersect_key($grupos, array_flip($permitidas));
-        }
         $impressoras = [];
         foreach ((new ImpressoraRepository($this->db))->listar($this->idRestaurante) as $imp) {
             $impressoras[$imp['id']] = $imp;

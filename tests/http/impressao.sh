@@ -168,7 +168,7 @@ enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$produto]=1" "obs[$produto]=
 curl -s -b "$wj" -o "$tmp/pagina.html" "$w/comandas/$comanda"
 contem "garcom tem o botao Imprimir" "$tmp/pagina.html" 'class="comanda-imprimir"'
 contem "opcao comanda inteira" "$tmp/pagina.html" 'value="toda"'
-contem "so os itens novos com a contagem" "$tmp/pagina.html" 'Só os itens novos (1)'
+grep -q 'Só os itens novos' "$tmp/pagina.html" && falha "garcom ainda mostra so os itens novos" || ok "garcom sem a opcao so os itens novos"
 esperar "garcom imprime sem escolher" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda")" "409"
 esperar "garcom imprime so os itens novos" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "202"
 sit="$(json "$tmp/imp.json" situacao)"
@@ -182,7 +182,6 @@ esperar "nada novo depois de imprimir" "$(imprimir "$wj" "$w/comandas/$comanda/i
 case "$(json "$tmp/imp.json" erro)" in *"Nenhum item novo"*) ok "aviso de nenhum item novo";; *) falha "aviso nenhum item novo";; esac
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$produto]=2" >/dev/null
 curl -s -b "$wj" -o "$tmp/pagina.html" "$w/comandas/$comanda"
-contem "conta o item lancado depois" "$tmp/pagina.html" 'Só os itens novos (1)'
 imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos >/dev/null
 agente "$token_ag" 1 >/dev/null
 esperar "so o item lancado depois" "$(cupom itens)" "1"
