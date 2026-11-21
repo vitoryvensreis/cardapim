@@ -178,6 +178,57 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
                     <button type="submit" class="btn btn-primary" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar boas-vindas</button>
                 </div>
             </form>
+
+            <div class="saudacao-diagnostico" id="saudacao-diagnostico">
+                <h3 class="avisos-titulo">As boas-vindas estão funcionando?</h3>
+                <?php $situacaoWebhook = $saudacaoWebhook ?? null; ?>
+                <?php if ($situacaoWebhook === 'errado'): ?>
+                    <div class="notice notice-warning"><?= Icon::svg('info') ?><p>Este WhatsApp não está avisando o sistema quando chega mensagem, por isso as boas-vindas não saem. Toque em <strong>Corrigir recebimento</strong>.</p></div>
+                <?php elseif ($situacaoWebhook === 'ok'): ?>
+                    <p class="saudacao-situacao"><span class="etiqueta etiqueta-ok"><?= Icon::svg('circle-check') ?>Recebendo mensagens</span> O sistema é avisado quando chega mensagem neste WhatsApp.</p>
+                <?php elseif ($situacaoWebhook === 'desconhecido'): ?>
+                    <p class="saudacao-situacao"><span class="etiqueta etiqueta-neutra"><?= Icon::svg('info') ?>Sem resposta do servidor</span> Não deu para conferir agora se o WhatsApp avisa o sistema.</p>
+                <?php endif; ?>
+                <?php if ($situacaoWebhook !== null): ?>
+                    <form method="post" action="<?= $e($base . '/integracoes/whatsapp/saudacao/webhook') ?>" class="saudacao-corrigir">
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <button type="submit" class="btn <?= $situacaoWebhook === 'errado' ? 'btn-primary' : 'btn-outline btn-sm' ?>" data-submit-label="Ajustando..."><?= Icon::svg('refresh-cw', 'icon-sm') ?>Corrigir recebimento</button>
+                    </form>
+                <?php endif; ?>
+
+                <h4 class="saudacao-subtitulo">Últimas mensagens recebidas</h4>
+                <?php if (($saudacaoEventos ?? []) === []): ?>
+                    <p class="texto-suave">Nenhuma mensagem chegou ao sistema ainda. Peça para alguém mandar um "oi" para o WhatsApp da loja e atualize a página. Se continuar vazio, toque em Corrigir recebimento.</p>
+                <?php else: ?>
+                    <ul class="avisos-recentes">
+                        <?php foreach ($saudacaoEventos as $ev):
+                            $icone = match ($ev['tipo']) { 'ok' => 'circle-check', 'alerta' => 'circle-x', 'atencao' => 'clock', default => 'minus' }; ?>
+                            <li>
+                                <span class="avisos-pedido"><strong><?= $e($data($ev['em'])) ?></strong><?= $ev['contato'] === 'lid' ? ' · contato sem número visível' : '' ?></span>
+                                <span class="etiqueta etiqueta-<?= $e($ev['tipo']) ?>"><?= Icon::svg($icone) ?><?= $e($ev['texto']) ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+
+                <?php if (($saudacaoEnvios ?? []) !== []): ?>
+                    <h4 class="saudacao-subtitulo">Últimas boas-vindas</h4>
+                    <ul class="avisos-recentes">
+                        <?php foreach ($saudacaoEnvios as $en):
+                            [$classe, $icone, $texto] = match ($en['status']) {
+                                'enviado' => ['etiqueta-ok', 'circle-check', 'Enviada'],
+                                'pendente', 'enviando' => ['etiqueta-atencao', 'clock', 'Na fila'],
+                                default => ['etiqueta-alerta', 'circle-x', 'Não enviada'],
+                            }; ?>
+                            <li>
+                                <span class="avisos-pedido"><strong><?= $e($en['contato']) ?></strong></span>
+                                <span class="etiqueta <?= $classe ?>"><?= Icon::svg($icone) ?><?= $texto ?></span>
+                                <small><?= $e($data($en['em'])) ?><?= $en['status'] !== 'enviado' && $en['erro'] !== null ? ' · ' . $e($en['erro']) : '' ?></small>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
         </section>
         <?php endif; ?>
         <?php endif; ?>

@@ -189,6 +189,15 @@ final class IntegracoesController extends BaseGerencia
         }
     }
 
+    /** Aponta o recebimento de mensagens da instancia para o sistema (botao do diagnostico das boas-vindas). */
+    public function whatsappSaudacaoWebhook(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        return $this->responder($this->whatsappServico()->corrigirWebhook(), $this->url('integracoes/whatsapp') . '#saudacao-diagnostico');
+    }
+
     /** @return array{avisosLigados:list<string>,avisosRecentes:list<array<string,mixed>>} */
     private function dadosAvisos(): array
     {
@@ -197,6 +206,10 @@ final class IntegracoesController extends BaseGerencia
             'avisosRecentes' => AvisosWhatsApp::recentes($this->db, (int) $this->restaurante['id']),
             'saudacao' => SaudacaoWhatsApp::configuracao($this->db, (int) $this->restaurante['id']),
             'webhookConfigurado' => strlen(\Cardapim\Core\Config::get('EVOLUTION_WEBHOOK_TOKEN')) >= 32,
+            // Diagnostico das boas-vindas: o que aconteceu com as ultimas mensagens e se a instancia recebe mensagens.
+            'saudacaoEventos' => \Cardapim\Services\WhatsApp\DiagnosticoSaudacao::ultimos((int) $this->restaurante['id']),
+            'saudacaoEnvios' => \Cardapim\Services\WhatsApp\DiagnosticoSaudacao::envios($this->db, (int) $this->restaurante['id']),
+            'saudacaoWebhook' => $this->whatsappServico()->situacaoWebhook(),
         ];
     }
 

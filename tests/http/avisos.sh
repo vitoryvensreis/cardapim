@@ -109,6 +109,19 @@ esperar "LID sem duplicacao no dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
 grupo="$(evo 120363000000000000@g.us)"
 curl -s -o /dev/null -H 'Content-Type: application/json' -d "$grupo" "$wpp_callback"
 esperar "grupo nao recebe saudacao" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
+curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
+contem "diagnostico mostra a saudacao enviada" "$tmp/wpp.html" 'Boas-vindas enviada'
+contem "diagnostico mostra repetida no dia" "$tmp/wpp.html" 'Já recebeu as boas-vindas hoje'
+contem "diagnostico mostra o grupo ignorado" "$tmp/wpp.html" 'Grupo, status ou número de fora do Brasil'
+contem "webhook da instancia conferido" "$tmp/wpp.html" 'Recebendo mensagens'
+contem "envio mostra so o final do numero" "$tmp/wpp.html" 'Final 0000'
+# Instancia com o webhook apontando para outro lugar: a tela avisa e o botao corrige.
+curl -s -o /dev/null -H "apikey: tok-$loja" -H 'Content-Type: application/json' -d '{"webhook":{"enabled":true,"url":"https://outro.exemplo/x","events":["MESSAGES_UPSERT"]}}' "$fake/evo/webhook/set/$loja"
+curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
+contem "tela avisa webhook errado" "$tmp/wpp.html" 'não está avisando o sistema'
+esperar "corrigir recebimento" "$(enviar "$gj" "$g/integracoes/whatsapp/saudacao/webhook" "$g/integracoes/whatsapp" | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
+contem "webhook corrigido" "$tmp/wpp.html" 'Recebendo mensagens'
 enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" 'saudacao_mensagem=Mensagem de teste' >/dev/null
 # Restaurar somente modo 24h; os turnos originais foram preservados.
 php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE restaurantes SET sempre_aberto=? WHERE slug=?")->execute([(int)$argv[1],$argv[2]]);' "$sempre_antes" "$slug"

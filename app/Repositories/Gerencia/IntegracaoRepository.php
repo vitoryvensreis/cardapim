@@ -122,6 +122,7 @@ final class IntegracaoRepository
     }
 
     /** Sessao do WhatsApp pertencente a uma unica loja conectada (nunca a plataforma). */
+    /** Loja dona da sessao. "erro" conta: o painel pode ter visto uma queda rapida, mas a sessao segue mandando mensagens. */
     public function restaurantePorSessaoWhatsApp(string $sessao): ?int
     {
         $dono = WhatsAppProvedores::restauranteDaSessao($sessao); // deliveryzim_r{id}_... (ou cardapim_r{id}_... antigo)
@@ -129,7 +130,7 @@ final class IntegracaoRepository
             return null;
         }
         $q = $this->db->prepare("SELECT id_restaurante FROM integracoes
-            WHERE provedor = 'whatsapp' AND id_restaurante IS NOT NULL AND status = 'conectado'
+            WHERE provedor = 'whatsapp' AND id_restaurante IS NOT NULL AND status IN ('conectado', 'erro')
                 AND JSON_UNQUOTE(JSON_EXTRACT(dados, '$.sessao')) = ? LIMIT 2");
         $q->execute([$sessao]);
         $ids = $q->fetchAll(PDO::FETCH_COLUMN);

@@ -154,6 +154,7 @@ return static function (Router $router): void {
     $router->post($g . '/integracoes/whatsapp/teste', [IntegracoesController::class, 'whatsappTeste']);
     $router->post($g . '/integracoes/whatsapp/avisos', [IntegracoesController::class, 'whatsappAvisos']);
     $router->post($g . '/integracoes/whatsapp/saudacao', [IntegracoesController::class, 'whatsappSaudacao']);
+    $router->post($g . '/integracoes/whatsapp/saudacao/webhook', [IntegracoesController::class, 'whatsappSaudacaoWebhook']);
     $router->post($g . '/integracoes/whatsapp/desconectar', [IntegracoesController::class, 'whatsappDesconectar']);
     // Importar cardapio por planilha (CSV/XLSX): enviar -> conferir -> importar.
     $router->get($g . '/integracoes/importar-cardapio', [ImportarCardapioController::class, 'inicio']);
