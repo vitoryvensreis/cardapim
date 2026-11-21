@@ -240,6 +240,14 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
                         <small>O garçom pode cancelar a comanda inteira (sem pagamento). Os itens saem da conta e o estoque volta.</small>
                     </span>
                 </label>
+                <input type="hidden" name="fechar_conta_enviado" value="1">
+                <label class="opcao-modo">
+                    <input type="checkbox" name="fechar_conta" value="1"<?= (int) ($permissoesGarcom['fechar_conta'] ?? 1) === 1 ? ' checked' : '' ?>>
+                    <span>
+                        <strong><?= Icon::svg('receipt', 'icon-sm') ?>Fechar a conta</strong>
+                        <small>O garçom recebe o pagamento na mesa (dinheiro, cartão ou Pix) e fecha a conta. Desmarcado, só o caixa fecha.</small>
+                    </span>
+                </label>
             </fieldset>
             <p class="texto-suave garcom-permissao-dica"><?= Icon::svg('info', 'icon-sm') ?>Desmarcado, o garçom não vê esses botões e precisa pedir ao gerente ou ao caixa. Tudo fica registrado no histórico.</p>
             <div class="form-acoes">

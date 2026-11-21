@@ -30,6 +30,8 @@ final class Esquema
         'combo_grupos' => ['combo_grupos', 'maximo'],
         // Produto: nao imprime, so presencial e impressao de cancelamento (coluna criada no fim da migracao).
         'produto_opcoes' => ['produtos', 'vende_delivery'],
+        // Perfil garcom: permissao de fechar a conta.
+        'garcom_fechar' => ['restaurante_garcom_permissoes', 'fechar_conta'],
     ];
 
     /** @var array<string,bool> */

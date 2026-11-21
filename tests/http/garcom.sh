@@ -136,6 +136,19 @@ case "$msg" in *"cancelado"*) ok "remover item com motivo";; *) falha "remover i
 subtotal=$((preco_cerveja * 2))
 
 echo "Fechar conta: 10% e dinheiro com troco"
+echo "Perfil garcom: fechar a conta"
+pagina "$gj" "$g/entrega-pagamento" >/dev/null
+contem "check de fechar a conta (marcado por padrao)" "$tmp/pagina.html" 'name="fechar_conta" value="1" checked'
+enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento" remover_itens=1 cancelar_comanda=1 fechar_conta_enviado=1 >/dev/null
+case "$(aviso "$gj" "$g/entrega-pagamento")" in *"Fechar a conta: só o caixa"*) ok "aviso de fechar conta bloqueado";; *) falha "aviso de fechar conta bloqueado";; esac
+pagina "$wj" "$w/comandas/$comanda" >/dev/null
+contem "garcom sem permissao ve que o caixa fecha" "$tmp/pagina.html" 'Para fechar a conta, chame o caixa.'
+pagina "$wj" "$w/comandas/$comanda/conta" >/dev/null
+nao_contem "conta sem formas de pagamento" "$tmp/pagina.html" "/comandas/$comanda/pagamentos"
+enviar "$wj" "$w/comandas/$comanda/pagamentos" "$w" forma=dinheiro valor=1,00 recebido=1,00 >/dev/null
+esperar "servidor recusa pagamento sem permissao" "$(aviso "$wj" "$w/comandas/$comanda")" "Você não tem permissão para fechar a conta. Chame o caixa."
+enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento" remover_itens=1 cancelar_comanda=1 fechar_conta_enviado=1 fechar_conta=1 >/dev/null
+case "$(aviso "$gj" "$g/entrega-pagamento")" in *"Ele também fecha a conta"*) ok "fechar conta liberado de novo";; *) falha "fechar conta liberado";; esac
 esperar "tela de fechar a conta" "$(pagina "$wj" "$w/comandas/$comanda/conta")" "200"
 contem "10% ligado por padrao" "$tmp/pagina.html" 'role="switch" aria-checked="true"'
 nao_contem "sem Asaas nao mostra QR Code" "$tmp/pagina.html" 'QR Code Pix'

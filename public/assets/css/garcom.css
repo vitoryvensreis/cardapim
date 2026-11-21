@@ -378,3 +378,4 @@ output.passo-num { display: grid; place-items: center; }
 /* Combo na comanda: titulo com o total e os itens embaixo */
 .comanda-combo-item { padding-top: .2rem; padding-bottom: .2rem; padding-left: 1.4rem; border-top: 0; }
 .comanda-combo-item .comanda-item-texto strong { color: var(--c-muted); font-weight: 400; }
+.garcom-aviso-conta { display: flex; align-items: center; gap: .45rem; margin: .75rem 0 0; padding: .65rem .85rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-ink); font-size: .92rem; }

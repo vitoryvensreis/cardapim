@@ -2,7 +2,7 @@
 /**
  * Fechar a conta: total com os 10% (liga/desliga), dividir, forma de pagamento e troco.
  * Pix com QR Code aparece quando o restaurante tem o Asaas conectado. Conta paga = "Pago, mesa liberada".
- * Espera: $c, $caixaAberto, $pixDisponivel, $troco (flash), $erros, $enviado, $base, $csrf.
+ * Espera: $c, $caixaAberto, $pixDisponivel, $podeFecharConta, $troco (flash), $erros, $enviado, $base, $csrf.
  */
 use Cardapim\Controllers\GarcomController;
 use Cardapim\Core\Icon;
@@ -56,6 +56,7 @@ $formas = [
             <div><dt>Itens</dt><dd><?= $e($r($c['subtotal'])) ?></dd></div>
             <div class="gc-servico">
                 <dt>
+                    <?php if (isset($podeFecharConta) && !$podeFecharConta): ?>10% serviço<?php else: ?>
                     <form method="post" action="<?= $e($url . '/servico') ?>" class="servico-form" data-servico>
                         <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                         <input type="hidden" name="servico" value="<?= $servicoLigado ? '0' : '1' ?>">
@@ -64,6 +65,7 @@ $formas = [
                             <span>10% serviço</span>
                         </button>
                     </form>
+                    <?php endif; ?>
                 </dt>
                 <dd><?= $servicoLigado ? $e($r($c['servico'])) : '<s>' . $e($r(\Cardapim\Services\Caixa\ComandaService::servico($c['subtotal'], '10.00'))) . '</s>' ?></dd>
             </div>
@@ -85,7 +87,12 @@ $formas = [
         </div>
     </section>
 
-    <?php if (!$caixaAberto): ?>
+    <?php if (isset($podeFecharConta) && !$podeFecharConta && $c['aberta']): ?>
+        <div class="notice notice-info" role="status">
+            <?= Icon::svg('info') ?>
+            <div><strong>Quem fecha a conta é o caixa</strong><p>Mostre o total ao cliente e chame o caixa para receber.</p></div>
+        </div>
+    <?php elseif (!$caixaAberto): ?>
         <div class="notice notice-warning" role="alert">
             <?= Icon::svg('lock') ?>
             <div><strong>Caixa fechado</strong><p>Peça para abrir o caixa. Depois é só receber aqui.</p></div>

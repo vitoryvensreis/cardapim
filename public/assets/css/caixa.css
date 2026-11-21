@@ -516,3 +516,12 @@
 .conta-combo-titulo { font-weight: 700; }
 .conta-itens li.is-combo-item .conta-nome { padding-left: .9rem; color: var(--c-muted); }
 .combo-passo-num { width: 2rem; padding: 0; border: 0; background: transparent; color: var(--c-ink); font: 700 1rem/1 var(--f-head); text-align: center; font-variant-numeric: tabular-nums; }
+
+/* Comandas do periodo */
+.comandas-filtros { margin-bottom: 1rem; }
+.comandas-indicadores { margin-bottom: 1rem; }
+.lista-comandas .lista-dado small { color: var(--c-muted); }
+.comanda-quem { margin: 0; }
+@media (min-width: 64rem) {
+  .lista-comandas { --colunas: minmax(0, 1.6fr) 8rem minmax(0, 1fr) minmax(0, 1fr) 7rem 6rem; }
+}

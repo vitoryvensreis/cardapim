@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cardapim\Controllers\Caixa\CaixaController;
 use Cardapim\Controllers\Caixa\ComandaController;
 use Cardapim\Controllers\Caixa\DeliveryController;
+use Cardapim\Controllers\Caixa\HistoricoComandasController;
 use Cardapim\Controllers\Caixa\IfoodController;
 use Cardapim\Controllers\Caixa\ImpressaoController;
 use Cardapim\Controllers\Caixa\MesasController;
@@ -41,6 +42,8 @@ return static function (Router $router): void {
 
     // Comandas (mesa e balcao)
     $router->post($c . '/balcao', [ComandaController::class, 'balcao']);
+    $router->get($c . '/comandas', [HistoricoComandasController::class, 'lista']);
+    $router->get($c . '/comandas/{id}/detalhes', [HistoricoComandasController::class, 'ver']);
     $router->get($c . '/comandas/{id}', [ComandaController::class, 'ver']);
     $router->post($c . '/comandas/{id}/itens', [ComandaController::class, 'lancar']);
     $router->post($c . '/comandas/{id}/itens/{item}/cancelar', [ComandaController::class, 'cancelarItem']);
