@@ -17,6 +17,7 @@ use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Services\Descontos\DescontoPedido;
 use Cardapim\Shared\Numero;
 use Cardapim\Shared\Validation\Documento;
+use Cardapim\Modules\Catalog\Combo;
 use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Shared\Esquema;
 use PDO;
@@ -103,6 +104,16 @@ final class CriarPedido
         $extras = []; // insumos gastos pelos complementos escolhidos
         foreach ($linhas as $l) {
             $subtotal += $l['total'];
+            if (isset($l['combo'])) {
+                // Combo: o estoque baixa de cada item do combo (e da ficha das opcoes sem produto ligado).
+                foreach ($l['combo']['produtos'] as $idProduto => $m) {
+                    $quantidades[$idProduto] = ($quantidades[$idProduto] ?? 0) + $m;
+                }
+                foreach ($l['combo']['insumos'] as $idInsumo => $m) {
+                    $extras[$idInsumo] = ($extras[$idInsumo] ?? 0) + $m;
+                }
+                continue;
+            }
             $quantidades[$l['id']] = ($quantidades[$l['id']] ?? 0) + $l['milesimos'];
             foreach ($l['insumos_complementos'] ?? [] as $idInsumo => $m) {
                 $extras[$idInsumo] = ($extras[$idInsumo] ?? 0) + $m;
@@ -214,6 +225,10 @@ final class CriarPedido
                 : 'INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             foreach ($linhas as $l) {
+                if (isset($l['combo'])) {
+                    $this->gravarCombo($idPedido, $idRest, $l, $agora);
+                    continue;
+                }
                 $valoresItem = [$idPedido, $idRest, $l['id'], $l['nome'], self::dec($l['centavos']), QuantidadeVenda::paraBanco($l['milesimos']), $l['unidade'],
                     $l['observacao'] !== '' ? $l['observacao'] : null, self::dec($l['total']), $agora];
                 if ($comComplementos) {
@@ -281,6 +296,24 @@ final class CriarPedido
             }
         } catch (Throwable $erro) {
             error_log('[Cardapim] Endereco do cliente nao guardado: ' . get_class($erro));
+        }
+    }
+
+    /**
+     * Combo do cardapio online: grava os itens separados (mesmo combo_lote), com o preco do combo ja dividido.
+     * As escolhas ficam na primeira linha (o cliente ve o que pediu); todas levam o nome do combo.
+     * @param array<string,mixed> $l linha de LinhasSacola com 'combo' (Combo::montar)
+     */
+    private function gravarCombo(int $idPedido, int $idRest, array $l, string $agora): void
+    {
+        $nome = Combo::rotulo((string) $l['nome'], (int) $l['quantidade']);
+        $lote = Combo::novoLote();
+        $ins = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em,
+                complementos_texto, combo_lote, combo_nome) VALUES (?, ?, ?, ?, ?, ?, \'un\', ?, ?, ?, ?, ?, ?)');
+        foreach ($l['combo']['linhas'] as $i => $linha) {
+            $ins->execute([$idPedido, $idRest, $linha['id_produto'], mb_substr($linha['nome'], 0, 180), self::dec($linha['centavos']),
+                QuantidadeVenda::paraBanco($linha['unidades'] * 1000), $i === 0 && $l['observacao'] !== '' ? $l['observacao'] : null,
+                self::dec($linha['centavos'] * $linha['unidades']), $agora, 'Combo: ' . $nome, $lote, $nome]);
         }
     }
 

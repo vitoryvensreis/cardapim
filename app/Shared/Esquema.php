@@ -24,6 +24,8 @@ final class Esquema
         'impressoras' => ['impressoes', 'id_impressora'],
         // Impressao por produto / vias de producao (coluna criada no fim da migracao).
         'impressao_produto' => ['impressoes', 'lote'],
+        // Combos (itens separados com o preco do combo dividido); coluna criada no fim da migracao.
+        'combos' => ['pedido_itens', 'combo_nome'],
     ];
 
     /** @var array<string,bool> */

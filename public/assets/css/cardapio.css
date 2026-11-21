@@ -419,3 +419,13 @@ html.cd-sem-rolagem { overflow: hidden; }
 .cd-opcao-preco { color: var(--c-ink); font-size: .88rem; font-weight: 700; white-space: nowrap; }
 .cd-grupos-erro { margin-top: .6rem; }
 .cd-sacola-comps { color: var(--c-ink); }
+
+/* Combo: itens inclusos e escolhas com - e + */
+.cd-combo-inclusos { margin: 0 0 .75rem; padding: .6rem .8rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-ink); font-size: .9rem; font-weight: 700; }
+.cd-combo-opcao { display: grid; grid-template-columns: minmax(0, 1fr) 2.75rem 2rem 2.75rem; align-items: center; gap: .4rem; min-height: 48px; padding: .35rem .4rem .35rem .75rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.cd-combo-opcao.is-escolhido { border-color: var(--c-wine); background: var(--c-blush); }
+.cd-combo-opcao.is-indisponivel { opacity: .55; }
+.cd-combo-btn { min-width: 2.75rem; min-height: 2.75rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); color: var(--c-wine); font: 700 1.25rem/1 var(--f-head); cursor: pointer; }
+.cd-combo-btn:disabled { opacity: .45; cursor: not-allowed; }
+.cd-combo-btn:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.cd-combo-qtd { text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }

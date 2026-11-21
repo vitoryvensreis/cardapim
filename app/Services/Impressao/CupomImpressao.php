@@ -64,9 +64,7 @@ final class CupomImpressao
         $blocos[] = ['t' => 'destaque', 'texto' => $titulo . ' · Pedido #' . (int) $p['numero']];
         $blocos[] = ['t' => 'texto', 'texto' => date('d/m/Y H:i') . ($quem !== '' ? ' · ' . $quem : '')];
         $blocos[] = ['t' => 'linha'];
-        foreach ($lista as $i) {
-            $blocos[] = self::item($i);
-        }
+        $blocos = [...$blocos, ...($modo === 'itens_novos' ? array_map([self::class, 'item'], $lista) : self::itensAgrupados($lista))];
         if ($lista === []) {
             $blocos[] = ['t' => 'texto', 'texto' => 'Nenhum item.'];
         }
@@ -318,6 +316,40 @@ final class CupomImpressao
             'detalhe' => trim((string) ($p['cliente_nome'] ?? '')) !== '' ? 'Cliente: ' . trim((string) $p['cliente_nome']) : 'Delivery',
             'observacao' => (string) ($p['observacao'] ?? ''),
         ];
+    }
+
+    /**
+     * Conta: as linhas do mesmo combo viram um item so (nome e total do combo, com os itens embaixo).
+     * @param list<array<string,mixed>> $itens
+     * @return list<array<string,mixed>>
+     */
+    private static function itensAgrupados(array $itens): array
+    {
+        $blocos = [];
+        $lotes = [];
+        foreach ($itens as $i) {
+            $lote = $i['combo_lote'] ?? null;
+            if ($lote === null) {
+                $blocos[] = self::item($i);
+                continue;
+            }
+            if (!isset($lotes[$lote])) {
+                $lotes[$lote] = count($blocos);
+                $blocos[] = ['t' => 'item', 'qtd' => '', 'nome' => (string) $i['combo_nome'], 'valor' => '', 'detalhes' => [], 'centavos' => 0];
+            }
+            $b = &$blocos[$lotes[$lote]];
+            $b['centavos'] += Numero::centavos((string) $i['total']);
+            $b['detalhes'][] = QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un')) . ' ' . $i['nome'];
+            unset($b);
+        }
+        foreach ($blocos as &$b) {
+            if (array_key_exists('centavos', $b)) {
+                $b['valor'] = self::reais($b['centavos']);
+                unset($b['centavos']);
+            }
+        }
+        unset($b);
+        return $blocos;
     }
 
     /** @param array<string,mixed> $i */

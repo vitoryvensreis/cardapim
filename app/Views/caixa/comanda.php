@@ -89,7 +89,8 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                                     <button class="produto-botao" type="submit"<?= $prod['disponivel'] ? '' : ' disabled' ?>
                                             data-produto-abrir data-produto-id="<?= (int) $prod['id'] ?>" data-produto-nome="<?= $e($prod['nome']) ?>" data-produto-centavos="<?= (int) $prod['centavos'] ?>"
                                             data-produto-unidade="<?= $e($prod['unidade']) ?>" data-produto-minimo="<?= (int) ($prod['minimo'] ?? 0) ?>"<?php if (!empty($prod['grupos'])): ?>
-                                            data-produto-grupos="<?= $e((string) json_encode($prod['grupos'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>>
+                                            data-produto-grupos="<?= $e((string) json_encode($prod['grupos'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?><?php if (!empty($prod['combo'])): ?>
+                                            data-produto-combo="<?= $e((string) json_encode($prod['combo'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>>
                                         <span class="produto-nome"><?= $e($prod['nome']) ?></span>
                                         <span class="produto-preco"><?= $prod['disponivel'] ? $e($prod['preco']) : 'Acabou' ?></span>
                                         <?php if ($prod['disponivel']): ?><span class="produto-mais" aria-hidden="true"><?= Icon::svg('plus', 'icon-sm') ?></span><?php endif; ?>
@@ -123,17 +124,39 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                         <p><strong>Nenhum item ainda</strong>Toque nos produtos do cardápio para lançar.</p>
                     </div>
                 <?php else: ?>
+                    <?php
+                    // Combo: as linhas do mesmo lote aparecem juntas, com o nome e o total do combo; cancelar tira o combo inteiro.
+                    $lotes = [];
+                    foreach ($c['itens'] as $i) {
+                        if (($i['combo_lote'] ?? null) !== null) {
+                            $lotes[$i['combo_lote']] ??= ['primeiro' => (int) $i['id'], 'centavos' => 0, 'nome' => (string) $i['combo_nome']];
+                            $lotes[$i['combo_lote']]['centavos'] += Numero::centavos((string) $i['total']);
+                        }
+                    }
+                    ?>
                     <ul class="conta-itens">
-                        <?php foreach ($c['itens'] as $i): $cancelado = $i['cancelado_em'] !== null; ?>
-                            <li class="<?= $cancelado ? 'is-cancelado' : '' ?>">
+                        <?php foreach ($c['itens'] as $i): $cancelado = $i['cancelado_em'] !== null; $lote = $i['combo_lote'] ?? null; ?>
+                            <?php if ($lote !== null && $lotes[$lote]['primeiro'] === (int) $i['id']): ?>
+                                <li class="<?= $cancelado ? 'is-cancelado' : '' ?>">
+                                    <span class="conta-qtd"><?= Icon::svg('boxes', 'icon-sm') ?></span>
+                                    <span class="conta-nome conta-combo-titulo"><?= $e($lotes[$lote]['nome']) ?><small class="conta-meta">Combo<?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small></span>
+                                    <span class="conta-preco"><?= $e($r($lotes[$lote]['centavos'])) ?></span>
+                                    <?php if ($c['aberta'] && !$cancelado): ?>
+                                        <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" data-item-nome="<?= $e('o ' . $lotes[$lote]['nome'] . ' (combo inteiro)') ?>" aria-label="Cancelar o combo <?= $e($lotes[$lote]['nome']) ?>">
+                                            <?= Icon::svg('x', 'icon-sm') ?>
+                                        </button>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endif; ?>
+                            <li class="<?= $cancelado ? 'is-cancelado' : '' ?><?= $lote !== null ? ' is-combo-item' : '' ?>">
                                 <span class="conta-qtd"><?= $e($qtdTexto($i)) ?></span>
                                 <span class="conta-nome"><?= $e((string) $i['nome']) ?>
-                                    <?php if (!empty($i['complementos_texto'])): ?><small class="item-complementos"><?= $e((string) $i['complementos_texto']) ?></small><?php endif; ?>
+                                    <?php if (!empty($i['complementos_texto']) && $lote === null): ?><small class="item-complementos"><?= $e((string) $i['complementos_texto']) ?></small><?php endif; ?>
                                     <?php if ($i['observacao']): ?><small><?= $e((string) $i['observacao']) ?></small><?php endif; ?>
                                     <small class="conta-meta"><?php if (QuantidadeVenda::porPeso((string) ($i['unidade'] ?? 'un'))): ?><?= $e(Numero::reais((string) $i['preco_unitario']) . QuantidadeVenda::sufixoPreco((string) $i['unidade'])) ?> · <?php endif; ?><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?><?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small>
                                 </span>
                                 <span class="conta-preco"><?= $e(Numero::reais((string) $i['total'])) ?></span>
-                                <?php if ($c['aberta'] && !$cancelado): ?>
+                                <?php if ($c['aberta'] && !$cancelado && $lote === null): ?>
                                     <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" data-item-nome="<?= $e($qtdTexto($i) . ' ' . $i['nome']) ?>" aria-label="Cancelar <?= $e((string) $i['nome']) ?>">
                                         <?= Icon::svg('x', 'icon-sm') ?>
                                     </button>

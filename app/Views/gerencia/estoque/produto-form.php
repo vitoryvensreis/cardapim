@@ -140,6 +140,74 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
             </section>
         <?php endif; ?>
 
+        <?php if (isset($comboDados) && is_array($comboDados) && isset($gruposComplemento) && is_array($gruposComplemento)):
+            $comboAtivo = ($valores['combo_ativo'] ?? '') === '1';
+            $fixosP = array_values(is_array($valores['combo_fixo_produto'] ?? null) ? $valores['combo_fixo_produto'] : []);
+            $fixosQ = array_values(is_array($valores['combo_fixo_qtd'] ?? null) ? $valores['combo_fixo_qtd'] : []);
+            $linhasFixos = min(\Cardapim\Modules\Catalog\Combo::MAX_FIXOS, max(4, count(array_filter($fixosP)) + 2));
+            $opcoesCombo = $comboDados['opcoes'];
+        ?>
+            <section class="bloco" aria-labelledby="titulo-combo" id="campo-combo" data-combo>
+                <div class="bloco-cabecalho">
+                    <h2 id="titulo-combo"><?= Icon::svg('boxes') ?>Combo</h2>
+                    <p>Ao lançar, o combo vira os itens separados: cada um baixa o próprio estoque e sai na impressora dele. O preço do combo é dividido entre os itens.</p>
+                </div>
+                <input type="hidden" name="combo_enviado" value="1">
+                <label class="alternador">
+                    <span><strong>Este produto é um combo</strong><small>Ex.: Combo Família com 1 baião, 1 batata e 2 espetos à escolha.</small></span>
+                    <input type="checkbox" name="combo_ativo" value="1" data-combo-ativo<?= $comboAtivo ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                </label>
+                <?php if (isset($erros['combo_ativo'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['combo_ativo']) ?></p><?php endif; ?>
+                <div class="combo-corpo" data-combo-corpo<?= $comboAtivo ? '' : ' hidden' ?>>
+                    <h3 class="combo-subtitulo">Itens inclusos <small>já vêm no combo, o cliente não tira</small></h3>
+                    <?php if (isset($erros['combo_fixos'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['combo_fixos']) ?></p><?php endif; ?>
+                    <div class="combo-fixos">
+                        <?php for ($i = 0; $i < $linhasFixos; $i++): $sel = (string) ($fixosP[$i] ?? ''); ?>
+                            <div class="combo-fixo">
+                                <label class="sr-only" for="combo-fixo-<?= $i ?>">Item incluso <?= $i + 1 ?></label>
+                                <select class="campo-simples" id="combo-fixo-<?= $i ?>" name="combo_fixo_produto[<?= $i ?>]" data-combo-fixo>
+                                    <option value="">Escolha um produto</option>
+                                    <?php foreach ($comboDados['produtos'] as $cp): ?>
+                                        <option value="<?= (int) $cp['id'] ?>" data-centavos="<?= \Cardapim\Shared\Numero::centavos($cp['preco']) ?>"<?= $sel === (string) $cp['id'] ? ' selected' : '' ?>><?= $e($cp['nome']) ?> · <?= $e(\Cardapim\Shared\Numero::reais($cp['preco'])) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <label class="sr-only" for="combo-qtd-<?= $i ?>">Quantidade</label>
+                                <input class="campo-simples combo-qtd" id="combo-qtd-<?= $i ?>" name="combo_fixo_qtd[<?= $i ?>]" type="number" min="1" max="30" inputmode="numeric" value="<?= $e((string) ($fixosQ[$i] ?? '1')) ?>" data-combo-qtd>
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+                    <p class="combo-soma" data-combo-soma aria-live="polite"></p>
+                    <label class="combo-maximo" for="combo-maximo"><span><strong>Máximo total de itens no combo</strong><small>Inclusos + escolhidos. Ex.: 4 com 2 inclusos = o cliente escolhe até 2. Vazio = sem limite.</small></span>
+                        <input class="campo-simples" id="combo-maximo" name="combo_maximo" type="number" min="1" max="99" inputmode="numeric" value="<?= $e((string) ($valores['combo_maximo'] ?? '')) ?>"<?= isset($erros['combo_maximo']) ? ' aria-invalid="true"' : '' ?>></label>
+                    <?php if (isset($erros['combo_maximo'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['combo_maximo']) ?></p><?php endif; ?>
+
+                    <h3 class="combo-subtitulo">Escolhas do cliente <small>grupos marcados em Complementos, acima</small></h3>
+                    <p class="texto-suave">Em cada opção: ligue a um produto (baixa o estoque e sai na impressora dele) e, se quiser, limite quantas dela cabem no combo. O valor a mais é o preço da opção no grupo. O mínimo e o máximo de cada grupo ficam em <a href="<?= $e($base . '/estoque/complementos') ?>">Complementos</a>.</p>
+                    <?php if (isset($erros['combo_opcoes'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['combo_opcoes']) ?></p><?php endif; ?>
+                    <p class="texto-suave" data-combo-sem-grupo>Nenhum grupo marcado em Complementos.</p>
+                    <?php foreach ($gruposComplemento as $g): ?>
+                        <div class="combo-grupo" data-combo-grupo="<?= (int) $g['id'] ?>">
+                            <h4><?= $e($g['nome']) ?> <small><?= (int) $g['minimo'] === (int) $g['maximo'] ? 'escolhe ' . (int) $g['maximo'] : ((int) $g['minimo'] > 0 ? 'de ' . (int) $g['minimo'] . ' a ' . (int) $g['maximo'] : 'até ' . (int) $g['maximo']) ?></small></h4>
+                            <?php foreach ($g['opcoes'] as $o): $oc = $opcoesCombo[(int) $o['id']] ?? ['id_produto' => null, 'maximo' => null]; $oid = (int) $o['id']; ?>
+                                <div class="combo-opcao">
+                                    <span class="combo-opcao-nome"><?= $e($o['nome']) ?><?= \Cardapim\Shared\Numero::centavos($o['preco']) > 0 ? ' <small>+' . $e(\Cardapim\Shared\Numero::reais($o['preco'])) . '</small>' : '' ?></span>
+                                    <label class="sr-only" for="combo-op-<?= $oid ?>">Produto ligado a <?= $e($o['nome']) ?></label>
+                                    <select class="campo-simples" id="combo-op-<?= $oid ?>" name="combo_opcao[<?= $oid ?>][produto]">
+                                        <option value="">Sem produto (opção comum)</option>
+                                        <?php foreach ($comboDados['produtos'] as $cp): ?>
+                                            <option value="<?= (int) $cp['id'] ?>"<?= $oc['id_produto'] === (int) $cp['id'] ? ' selected' : '' ?>><?= $e($cp['nome']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <label class="sr-only" for="combo-max-<?= $oid ?>">Máximo de <?= $e($o['nome']) ?></label>
+                                    <input class="campo-simples combo-qtd" id="combo-max-<?= $oid ?>" name="combo_opcao[<?= $oid ?>][maximo]" type="number" min="1" max="30" inputmode="numeric" placeholder="Máx." title="Máximo desta opção no combo (vazio = livre)" value="<?= $oc['maximo'] !== null ? (int) $oc['maximo'] : '' ?>">
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
+
         <?php if (isset($impressorasProducao) && is_array($impressorasProducao)):
             $impMarcadas = array_map('strval', is_array($valores['impressoras'] ?? null) ? $valores['impressoras'] : []);
         ?>

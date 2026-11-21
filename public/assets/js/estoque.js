@@ -21,6 +21,42 @@
   const resumoErros = document.querySelector("[data-erros-form]");
   if (resumoErros) resumoErros.focus();
 
+  /* ---------- Combo (ficha do produto) ---------- */
+  const combo = document.querySelector("[data-combo]");
+  if (combo) {
+    const ativo = combo.querySelector("[data-combo-ativo]");
+    const corpo = combo.querySelector("[data-combo-corpo]");
+    const soma = combo.querySelector("[data-combo-soma]");
+    const semGrupo = combo.querySelector("[data-combo-sem-grupo]");
+    const precoCombo = document.querySelector("[data-preco]");
+    const atualizarCombo = () => {
+      corpo.hidden = !ativo.checked;
+      // So mostra as opcoes dos grupos marcados em Complementos.
+      let algum = false;
+      combo.querySelectorAll("[data-combo-grupo]").forEach((g) => {
+        const marcado = document.getElementById(`grupo-${g.dataset.comboGrupo}`)?.checked === true;
+        g.hidden = !marcado;
+        algum = algum || marcado;
+      });
+      if (semGrupo) semGrupo.hidden = algum;
+      let centavos = 0;
+      combo.querySelectorAll("[data-combo-fixo]").forEach((sel) => {
+        const opcao = sel.selectedOptions[0];
+        const qtd = parseInt(sel.parentElement.querySelector("[data-combo-qtd]")?.value || "1", 10) || 1;
+        if (opcao && opcao.value) centavos += (parseInt(opcao.dataset.centavos, 10) || 0) * qtd;
+      });
+      const preco = Math.round(paraNumero(precoCombo?.value) * 100);
+      if (!centavos) { soma.textContent = ""; return; }
+      const texto = `Itens inclusos somam ${reais(centavos / 100)}.`;
+      soma.textContent = preco > 0 && preco < centavos ? `${texto} Desconto sobre os inclusos: ${reais((centavos - preco) / 100)}.` : texto;
+    };
+    combo.addEventListener("input", atualizarCombo);
+    combo.addEventListener("change", atualizarCombo);
+    precoCombo?.addEventListener("input", () => window.setTimeout(atualizarCombo, 0));
+    document.querySelectorAll("input[name='grupos[]']").forEach((c) => c.addEventListener("change", atualizarCombo));
+    atualizarCombo();
+  }
+
   /* ---------- Produto ---------- */
   const formProduto = document.querySelector("[data-produto-form]");
   if (formProduto) {

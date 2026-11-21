@@ -110,7 +110,8 @@ final class GarcomController
             $quantidade = is_string($q) ? trim($q) : '';
             if ($idProduto !== null && $quantidade !== '' && preg_match('/\A0*(?:[.,]0*)?\z/', $quantidade) !== 1) {
                 $pedidos[$idProduto] = [mb_substr($quantidade, 0, 12), is_string($obs[$produto] ?? null) ? (string) $obs[$produto] : '',
-                    is_array($comps[$produto] ?? null) ? array_values($comps[$produto]) : []];
+                    // Lista de ids (checkbox) ou id => quantidade (escolhas do combo, ex.: 2 espetos de carne).
+                    is_array($comps[$produto] ?? null) ? (array_is_list($comps[$produto]) ? array_values($comps[$produto]) : $comps[$produto]) : []];
             }
         }
         if ($idComanda === null || $pedidos === []) {

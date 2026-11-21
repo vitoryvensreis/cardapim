@@ -141,7 +141,8 @@
         if (!inp) return;
         const q = Math.max(0, Math.min(Number(inp.max || 99), parseInt(inp.value || "0", 10) || 0));
         // Complementos escolhidos (adicionais, borda...) somam no preco de cada unidade.
-        const extra = $$("[data-comps] input:checked", li).reduce((t, c) => t + Number(c.dataset.centavos || 0), 0);
+        const extra = $$("[data-comps] input:checked", li).reduce((t, c) => t + Number(c.dataset.centavos || 0), 0)
+          + $$("[data-combo-qtd]", li).reduce((t, c) => t + Number(c.dataset.centavos || 0) * (parseInt(c.value || "0", 10) || 0), 0);
         itens += q;
         soma += q * (Number(li.dataset.preco || 0) + extra);
         const comps = $("[data-comps]", li);
@@ -156,6 +157,30 @@
       botao.disabled = itens === 0;
       texto.textContent = itens === 0 ? "Escolha os itens" : `Lançar ${itens} ${itens === 1 ? "item" : "itens"} · ${reais(soma)}`;
     };
+    // Combo: - e + de cada opcao, respeitando o maximo do grupo, da opcao e o total de escolhas do combo.
+    const somaQtd = (raiz) => $$("[data-combo-qtd]", raiz).reduce((t, c) => t + (parseInt(c.value || "0", 10) || 0), 0);
+    lista.addEventListener("click", (ev) => {
+      const passo = ev.target.closest("[data-combo-mais], [data-combo-menos]");
+      if (!passo) return;
+      const opcao = passo.closest("[data-combo-opcao]");
+      const campo = $("[data-combo-qtd]", opcao);
+      const grupo = opcao.closest("[data-combo-grupo]");
+      const comps = opcao.closest("[data-comps]");
+      const atual = parseInt(campo.value || "0", 10) || 0;
+      if (passo.matches("[data-combo-mais]")) {
+        const limiteOpcao = opcao.dataset.max ? Number(opcao.dataset.max) : Infinity;
+        const limiteCombo = comps.dataset.comboMax !== "" ? Number(comps.dataset.comboMax) : Infinity;
+        if (somaQtd(grupo) >= Number(grupo.dataset.max || 99) || atual >= limiteOpcao || somaQtd(comps) >= limiteCombo) {
+          opcao.animate?.([{ transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "none" }], { duration: 200 });
+          return;
+        }
+        campo.value = String(atual + 1);
+      } else if (atual > 0) {
+        campo.value = String(atual - 1);
+      }
+      opcao.classList.toggle("is-escolhido", (parseInt(campo.value, 10) || 0) > 0);
+      atualizarTotal();
+    });
     lista.addEventListener("click", (ev) => {
       const mais = ev.target.closest("[data-mais]");
       const menos = ev.target.closest("[data-menos]");

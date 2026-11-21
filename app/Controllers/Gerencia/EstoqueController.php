@@ -114,7 +114,7 @@ final class EstoqueController extends BaseGerencia
             'venda_minima' => $produto['venda_minima'] !== null ? \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($produto['venda_minima'])) : '',
             'porcoes' => array_map(static fn (string $p): string => \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($p)),
                 (new ProdutoRepository($this->db))->porcoes($this->restaurante['id'], $id)),
-        ] + $this->gruposDoProdutoParaForm($id) + $this->impressorasDoProdutoParaForm($id), []);
+        ] + $this->gruposDoProdutoParaForm($id) + $this->impressorasDoProdutoParaForm($id) + $this->comboParaForm($id), []);
     }
 
     public function criarProduto(string $slug): Response
@@ -261,6 +261,10 @@ final class EstoqueController extends BaseGerencia
             'contagem' => $this->contagem(null, null),
             'abaAtual' => 'categorias',
             'impressorasProducao' => $this->impressorasProducao(),
+            'comboDados' => \Cardapim\Modules\Catalog\Combo::ativo($this->db) ? [
+                'produtos' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->produtosParaCombo($idRest, $produto !== null ? (int) $produto['id'] : null),
+                'opcoes' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->opcoes($idRest),
+            ] : null,
             'impressorasCategoria' => Esquema::tem($this->db, 'impressao_produto')
                 ? (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))->resumoCategorias($this->restaurante['id']) : [],
         ]);
@@ -495,9 +499,16 @@ final class EstoqueController extends BaseGerencia
         if ($idTexto !== null && $id === null) {
             return $this->naoEncontrado('Produto', $this->url('estoque/produtos'));
         }
+        // Combo conferido antes de gravar o produto: com erro, nada e gravado.
+        $combo = (new \Cardapim\Services\Gerencia\ComboCadastro($this->db, $this->restaurante['id']))->ler($_POST, $id);
+        if ($combo['erros'] !== []) {
+            $produto = $id === null ? null : (new ProdutoRepository($this->db))->buscar($this->restaurante['id'], $id);
+            return $this->formProduto($produto, $this->entradaPost(), $combo['erros'], 422);
+        }
         $resultado = (new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST, is_array($_FILES['foto'] ?? null) ? $_FILES['foto'] : null);
         if ($this->avisarEstoque($resultado, 'produto', $id === null ? 'criado' : 'editado', $id ?? $resultado->id)->ok) {
             $this->salvarImpressorasDoProduto($id ?? $resultado->id);
+            $this->salvarCombo($id ?? $resultado->id, $combo);
             return $this->voltar($this->url('estoque/produtos'), 'sucesso', $resultado->mensagem);
         }
         $produto = $id === null ? null : (new ProdutoRepository($this->db))->buscar($this->restaurante['id'], $id);
@@ -587,6 +598,37 @@ final class EstoqueController extends BaseGerencia
             }
         }
         return $ids;
+    }
+
+    /** Valores da secao Combo para editar. @return array<string,mixed> */
+    private function comboParaForm(int $idProduto): array
+    {
+        if (!\Cardapim\Modules\Catalog\Combo::ativo($this->db)) {
+            return [];
+        }
+        $c = (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->configuracao($this->restaurante['id'], $idProduto);
+        return [
+            'combo_ativo' => $c['ativo'] ? '1' : '',
+            'combo_maximo' => $c['maximo'] !== null ? (string) $c['maximo'] : '',
+            'combo_fixo_produto' => array_map(static fn (array $f): string => (string) $f['id_produto'], $c['fixos']),
+            'combo_fixo_qtd' => array_map(static fn (array $f): string => (string) $f['quantidade'], $c['fixos']),
+        ];
+    }
+
+    /** @param array<string,mixed> $combo de ComboCadastro::ler() */
+    private function salvarCombo(?int $idProduto, array $combo): void
+    {
+        if ($idProduto === null || !$combo['enviado']) {
+            return;
+        }
+        $this->db->beginTransaction();
+        try {
+            (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->salvar($this->restaurante['id'], $idProduto, $combo['ativo'], $combo['maximo'], $combo['fixos'], $combo['opcoes']);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 
     /** Grupos de complementos do produto para o formulario. @return array{grupos?:list<string>, ordem_grupo?:array<int,string>} */

@@ -93,6 +93,7 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
                                     data-nome="<?= $e($p['nome']) ?>" data-descricao="<?= $e($p['descricao']) ?>" data-centavos="<?= (int) $p['centavos'] ?>"
                                     data-unidade="<?= $e($p['unidade']) ?>" data-preco-texto="<?= $e($p['preco']) ?>"<?php if ($p['opcoes'] !== []): ?> data-porcoes="<?= $e(implode(',', array_column($p['opcoes'], 'milesimos'))) ?>"<?php endif; ?>
                                     <?php if (!empty($p['grupos'])): ?> data-grupos="<?= $e((string) json_encode($p['grupos'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>
+                                    <?php if (!empty($p['combo'])): ?> data-combo="<?= $e((string) json_encode($p['combo'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>
                                     <?php if (!empty($p['imagem'])): ?> data-imagem="<?= $e((string) $p['imagem']) ?>"<?php endif; ?>
                                     <?= $p['disponivel'] ? '' : 'disabled aria-disabled="true"' ?>>
                                 <?php if (!empty($p['imagem'])): ?><img class="cd-produto-foto" src="<?= $e((string) $p['imagem']) ?>" alt="" loading="lazy" width="88" height="88"><?php endif; ?>
