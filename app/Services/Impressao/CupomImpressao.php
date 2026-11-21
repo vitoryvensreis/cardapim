@@ -44,9 +44,7 @@ final class CupomImpressao
         $lista = $modo === 'itens_novos'
             ? array_values(array_filter($ativos, static fn (array $i): bool => (int) $i['id'] > $desdeItem))
             : $ativos;
-        $antes = count($lista);
         $lista = self::semFora($lista, $fora);
-        $omitidos = $antes - count($lista);
 
         $mesa = $p['tipo'] === 'mesa';
         $nome = trim((string) ($c['nome'] ?? ''));
@@ -70,9 +68,6 @@ final class CupomImpressao
         $blocos = [...$blocos, ...($modo === 'itens_novos' ? array_map([self::class, 'item'], $lista) : self::itensAgrupados($lista))];
         if ($lista === []) {
             $blocos[] = ['t' => 'texto', 'texto' => 'Nenhum item.'];
-        }
-        if ($omitidos > 0) {
-            $blocos[] = ['t' => 'texto', 'texto' => self::avisoFora($omitidos)];
         }
         $blocos[] = ['t' => 'linha'];
         $obs = trim((string) ($p['observacao'] ?? ''));
@@ -153,9 +148,6 @@ final class CupomImpressao
         $lista = self::semFora($ativos, $fora);
         foreach ($lista as $i) {
             $blocos[] = self::item($i);
-        }
-        if (count($lista) < count($ativos)) {
-            $blocos[] = ['t' => 'texto', 'texto' => self::avisoFora(count($ativos) - count($lista))];
         }
         $blocos[] = ['t' => 'linha'];
         $obs = trim((string) ($p['observacao'] ?? ''));
@@ -288,11 +280,6 @@ final class CupomImpressao
     private static function semFora(array $itens, array $fora): array
     {
         return $fora === [] ? $itens : array_values(array_filter($itens, static fn (array $i): bool => !in_array((int) $i['id'], $fora, true)));
-    }
-
-    private static function avisoFora(int $n): string
-    {
-        return $n === 1 ? '1 item não sai nesta impressora.' : $n . ' itens não saem nesta impressora.';
     }
 
     /**
