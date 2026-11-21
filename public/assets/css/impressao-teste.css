@@ -1,0 +1,75 @@
+/* Gerencia > Impressoras > Testar impressao: montagem do teste e cupons desenhados como no papel */
+.impressao-teste-form { display: grid; gap: 1.1rem; }
+.impressao-teste-form fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.impressao-teste-form legend { margin-bottom: .55rem; color: var(--c-ink); font-weight: 700; }
+
+.impressao-teste-situacao { display: flex; flex-wrap: wrap; gap: .45rem; }
+.impressao-teste-situacao legend { width: 100%; }
+.impressao-teste-situacao .chip-opcao { position: relative; display: inline-flex; }
+.impressao-teste-situacao .chip-opcao input { position: absolute; opacity: 0; pointer-events: none; }
+.impressao-teste-situacao .chip-opcao span {
+  display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; padding: 0 .95rem;
+  border: 1.5px solid var(--c-line); border-radius: var(--r-pill, 999px); background: var(--c-white);
+  color: var(--c-ink); font-size: .92rem; cursor: pointer;
+}
+.impressao-teste-situacao .chip-opcao input:checked + span { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); font-weight: 700; }
+.impressao-teste-situacao .chip-opcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+
+.impressao-teste-campo { display: grid; gap: .3rem; min-width: 0; }
+.impressao-teste-campo > span { color: var(--c-ink); font-size: .88rem; font-weight: 700; }
+.impressao-teste-campo select, .impressao-teste-campo input {
+  min-height: 2.75rem; padding: 0 .75rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
+  background: var(--c-white); color: var(--c-ink); font: inherit;
+}
+.impressao-teste-campo select:focus-visible, .impressao-teste-campo input:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 1px; }
+.impressao-teste-papel { max-width: 22rem; }
+
+.impressao-teste-linha { display: grid; gap: .6rem; grid-template-columns: 1fr; align-items: end; }
+@media (min-width: 48rem) {
+  .impressao-teste-linha { grid-template-columns: minmax(0, 2fr) 5.5rem minmax(0, 2fr) auto; }
+}
+
+.impressao-teste-itens { display: grid; gap: .4rem; margin: .7rem 0 0; padding: 0; list-style: none; }
+.impressao-teste-itens li {
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  padding: .45rem .5rem .45rem .85rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white);
+}
+.impressao-teste-item-texto { display: grid; min-width: 0; }
+.impressao-teste-item-texto strong { color: var(--c-ink); }
+.impressao-teste-item-texto small { color: var(--c-muted); font-size: .84rem; overflow-wrap: anywhere; }
+.impressao-teste-vazio { margin: .6rem 0 0; color: var(--c-muted); font-size: .9rem; }
+.impressao-teste-acoes { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+.impressao-teste-resultado { margin-top: 1.2rem; }
+.impressao-teste-resultado:empty { display: none; }
+.impressao-teste-carregando { color: var(--c-muted); }
+.impressao-teste-erro { margin: 0; padding: .7rem .9rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-wine); font-weight: 700; }
+.impressao-teste-ok { margin: 0 0 .8rem; padding: .7rem .9rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-ink); font-weight: 700; }
+.impressao-teste-avisos { display: grid; gap: .35rem; margin: 0 0 1rem; padding: .7rem .9rem .7rem 2rem; border-left: 4px solid var(--c-orange); border-radius: var(--r-md); background: var(--c-white); color: var(--c-ink); font-size: .92rem; }
+
+.impressao-teste-cartoes { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); align-items: start; }
+.impressao-teste-cartao { display: grid; gap: .75rem; min-width: 0; padding: .9rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.impressao-teste-cartao.is-vazio { background: transparent; border-style: dashed; }
+.impressao-teste-cartao-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.impressao-teste-cartao-topo h3 { margin: 0; color: var(--c-ink); font: 700 1.05rem/1.3 var(--f-head); }
+.impressao-teste-etiquetas { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
+.impressao-teste-nada { margin: 0; color: var(--c-muted); }
+
+/* O papel: fonte de largura fixa, uma coluna por letra, como a termica. */
+.cupom-papel {
+  display: grid; justify-self: center; width: calc(48ch + 1.2rem + 2px); max-width: 100%; overflow-x: auto; padding: .8rem .6rem;
+  border: 1px solid var(--c-line); background: var(--c-white); color: var(--c-ink);
+  font: .78rem/1.35 ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+.cupom-papel[data-colunas="42"] { width: calc(42ch + 1.2rem + 2px); }
+.cupom-papel[data-colunas="32"] { width: calc(32ch + 1.2rem + 2px); }
+.cupom-linha { display: block; white-space: pre; }
+.cupom-linha.is-centro { text-align: center; }
+.cupom-linha.is-forte { font-weight: 700; }
+.cupom-linha.is-titulo { font-size: 2em; line-height: 1.2; font-weight: 700; text-align: center; }
+
+.impressao-teste-motivos { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; font-size: .86rem; }
+.impressao-teste-motivos li { display: grid; gap: .1rem; padding-top: .35rem; border-top: 1px solid var(--c-line); }
+.impressao-teste-motivos strong { color: var(--c-ink); }
+.impressao-teste-motivos span { color: var(--c-muted); }

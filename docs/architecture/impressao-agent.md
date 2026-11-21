@@ -44,6 +44,19 @@ Os pontos antigos `delivery_novo` e `garcom_lancar` saíram da tela e ficam vazi
 COZINHA (padrão), cupom completo no BALCÃO. Churrascaria = espeto na CHURRASQUEIRA, baião na COZINHA, bebida no BALCÃO,
 cupom completo no CAIXA.
 
+## Testar impressão (Gerência > Integrações > Impressoras)
+
+No fim da tela, o bloco **Testar impressão** monta um pedido com produtos cadastrados (quantidade e observação) e
+mostra, para a situação escolhida (Delivery aceito, Garçom lança, Caixa: Novos itens ou Conta), o cupom de cada
+impressora desenhado como no papel e o motivo de cada item estar ali. Impressora sem item aparece com "Não sai nada".
+
+- Usa a mesma divisão por produto e o mesmo `CupomImpressao` da impressão real (`App\Services\Impressao\TesteImpressao`),
+  sem gravar pedido. Rota: `POST /{slug}/gerencia/integracoes/impressoras/teste` (JSON, CSRF, só gerência).
+- A tela quebra as linhas igual ao Agent (`printing.py`), na largura escolhida: 48, 42 ou 32 letras por linha.
+  Letras fora do alfabeto da impressora (emoji) aparecem como "?" com aviso.
+- Avisos: produtos sem impressora marcada (vão para a padrão) e impressora desligada que receberia itens.
+- **Imprimir teste de verdade** grava os mesmos cupons na fila com **TESTE** no topo (sem pedido ligado).
+
 ## Detalhes
 
 - **Impressora desligada:** no Lançar do garçom, o lançamento nunca é desfeito; o garçom vê "Não imprimiu" e os itens
