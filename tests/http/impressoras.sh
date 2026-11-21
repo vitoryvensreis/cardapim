@@ -69,6 +69,8 @@ alvos() { # pedido -> json das impressoras do pedido novo
 cx="$tmp/caixa"; gj="$tmp/gerente"; wj="$tmp/garcom"
 esperar "caixa autenticado" "$(login "$cx" ci_caixa)" "303"
 esperar "gerente autenticado" "$(login "$gj" ci_gerente)" "303"
+# Perfil garcom: este teste cancela itens/comandas pelo painel do garcom, entao o gerente libera as duas acoes.
+esperar "gerente libera remover itens e cancelar comanda ao garcom" "$(enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento" remover_itens=1 cancelar_comanda=1 | cut -d' ' -f1)" "303"
 esperar "garcom autenticado" "$(login "$wj" ci_garcom)" "303"
 
 echo "Agents mandam a lista de impressoras"

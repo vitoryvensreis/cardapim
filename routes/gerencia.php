@@ -109,6 +109,7 @@ return static function (Router $router): void {
     $router->post($g . '/entrega-pagamento', [EntregaPagamentoController::class, 'salvar']);
     $router->get($g . '/entrega-pagamento/testar', [EntregaPagamentoController::class, 'testar']);
     $router->post($g . '/entrega-pagamento/entregador', [EntregaPagamentoController::class, 'entregador']);
+    $router->post($g . '/entrega-pagamento/garcom', [EntregaPagamentoController::class, 'salvarGarcom']);
     $router->post($g . '/entrega-pagamento/areas', [EntregaPagamentoController::class, 'criarArea']);
     $router->post($g . '/entrega-pagamento/areas/{id}', [EntregaPagamentoController::class, 'atualizarArea']);
     $router->post($g . '/entrega-pagamento/areas/{id}/pausar', [EntregaPagamentoController::class, 'alternarArea']);

@@ -82,6 +82,12 @@ Rotas: `GET /perfil`, `POST /perfil` (dados e endereco), `POST /perfil/logo`, `P
 - Logo (`Modules/Restaurante/LogoUpload`): PNG, JPG ou WebP ate 2 MB, conferidos por `finfo` + `getimagesize` (SVG recusado), regravada com GD (WebP, ate 512 px, sem metadados), nome aleatorio em `storage/uploads/logos/` e servida por `GET /midia/logos/{32hex}-{ext}` (`MidiaController`, cache longo, `nosniff`). O endereco publico vai **sem extensao** (`Shared/MidiaUrl`): o Nginx do CloudPanel responde 404 sozinho a todo `.png`/`.webp`/`.svg` que nao existe em `public/`, entao `abc.webp` nunca chegaria ao PHP. O banco guarda `abc.webp` e o formato antigo continua aceito. A logo antiga e apagada.
 - Horario (`Modules/Restaurante/HorarioFuncionamento`): "Sempre aberto" ou horarios por dia da semana, ate 2 turnos por dia, turno que passa da meia-noite (18:00-02:00), "usar este horario em todos os dias". Selo "Aberto agora / Fechado agora" no topo.
 
+## Entrega e pagamento: Perfil garçom
+
+Rota: `POST /entrega-pagamento/garcom` (`EntregaPagamentoController::salvarGarcom`, `Services/Garcom/PermissoesGarcom`).
+Card logo abaixo do "Painel do entregador", com dois checks: **Remover itens já lançados** e **Cancelar comanda** pelo garçom. Padrão bloqueado; vale só
+para o cargo `garcom` (gerente sempre pode). Conferido no servidor em `GarcomController`. Detalhes em `docs/architecture/garcom.md`.
+
 ## Visao geral
 
 Rota: `GET /{slug}/gerencia` (`Controllers/Gerencia/VisaoGeralController`, `Services/Gerencia/VisaoGeralService`, `Views/gerencia/visao-geral/*`,
