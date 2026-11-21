@@ -59,8 +59,12 @@ final class FilaImpressao
             return Resultado::falha('Comanda não encontrada.');
         }
         $desde = $modo === 'itens_novos' ? $this->repo->ultimoItemImpresso($this->idRestaurante, $idPedido) : 0;
-        $cupom = CupomImpressao::comanda($c, $this->restaurante, $modo, $desde, $this->autor->nome);
+        $fora = $this->fora($c['itens'], $impressora);
+        $cupom = CupomImpressao::comanda($c, $this->restaurante, $modo, $desde, $this->autor->nome, $fora);
         if ($cupom['itens'] === 0) {
+            if ($fora !== []) {
+                return Resultado::falha('Nenhum item desta comanda sai na impressora ' . $impressora['apelido'] . '.');
+            }
             return Resultado::falha($modo === 'itens_novos' ? 'Nenhum item novo desde a última impressão.' : 'A comanda ainda não tem itens.');
         }
         $id = $this->repo->criar($this->idRestaurante, $idPedido, $modo, $cupom['titulo'], $cupom['blocos'], $cupom['ate_item'], $this->autor->id, $impressora['id'] ?? null);
@@ -79,7 +83,8 @@ final class FilaImpressao
         if ($p === null || !in_array($p['tipo'], ['entrega', 'retirada'], true)) {
             return Resultado::falha('Pedido não encontrado.');
         }
-        $cupom = CupomImpressao::pedido($p, $pedidos->itens($this->idRestaurante, $idPedido), $this->restaurante);
+        $itens = $pedidos->itens($this->idRestaurante, $idPedido);
+        $cupom = CupomImpressao::pedido($p, $itens, $this->restaurante, $this->fora($itens, $impressora));
         $id = $this->repo->criar($this->idRestaurante, $idPedido, 'pedido', $cupom['titulo'], $cupom['blocos'], null, $this->autor->id, $impressora['id'] ?? null);
         return Resultado::sucesso(self::enviado($impressora), $id);
     }
@@ -269,6 +274,22 @@ final class FilaImpressao
             return [null, Resultado::falha('A impressora ' . $escolhida['apelido'] . ' está desligada: abra o Deliveryzim Agent no computador "' . $escolhida['computador'] . '".')];
         }
         return [$escolhida, null];
+    }
+
+    /**
+     * Itens que nao podem sair na impressora escolhida (produto marcado so em outras impressoras).
+     * Sem impressora definida (Agent principal) nao ha o que filtrar.
+     * @param list<array<string,mixed>> $itens
+     * @param array{id:int}|null $impressora
+     * @return list<int>
+     */
+    private function fora(array $itens, ?array $impressora): array
+    {
+        if ($impressora === null || !Esquema::tem($this->db, 'impressao_produto')) {
+            return [];
+        }
+        $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_map(static fn (array $i): int => (int) ($i['id_produto'] ?? 0), $itens));
+        return CupomImpressao::foraDaImpressora($itens, $porProduto, (int) $impressora['id']);
     }
 
     /** @param array{apelido:string}|null $impressora */

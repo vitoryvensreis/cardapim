@@ -47,7 +47,11 @@ Para restaurantes com várias estações (Churrasqueira, Cozinha, Bar, Balcão):
   Com o ponto configurado, as vias de produção ficam ligadas.
 - **Garçom:** em Imprimir > **Só os itens novos**, cada item sai na impressora do produto (um cupom por estação, com a
   mesa em letra grande, hora, garçom, complementos e observações, sem o total). "Comanda inteira" continua num cupom só.
-- **Caixa:** na comanda, **Itens novos para produção** faz o mesmo (balcão e mesa). "Imprimir conta" continua inteira.
+- **Caixa:** na comanda, **Itens novos para produção** faz o mesmo (balcão e mesa). "Imprimir conta" continua num cupom só.
+- **Produto nunca sai onde não está marcado:** "Imprimir conta", "Comanda inteira" e o pedido do delivery impresso pelo
+  caixa, quando vão para uma impressora definida, deixam de fora os itens cujo produto está marcado só em outras
+  impressoras, com o aviso "N itens não saem nesta impressora" (os totais continuam os da conta). Produto sem nenhuma
+  marcação sai em qualquer impressora. Se nenhum item puder sair, o envio é recusado com o nome da impressora.
 - **Delivery:** quando o pedido é **aceito** (caixa, Receber do Agent, aceite no iFood ou aceite automático), as vias
   de produção saem por estação, uma vez por pedido. A via completa do pedido novo continua no ponto "Pedido novo do delivery".
 - **Estação desligada:** no garçom/caixa o envio inteiro é recusado com o nome da estação (nada sai pela metade);
