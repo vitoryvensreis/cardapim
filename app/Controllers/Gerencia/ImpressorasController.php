@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Cardapim\Controllers\Gerencia;
 
 use Cardapim\Core\Response;
+use Cardapim\Core\Session;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
+use Cardapim\Repositories\Estoque\ProdutoRepository;
+use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Impressao\TesteImpressao;
 use Cardapim\Services\Auditoria;
 use Cardapim\Shared\Esquema;
 
@@ -40,7 +44,49 @@ final class ImpressorasController extends BaseGerencia
             'completo' => $pontos['caixa_conta'] ?? ['ids' => [], 'padrao' => null],
             'fechamento' => $pontos['caixa_fechamento'] ?? ['ids' => [], 'padrao' => null],
             'agentDownload' => IntegracoesController::AGENT_DOWNLOAD,
+            // Testar impressao: produtos cadastrados (nome e categoria) para montar o teste.
+            'produtosTeste' => $ativo ? array_map(static fn (array $p): array => [
+                'id' => (int) $p['id'], 'nome' => (string) $p['nome'], 'categoria' => (string) ($p['categoria'] ?? 'Sem categoria'),
+            ], (new ProdutoRepository($this->db))->listar($this->restaurante['id'])) : [],
         ]);
+    }
+
+    /**
+     * POST (JSON): Testar impressao. Mostra o que sai em cada impressora com produtos cadastrados, sem gravar pedido;
+     * com imprimir=1, manda os cupons para o Agent com TESTE no topo.
+     */
+    public function teste(string $slug): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return Response::json(['ok' => false, 'erro' => 'Sua sessão expirou. Atualize a página.'], 401);
+        }
+        if (!Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return Response::json(['ok' => false, 'erro' => 'Sua sessão expirou. Atualize a página e tente de novo.'], 401);
+        }
+        if (!Esquema::tem($this->db, 'impressoras')) {
+            return Response::json(['ok' => false, 'erro' => 'As impressoras ainda estão sendo ativadas.'], 409);
+        }
+        $pedidos = [];
+        $ids = is_array($_POST['produto'] ?? null) ? $_POST['produto'] : [];
+        $qtds = is_array($_POST['quantidade'] ?? null) ? $_POST['quantidade'] : [];
+        $obs = is_array($_POST['observacao'] ?? null) ? $_POST['observacao'] : [];
+        foreach (array_slice($ids, 0, TesteImpressao::MAX_ITENS, true) as $k => $v) {
+            $id = self::idPost($v);
+            $q = is_string($qtds[$k] ?? null) && ctype_digit($qtds[$k]) ? (int) $qtds[$k] : 1;
+            if ($id !== null) {
+                $pedidos[] = ['id_produto' => $id, 'quantidade' => $q, 'observacao' => is_string($obs[$k] ?? null) ? mb_substr(trim($obs[$k]), 0, 140) : ''];
+            }
+        }
+        $imprimir = ($_POST['imprimir'] ?? '') === '1';
+        $res = (new TesteImpressao($this->db, $this->restaurante['id'], $this->restaurante['nome'], $this->usuario))
+            ->executar((string) ($_POST['situacao'] ?? ''), $pedidos, self::idPost($_POST['impressora'] ?? null), $imprimir);
+        if ($res instanceof Resultado) {
+            return Response::json(['ok' => false, 'erro' => $res->mensagem], 422)->comCabecalhos(['Cache-Control' => 'no-store']);
+        }
+        if ($imprimir) {
+            Auditoria::registrar($this->usuario, 'Teste de impressão', 'Cupons de teste enviados ao Agent.');
+        }
+        return Response::json(['ok' => true] + $res)->comCabecalhos(['Cache-Control' => 'no-store']);
     }
 
     public function salvar(string $slug): Response

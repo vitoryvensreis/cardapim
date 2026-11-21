@@ -150,6 +150,34 @@ case "$(cupom_da bar0000000001)" in *'BALCÃO'*Cerveja*) ok "balcao: cerveja no 
 confirmar_todos
 enviar "$cx" "$c/comandas/$venda/cancelar" "$c/comandas/$venda" "motivo=Teste" >/dev/null
 
+echo "Testar impressao (gerencia): o que sai em cada impressora, sem gravar pedido"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "bloco Testar impressao" "$tmp/ger.html" 'Testar impressão'
+teste() { # campos... -> codigo; resposta em $tmp/teste.json
+  local t args=()
+  t="$(token "$gj" "$g/integracoes/impressoras")"
+  for campo in "$@"; do args+=(--data-urlencode "$campo"); done
+  curl -s -o "$tmp/teste.json" -b "$gj" -c "$gj" -w '%{http_code}' -H 'Accept: application/json' --data-urlencode "_csrf=$t" "${args[@]}" "$g/integracoes/impressoras/teste"
+}
+cupom_teste() { php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach($d["cupons"]??[] as $c){ if($c["id"]===(int)$argv[2]){ echo $c["blocos"]===null?"NADA":json_encode($c["blocos"],JSON_UNESCAPED_UNICODE); exit; } } echo "AUSENTE";' "$tmp/teste.json" "$1"; }
+esperar "teste do garcom" "$(teste situacao=garcom "produto[]=$cerveja" "quantidade[]=2" "observacao[]=bem gelada" "produto[]=$outro" "quantidade[]=1" "observacao[]=")" "200"
+case "$(cupom_teste "$bar")" in *'PRODUÇÃO · BAR'*'MESA 18'*Cerveja*'bem gelada'*) ok "teste: cerveja no Bar com a observacao";; *) falha "teste Bar ($(cupom_teste "$bar"))";; esac
+[[ "$(cupom_teste "$cozinha")" != *Cerveja* && "$(cupom_teste "$cozinha")" == *'PRODUÇÃO · COZINHA'* ]] && ok "teste: cozinha com o item sem marcacao e sem a cerveja" || falha "teste Cozinha ($(cupom_teste "$cozinha"))"
+esperar "teste: churrasqueira nao recebe nada" "$(cupom_teste "$churras")" "NADA"
+case "$(json "$tmp/teste.json" avisos)" in *'sai na padrão'*) ok "teste avisa o produto sem impressora";; *) falha "aviso sem impressora ($(json "$tmp/teste.json" avisos))";; esac
+agente "$ta" >/dev/null
+esperar "ver como sai nao manda nada ao Agent" "$(qtd_cupons)" "0"
+esperar "teste da conta" "$(teste situacao=conta "produto[]=$cerveja" "quantidade[]=1" "produto[]=$outro" "quantidade[]=1")" "200"
+esperar "conta: um cupom so" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); echo count($d["cupons"]??[]);' "$tmp/teste.json")" "1"
+case "$(json "$tmp/teste.json" cupons)" in *CONTA*Cerveja*TOTAL*) ok "conta completa com todos os itens";; *) falha "conta do teste";; esac
+esperar "imprimir teste de verdade" "$(teste situacao=caixa "produto[]=$cerveja" "quantidade[]=1" imprimir=1)" "200"
+agente "$ta" >/dev/null
+case "$(cupom_da bar0000000001)" in *'"TESTE"'*'BALCÃO'*Cerveja*) ok "Agent recebe o teste com TESTE no topo";; *) falha "cupom de teste ($(cupom_da bar0000000001))";; esac
+confirmar_todos
+esperar "teste sem produto recusado" "$(teste situacao=garcom)" "422"
+esperar "teste sem CSRF recusado" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'Accept: application/json' -d 'situacao=garcom' "$g/integracoes/impressoras/teste")" "401"
+esperar "garcom nao usa o teste" "$(curl -s -o /dev/null -w '%{http_code}' -b "$wj" -H 'Accept: application/json' -d 'situacao=garcom' "$g/integracoes/impressoras/teste")" "401"
+
 echo "Impressao por produto desligada: lancar nao imprime"
 enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "producao=0" >/dev/null
 curl -s -b "$wj" "$w" -o "$tmp/mesas.html"

@@ -2,12 +2,13 @@
 /**
  * Impressoras do Deliveryzim Agent: impressao por produto (padrao), cupom completo e resumo do caixa.
  * Espera: $ativo, $porProduto, $impressoras (ImpressoraRepository::listar), $produtosPorImpressora, $padraoProducao,
- * $completo e $fechamento (ids/padrao), $agentDownload, $base, $csrf.
+ * $completo e $fechamento (ids/padrao), $produtosTeste, $agentDownload, $base, $csrf.
  */
 use Cardapim\Core\Icon;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
+$pageStyles = [...($pageStyles ?? []), 'css/impressoras.css', 'css/impressao-teste.css'];
+$pageScripts = [...($pageScripts ?? []), 'js/impressao-teste.js'];
 // Lista de impressoras com "Padrao" (cupom completo e resumo do caixa).
 $lista = static function (string $campo, array $cfg, array $impressoras) use ($e): void { ?>
     <ul class="impressao-ponto-lista">
@@ -113,5 +114,68 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                 <button class="btn btn-primary" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar impressoras</button>
             </div>
         </form>
+
+        <section class="bloco impressao-teste" aria-labelledby="titulo-teste" data-impressao-teste>
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-teste"><?= Icon::svg('flask-conical') ?>Testar impressão</h2>
+                <p>Monte um pedido com seus produtos e veja o que sai em cada impressora, e por quê. Nada é gravado. Salve as mudanças acima antes de testar.</p>
+            </div>
+            <form method="post" action="<?= $e($base . '/integracoes/impressoras/teste') ?>" class="impressao-teste-form" data-teste-form novalidate>
+                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                <fieldset class="impressao-teste-situacao">
+                    <legend>1. Situação</legend>
+                    <?php foreach (['delivery' => ['bike', 'Delivery aceito'], 'garcom' => ['hand-platter', 'Garçom lança'], 'caixa' => ['monitor', 'Caixa: Novos itens'], 'conta' => ['receipt', 'Conta (cupom completo)']] as $valor => [$icone, $rotulo]): ?>
+                        <label class="chip-opcao"><input type="radio" name="situacao" value="<?= $e($valor) ?>"<?= $valor === 'delivery' ? ' checked' : '' ?>><span><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></span></label>
+                    <?php endforeach; ?>
+                </fieldset>
+                <label class="impressao-teste-campo" data-teste-conta hidden>
+                    <span>Imprimir a conta em</span>
+                    <select name="impressora">
+                        <?php $temCompleto = false; foreach ($impressoras as $imp): if (!in_array($imp['id'], $completo['ids'], true)) { continue; } $temCompleto = true; ?>
+                            <option value="<?= (int) $imp['id'] ?>"<?= $completo['padrao'] === $imp['id'] ? ' selected' : '' ?>><?= $e($imp['apelido']) ?></option>
+                        <?php endforeach; ?>
+                        <?php if (!$temCompleto): ?><option value="">Impressora principal do Agent</option><?php endif; ?>
+                    </select>
+                </label>
+
+                <fieldset class="impressao-teste-adicionar">
+                    <legend>2. Produtos do teste</legend>
+                    <?php if ($produtosTeste === []): ?>
+                        <p class="impressao-ponto-ajuda">Cadastre produtos no Estoque para testar.</p>
+                    <?php else: ?>
+                        <div class="impressao-teste-linha">
+                            <label class="impressao-teste-campo impressao-teste-produto"><span>Produto</span>
+                                <select data-teste-produto>
+                                    <?php $grupo = null; foreach ($produtosTeste as $pt): if ($pt['categoria'] !== $grupo): ?>
+                                        <?php if ($grupo !== null): ?></optgroup><?php endif; $grupo = $pt['categoria']; ?><optgroup label="<?= $e($grupo) ?>">
+                                    <?php endif; ?>
+                                        <option value="<?= (int) $pt['id'] ?>"><?= $e($pt['nome']) ?></option>
+                                    <?php endforeach; ?></optgroup>
+                                </select>
+                            </label>
+                            <label class="impressao-teste-campo impressao-teste-qtd"><span>Qtd.</span><input type="number" min="1" max="99" value="1" inputmode="numeric" data-teste-qtd></label>
+                            <label class="impressao-teste-campo impressao-teste-obs"><span>Observação (opcional)</span><input type="text" maxlength="140" placeholder="Ex.: sem cebola, bem passado" data-teste-obs></label>
+                            <button class="btn btn-outline" type="button" data-teste-adicionar><?= Icon::svg('plus', 'icon-sm') ?>Adicionar</button>
+                        </div>
+                    <?php endif; ?>
+                    <ul class="impressao-teste-itens" data-teste-itens></ul>
+                    <p class="impressao-teste-vazio" data-teste-vazio>Nenhum produto no teste ainda. Escolha um produto e toque em Adicionar.</p>
+                </fieldset>
+
+                <label class="impressao-teste-campo impressao-teste-papel"><span>3. Largura do papel na tela</span>
+                    <select data-teste-papel>
+                        <option value="48">80 mm (48 letras por linha)</option>
+                        <option value="42">80 mm compacta (42 letras por linha)</option>
+                        <option value="32">58 mm (32 letras por linha)</option>
+                    </select>
+                </label>
+
+                <div class="impressao-teste-acoes">
+                    <button class="btn btn-primary" type="submit" data-teste-ver><?= Icon::svg('eye', 'icon-sm') ?>Ver como sai</button>
+                    <button class="btn btn-outline" type="button" data-teste-imprimir><?= Icon::svg('printer', 'icon-sm') ?>Imprimir teste de verdade</button>
+                </div>
+            </form>
+            <div class="impressao-teste-resultado" data-teste-resultado aria-live="polite"></div>
+        </section>
     <?php endif; ?>
 </div>
