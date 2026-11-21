@@ -60,6 +60,8 @@ agente() { # token desde [novo=1 (com impressoras)] -> codigo; resposta em $tmp/
 resultado() { curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $1" -H 'Content-Type: application/json' -d '{"ok":true}' "$base/api/v1/desktop/impressoes/$2/resultado"; }
 cupom() { php -r '$d=json_decode(file_get_contents($argv[1]),true); $j=$d["impressoes"][0]??null; echo $j===null?"":(string)($j[$argv[2]]??"");' "$tmp/ag.json" "$1"; }
 qtd_cupons() { php -r '$d=json_decode(file_get_contents($argv[1]),true); echo count($d["impressoes"]??[]);' "$tmp/ag.json"; }
+chaves() { php -r '$d=json_decode(file_get_contents($argv[1]),true); $k=array_map(fn($j)=>(string)($j["impressora"]??""), $d["impressoes"]??[]); sort($k); echo implode(",",$k);' "$tmp/ag.json"; }
+concluir() { for id in $(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach($d["impressoes"]??[] as $j) echo $j["id"], " ";' "$tmp/ag.json"); do resultado "$1" "$id" >/dev/null; done; }
 alvos() { # pedido -> json das impressoras do pedido novo
   php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach($d["pedidos"]??[] as $p){ if($p["id"]===(int)$argv[2]){ echo array_key_exists("impressoras",$p)?json_encode($p["impressoras"]):"ausente"; exit; } } echo "sem-pedido";' "$tmp/ag.json" "$1"
 }
@@ -129,15 +131,19 @@ pedido="$(php tests/http/desktop-pedido-ci.php "$slug")"
 curl -s -b "$cx" -o "$tmp/pag.html" "$c/delivery/$pedido"
 nao_contem "delivery sem escolha" "$tmp/pag.html" 'data-imprimir-escolha'
 esperar "caixa imprime o pedido" "$(imprimir "$cx" "$c/imprimir/pedido/$pedido" "$c/delivery/$pedido")" "202"
-agente "$ta" "$cursor" >/dev/null
-esperar "cupom sem impressora escolhida (principal)" "$(qtd_cupons):$(cupom impressora)" "1:"
-resultado "$ta" "$(cupom id)" >/dev/null
 
-echo "Pedido novo do delivery: cada computador sabe em quais impressoras imprimir"
+echo "Pedido novo do delivery: o sistema grava um cupom por impressora do ponto"
 agente "$ta" "$cursor" >/dev/null
-esperar "PC do caixa imprime na Cozinha" "$(alvos "$pedido")" '["cccc2222dddd"]'
+esperar "PC do caixa nao imprime o pedido inteiro sozinho" "$(alvos "$pedido")" '[]'
+esperar "PC do caixa: cupom principal do caixa e o da Cozinha" "$(chaves)" ',cccc2222dddd'
+esperar "cupom do pedido novo no modelo do caixa" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach($d["impressoes"] as $j){ if(($j["impressora"]??"")!==""){ echo str_starts_with((string)$j["titulo"],"Pedido #")?"sim":"nao"; } }' "$tmp/ag.json")" "sim"
+concluir "$ta"
+agente "$ta" "$cursor" >/dev/null
+esperar "pedido novo gravado uma vez so" "$(qtd_cupons)" "0"
 agente "$tb" "$cursor" >/dev/null
-esperar "PC do bar imprime no Bar" "$(alvos "$pedido")" '["eeee3333ffff"]'
+esperar "PC do bar so avisa" "$(alvos "$pedido")" '[]'
+esperar "PC do bar pega o cupom do Bar" "$(chaves)" 'eeee3333ffff'
+concluir "$tb"
 agente "$tb" "$cursor" 0 >/dev/null
 esperar "Agent antigo nao recebe a lista" "$(alvos "$pedido")" "ausente"
 

@@ -18,6 +18,7 @@ use Cardapim\Services\Auth\Autorizacao;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Caixa\DeliveryService;
+use Cardapim\Services\Impressao\FilaImpressao;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Shared\Esquema;
 use PDO;
@@ -124,9 +125,12 @@ final class DesktopAgentController
                 if ($porImpressora && $alvos === false) {
                     $alvos = $this->alvosPedidoNovo($db, $dispositivo);
                 }
+                // Ponto configurado: o sistema grava os cupons por impressora (so os produtos marcados em cada uma)
+                // e o Agent imprime pela fila; a lista vazia faz o Agent so avisar, sem imprimir o pedido inteiro.
+                $pelaFila = $porImpressora && $alvos !== null && $this->pedidoNovoPelaFila($db, $dispositivo, (int) $p['id']);
                 $resposta[] = [
                     'evento_id' => $cursor, 'id' => (int) $p['id'],
-                    ...($porImpressora ? ['impressoras' => $alvos] : []),
+                    ...($porImpressora ? ['impressoras' => $pelaFila ? [] : $alvos] : []),
                     'numero' => (int) $p['numero'], 'tipo' => (string) $p['tipo'],
                     'status' => (string) $p['status'], 'origem' => (string) $p['origem'],
                     // "Ver no sistema" do aviso: caminho relativo, o agente junta com o endereco oficial.
@@ -182,6 +186,19 @@ final class DesktopAgentController
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: fila de impressao indisponivel (' . get_class($e) . ').');
             return [];
+        }
+    }
+
+    /** @param array<string,mixed> $dispositivo */
+    private function pedidoNovoPelaFila(PDO $db, array $dispositivo, int $idPedido): bool
+    {
+        try {
+            $idRest = (int) $dispositivo['id_restaurante'];
+            $sistema = new UsuarioLogado(0, 'sistema', '', '', true, $idRest, null, null, null);
+            return (new FilaImpressao($db, $idRest, (string) $dispositivo['restaurante_nome'], $sistema))->pedidoNovo($idPedido);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Desktop: cupom do pedido novo nao gravado (' . get_class($e) . ').');
+            return false;
         }
     }
 

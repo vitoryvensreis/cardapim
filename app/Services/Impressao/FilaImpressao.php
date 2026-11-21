@@ -216,6 +216,52 @@ final class FilaImpressao
         }
     }
 
+    /**
+     * Pedido novo do delivery (ponto "Pedido novo do delivery" configurado): o sistema grava um cupom por impressora,
+     * no mesmo modelo do caixa e so com os produtos marcados nela (ou sem marcacao). Uma vez por pedido.
+     * Devolve false quando o ponto nao esta configurado: ai o Agent imprime sozinho na impressora principal.
+     */
+    public function pedidoNovo(int $idPedido): bool
+    {
+        if (!$this->disponivel() || !Esquema::tem($this->db, 'impressao_produto')) {
+            return false;
+        }
+        $opcoes = $this->opcoes('delivery_novo');
+        if ($opcoes === []) {
+            return false;
+        }
+        $lote = sprintf('N%015d', $idPedido);
+        $trava = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $this->db->beginTransaction();
+        try {
+            $q = $this->db->prepare('SELECT id FROM pedidos WHERE id = ? AND id_restaurante = ?' . $trava);
+            $q->execute([$idPedido, $this->idRestaurante]);
+            if ($q->fetchColumn() === false || $this->repo->lote($this->idRestaurante, $lote) !== []) {
+                $this->db->commit();
+                return true;
+            }
+            $pedidos = new PedidoRepository($this->db);
+            $p = $pedidos->buscar($this->idRestaurante, $idPedido);
+            $itens = $pedidos->itens($this->idRestaurante, $idPedido);
+            if ($p !== null && $itens !== []) {
+                $ativos = array_values(array_filter($itens, static fn (array $i): bool => ($i['cancelado_em'] ?? null) === null));
+                foreach ($opcoes as $imp) {
+                    $fora = $this->fora($ativos, $imp);
+                    if (count($fora) >= count($ativos)) {
+                        continue; // nenhum produto do pedido sai nesta impressora
+                    }
+                    $cupom = CupomImpressao::pedido($p, $itens, $this->restaurante, $fora);
+                    $this->repo->criar($this->idRestaurante, $idPedido, 'pedido', $cupom['titulo'], $cupom['blocos'], null, null, $imp['id'], $lote);
+                }
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+        return true;
+    }
+
     /** Vias de producao quando o aceite nao vem de uma pessoa (iFood aceito la ou aceite automatico). */
     public static function producaoDoSistema(PDO $db, int $idRestaurante, int $idPedido): void
     {

@@ -48,12 +48,16 @@ Para restaurantes com várias estações (Churrasqueira, Cozinha, Bar, Balcão):
 - **Garçom:** em Imprimir > **Só os itens novos**, cada item sai na impressora do produto (um cupom por estação, com a
   mesa em letra grande, hora, garçom, complementos e observações, sem o total). "Comanda inteira" continua num cupom só.
 - **Caixa:** na comanda, **Itens novos para produção** faz o mesmo (balcão e mesa). "Imprimir conta" continua num cupom só.
-- **Produto nunca sai onde não está marcado:** "Imprimir conta", "Comanda inteira" e o pedido do delivery impresso pelo
-  caixa, quando vão para uma impressora definida, deixam de fora os itens cujo produto está marcado só em outras
-  impressoras, com o aviso "N itens não saem nesta impressora" (os totais continuam os da conta). Produto sem nenhuma
-  marcação sai em qualquer impressora. Se nenhum item puder sair, o envio é recusado com o nome da impressora.
+- **Produto nunca sai onde não está marcado:** vale para todos os cupons com impressora definida: "Imprimir conta",
+  "Comanda inteira", o pedido do delivery impresso pelo caixa e o pedido novo do delivery. Os itens cujo produto está
+  marcado só em outras impressoras ficam de fora (os totais continuam os da conta). Produto sem nenhuma marcação sai em
+  qualquer impressora. Se nenhum item puder sair, o envio é recusado com o nome da impressora.
+- **Pedido novo do delivery** (Agent 0.8.0+ com o ponto configurado): o sistema grava um cupom por impressora do ponto,
+  no mesmo modelo do caixa e só com os produtos dela (uma vez por pedido, lote `N<id do pedido>`). O evento chega ao
+  Agent com `impressoras: []`, então ele só avisa e imprime pela fila. Sem o ponto configurado, o Agent imprime o pedido
+  inteiro na impressora principal, como antes.
 - **Delivery:** quando o pedido é **aceito** (caixa, Receber do Agent, aceite no iFood ou aceite automático), as vias
-  de produção saem por estação, uma vez por pedido. A via completa do pedido novo continua no ponto "Pedido novo do delivery".
+  de produção saem por estação, uma vez por pedido. A via do pedido novo sai nas impressoras do ponto "Pedido novo do delivery".
 - **Estação desligada:** no garçom/caixa o envio inteiro é recusado com o nome da estação (nada sai pela metade);
   os itens continuam como "novos" para tentar de novo.
 - **Item cancelado** não sai na via de produção (nem gera aviso).
