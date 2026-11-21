@@ -730,3 +730,9 @@
 .porcao-campo input:focus { outline: 3px solid var(--c-orange); outline-offset: 1px; }
 .porcao-sigla { color: var(--c-muted); font-weight: 700; }
 .porcao-preco { grid-column: 1 / -1; min-height: 1.1em; color: var(--c-muted); font-size: .82rem; }
+
+/* WhatsApp > Boas-vindas: diagnostico */
+.saudacao-diagnostico { margin-top: 1.5rem; padding-top: .5rem; border-top: 1px solid var(--c-line); }
+.saudacao-situacao { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0 0 .75rem; color: var(--c-ink); font-size: .92rem; }
+.saudacao-corrigir { margin: .25rem 0 1rem; }
+.saudacao-subtitulo { margin: 1rem 0 .5rem; color: var(--c-ink); font: 700 .95rem/1.3 var(--f-head); }

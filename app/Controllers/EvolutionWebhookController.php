@@ -42,6 +42,7 @@ final class EvolutionWebhookController
             }
             $db = Database::connect();
             if (!self::tokenConfere($db, (string) $evento['session'], EventoEvolution::tokenInstancia($payload))) {
+                \Cardapim\Services\WhatsApp\DiagnosticoSaudacao::registrar((string) $evento['session'], 'token_recusado');
                 return Response::json(['erro' => 'Não autorizado'], 401);
             }
             SaudacaoWhatsApp::receber($db, $evento);

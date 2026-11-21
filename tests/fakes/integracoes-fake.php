@@ -257,7 +257,7 @@ if ($caminho === '/evo/instance/create' && $metodo === 'POST') {
     if (is_file($pasta . '/wpp-' . $nome . '.json')) {
         $responder(403, ['status' => 403, 'response' => ['message' => ['This name "' . $nome . '" is already in use.']]]);
     }
-    $guardar('wpp-' . $nome . '.json', ['state' => 'connecting']);
+    $guardar('wpp-' . $nome . '.json', ['state' => 'connecting', 'webhook' => is_array($json['webhook'] ?? null) ? $json['webhook'] : null]);
     $responder(201, ['instance' => ['instanceName' => $nome, 'status' => 'connecting'], 'hash' => 'tok-' . $nome]);
 }
 if ($caminho === '/evo/instance/fetchInstances' && $metodo === 'GET') {
@@ -273,7 +273,7 @@ if ($caminho === '/evo/instance/fetchInstances' && $metodo === 'GET') {
     }
     $responder(200, array_map(static fn (string $n): array => ['name' => $n, 'ownerJid' => '5585999990000@s.whatsapp.net'], $nomes));
 }
-if (preg_match('~\A/evo/(instance/connect|instance/connectionState|instance/logout|instance/delete|message/sendText)/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
+if (preg_match('~\A/evo/(instance/connect|instance/connectionState|instance/logout|instance/delete|message/sendText|webhook/find|webhook/set)/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
     [$acao, $instancia] = [$m[1], $m[2]];
     if (!$evoPode($instancia) || ($acao === 'instance/delete' && !$evoGlobal())) {
         $responder(401, ['status' => 401, 'error' => 'Unauthorized']);
@@ -287,8 +287,18 @@ if (preg_match('~\A/evo/(instance/connect|instance/connectionState|instance/logo
             if ($estado['state'] === 'open') {
                 $responder(200, ['instance' => ['instanceName' => $instancia, 'state' => 'open']]);
             }
-            $guardar('wpp-' . $instancia . '.json', ['state' => 'connecting']);
+            $guardar('wpp-' . $instancia . '.json', ['state' => 'connecting'] + $estado);
             $responder(200, ['pairingCode' => null, 'code' => '2@ci', 'base64' => $evoQr, 'count' => 1]);
+        case 'webhook/find':
+            $w = $estado['webhook'] ?? null;
+            $responder(200, is_array($w) ? ['enabled' => $w['enabled'] ?? true, 'url' => $w['url'] ?? '', 'events' => $w['events'] ?? []] : null);
+        case 'webhook/set':
+            $w = $json['webhook'] ?? null;
+            if ($metodo !== 'POST' || !is_array($w) || !is_string($w['url'] ?? null)) {
+                $responder(400, ['status' => 400, 'error' => 'Bad Request']);
+            }
+            $guardar('wpp-' . $instancia . '.json', ['webhook' => $w] + $estado);
+            $responder(201, ['webhook' => ['instanceName' => $instancia] + $w]);
         case 'instance/connectionState':
             $responder(200, ['instance' => ['instanceName' => $instancia, 'state' => $estado['state']]]);
         case 'message/sendText':
@@ -300,7 +310,7 @@ if (preg_match('~\A/evo/(instance/connect|instance/connectionState|instance/logo
             file_put_contents($pasta . '/wpp-mensagens.log', $instancia . '|' . $destino . '|' . $json['text'] . "\n", FILE_APPEND);
             $responder(201, ['key' => ['remoteJid' => $destino . '@s.whatsapp.net', 'fromMe' => true, 'id' => 'CI' . bin2hex(random_bytes(4))], 'status' => 'PENDING']);
         case 'instance/logout':
-            $guardar('wpp-' . $instancia . '.json', ['state' => 'close']);
+            $guardar('wpp-' . $instancia . '.json', ['state' => 'close'] + $estado);
             $responder(200, ['status' => 'SUCCESS', 'error' => false, 'response' => ['message' => 'Instance logged out']]);
         case 'instance/delete':
             @unlink($pasta . '/wpp-' . $instancia . '.json');
@@ -312,7 +322,7 @@ if (preg_match('~\A/_teste/wpp-sessao/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
     $responder(200, ['ok' => true]);
 }
 if (preg_match('~\A/_teste/wpp-conectar/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
-    $guardar('wpp-' . $m[1] . '.json', ['state' => 'open']); // simula a leitura do QR Code no celular
+    $guardar('wpp-' . $m[1] . '.json', ['state' => 'open'] + ($ler('wpp-' . $m[1] . '.json') ?? [])); // simula a leitura do QR Code no celular
     $responder(200, ['ok' => true]);
 }
 if ($caminho === '/_teste/wpp-mensagens') {

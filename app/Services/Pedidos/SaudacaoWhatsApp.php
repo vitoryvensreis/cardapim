@@ -12,6 +12,7 @@ use Cardapim\Modules\Restaurante\HorarioFuncionamento;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Repositories\Gerencia\PerfilRepository;
 use Cardapim\Services\Gerencia\Integracoes\BaseIntegracao;
+use Cardapim\Services\WhatsApp\DiagnosticoSaudacao;
 use Cardapim\Shared\Validation\Documento;
 use DateTimeImmutable;
 use PDO;
@@ -99,6 +100,9 @@ final class SaudacaoWhatsApp
      */
     private static function ignorado(string $motivo, array $evento): bool
     {
+        if (($evento['event'] ?? null) === 'onmessage' && is_string($evento['session'] ?? null)) {
+            DiagnosticoSaudacao::registrar($evento['session'], $motivo, is_string($evento['from'] ?? null) ? $evento['from'] : null);
+        }
         if (($evento['event'] ?? null) === 'onmessage'
             && Config::get('WHATSAPP_SAUDACAO_DIAGNOSTICO') === '1') {
             error_log('[Cardapim] Saudacao WhatsApp ignorada: ' . $motivo);
@@ -153,6 +157,7 @@ final class SaudacaoWhatsApp
         if ($q->rowCount() !== 1) {
             return self::ignorado('ja_registrada_hoje', $evento);
         }
+        DiagnosticoSaudacao::registrar($sessao, 'enfileirada', $telefone);
         self::agendarEnvio($id);
         return true;
     }
@@ -188,8 +193,12 @@ final class SaudacaoWhatsApp
         $sessao = $integracao['dados']['sessao'] ?? null;
         $token = $repo->credenciais($restaurante, 'whatsapp')['token'] ?? null;
         $api ??= WhatsAppProvedores::daIntegracao($integracao['dados']);
-        if (!$api->configurado() || $integracao['status'] !== 'conectado'
+        // "erro" = o painel viu o WhatsApp cair por um instante; se a mensagem chegou, a conexao esta de pe.
+        if (!$api->configurado() || !in_array($integracao['status'], ['conectado', 'erro'], true)
             || !is_string($sessao) || !is_string($token) || $token === '') {
+            if (is_string($sessao)) {
+                DiagnosticoSaudacao::registrar($sessao, 'envio_sem_conexao');
+            }
             return 0;
         }
         // A saudacao nao pode sair depois que o expediente terminou.
@@ -197,6 +206,7 @@ final class SaudacaoWhatsApp
         $loja = $perfil->buscar($restaurante);
         if ($loja === null || ($loja['status_rest'] ?? '') !== 'ativo'
             || !HorarioFuncionamento::abertoEm((bool) $loja['sempre_aberto'], $perfil->horarios($restaurante), new DateTimeImmutable('now'))) {
+            DiagnosticoSaudacao::registrar($sessao, 'envio_fora_do_horario');
             return 0;
         }
         $q = $db->prepare("SELECT id, telefone, mensagem FROM whatsapp_saudacao_diaria
@@ -214,11 +224,13 @@ final class SaudacaoWhatsApp
                 $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'enviado', enviado_em = ?, ultimo_erro = NULL
                     WHERE id = ? AND id_restaurante = ? AND status = 'enviando'")
                     ->execute([date('Y-m-d H:i:s'), (int) $a['id'], $restaurante]);
+                DiagnosticoSaudacao::registrar($sessao, 'enviada', (string) $a['telefone']);
                 $total++;
             } catch (Throwable $e) {
                 $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'falhou', ultimo_erro = ?
                     WHERE id = ? AND id_restaurante = ? AND status = 'enviando'")
                     ->execute([mb_substr($e->getMessage(), 0, 255), (int) $a['id'], $restaurante]);
+                DiagnosticoSaudacao::registrar($sessao, 'falhou_envio', (string) $a['telefone']);
             }
         }
         return $total;

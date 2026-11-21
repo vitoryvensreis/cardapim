@@ -139,7 +139,47 @@ class EvolutionApi implements ProvedorWhatsApp
         $numero = $lid ? $telefone : (preg_replace('/\D+/', '', $telefone) ?? '');
         $r = $this->chamar('POST', '/message/sendText/' . WhatsAppProvedores::sessao($sessao), $token, ['number' => $numero, 'text' => $mensagem]);
         if (!$r->ok() || !is_array($r->json()['key'] ?? null)) {
-            throw new IntegracaoErro('O WhatsApp não conseguiu enviar a mensagem. Confira se o número tem WhatsApp e se o celular está conectado.');
+            throw new IntegracaoErro('O WhatsApp não conseguiu enviar a mensagem (código ' . $r->status . '). Confira se o número tem WhatsApp e se o celular está conectado.');
+        }
+    }
+
+    /**
+     * Webhook gravado na instancia: 'ok' (aponta para o Deliveryzim e recebe mensagens), 'errado' (outro endereco,
+     * desligado ou sem o evento de mensagem) ou 'desconhecido' (servidor nao respondeu).
+     */
+    public function situacaoWebhook(string $sessao, string $token): string
+    {
+        $esperado = self::urlWebhook();
+        try {
+            $r = $this->chamar('GET', '/webhook/find/' . WhatsAppProvedores::sessao($sessao), $token);
+        } catch (IntegracaoErro) {
+            return 'desconhecido';
+        }
+        if (!$r->ok()) {
+            return $r->status === 404 ? 'errado' : 'desconhecido';
+        }
+        $d = $r->json();
+        $d = is_array($d['webhook'] ?? null) ? $d['webhook'] : $d;
+        if (!is_array($d) || $esperado === '') {
+            return 'errado';
+        }
+        $eventos = array_map(static fn ($e): string => strtoupper(str_replace('.', '_', (string) $e)), is_array($d['events'] ?? null) ? $d['events'] : []);
+        $ligado = ($d['enabled'] ?? true) !== false;
+        return $ligado && ($d['url'] ?? null) === $esperado && in_array('MESSAGES_UPSERT', $eventos, true) ? 'ok' : 'errado';
+    }
+
+    /** Aponta o webhook da instancia para o Deliveryzim (mensagens recebidas). */
+    public function configurarWebhook(string $sessao, string $token): void
+    {
+        $url = self::urlWebhook();
+        if ($url === '') {
+            throw new IntegracaoErro('O recebimento de mensagens ainda não foi configurado no servidor. Avise o suporte.');
+        }
+        $r = $this->chamar('POST', '/webhook/set/' . WhatsAppProvedores::sessao($sessao), $token, ['webhook' => [
+            'enabled' => true, 'url' => $url, 'byEvents' => false, 'base64' => false, 'events' => ['MESSAGES_UPSERT'],
+        ]]);
+        if (!$r->ok()) {
+            throw new IntegracaoErro('O servidor do WhatsApp não aceitou o ajuste agora (código ' . $r->status . '). Tente de novo em instantes.');
         }
     }
 
