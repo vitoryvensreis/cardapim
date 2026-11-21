@@ -159,8 +159,12 @@ case "$(cupom_da bar0000000001)" in *'BALCÃO'*Cerveja*) ok "balcao: cerveja no 
 confirmar_todos
 curl -s -b "$cx" "$c/comandas/$venda" -o "$tmp/cx.html"
 item="$(php -r 'if (preg_match("~/itens/(\d+)/cancelar~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/cx.html")"
-enviar "$cx" "$c/comandas/$venda/itens/$item/cancelar" "$c/comandas/$venda" "motivo=Lancado errado" >/dev/null
+esperar "caixa cancela o item" "$(enviar "$cx" "$c/comandas/$venda/itens/$item/cancelar" "$c/comandas/$venda" "motivo=Lancado errado" | cut -d' ' -f1)" "303"
 agente "$ta" >/dev/null
+if [[ "$(qtd_cupons)" != "1" ]]; then # diagnostico no CI
+  php -r 'require "bootstrap/app.php"; $d=\Cardapim\Core\Database::connect(); $q=$d->prepare("SELECT id,tipo,ate_item,entregue_em,resultado,id_impressora FROM impressoes WHERE id_pedido=? ORDER BY id"); $q->execute([(int)$argv[1]]); print_r($q->fetchAll(PDO::FETCH_ASSOC)); $q=$d->prepare("SELECT id,id_produto,cancelado_em,motivo_cancelamento FROM pedido_itens WHERE id_pedido=?"); $q->execute([(int)$argv[1]]); print_r($q->fetchAll(PDO::FETCH_ASSOC));' "$venda" || true
+  echo "item=$item venda=$venda"; grep -o 'data-flash>.\{0,200\}' "$tmp/resp.html" | head -2 || true
+fi
 case "$(cupom_da bar0000000001)" in *'CANCELAMENTO · BAR'*'BALCÃO'*'ITEM CANCELADO'*Cerveja*'Lancado errado'*) ok "item cancelado no caixa sai no Bar";; *) falha "cancelamento do item ($(cupom_da bar0000000001))";; esac
 esperar "cancelamento so na impressora do item" "$(qtd_cupons)" "1"
 confirmar_todos
