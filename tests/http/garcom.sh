@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Teste HTTP do PAINEL DO GARCOM de ponta a ponta: acesso por cargo, mesas, abrir mesa, lancar varios itens com
-# observacao, remover item, 10% de servico, receber em dinheiro com troco, Pix com QR Code pelo Asaas do restaurante
+# observacao, permissoes do Perfil garcom (remover item e cancelar comanda), remover item, 10% de servico, receber em dinheiro com troco, Pix com QR Code pelo Asaas do restaurante
 # (confirmado pelo aviso e pela consulta, sem entrar duas vezes), trocar a forma de pagamento e consulta do cardapio.
 # Usa o servidor FALSO tests/fakes/integracoes-fake.php (Asaas).
 # Uso: bash tests/http/garcom.sh <base> <slug> <base-do-fake>
@@ -101,6 +101,34 @@ contem "conta mostra 2x" "$tmp/aviso.html" '>2x<'
 contem "conta mostra a observacao" "$tmp/aviso.html" 'bem gelada'
 subtotal=$((preco_cerveja * 2 + preco_outro))
 contem "total dos itens com 10%" "$tmp/aviso.html" "$(reais $((subtotal + (subtotal * 1000 + 5000) / 10000)))"
+
+echo "Perfil garcom: sem permissao, nao remove item nem cancela comanda"
+esperar "aba entrega e pagamento tem o card Perfil garcom" "$(pagina "$gj" "$g/entrega-pagamento")" "200"
+contem "card Perfil garcom" "$tmp/pagina.html" 'id="perfil-garcom"'
+contem "check de remover itens" "$tmp/pagina.html" 'name="remover_itens"'
+contem "check de cancelar comanda" "$tmp/pagina.html" 'name="cancelar_comanda"'
+esperar "garcom nao salva o perfil garcom (403)" "$(t="$(token "$wj" "$w")"; curl -s -o /dev/null -b "$wj" -w '%{http_code}' --data-urlencode "_csrf=$t" -d remover_itens=1 -d cancelar_comanda=1 "$g/entrega-pagamento/garcom")" "403"
+r="$(enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento")"
+esperar "gerente bloqueia as duas acoes" "$(echo "$r" | cut -d' ' -f1)" "303"
+case "$(aviso "$gj" "$g/entrega-pagamento")" in *"não pode remover itens"*) ok "aviso de bloqueado";; *) falha "aviso de bloqueado";; esac
+nao_contem "checks desmarcados" "$tmp/aviso.html" 'name="remover_itens" value="1" checked'
+pagina "$gj" "$w/comandas/$comanda" >/dev/null
+contem "gerente no painel do garcom sempre ve remover item" "$tmp/pagina.html" "/itens/[0-9]*/cancelar"
+item_bloq="$(php -r 'if (preg_match_all("~/itens/(\d+)/cancelar~", file_get_contents($argv[1]), $m)) echo end($m[1]);' "$tmp/pagina.html")"
+pagina "$wj" "$w/comandas/$comanda" >/dev/null
+nao_contem "garcom bloqueado nao ve o botao de remover item" "$tmp/pagina.html" "/itens/[0-9]*/cancelar"
+nao_contem "garcom bloqueado nao ve o botao de cancelar comanda" "$tmp/pagina.html" "comandas/$comanda/cancelar"
+enviar "$wj" "$w/comandas/$comanda/itens/$item_bloq/cancelar" "$w" "motivo=Cliente desistiu" >/dev/null
+esperar "servidor recusa remover item sem permissao" "$(aviso "$wj" "$w/comandas/$comanda")" "Você não tem permissão para remover itens já lançados. Peça ao gerente ou ao caixa."
+contem "item continua na conta" "$tmp/aviso.html" 'bem gelada'
+enviar "$wj" "$w/comandas/$comanda/cancelar" "$w" "motivo=Cliente foi embora" >/dev/null
+esperar "servidor recusa cancelar comanda sem permissao" "$(aviso "$wj" "$w/comandas/$comanda")" "Você não tem permissão para cancelar comandas. Peça ao gerente ou ao caixa."
+r="$(enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento" remover_itens=1 cancelar_comanda=1)"
+esperar "gerente libera as duas acoes" "$(echo "$r" | cut -d' ' -f1)" "303"
+case "$(aviso "$gj" "$g/entrega-pagamento")" in *"pode remover itens lançados e cancelar comandas"*) ok "aviso de liberado";; *) falha "aviso de liberado";; esac
+pagina "$wj" "$w/comandas/$comanda" >/dev/null
+contem "garcom liberado ve o botao de remover item" "$tmp/pagina.html" "/itens/[0-9]*/cancelar"
+cp "$tmp/pagina.html" "$tmp/aviso.html"
 item="$(php -r 'if (preg_match_all("~/itens/(\d+)/cancelar~", file_get_contents($argv[1]), $m)) echo end($m[1]);' "$tmp/aviso.html")"
 enviar "$wj" "$w/comandas/$comanda/itens/$item/cancelar" "$w" "motivo=Cliente desistiu" >/dev/null
 msg="$(aviso "$wj" "$w/comandas/$comanda")"
@@ -277,6 +305,9 @@ contem "filtro em falta" "$tmp/pagina.html" 'data-filtro-produto="falta"'
 contem "aba ativa" "$tmp/pagina.html" 'aria-current="page"'
 
 echo "Limpeza"
+# Fica liberado: os testes seguintes (impressao.sh e outros) cancelam comandas pelo painel do garcom.
+r="$(enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento" remover_itens=1 cancelar_comanda=1)"
+esperar "perfil garcom fica liberado para os proximos testes" "$(echo "$r" | cut -d' ' -f1)" "303"
 enviar "$gj" "$g/integracoes/asaas/desconectar" "$g/integracoes/asaas" >/dev/null
 if [[ "$abriu_caixa" == "1" ]]; then
   pagina "$cx" "$c" >/dev/null

@@ -19,6 +19,7 @@ use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Services\Caixa\MesaService;
 use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Services\Garcom\ComandaPix;
+use Cardapim\Services\Garcom\PermissoesGarcom;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Impressao\FilaImpressao;
 use Cardapim\Shared\Numero;
@@ -28,6 +29,7 @@ use PDO;
  * Painel do garcom (/{slug}/garcom), feito para o celular:
  * mesas -> comanda (lancar itens; uma mesa pode ter varias comandas, uma por pessoa) -> fechar conta (10% opcional, receber ou Pix com QR Code) e consulta do cardapio.
  * Acesso: garcom e gerente do restaurante (ou adm_master), conferido a cada requisicao. Todo POST com CSRF.
+ * Remover item lancado e cancelar comanda dependem do card "Perfil garçom" (PermissoesGarcom), conferido aqui no servidor.
  * As regras de comanda e pagamento sao as mesmas do modo caixa (ComandaService).
  */
 final class GarcomController
@@ -38,6 +40,7 @@ final class GarcomController
     /** @var array{id:int,nome:string,slug:string,status:string} */
     private array $restaurante;
     private PDO $db;
+    private ?PermissoesGarcom $permissoes = null;
 
     public function mesas(string $slug): Response
     {
@@ -87,6 +90,8 @@ final class GarcomController
             'itensNovos' => $impressao->itensNovos($c),
             'impressoras' => $impressao->opcoes('garcom'),
             'producaoAtiva' => $impressao->producaoAtiva(),
+            'podeRemoverItens' => $this->permissoes()->podeRemoverItens($this->usuario),
+            'podeCancelarComanda' => $this->permissoes()->podeCancelarComanda($this->usuario),
             'voltar' => $this->url(),
             'subtitulo' => 'Pedido #' . (int) $c['pedido']['numero'],
         ]);
@@ -148,6 +153,9 @@ final class GarcomController
         if ($r = $this->entrar($slug, true)) {
             return $r;
         }
+        if (!$this->permissoes()->podeRemoverItens($this->usuario)) {
+            return $this->voltar($this->url('comandas/' . (int) self::id($id)), 'erro', 'Você não tem permissão para remover itens já lançados. Peça ao gerente ou ao caixa.');
+        }
         $res = self::id($id) !== null && self::id($item) !== null
             ? $this->comandas()->cancelarItem((int) $id, (int) $item, $this->post('motivo'))
             : Resultado::falha('Item não encontrado.');
@@ -162,6 +170,9 @@ final class GarcomController
     {
         if ($r = $this->entrar($slug, true)) {
             return $r;
+        }
+        if (!$this->permissoes()->podeCancelarComanda($this->usuario)) {
+            return $this->voltar($this->url('comandas/' . (int) self::id($id)), 'erro', 'Você não tem permissão para cancelar comandas. Peça ao gerente ou ao caixa.');
         }
         $c = $this->detalhes($id);
         if ($c === null) {
@@ -494,6 +505,11 @@ final class GarcomController
             error_log('[Cardapim] Impressao ao lancar indisponivel (' . get_class($e) . ').');
             return Resultado::falha('a impressora não respondeu. Use Imprimir > Só os itens novos.');
         }
+    }
+
+    private function permissoes(): PermissoesGarcom
+    {
+        return $this->permissoes ??= new PermissoesGarcom($this->db, $this->restaurante['id']);
     }
 
     private function impressao(): FilaImpressao

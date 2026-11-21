@@ -3,7 +3,8 @@
  * Comanda da mesa: abas das comandas da mesa (uma por pessoa), o que ja foi lancado, total e as acoes (Adicionar / Fechar conta).
  * "Adicionar" abre a folha do cardapio (#adicionar, funciona sem JavaScript pelo :target).
  * "Imprimir": comanda inteira pelo Deliveryzim Agent (imprimir-agent.js). Os itens novos saem ao lancar (ponto do garcom).
- * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf, $impressaoAtiva, $itensNovos, $impressoras
+ * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf, $impressaoAtiva, $itensNovos, $impressoras,
+ * $podeRemoverItens e $podeCancelarComanda (Perfil garcom: sem permissao os botoes nao aparecem)
  * (com mais de uma impressora no ponto, o garcom escolhe; a padrao ja vem marcada).
  */
 use Cardapim\Controllers\GarcomController;
@@ -59,6 +60,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                         <span class="comanda-item-qtd"><?= Icon::svg('boxes', 'icon-sm') ?></span>
                         <div class="comanda-item-texto"><strong><?= $e($lotes[$lote]['nome']) ?></strong><small>Combo · <?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small></div>
                         <span class="comanda-item-valor"><?= $e(GarcomController::reais($lotes[$lote]['centavos'])) ?></span>
+                        <?php if ($podeRemoverItens): ?>
                         <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
                         <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
                         <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover o combo inteiro"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover o combo <?= $e($lotes[$lote]['nome']) ?></span></label>
@@ -72,6 +74,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                             </fieldset>
                             <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover combo</button>
                         </form>
+                        <?php endif; ?>
                     </li>
                 <?php endif; ?>
                 <?php if ($lote !== null): ?>
@@ -90,6 +93,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                         <small><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small>
                     </div>
                     <span class="comanda-item-valor"><?= $e(Numero::reais((string) $i['total'])) ?></span>
+                    <?php if ($podeRemoverItens): ?>
                     <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
                     <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
                     <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover item"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover <?= $e((string) $i['nome']) ?></span></label>
@@ -103,6 +107,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                             </fieldset>
                             <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover</button>
                         </form>
+                    <?php endif; ?>
                 </li>
             <?php endforeach; ?>
         </ul>
@@ -132,7 +137,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
         </details>
     <?php endif; ?>
 
-    <?php if ($c['pago'] === 0): ?>
+    <?php if ($c['pago'] === 0 && $podeCancelarComanda): ?>
         <details class="comanda-cancelar">
             <summary><?= Icon::svg('ban', 'icon-sm') ?>Cancelar comanda</summary>
             <form method="post" action="<?= $e($url . '/cancelar') ?>" class="remover-form" data-confirm="<?= count($c['irmas']) > 1 ? ($itens !== [] ? 'Os itens saem da conta e o estoque volta. As outras comandas da mesa continuam abertas.' : 'As outras comandas da mesa continuam abertas.') : ($itens !== [] ? 'Os itens saem da conta, o estoque volta e a mesa fica livre.' : 'A mesa fica livre.') ?>" data-confirm-titulo="Cancelar a <?= $e((string) $c['rotulo']) ?>?" data-confirm-acao="Cancelar comanda" data-confirm-perigo="1">

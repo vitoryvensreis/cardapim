@@ -1,6 +1,6 @@
 <?php
 /**
- * Aba Entrega e pagamento. Espera: $config, $enviado, $bairros, $faixas, $local, $precisaLocal, $asaasConectado, $entregadorVeValores,
+ * Aba Entrega e pagamento. Espera: $config, $enviado, $bairros, $faixas, $local, $precisaLocal, $asaasConectado, $entregadorVeValores, $permissoesGarcom,
  * $teste (null ou resultado do "Testar um endereco"), $erros (por formulario), $restaurante, $base, $csrf.
  */
 use Cardapim\Core\Icon;
@@ -213,6 +213,37 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
             </fieldset>
             <div class="form-acoes">
                 <button class="btn btn-primary" type="submit" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar painel do entregador</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="bloco" aria-labelledby="titulo-perfil-garcom" id="perfil-garcom">
+        <div class="bloco-cabecalho">
+            <h2 id="titulo-perfil-garcom"><?= Icon::svg('hand-platter') ?>Perfil garçom</h2>
+            <p>O que o garçom pode fazer depois que o pedido já foi lançado na comanda. O gerente e o caixa sempre podem.</p>
+        </div>
+        <form method="post" action="<?= $e($base . '/entrega-pagamento/garcom') ?>">
+            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+            <fieldset class="opcoes-modo opcoes-garcom">
+                <legend class="sr-only">Permissões do garçom</legend>
+                <label class="opcao-modo">
+                    <input type="checkbox" name="remover_itens" value="1"<?= (int) ($permissoesGarcom['remover_itens'] ?? 0) === 1 ? ' checked' : '' ?>>
+                    <span>
+                        <strong><?= Icon::svg('trash', 'icon-sm') ?>Remover itens já lançados</strong>
+                        <small>O garçom pode tirar da comanda um item que já foi lançado, informando o motivo. O estoque volta.</small>
+                    </span>
+                </label>
+                <label class="opcao-modo">
+                    <input type="checkbox" name="cancelar_comanda" value="1"<?= (int) ($permissoesGarcom['cancelar_comanda'] ?? 0) === 1 ? ' checked' : '' ?>>
+                    <span>
+                        <strong><?= Icon::svg('ban', 'icon-sm') ?>Cancelar comanda</strong>
+                        <small>O garçom pode cancelar a comanda inteira (sem pagamento). Os itens saem da conta e o estoque volta.</small>
+                    </span>
+                </label>
+            </fieldset>
+            <p class="texto-suave garcom-permissao-dica"><?= Icon::svg('info', 'icon-sm') ?>Desmarcado, o garçom não vê esses botões e precisa pedir ao gerente ou ao caixa. Tudo fica registrado no histórico.</p>
+            <div class="form-acoes">
+                <button class="btn btn-primary" type="submit" data-submit-label="Salvando..."><?= Icon::svg('save', 'icon-sm') ?>Salvar perfil garçom</button>
             </div>
         </form>
     </section>

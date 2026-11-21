@@ -47,6 +47,7 @@
 
 - O garçom entra e já vê as **mesas** (livre/ocupada, total e tempo). Toca na mesa, toca em **Adicionar**, escolhe os produtos com − / + (e observação) e lança tudo de uma vez.
 - **Cancelar comanda** (mesa aberta por engano, cliente foi embora): motivo em um toque, confirmação, estoque devolvido. Conta com pagamento só o caixa cancela.
+- **Perfil garçom** (Gerência > Entrega e pagamento): o gerente decide se o garçom pode **remover itens já lançados** e **cancelar comanda**. Vem bloqueado; sem permissão o garçom não vê os botões e o servidor recusa. Gerente sempre pode, e a mudança fica no histórico.
 - **Fechar conta**: liga/tira os **10%**, divide por pessoas, escolhe a forma (dinheiro com troco na hora, débito, crédito, Pix) e registra que foi pago.
 - Com o **Asaas do restaurante** conectado, aparece **QR Code Pix**: o cliente paga pelo app do banco e a conta fecha sozinha.
 - Menu **Cardápio**: busca de produtos com preço e se tem (ou quantos restam).
@@ -78,7 +79,7 @@
 ## Pedidos, entrega e pagamento
 
 - **Tabelas `pedidos` e `pedido_itens`**: todo pedido tem o restaurante (`id_restaurante`) e de quem e: o cliente (`id_cliente`) e/ou a pessoa da equipe que registrou (`id_user`). Linha do tempo em `pedido_eventos`.
-- **Aba "Entrega e pagamento"** do gerente: entrega e/ou retirada, tempo estimado, formas aceitas (Pix pelo app via Asaas do restaurante, Pix na entrega, cartao de debito, cartao de credito e dinheiro) e **areas de entrega por bairro ou por raio em km**, cada uma com taxa e pedido minimo, com "Testar um endereco".
+- **Aba "Entrega e pagamento"** do gerente: entrega e/ou retirada, tempo estimado, formas aceitas (Pix pelo app via Asaas do restaurante, Pix na entrega, cartao de debito, cartao de credito e dinheiro) e **areas de entrega por bairro ou por raio em km**, cada uma com taxa e pedido minimo, com "Testar um endereco". Logo abaixo do Painel do entregador, o card **Perfil garçom** libera ou bloqueia remover itens lançados e cancelar comanda pelo garçom.
 - **Finalizar o pedido** no cardapio: entrega ou retirada, endereco pelo CEP (confere na hora se o restaurante entrega e quanto custa), pagamento (troco, CPF para o Pix) e tela para acompanhar o pedido.
 - Geolocalizacao **sem custo**: BrasilAPI/ViaCEP para CEP e Nominatim (OpenStreetMap) para distancia, respeitando a politica de uso (1 consulta/s e cache).
 - A equipe recebe, prepara e despacha os pedidos no **modo caixa** (seção acima).

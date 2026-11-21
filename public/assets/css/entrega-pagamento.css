@@ -3,7 +3,7 @@
 .opcao-modo strong .icon { color: var(--c-wine); }
 .opcao-aviso { display: flex !important; align-items: center; gap: .35rem; margin-top: .45rem !important; color: var(--c-orange-700) !important; font-weight: 400; }
 .opcao-aviso a { color: var(--c-wine); text-decoration: underline; }
-.opcoes-recebe, .formas-grade { display: grid; gap: .6rem; }
+.opcoes-recebe, .formas-grade, .opcoes-garcom { display: grid; gap: .6rem; }
 .tempos-grade { margin-top: .5rem; }
 .tempo-par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
 .tempos-grade [data-tempo][hidden] { display: none; }
@@ -36,10 +36,13 @@
 
 .teste-form { margin-bottom: 1rem; }
 .teste-resultado p { margin: .2rem 0 .4rem; }
+.garcom-permissao-dica { display: flex; align-items: flex-start; gap: .4rem; margin: .75rem 0 0; }
+.garcom-permissao-dica .icon { flex: none; margin-top: .15rem; }
+
 .teste-detalhes { margin: 0; padding-left: 1.1rem; color: var(--c-muted); font-size: .88rem; }
 
 @media (min-width: 40rem) {
-  .opcoes-recebe, .formas-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .opcoes-recebe, .formas-grade, .opcoes-garcom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .local-estado { padding: 1.1rem 1.25rem; }
 }
 @media (min-width: 64rem) {

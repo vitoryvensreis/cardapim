@@ -7,6 +7,7 @@ namespace Cardapim\Controllers\Gerencia;
 use Cardapim\Core\Response;
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
+use Cardapim\Services\Garcom\PermissoesGarcom;
 use Cardapim\Services\Gerencia\EntregaPagamentoService;
 use Cardapim\Services\Geo\Geocodificador;
 use Cardapim\Services\Pedidos\Endereco;
@@ -43,6 +44,16 @@ final class EntregaPagamentoController extends BaseGerencia
         }
         $resultado = $this->servico()->salvarPainelEntregador($_POST);
         return $this->voltar($this->url('entrega-pagamento') . '#entregador', $resultado->ok ? 'sucesso' : 'erro', $resultado->mensagem);
+    }
+
+    /** Card "Perfil garçom": o gerente libera ou bloqueia remover itens lancados e cancelar comanda. */
+    public function salvarGarcom(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $resultado = (new PermissoesGarcom($this->db, $this->restaurante['id']))->salvar($_POST, $this->usuario);
+        return $this->voltar($this->url('entrega-pagamento') . '#perfil-garcom', $resultado->ok ? 'sucesso' : 'erro', $resultado->mensagem);
     }
 
     public function criarArea(string $slug): Response
@@ -161,6 +172,7 @@ final class EntregaPagamentoController extends BaseGerencia
             'precisaLocal' => AreaEntrega::precisaDeLocalizacao($areas),
             'asaasConectado' => $servico->asaasConectado(),
             'entregadorVeValores' => $servico->entregadorVeValores(),
+            'permissoesGarcom' => (new PermissoesGarcom($this->db, $this->restaurante['id']))->config(),
             'teste' => $teste,
             'erros' => $erros,
             'pageScripts' => ['js/forms.js', 'js/entrega-pagamento.js'],

@@ -39,6 +39,8 @@ reais() { php -r 'echo "R$ " . number_format($argv[1] / 100, 2, ",", ".");' "$1"
 
 gj="$tmp/gerente"; wj="$tmp/garcom"
 esperar "gerente autenticado" "$(login "$gj" ci_gerente)" "303"
+# Perfil garcom: este teste cancela itens/comandas pelo painel do garcom, entao o gerente libera as duas acoes.
+esperar "gerente libera remover itens e cancelar comanda ao garcom" "$(enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento" remover_itens=1 cancelar_comanda=1 | cut -d' ' -f1)" "303"
 esperar "garcom autenticado" "$(login "$wj" ci_garcom)" "303"
 
 echo "Cadastro do combo"
