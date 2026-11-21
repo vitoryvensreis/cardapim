@@ -28,8 +28,6 @@ final class Esquema
         'combos' => ['pedido_itens', 'combo_nome'],
         // Limite de escolhas de cada grupo dentro do combo.
         'combo_grupos' => ['combo_grupos', 'maximo'],
-        // Ponto "Garcom: ao lancar itens" (a migracao so amplia o CHECK dos pontos).
-        'impressao_lancamento' => ['check:chk_impressao_pontos_ponto', 'garcom_lancar'],
     ];
 
     /** @var array<string,bool> */
@@ -42,14 +40,7 @@ final class Esquema
         }
         [$tabela, $coluna] = self::RECURSOS[$recurso] ?? throw new \InvalidArgumentException('Recurso desconhecido.');
         try {
-            if (str_starts_with($tabela, 'check:')) {
-                $existe = false;
-                if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
-                    $q = $db->prepare('SELECT CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_NAME = ?');
-                    $q->execute([substr($tabela, 6)]);
-                    $existe = str_contains((string) $q->fetchColumn(), $coluna);
-                }
-            } elseif ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+            if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
                 $q = $db->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
                 $q->execute([$tabela, $coluna]);
                 $existe = (int) $q->fetchColumn() === 1;

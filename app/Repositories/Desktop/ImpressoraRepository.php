@@ -18,9 +18,7 @@ final class ImpressoraRepository
         'caixa_delivery' => 'Caixa: pedido do delivery',
         'caixa_fechamento' => 'Caixa: resumo do caixa',
         'garcom' => 'Garçom: comanda',
-        'garcom_lancar' => 'Garçom: ao lançar itens (impressão automática)',
-        'delivery_novo' => 'Pedido novo do delivery (impressão automática)',
-        'producao' => 'Produção: itens sem impressora marcada no produto',
+        'producao' => 'Impressão por produto (padrão)',
     ];
     public const MAX_POR_AGENT = 50;
 
@@ -74,6 +72,14 @@ final class ImpressoraRepository
             'id' => (int) $r['id'], 'apelido' => (string) $r['apelido'],
             'computador' => (string) $r['computador'], 'ligada' => (int) $r['ligada'] === 1,
         ], $q->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @return array<int,int> id da impressora => quantos produtos estao marcados nela */
+    public function produtosPorImpressora(int $idRestaurante): array
+    {
+        $q = $this->db->prepare('SELECT id_impressora, COUNT(*) FROM produto_impressoras WHERE id_restaurante = ? GROUP BY id_impressora');
+        $q->execute([$idRestaurante]);
+        return array_map('intval', $q->fetchAll(PDO::FETCH_KEY_PAIR));
     }
 
     /** @return array<string,array{ids:list<int>,padrao:?int}> ponto => impressoras marcadas e a padrao */
@@ -144,22 +150,4 @@ final class ImpressoraRepository
         return $lista;
     }
 
-    /**
-     * Para o pedido novo do delivery: chaves das impressoras DESTE Agent marcadas no ponto.
-     * null = o restaurante nao configurou o ponto (o Agent usa a impressora principal, como antes).
-     * @return list<string>|null
-     */
-    public function chavesDoPonto(int $idRestaurante, int $idDispositivo, string $ponto): ?array
-    {
-        $q = $this->db->prepare('SELECT i.id_dispositivo, i.chave FROM impressao_pontos p
-            JOIN impressoras i ON i.id = p.id_impressora AND i.id_restaurante = p.id_restaurante
-            WHERE p.id_restaurante = ? AND p.ponto = ? AND i.ativo = 1');
-        $q->execute([$idRestaurante, $ponto]);
-        $linhas = $q->fetchAll(PDO::FETCH_ASSOC);
-        if ($linhas === []) {
-            return null;
-        }
-        return array_values(array_map(static fn (array $r): string => (string) $r['chave'],
-            array_filter($linhas, static fn (array $r): bool => (int) $r['id_dispositivo'] === $idDispositivo)));
-    }
 }

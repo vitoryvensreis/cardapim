@@ -111,14 +111,6 @@ $ok($nomes($grupos[6] ?? []) === ['Cerveja'], 'bar so com a bebida');
 $ok($nomes($grupos[7] ?? []) === ['Baião de dois', 'Combo espeto + farofa'], 'cozinha: sem marcacao + produto em duas estacoes');
 $ok(!in_array('Espeto de frango', array_merge(...array_map($nomes, array_values($grupos))), true), 'item cancelado nao sai');
 
-// Conta/pre-conta numa impressora: produto marcado so em outras nao sai nela; sem marcacao sai.
-$todos = [$espeto, $cerveja, $prato];
-$fora = CupomImpressao::foraDaImpressora($todos, [101 => [5], 102 => [6]], 7);
-$ok($fora === [20, 21], 'na cozinha ficam de fora o espeto e a cerveja');
-$conta = $textos(CupomImpressao::comanda($comanda('balcao', $todos), 'Bar', 'conta', 0, '', $fora)['blocos']);
-$ok(!str_contains($conta, 'Espeto de picanha') && !str_contains($conta, 'Cerveja') && str_contains($conta, 'Baião de dois'), 'conta na cozinha sem os itens de outras impressoras');
-$ok(!str_contains($conta, 'não sai'), 'conta sem aviso de itens de outra impressora');
-
 $via = CupomImpressao::producao(CupomImpressao::cabecaComanda($comanda('mesa', [])), 'Churrasqueira', $grupos[5], 'Ana');
 $tv = $textos($via);
 $ok($via[0] === ['t' => 'centro', 'texto' => 'PRODUÇÃO · CHURRASQUEIRA'] && $via[2] === ['t' => 'titulo', 'texto' => 'MESA 5'], 'via com a estacao e a mesa');

@@ -91,19 +91,16 @@ contem "mostra o computador" "$tmp/ger.html" 'PC-BAR-IMPRESSORAS'
 contem "impressora ligada" "$tmp/ger.html" 'Ligada'
 curl -s -b "$gj" "$g/integracoes" -o "$tmp/int.html"
 contem "integracoes leva para as impressoras" "$tmp/int.html" "/$slug/gerencia/integracoes/impressoras"
-id_de() { php -r 'if (preg_match("~id=\"p-caixa_conta-(\d+)\"[^>]*>\s*<span>" . preg_quote($argv[2], "~") . "</span>~u", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/ger.html" "$1"; }
+id_de() { php -r 'if (preg_match("~id=\"p-completo-(\d+)\"[^>]*>\s*<span>" . preg_quote($argv[2], "~") . "</span>~u", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/ger.html" "$1"; }
 balcao="$(id_de 'Balcão')"; cozinha="$(id_de 'Cozinha')"; bar="$(id_de 'Bar')"
 [[ -n "$balcao" && -n "$cozinha" && -n "$bar" ]] && ok "ids das impressoras ($balcao, $cozinha, $bar)" || falha "ids nao encontrados"
-enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" \
-  "ponto[caixa_conta][]=$balcao" \
-  "ponto[garcom][]=$balcao" "ponto[garcom][]=$cozinha" "padrao[garcom]=$cozinha" \
-  "ponto[delivery_novo][]=$cozinha" "ponto[delivery_novo][]=$bar" \
-  "ponto[caixa_fechamento][]=999999999" >/dev/null
+contem "bloco cupom completo" "$tmp/ger.html" 'Cupom completo'
+nao_contem "sem o ponto antigo do pedido novo" "$tmp/ger.html" 'Pedido novo do delivery'
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "completo[]=$balcao" "fechamento[]=999999999" >/dev/null
 curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
-contem "pontos salvos" "$tmp/ger.html" 'Pontos de impressão salvos.'
-grep -q "id=\"p-garcom-$cozinha\" name=\"ponto\[garcom\]\[\]\" value=\"$cozinha\" checked" "$tmp/ger.html" && ok "garcom com a Cozinha marcada" || falha "garcom sem a Cozinha"
-grep -q "name=\"padrao\[garcom\]\" value=\"$cozinha\" checked" "$tmp/ger.html" && ok "Cozinha e a padrao do garcom" || falha "padrao do garcom"
-grep -q "name=\"ponto\[caixa_fechamento\]\[\]\" value=\"[0-9]*\" checked" "$tmp/ger.html" && falha "id de fora foi aceito" || ok "impressora de fora ignorada"
+contem "impressoras salvas" "$tmp/ger.html" 'Impressoras salvas.'
+grep -q "id=\"p-completo-$balcao\" name=\"completo\[\]\" value=\"$balcao\" checked" "$tmp/ger.html" && ok "cupom completo com o Balcao" || falha "cupom completo sem o Balcao"
+grep -q "name=\"fechamento\[\]\" value=\"[0-9]*\" checked" "$tmp/ger.html" && falha "id de fora foi aceito" || ok "impressora de fora ignorada"
 
 echo "Caixa: uma impressora no ponto imprime direto"
 r="$(enviar "$cx" "$c/balcao" "$c/mesas" nome=Impressoras)"
@@ -126,27 +123,23 @@ esperar "cupom vai para a impressora Balcao" "$(cupom impressora)" "aaaa1111bbbb
 resultado "$ta" "$(cupom id)" >/dev/null
 esperar "impressora fora do ponto recusada" "$(imprimir "$cx" "$c/imprimir/comanda/$venda" "$c/comandas/$venda" "impressora=$bar")" "409"
 
-echo "Ponto sem configuracao: impressora principal de qualquer Agent"
+echo "Delivery: pedido completo pelo botao do caixa; pedido novo nao imprime sozinho"
 pedido="$(php tests/http/desktop-pedido-ci.php "$slug")"
 curl -s -b "$cx" -o "$tmp/pag.html" "$c/delivery/$pedido"
-nao_contem "delivery sem escolha" "$tmp/pag.html" 'data-imprimir-escolha'
+nao_contem "delivery sem escolha (uma impressora)" "$tmp/pag.html" 'data-imprimir-escolha'
 esperar "caixa imprime o pedido" "$(imprimir "$cx" "$c/imprimir/pedido/$pedido" "$c/delivery/$pedido")" "202"
-
-echo "Pedido novo do delivery: o sistema grava um cupom por impressora do ponto"
 agente "$ta" "$cursor" >/dev/null
-esperar "PC do caixa nao imprime o pedido inteiro sozinho" "$(alvos "$pedido")" '[]'
-esperar "PC do caixa: cupom principal do caixa e o da Cozinha" "$(chaves)" ',cccc2222dddd'
-esperar "cupom do pedido novo no modelo do caixa" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach($d["impressoes"] as $j){ if(($j["impressora"]??"")!==""){ echo str_starts_with((string)$j["titulo"],"Pedido #")?"sim":"nao"; } }' "$tmp/ag.json")" "sim"
+esperar "PC do caixa so avisa o pedido novo" "$(alvos "$pedido")" '[]'
+esperar "so o cupom pedido pelo caixa, no Balcao" "$(chaves)" 'aaaa1111bbbb'
 concluir "$ta"
-agente "$ta" "$cursor" >/dev/null
-esperar "pedido novo gravado uma vez so" "$(qtd_cupons)" "0"
 agente "$tb" "$cursor" >/dev/null
 esperar "PC do bar so avisa" "$(alvos "$pedido")" '[]'
-esperar "PC do bar pega o cupom do Bar" "$(chaves)" 'eeee3333ffff'
-concluir "$tb"
+esperar "PC do bar sem cupom" "$(qtd_cupons)" "0"
 agente "$tb" "$cursor" 0 >/dev/null
 esperar "Agent antigo nao recebe a lista" "$(alvos "$pedido")" "ausente"
 
+echo "Cupom completo com duas impressoras, a padrao marcada"
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "completo[]=$balcao" "completo[]=$cozinha" "padrao_completo=$cozinha" >/dev/null
 echo "Garcom: duas impressoras no ponto, a padrao marcada"
 curl -s -b "$wj" -o "$tmp/pag.html" "$w"
 mesa="$(php -r 'if (preg_match("~/garcom/mesas/(\d+)/abrir~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pag.html")"
