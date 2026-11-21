@@ -32,10 +32,14 @@ curl -s -D "$tmp/h" -o "$tmp/sw.js" "$base/pwa/sw"
 contem "tipo javascript" "$tmp/h" 'content-type: text/javascript'
 contem "sem cache" "$tmp/h" 'cache-control: no-cache'
 contem "escopo liberado" "$tmp/h" 'service-worker-allowed: /'
-contem "pagina offline no service worker" "$tmp/sw.js" '/offline.html'
+contem "pagina offline no service worker" "$tmp/sw.js" '"/pwa/offline"'
+nao_contem "logo trocada no service worker" "$tmp/sw.js" '__LOGO_OFFLINE__'
 nao_contem "nao guarda a API" "$tmp/sw.js" 'api/v1'
 esperar "slug pwa reservado (nao vira restaurante)" "$(curl -s -o /dev/null -w '%{http_code}' "$base/pwa")" "404"
-esperar "pagina sem conexao" "$(curl -s -o "$tmp/off.html" -w '%{http_code}' "$base/offline.html")" "200"
+esperar "pagina sem conexao" "$(curl -s -o "$tmp/off.html" -w '%{http_code}' "$base/pwa/offline")" "200"
+logo_off="$(php -r 'if (preg_match("~src=\"([^\"]+)\"[^>]*data-offline-logo~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/off.html")"
+contem "service worker guarda a mesma logo da pagina" "$tmp/sw.js" "\"$logo_off\""
+esperar "logo da pagina offline existe" "$(curl -s -o /dev/null -w '%{http_code}' "$base$logo_off")" "200"
 contem "pagina sem conexao explica" "$tmp/off.html" 'Você está sem internet'
 esperar "apple-touch-icon" "$(curl -s -o /dev/null -w '%{http_code}' "$base/assets/img/pwa/apple-touch-icon.png")" "200"
 

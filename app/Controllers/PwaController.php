@@ -66,10 +66,45 @@ final class PwaController
         return $v['apple'] ?? \Cardapim\Core\AssetUrl::asset('img/pwa/apple-touch-icon.png');
     }
 
+    /**
+     * Logo da tela offline: a enviada em Configuracoes (preta, para fundo claro; sem ela, a colorida).
+     * Os arquivos em /assets/img sao so a reserva para banco fora do ar.
+     */
+    public static function logoOffline(): string
+    {
+        foreach (['logo_preta', 'logo_colorida'] as $chave) {
+            $logo = Configuracoes::logoOuPadrao($chave);
+            if ($logo !== Configuracoes::LOGO_FALLBACK[$chave]) {
+                return $logo;
+            }
+        }
+        return Configuracoes::LOGO_FALLBACK['logo_preta'];
+    }
+
+    /** Tela "Sem conexao" com a marca atual (o service worker guarda esta pagina e a logo). */
+    public function offline(): Response
+    {
+        $html = (static function (string $logo, string $icone, string $marca): string {
+            ob_start();
+            require dirname(__DIR__) . '/Views/pwa/offline.php';
+            return (string) ob_get_clean();
+        })(self::logoOffline(), Configuracoes::logoOuPadrao('icone'), marca());
+        return new Response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'no-cache',
+            'X-Robots-Tag' => 'noindex, nofollow',
+        ]);
+    }
+
     public function serviceWorker(): Response
     {
         $arquivo = dirname(__DIR__, 2) . '/public/assets/js/sw.js';
         $codigo = is_file($arquivo) ? (string) file_get_contents($arquivo) : '';
+        // Logo atual na lista guardada; trocar a logo troca a versao e o navegador baixa de novo.
+        $logo = self::logoOffline();
+        $codigo = str_replace(['__LOGO_OFFLINE__', '__VERSAO_MARCA__'], [
+            trim(json_encode($logo, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES), '"'), substr(hash('sha256', $logo), 0, 10),
+        ], $codigo);
         return new Response($codigo, $codigo === '' ? 404 : 200, [
             'Content-Type' => 'text/javascript; charset=UTF-8',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',

@@ -15,7 +15,7 @@ O app abre em tela cheia no `/login?origem=app`, que leva cada cargo direto para
 |---|---|
 | `GET /pwa/manifesto` (`PwaController::manifesto`) | Manifesto: nome, cores (vinho), `display: standalone`, `scope: /`, icones 192/512/maskable |
 | `GET /pwa/sw` (`PwaController::serviceWorker`) | Service worker (`public/assets/js/sw.js`) com `Cache-Control: no-cache` e `Service-Worker-Allowed: /` |
-| `public/offline.html` | Tela "Voce esta sem internet" (estatica, sem dados de ninguem) |
+| `app/Views/pwa/offline.php` (`GET /pwa/offline`) | Tela "Voce esta sem internet" com a logo atual da marca (Configuracoes), sem dados de ninguem |
 | `public/assets/js/pwa.js` | Registra o service worker e mostra o convite para instalar |
 | `app/Views/partials/pwa-instalar.php` | Convite no login/cadastro (comeca escondido) |
 | `public/assets/img/pwa/*.png` | Icones gerados a partir do `icone.svg` oficial (sem redesenhar a marca) |
@@ -25,9 +25,11 @@ certo e "sem cache" (o navegador precisa ver o service worker novo logo apos cad
 
 ## Regras do service worker (seguranca)
 
-- Paginas: sempre da internet. Sem conexao, mostra `/offline.html`.
+- Paginas: sempre da internet. Sem conexao, mostra `/pwa/offline`.
 - NUNCA guarda paginas logadas nem respostas da API (dados do restaurante e de clientes ficam so no servidor).
-- Guarda apenas os arquivos da pagina offline (`core.css`, `pages.css`, sprite de icones, logo).
+- Guarda apenas os arquivos da pagina offline (`core.css`, `pages.css`, sprite de icones e a logo enviada em Configuracoes:
+  preta, ou a colorida se a preta nao foi enviada). O `PwaController` troca `__LOGO_OFFLINE__` e `__VERSAO_MARCA__` no `sw.js`,
+  entao trocar a logo no painel ja faz o navegador baixar a tela de novo.
 - Mudou a pagina offline ou a lista de arquivos: trocar `VERSAO` em `sw.js`.
 
 ## Convite para instalar
