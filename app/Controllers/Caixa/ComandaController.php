@@ -48,7 +48,7 @@ final class ComandaController extends BaseCaixa
             'trocoAviso' => \Cardapim\Core\Session::flash('caixa_troco'),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'impressoras' => $this->impressoras('caixa_conta'),
-            // Vias de producao ligadas: botao "Itens novos para producao" (cada item na impressora do produto).
+            // Vias de producao ligadas: botao "Novos itens" (cada item na impressora do produto).
             ...$this->producao($c),
         ]);
     }

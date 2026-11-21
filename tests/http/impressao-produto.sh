@@ -107,7 +107,6 @@ grep -q "id=\"impressora-$bar\" name=\"impressoras\[\]\" value=\"$bar\" checked"
 echo "Garcom: so os itens novos divididos por estacao"
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" "qtd[$outro]=1" >/dev/null
 curl -s -b "$wj" "$w/comandas/$comanda" -o "$tmp/com.html"
-contem "garcom ve que sai por estacao" "$tmp/com.html" 'Cada item sai na sua estação'
 esperar "garcom envia os itens novos" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "202"
 case "$(json "$tmp/imp.json" mensagem)" in *Bar*Cozinha*|*Cozinha*Bar*) ok "avisa as estacoes";; *) falha "mensagem ($(json "$tmp/imp.json" mensagem))";; esac
 sit="$(json "$tmp/imp.json" situacao)"
@@ -147,7 +146,8 @@ r="$(enviar "$cx" "$c/balcao" "$c/mesas" nome=Producao)"
 venda="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
 enviar "$cx" "$c/comandas/$venda/itens" "$c/comandas/$venda" produto="$cerveja" quantidade=1 >/dev/null
 curl -s -b "$cx" "$c/comandas/$venda" -o "$tmp/cx.html"
-contem "caixa tem Itens novos para producao" "$tmp/cx.html" 'Itens novos para produção (1)'
+contem "caixa tem o botao Novos itens em destaque" "$tmp/cx.html" 'btn-primary btn-sm" type="submit" title="Envia os itens novos'
+contem "contagem dos novos itens" "$tmp/cx.html" 'Novos itens (1)'
 esperar "caixa envia para a producao" "$(imprimir "$cx" "$c/imprimir/comanda/$venda" "$c/comandas/$venda" modo=novos)" "202"
 agente "$ta" >/dev/null
 case "$(cupom_da bar0000000001)" in *'BALCÃO'*Cerveja*) ok "balcao: cerveja no Bar";; *) falha "via do balcao";; esac
@@ -175,7 +175,8 @@ esperar "itens impressos ao lancar nao sao mais novos" "$(imprimir "$wj" "$w/com
 enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" "ponto[garcom_lancar][]=$cozinha" >/dev/null
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" >/dev/null
 agente "$ta" >/dev/null
-esperar "cerveja (marcada so no Bar) nao sai se o ponto so tem a Cozinha" "$(qtd_cupons)" "0"
+esperar "cerveja sai no Bar (impressora do produto) mesmo com o ponto so com a Cozinha" "$(qtd_cupons):$(php -r '$d=json_decode(file_get_contents($argv[1]),true); echo $d["impressoes"][0]["impressora"]??"";' "$tmp/ag.json")" "1:bar0000000001"
+confirmar_todos
 enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" >/dev/null
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$outro]=1" >/dev/null
 agente "$ta" >/dev/null

@@ -134,7 +134,7 @@ final class GarcomController
         $impressao = $lancados > 0 ? $this->imprimirAoLancar((int) $idComanda) : null;
         $texto = $lancados === 1 ? '1 item lançado.' : $lancados . ' itens lançados.';
         if ($impressao !== null) {
-            $texto .= $impressao->ok ? ' ' . $impressao->mensagem : ' Não imprimiu: ' . $impressao->mensagem;
+            $texto .= $impressao->ok ? ' ' . $impressao->mensagem : ' Não imprimiu: ' . $impressao->mensagem . ' Os itens ficam em "Novos itens" no caixa.';
         }
         if ($falhas === []) {
             return $this->voltar($volta, $impressao === null || $impressao->ok ? 'sucesso' : 'aviso', $texto);

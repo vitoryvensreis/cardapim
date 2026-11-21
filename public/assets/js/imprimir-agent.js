@@ -51,7 +51,7 @@
       }
       if (dados.status === "impresso") {
         avisar(dados.mensagem || "Impresso.", "sucesso");
-        document.dispatchEvent(new CustomEvent("cardapim:impresso")); // ex.: garcom atualiza "Só os itens novos"
+        document.dispatchEvent(new CustomEvent("cardapim:impresso")); // ex.: caixa e garcom atualizam a comanda
         return;
       }
       if (dados.status === "erro" || dados.status === "expirada") { avisar(dados.mensagem || "Não foi possível imprimir.", "erro"); return; }

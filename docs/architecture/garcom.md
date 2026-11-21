@@ -52,6 +52,6 @@ Pix pelo aviso e pela consulta (sem entrar duas vezes), QR trocado quando o valo
 
 ## Imprimir a comanda
 
-Na comanda, **Imprimir** abre duas opções: **Comanda inteira** (pré-conta com o total) e **Só os itens novos**
-(o que foi lançado depois da última impressão, com a contagem no botão). O cupom sai na impressora do caixa pelo
+Na comanda, **Imprimir** manda a **Comanda inteira** (pré-conta com o total). Os itens novos saem sozinhos ao
+**Lançar**, cada item na impressora marcada no produto (ponto "Garçom: ao lançar itens"). O cupom sai pelo
 Deliveryzim Agent, com a mesa e o nome da comanda no topo. Detalhes em [impressao-agent.md](impressao-agent.md).

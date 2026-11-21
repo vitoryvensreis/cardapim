@@ -112,10 +112,10 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                         <?php if (!empty($producaoAtiva)): $novosProducao = (int) ($itensNovos ?? 0); ?>
                             <form method="post" action="<?= $e($base . '/imprimir/comanda/' . (int) $p['id']) ?>" class="form-imprimir" data-imprimir-agent>
                                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>"><input type="hidden" name="modo" value="novos">
-                                <button class="btn btn-outline btn-sm" type="submit" title="Cada item sai na impressora marcada no produto"<?= $novosProducao === 0 ? ' disabled data-sempre-desligado' : '' ?>><?= Icon::svg('chef-hat', 'icon-sm') ?><?= $novosProducao > 0 ? 'Itens novos para produção (' . $novosProducao . ')' : 'Nada novo para a produção' ?></button>
+                                <button class="btn <?= $novosProducao > 0 ? 'btn-primary' : 'btn-outline' ?> btn-sm" type="submit" title="Envia os itens novos para a produção: cada item sai na impressora marcada no produto"<?= $novosProducao === 0 ? ' disabled data-sempre-desligado' : '' ?>><?= Icon::svg('chef-hat', 'icon-sm') ?><?= $novosProducao > 0 ? 'Novos itens (' . $novosProducao . ')' : 'Sem itens novos' ?></button>
                             </form>
                         <?php endif; ?>
-                        <?php $acaoImprimir = $base . '/imprimir/comanda/' . (int) $p['id']; $rotuloImprimir = 'Imprimir conta'; require __DIR__ . '/_imprimir.php'; ?>
+                        <?php $acaoImprimir = $base . '/imprimir/comanda/' . (int) $p['id']; $rotuloImprimir = 'Conta'; require __DIR__ . '/_imprimir.php'; ?>
                     </div><?php endif; ?>
                 </div>
                 <?php if ($c['itens'] === []): ?>

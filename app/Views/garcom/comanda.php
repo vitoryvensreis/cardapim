@@ -2,7 +2,7 @@
 /**
  * Comanda da mesa: abas das comandas da mesa (uma por pessoa), o que ja foi lancado, total e as acoes (Adicionar / Fechar conta).
  * "Adicionar" abre a folha do cardapio (#adicionar, funciona sem JavaScript pelo :target).
- * "Imprimir": comanda inteira ou so os itens novos, pelo Deliveryzim Agent (imprimir-agent.js).
+ * "Imprimir": comanda inteira pelo Deliveryzim Agent (imprimir-agent.js). Os itens novos saem ao lancar (ponto do garcom).
  * Espera: $c (ComandaService::detalhes), $cardapio, $base, $csrf, $impressaoAtiva, $itensNovos, $impressoras
  * (com mais de uma impressora no ponto, o garcom escolhe; a padrao ja vem marcada).
  */
@@ -108,14 +108,14 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
         </ul>
     <?php endif; ?>
 
-    <?php if ($itens !== [] && ($impressaoAtiva ?? false)): $novos = (int) ($itensNovos ?? 0); ?>
+    <?php if ($itens !== [] && ($impressaoAtiva ?? false)): ?>
         <details class="comanda-imprimir">
             <summary><?= Icon::svg('printer', 'icon-sm') ?>Imprimir</summary>
             <form method="post" action="<?= $e($url . '/imprimir') ?>" class="comanda-imprimir-opcoes" data-imprimir-agent>
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <?php $impressoras ??= []; if (count($impressoras) > 1): ?>
                     <fieldset class="comanda-imprimir-destino">
-                        <legend><?= !empty($producaoAtiva) ? 'Comanda inteira sai em' : 'Imprimir em' ?></legend>
+                        <legend>Comanda inteira sai em</legend>
                         <?php foreach ($impressoras as $imp): ?>
                             <label class="chip-opcao"><input type="radio" name="impressora" value="<?= (int) $imp['id'] ?>"<?= $imp['padrao'] ? ' checked' : '' ?>><span><?= $e($imp['apelido']) ?><?= $imp['ligada'] ? '' : ' (desligada)' ?></span></label>
                         <?php endforeach; ?>
@@ -127,9 +127,6 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                 <?php endif; ?>
                 <button class="comanda-imprimir-opcao" type="submit" name="modo" value="toda">
                     <?= Icon::svg('receipt') ?><span><strong>Comanda inteira</strong><small>Todos os itens e o total até agora</small></span>
-                </button>
-                <button class="comanda-imprimir-opcao" type="submit" name="modo" value="novos"<?= $novos === 0 ? ' disabled data-sempre-desligado' : '' ?>>
-                    <?= Icon::svg('square-plus') ?><span><strong>Só os itens novos<?= $novos > 0 ? ' (' . $novos . ')' : '' ?></strong><small><?= $novos === 0 ? 'Nenhum item novo desde a última impressão' : (!empty($producaoAtiva) ? 'Cada item sai na sua estação (churrasqueira, cozinha, bar...)' : 'O que foi lançado depois da última impressão') ?></small></span>
                 </button>
             </form>
         </details>
