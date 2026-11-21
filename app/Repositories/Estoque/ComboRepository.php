@@ -14,7 +14,7 @@ final class ComboRepository
     }
 
     /**
-     * @return array{ativo:bool, maximo:?int, fixos:list<array{id_produto:int,quantidade:int}>}
+     * @return array{ativo:bool, maximo:?int, fixos:list<array{id_produto:int,quantidade:int}>, grupos:array<int,array{minimo:int,maximo:int}>}
      */
     public function configuracao(int $idRestaurante, int $idProduto): array
     {
@@ -22,11 +22,20 @@ final class ComboRepository
         $q->execute([$idProduto, $idRestaurante]);
         $maximo = $q->fetchColumn();
         if ($maximo === false) {
-            return ['ativo' => false, 'maximo' => null, 'fixos' => []];
+            return ['ativo' => false, 'maximo' => null, 'fixos' => [], 'grupos' => []];
         }
         $f = $this->db->prepare('SELECT id_produto, quantidade FROM combo_itens WHERE id_combo = ? AND id_restaurante = ? ORDER BY ordem, id_produto');
         $f->execute([$idProduto, $idRestaurante]);
+        $grupos = [];
+        if (\Cardapim\Shared\Esquema::tem($this->db, 'combo_grupos')) {
+            $g = $this->db->prepare('SELECT id_grupo, minimo, maximo FROM combo_grupos WHERE id_combo = ? AND id_restaurante = ?');
+            $g->execute([$idProduto, $idRestaurante]);
+            foreach ($g->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $grupos[(int) $r['id_grupo']] = ['minimo' => (int) $r['minimo'], 'maximo' => (int) $r['maximo']];
+            }
+        }
         return [
+            'grupos' => $grupos,
             'ativo' => true,
             'maximo' => $maximo !== null ? (int) $maximo : null,
             'fixos' => array_map(static fn (array $r): array => ['id_produto' => (int) $r['id_produto'], 'quantidade' => (int) $r['quantidade']], $f->fetchAll(PDO::FETCH_ASSOC)),
@@ -52,12 +61,20 @@ final class ComboRepository
      * Grava (ou desliga) o combo do produto. Chamar dentro de transacao.
      * @param list<array{id_produto:int,quantidade:int}> $fixos
      * @param array<int,array{id_produto:?int,maximo:?int}> $opcoes id_complemento => configuracao
+     * @param array<int,array{minimo:int,maximo:int}> $grupos id_grupo => quantos escolher neste combo
      */
-    public function salvar(int $idRestaurante, int $idProduto, bool $ativo, ?int $maximo, array $fixos, array $opcoes): void
+    public function salvar(int $idRestaurante, int $idProduto, bool $ativo, ?int $maximo, array $fixos, array $opcoes, array $grupos = []): void
     {
         $this->db->prepare('DELETE FROM combos WHERE id_produto = ? AND id_restaurante = ?')->execute([$idProduto, $idRestaurante]);
         if ($ativo) {
             $this->db->prepare('INSERT INTO combos (id_produto, id_restaurante, maximo) VALUES (?, ?, ?)')->execute([$idProduto, $idRestaurante, $maximo]);
+            if (\Cardapim\Shared\Esquema::tem($this->db, 'combo_grupos')) {
+                $g = $this->db->prepare('INSERT INTO combo_grupos (id_combo, id_grupo, id_restaurante, minimo, maximo)
+                    SELECT ?, id, id_restaurante, ?, ? FROM complemento_grupos WHERE id = ? AND id_restaurante = ?');
+                foreach ($grupos as $idGrupo => $l) {
+                    $g->execute([$idProduto, $l['minimo'], $l['maximo'], $idGrupo, $idRestaurante]);
+                }
+            }
             $ins = $this->db->prepare('INSERT INTO combo_itens (id_combo, id_produto, id_restaurante, quantidade, ordem) VALUES (?, ?, ?, ?, ?)');
             foreach ($fixos as $ordem => $f) {
                 $ins->execute([$idProduto, $f['id_produto'], $idRestaurante, $f['quantidade'], $ordem]);

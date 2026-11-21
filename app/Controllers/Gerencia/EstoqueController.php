@@ -612,6 +612,7 @@ final class EstoqueController extends BaseGerencia
             'combo_maximo' => $c['maximo'] !== null ? (string) $c['maximo'] : '',
             'combo_fixo_produto' => array_map(static fn (array $f): string => (string) $f['id_produto'], $c['fixos']),
             'combo_fixo_qtd' => array_map(static fn (array $f): string => (string) $f['quantidade'], $c['fixos']),
+            'combo_grupo' => $c['grupos'],
         ];
     }
 
@@ -623,7 +624,7 @@ final class EstoqueController extends BaseGerencia
         }
         $this->db->beginTransaction();
         try {
-            (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->salvar($this->restaurante['id'], $idProduto, $combo['ativo'], $combo['maximo'], $combo['fixos'], $combo['opcoes']);
+            (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->salvar($this->restaurante['id'], $idProduto, $combo['ativo'], $combo['maximo'], $combo['fixos'], $combo['opcoes'], $combo['grupos']);
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();

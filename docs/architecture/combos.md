@@ -9,7 +9,9 @@ aparece nos relatórios. O preço do combo é dividido entre os itens.
 - **Este produto é um combo** (só produto vendido por unidade).
 - **Itens inclusos**: produtos que sempre vão, com quantidade (até 12). Já vêm no combo; o cliente não tira.
 - **Máximo total de itens** (opcional): inclusos + escolhidos. Ex.: 4 com 2 inclusos = o cliente escolhe até 2.
-- **Escolhas do cliente**: os grupos marcados em Complementos (mínimo e máximo do grupo ficam lá). Em cada opção:
+- **Escolhas do cliente**: os grupos marcados em Complementos. Em cada grupo, **quantos o cliente escolhe neste combo**
+  ("de 0 a 4"; 0 = opcional, o padrão). Esse limite vale no lugar do mínimo/máximo do grupo de complemento, que pode
+  ser usado em outros produtos com outro limite (`combo_grupos`). Em cada opção:
   produto ligado (estoque e impressora do produto) e máximo da opção no combo (ex.: picanha no máximo 2).
   O valor a mais é o preço da opção no grupo. Opção sem produto ligado vira uma linha com o nome dela e baixa
   a ficha de insumos da opção.
@@ -36,7 +38,8 @@ por opção, vale em todos os combos que usam o grupo) e `pedido_itens.combo_lot
   O pedido que chega é desmembrado **só** quando é 1 unidade e todas as escolhas vêm com o código publicado pelo
   Cardapim (`DZ-C<id>`) ou o código da opção; o valor é o que o iFood cobrou, dividido entre os itens. Qualquer
   dúvida (escolha sem código, quantidade quebrada, personalização), o pedido entra como antes, numa linha só.
-  O iFood não aceita limite por opção: o que o cliente escolheu lá entra assim mesmo.
+  O iFood não aceita limite por opção: o que o cliente escolheu lá entra assim mesmo. A publicação no iFood usa o limite
+  do grupo de complemento (não o do combo): para o iFood mostrar o mesmo limite, use um grupo próprio do combo.
 
 ## Deploy e testes
 

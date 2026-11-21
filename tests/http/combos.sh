@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Combos: gerente cadastra o combo (inclusos, limite total, opcoes ligadas a produtos e maximo por opcao);
+# limite de cada grupo definido no combo (no lugar do limite do complemento),
 # garcom lanca (itens separados, preco do combo dividido), limites recusados, cancelar tira o combo inteiro
 # e a sacola do cardapio online confere o combo e divide o valor (mesma regra do pedido).
 # Uso: bash tests/http/combos.sh <base> <slug> <base-do-fake>
@@ -52,7 +53,7 @@ mapfile -t prods < <(php -r 'foreach (explode("<li class=\"produto-linha", file_
 read -r p1 c1 <<<"${prods[0]:-}"; read -r p2 c2 <<<"${prods[1]:-}"; read -r p3 c3 <<<"${prods[2]:-}"; read -r p4 c4 <<<"${prods[3]:-}"
 [[ -n "${p4:-}" ]] && ok "produtos para o combo ($p1 $p2 $p3 $p4)" || falha "produtos insuficientes"
 grupo_nome="Espetos CI $r4"
-enviar "$gj" "$g/estoque/complementos" "$g/estoque/complementos/novo" nome="$grupo_nome" minimo=2 maximo=2 \
+enviar "$gj" "$g/estoque/complementos" "$g/estoque/complementos/novo" nome="$grupo_nome" minimo=0 maximo=30 \
   'opcoes[0][nome]=Carne CI' 'opcoes[0][disponivel]=1' 'opcoes[1][nome]=Frango CI' 'opcoes[1][disponivel]=1' \
   'opcoes[2][nome]=Picanha CI' 'opcoes[2][preco]=5,00' 'opcoes[2][disponivel]=1' >/dev/null
 curl -s -b "$gj" "$g/estoque/complementos" -o "$tmp/comps.html"
@@ -65,7 +66,8 @@ preco_txt="$(php -r 'echo number_format($argv[1] / 100, 2, ",", "");' "$preco")"
 nome="Combo CI $r4"
 base_combo=(nome="$nome" unidade_venda=un preco="$preco_txt" controle=livre disponivel=1 categoria= "grupos[]=$grupo" "ordem_grupo[$grupo]=1"
   combo_enviado=1 combo_ativo=1 "combo_fixo_produto[0]=$p1" "combo_fixo_qtd[0]=1" "combo_fixo_produto[1]=$p2" "combo_fixo_qtd[1]=1"
-  "combo_opcao[$carne][produto]=$p3" "combo_opcao[$frango][produto]=$p4" "combo_opcao[$picanha][produto]=$p3" "combo_opcao[$picanha][maximo]=1")
+  "combo_opcao[$carne][produto]=$p3" "combo_opcao[$frango][produto]=$p4" "combo_opcao[$picanha][produto]=$p3" "combo_opcao[$picanha][maximo]=1"
+  "combo_grupo[$grupo][minimo]=2" "combo_grupo[$grupo][maximo]=2")
 esperar "maximo total menor que os inclusos recusado" "$(enviar "$gj" "$g/estoque/produtos" "$g/estoque/produtos/novo" "${base_combo[@]}" combo_maximo=1 | cut -d' ' -f1)" "422"
 esperar "cadastra o combo" "$(enviar "$gj" "$g/estoque/produtos" "$g/estoque/produtos/novo" "${base_combo[@]}" combo_maximo=4 | cut -d' ' -f1)" "303"
 curl -s -b "$gj" "$g/estoque/produtos" -o "$tmp/prods.html"
@@ -97,6 +99,7 @@ echo "Cardapio online com combo"
 curl -s "$base/$slug" -o "$tmp/menu.html"
 contem "cardapio leva os dados do combo" "$tmp/menu.html" 'data-combo='
 curl -s -o "$tmp/sacola.json" -H 'Content-Type: application/json' --data "{\"itens\":[{\"id\":$combo,\"quantidade\":1}]}" "$base/api/v1/restaurantes/$slug/sacola"
+esperar "no combo vale o limite do combo (grupo de 0 a 30 vira 2 a 2)" "$(json "$tmp/sacola.json" itens.0.grupos.0.minimo)-$(json "$tmp/sacola.json" itens.0.grupos.0.maximo)" "2-2"
 esperar "sacola traz o maximo da opcao" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach($d["itens"][0]["grupos"][0]["opcoes"]??[] as $o){ if((int)$o["id"]===(int)$argv[2]) echo $o["maximo"]; }' "$tmp/sacola.json" "$picanha")" "1"
 esperar "sacola: combo + picanha em 4 itens, valor fechado" "$(php tests/http/combo-sacola-ci.php "$slug" "$combo" "$carne:1" "$picanha:1")" "$((preco + 500)) 4 $((preco + 500))"
 case "$(php tests/http/combo-sacola-ci.php "$slug" "$combo" "$picanha:2")" in invalida*"No máximo 1"*) ok "sacola recusa passar do maximo da opcao";; *) falha "sacola sem o limite da opcao";; esac

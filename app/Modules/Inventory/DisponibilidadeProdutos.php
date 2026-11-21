@@ -109,6 +109,11 @@ final class DisponibilidadeProdutos
         }
         // Combo: indisponivel se faltar item obrigatorio ou opcoes suficientes num grupo obrigatorio.
         foreach (\Cardapim\Modules\Catalog\Combo::carregar($this->db, $idRestaurante, array_keys($resultado)) as $idProduto => $combo) {
+            if (($resultado[$idProduto]['motivo'] ?? null) === self::MOTIVO_SEM_COMPLEMENTO && $combo['disponivel']) {
+                $resultado[$idProduto]['disponivel'] = true; // o grupo e opcional dentro do combo
+                $resultado[$idProduto]['motivo'] = null;
+                $resultado[$idProduto]['faltando'] = [];
+            }
             if (($resultado[$idProduto]['disponivel'] ?? false) && !$combo['disponivel']) {
                 $resultado[$idProduto]['disponivel'] = false;
                 $resultado[$idProduto]['motivo'] = self::MOTIVO_SEM_COMPLEMENTO;

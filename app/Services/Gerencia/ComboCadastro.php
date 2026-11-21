@@ -20,11 +20,12 @@ final class ComboCadastro
 
     /**
      * @param array<string,mixed> $post
-     * @return array{ativo:bool, maximo:?int, fixos:list<array{id_produto:int,quantidade:int}>, opcoes:array<int,array{id_produto:?int,maximo:?int}>, erros:array<string,string>, enviado:bool}
+     * @return array{ativo:bool, maximo:?int, fixos:list<array{id_produto:int,quantidade:int}>, opcoes:array<int,array{id_produto:?int,maximo:?int}>,
+     *         grupos:array<int,array{minimo:int,maximo:int}>, erros:array<string,string>, enviado:bool}
      */
     public function ler(array $post, ?int $idProduto): array
     {
-        $saida = ['ativo' => false, 'maximo' => null, 'fixos' => [], 'opcoes' => [], 'erros' => [], 'enviado' => ($post['combo_enviado'] ?? '') === '1'];
+        $saida = ['ativo' => false, 'maximo' => null, 'fixos' => [], 'opcoes' => [], 'grupos' => [], 'erros' => [], 'enviado' => ($post['combo_enviado'] ?? '') === '1'];
         if (!$saida['enviado'] || !Combo::ativo($this->db)) {
             return $saida;
         }
@@ -85,6 +86,20 @@ final class ComboCadastro
                 $limite = (int) $max;
             }
             $saida['opcoes'][(int) $idComplemento] = ['id_produto' => $ligado, 'maximo' => $limite];
+        }
+        // Quantos o cliente escolhe de cada grupo neste combo (so dos grupos marcados). Minimo vazio = 0 (opcional).
+        $marcados = array_map('intval', array_filter(is_array($post['grupos'] ?? null) ? $post['grupos'] : [], static fn ($v): bool => is_string($v) && ctype_digit($v)));
+        foreach (is_array($post['combo_grupo'] ?? null) ? $post['combo_grupo'] : [] as $idGrupo => $l) {
+            if (!ctype_digit((string) $idGrupo) || !in_array((int) $idGrupo, $marcados, true) || !is_array($l)) {
+                continue;
+            }
+            $min = is_string($l['minimo'] ?? null) && trim($l['minimo']) !== '' ? trim($l['minimo']) : '0';
+            $max = is_string($l['maximo'] ?? null) ? trim($l['maximo']) : '';
+            if (!ctype_digit($min) || !ctype_digit($max) || (int) $max < 1 || (int) $max > 30 || (int) $min > (int) $max) {
+                $saida['erros']['combo_grupos'] = 'Em cada grupo do combo: máximo de 1 a 30 e mínimo de 0 (opcional) até o máximo.';
+                continue;
+            }
+            $saida['grupos'][(int) $idGrupo] = ['minimo' => (int) $min, 'maximo' => (int) $max];
         }
         if ($saida['ativo']) {
             if (($post['unidade_venda'] ?? 'un') !== 'un') {
