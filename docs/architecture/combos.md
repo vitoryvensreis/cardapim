@@ -9,8 +9,9 @@ aparece nos relatórios. O preço do combo é dividido entre os itens.
 - **Este produto é um combo** (só produto vendido por unidade).
 - **Itens inclusos**: produtos que sempre vão, com quantidade (até 12). Já vêm no combo; o cliente não tira.
 - **Máximo total de itens** (opcional): inclusos + escolhidos. Ex.: 4 com 2 inclusos = o cliente escolhe até 2.
-- **Escolhas do cliente**: os grupos marcados em Complementos. Em cada grupo, **quantos o cliente escolhe neste combo**
-  ("de 0 a 4"; 0 = opcional, o padrão). Esse limite vale no lugar do mínimo/máximo do grupo de complemento, que pode
+- **Escolhas do cliente**: os grupos marcados em Complementos. Em cada grupo, **Escolha neste combo: Obrigatória ou
+  Opcional** (padrão: opcional), **Pelo menos** (só quando obrigatória) e **No máximo**. Gravado como mínimo/máximo
+  (opcional = mínimo 0; obrigatória = mínimo 1 ou mais). Esse limite vale no lugar do mínimo/máximo do grupo de complemento, que pode
   ser usado em outros produtos com outro limite (`combo_grupos`). Em cada opção:
   produto ligado (estoque e impressora do produto) e máximo da opção no combo (ex.: picanha no máximo 2).
   O valor a mais é o preço da opção no grupo. Opção sem produto ligado vira uma linha com o nome dela e baixa

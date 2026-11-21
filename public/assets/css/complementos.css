@@ -65,6 +65,13 @@
 @media (min-width: 40rem) {
   .combo-opcao { grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.4fr) 5rem; }
 }
-.combo-limite { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; color: var(--c-ink); font-size: .9rem; }
+.combo-limite { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .45rem; color: var(--c-ink); font-size: .9rem; }
 .combo-limite .combo-qtd { width: 4.5rem; }
 .combo-limite small { color: var(--c-muted); font-size: .8rem; }
+.produto-grupo-regra { justify-self: start; margin-top: .15rem; padding: .05rem .5rem; border-radius: var(--r-pill, 999px); background: #f1eaec; color: var(--c-muted); font: 700 .74rem/1.6 var(--f-head); font-style: normal; }
+.produto-grupo-regra.is-obrigatorio { background: #fff1d6; color: #8a5300; }
+.produto-grupo-regra.is-substituida { text-decoration: line-through; opacity: .7; }
+.combo-limite-campo { display: grid; gap: .2rem; min-width: 0; }
+.combo-limite-campo > span { color: var(--c-ink); font-size: .84rem; font-weight: 700; }
+.combo-limite-campo[hidden] { display: none; }
+.combo-limite-campo select { min-height: 2.75rem; }

@@ -95,8 +95,15 @@ final class ComboCadastro
             }
             $min = is_string($l['minimo'] ?? null) && trim($l['minimo']) !== '' ? trim($l['minimo']) : '0';
             $max = is_string($l['maximo'] ?? null) ? trim($l['maximo']) : '';
+            // "Escolha neste combo": opcional = minimo 0; obrigatoria = pelo menos 1 (ou o "pelo menos" informado).
+            $obrigatorio = $l['obrigatorio'] ?? null;
+            if ($obrigatorio === '0') {
+                $min = '0';
+            } elseif ($obrigatorio === '1' && ctype_digit($min) && (int) $min < 1) {
+                $min = '1';
+            }
             if (!ctype_digit($min) || !ctype_digit($max) || (int) $max < 1 || (int) $max > 30 || (int) $min > (int) $max) {
-                $saida['erros']['combo_grupos'] = 'Em cada grupo do combo: máximo de 1 a 30 e mínimo de 0 (opcional) até o máximo.';
+                $saida['erros']['combo_grupos'] = 'Em cada grupo do combo: o máximo vai de 1 a 30 e, se a escolha for obrigatória, o "pelo menos" não pode passar do máximo.';
                 continue;
             }
             $saida['grupos'][(int) $idGrupo] = ['minimo' => (int) $min, 'maximo' => (int) $max];

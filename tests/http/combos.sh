@@ -76,6 +76,22 @@ curl -s -b "$gj" "$g/estoque/produtos/$combo" -o "$tmp/ficha.html"
 contem "ficha mostra o combo ligado" "$tmp/ficha.html" 'name="combo_ativo" value="1" data-combo-ativo checked'
 contem "ficha guarda o maximo da opcao" "$tmp/ficha.html" "name=\"combo_opcao\[$picanha\]\[maximo\]\" type=\"number\" min=\"1\" max=\"30\" inputmode=\"numeric\" placeholder=\"Máx.\" title=\"Máximo desta opção no combo (vazio = livre)\" value=\"1\""
 
+contem "ficha mostra a escolha do grupo como obrigatoria" "$tmp/ficha.html" "name=\"combo_grupo\[$grupo\]\[obrigatorio\]\" data-combo-obrigatorio>"
+contem "ficha marca obrigatoria" "$tmp/ficha.html" '<option value="1" selected>Obrigatória'
+
+echo "Testar impressao com combo"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/imp.html"
+if grep -q 'data-impressao-teste' "$tmp/imp.html"; then
+  contem "teste leva as escolhas do combo" "$tmp/imp.html" "<option value=\"$combo\" data-grupos="
+  contem "teste mostra a logo no cupom" "$tmp/imp.html" 'data-logo="/assets/img/logo-preta.svg'
+  teste_imp() { local t; t="$(token "$gj" "$g/integracoes/impressoras")"; curl -s -o "$tmp/teste.json" -b "$gj" -c "$gj" -w '%{http_code}' -H 'Accept: application/json' --data-urlencode "_csrf=$t" "$@" "$g/integracoes/impressoras/teste"; }
+  esperar "teste recusa combo sem escolher o obrigatorio" "$(teste_imp --data-urlencode situacao=conta --data-urlencode "produto[]=$combo" --data-urlencode 'quantidade[]=1' --data-urlencode 'observacao[]=' --data-urlencode 'complementos[]=')" "422"
+  case "$(json "$tmp/teste.json" erro)" in *"pelo menos 2"*) ok "teste explica o minimo do grupo";; *) falha "teste sem a regra do grupo";; esac
+  esperar "teste aceita o combo escolhido" "$(teste_imp --data-urlencode situacao=conta --data-urlencode "produto[]=$combo" --data-urlencode 'quantidade[]=1' --data-urlencode 'observacao[]=' --data-urlencode "complementos[]=$carne:1,$frango:1")" "200"
+  case "$(json "$tmp/teste.json" cupons.0.blocos)" in *"$nome"*) ok "cupom do teste agrupa o combo";; *) falha "cupom do teste sem o combo";; esac
+  esperar "teste recusa complemento em formato invalido" "$(teste_imp --data-urlencode situacao=conta --data-urlencode "produto[]=$combo" --data-urlencode 'quantidade[]=1' --data-urlencode 'observacao[]=' --data-urlencode 'complementos[]=x')" "422"
+fi
+
 echo "Garcom lanca o combo"
 curl -s -b "$wj" "$w/comandas/$comanda" -o "$tmp/com.html"
 contem "garcom ve os inclusos" "$tmp/com.html" 'Incluso: 1x'

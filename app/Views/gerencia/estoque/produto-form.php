@@ -128,14 +128,18 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                             <div class="produto-grupo">
                                 <input type="checkbox" id="grupo-<?= $e($gid) ?>" name="grupos[]" value="<?= $e($gid) ?>"<?= in_array($gid, $marcados, true) ? ' checked' : '' ?>>
                                 <label for="grupo-<?= $e($gid) ?>"><span><strong><?= $e($g['nome']) ?></strong>
-                                    <small><?= $e(implode(', ', array_map(static fn (array $o): string => $o['nome'], array_slice($g['opcoes'], 0, 6))) . (count($g['opcoes']) > 6 ? '...' : '')) ?></small></span></label>
+                                    <small><?= $e(implode(', ', array_map(static fn (array $o): string => $o['nome'], array_slice($g['opcoes'], 0, 6))) . (count($g['opcoes']) > 6 ? '...' : '')) ?></small>
+                                    <?php $gmin = (int) $g['minimo']; $gmax = (int) $g['maximo']; ?>
+                                    <em class="produto-grupo-regra<?= $gmin > 0 ? ' is-obrigatorio' : '' ?>" data-regra-grupo><?= $e($gmin > 0
+                                        ? 'Escolha obrigatória · ' . ($gmin === $gmax ? 'escolhe ' . $gmin : 'de ' . $gmin . ' a ' . $gmax)
+                                        : 'Escolha opcional' . ($gmax > 1 ? ' · até ' . $gmax : '')) ?></em></span></label>
                                 <label class="sr-only" for="ordem-<?= $e($gid) ?>">Posição do grupo <?= $e($g['nome']) ?></label>
                                 <input class="campo-simples produto-grupo-ordem" id="ordem-<?= $e($gid) ?>" name="ordem_grupo[<?= $e($gid) ?>]" type="number" min="1" max="99" inputmode="numeric"
                                        value="<?= $e((string) ($ordemGrupo[$gid] ?? $ordemGrupo[(int) $gid] ?? '')) ?>" placeholder="Ordem" title="Ordem em que aparece">
                             </div>
                         <?php endforeach; ?>
                     </fieldset>
-                    <p class="texto-suave">Ordem: 1 aparece primeiro. Gerencie os grupos em <a href="<?= $e($base . '/estoque/complementos') ?>">Complementos</a>.</p>
+                    <p class="texto-suave">Ordem: 1 aparece primeiro. Se a escolha é obrigatória ou opcional vem do grupo, em <a href="<?= $e($base . '/estoque/complementos') ?>">Complementos</a>. <span data-regra-combo hidden>Neste produto, que é combo, vale o que você escolher em cada grupo na seção Combo, abaixo.</span></p>
                 <?php endif; ?>
             </section>
         <?php endif; ?>
@@ -184,22 +188,25 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                     <?php if (isset($erros['combo_maximo'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['combo_maximo']) ?></p><?php endif; ?>
 
                     <h3 class="combo-subtitulo">Escolhas do cliente <small>grupos marcados em Complementos, acima</small></h3>
-                    <p class="texto-suave">Em cada opção: ligue a um produto (baixa o estoque e sai na impressora dele) e, se quiser, limite quantas dela cabem no combo. O valor a mais é o preço da opção no grupo. Em cada grupo, defina quantos o cliente escolhe neste combo (vale no lugar do limite do grupo em Complementos).</p>
+                    <p class="texto-suave">Em cada opção: ligue a um produto (baixa o estoque e sai na impressora dele) e, se quiser, limite quantas dela cabem no combo. O valor a mais é o preço da opção no grupo. Em cada grupo, diga se a escolha é obrigatória ou opcional e quantos o cliente escolhe neste combo (vale no lugar do limite do grupo em Complementos).</p>
                     <?php if (isset($erros['combo_grupos'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['combo_grupos']) ?></p><?php endif; ?>
                     <?php if (isset($erros['combo_opcoes'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['combo_opcoes']) ?></p><?php endif; ?>
                     <p class="texto-suave" data-combo-sem-grupo>Nenhum grupo marcado em Complementos.</p>
                     <?php foreach ($gruposComplemento as $g): ?>
                         <?php $lim = $limitesCombo[(int) $g['id']] ?? ['minimo' => 0, 'maximo' => (int) $g['maximo']]; $gid = (int) $g['id']; ?>
                         <div class="combo-grupo" data-combo-grupo="<?= $gid ?>">
-                            <h4><?= $e($g['nome']) ?></h4>
-                            <div class="combo-limite">
-                                <span>Neste combo o cliente escolhe de</span>
-                                <label class="sr-only" for="combo-gmin-<?= $gid ?>">Mínimo de <?= $e($g['nome']) ?></label>
-                                <input class="campo-simples combo-qtd" id="combo-gmin-<?= $gid ?>" name="combo_grupo[<?= $gid ?>][minimo]" type="number" min="0" max="30" inputmode="numeric" value="<?= (int) $lim['minimo'] ?>">
-                                <span>a</span>
-                                <label class="sr-only" for="combo-gmax-<?= $gid ?>">Máximo de <?= $e($g['nome']) ?></label>
-                                <input class="campo-simples combo-qtd" id="combo-gmax-<?= $gid ?>" name="combo_grupo[<?= $gid ?>][maximo]" type="number" min="1" max="30" inputmode="numeric" value="<?= (int) $lim['maximo'] ?>">
-                                <small>0 no primeiro = opcional</small>
+                            <h4><?= $e($g['nome']) ?> <small data-combo-regra></small></h4>
+                            <?php $obrig = isset($lim['obrigatorio']) ? $lim['obrigatorio'] === '1' : (int) ($lim['minimo'] ?? 0) > 0; ?>
+                            <div class="combo-limite" data-combo-limite>
+                                <label class="combo-limite-campo" for="combo-gobr-<?= $gid ?>"><span>Escolha neste combo</span>
+                                    <select class="campo-simples" id="combo-gobr-<?= $gid ?>" name="combo_grupo[<?= $gid ?>][obrigatorio]" data-combo-obrigatorio>
+                                        <option value="1"<?= $obrig ? ' selected' : '' ?>>Obrigatória: o cliente tem que escolher</option>
+                                        <option value="0"<?= $obrig ? '' : ' selected' ?>>Opcional: o cliente escolhe se quiser</option>
+                                    </select></label>
+                                <label class="combo-limite-campo" for="combo-gmin-<?= $gid ?>" data-combo-minimo<?= $obrig ? '' : ' hidden' ?>><span>Pelo menos</span>
+                                    <input class="campo-simples combo-qtd" id="combo-gmin-<?= $gid ?>" name="combo_grupo[<?= $gid ?>][minimo]" type="number" min="1" max="30" inputmode="numeric" value="<?= max(1, (int) ($lim['minimo'] ?? 1)) ?>"></label>
+                                <label class="combo-limite-campo" for="combo-gmax-<?= $gid ?>"><span>No máximo</span>
+                                    <input class="campo-simples combo-qtd" id="combo-gmax-<?= $gid ?>" name="combo_grupo[<?= $gid ?>][maximo]" type="number" min="1" max="30" inputmode="numeric" value="<?= (int) ($lim['maximo'] ?? $g['maximo']) ?>"></label>
                             </div>
                             <?php foreach ($g['opcoes'] as $o): $oc = $opcoesCombo[(int) $o['id']] ?? ['id_produto' => null, 'maximo' => null]; $oid = (int) $o['id']; ?>
                                 <div class="combo-opcao">

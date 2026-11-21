@@ -29,8 +29,12 @@
     const soma = combo.querySelector("[data-combo-soma]");
     const semGrupo = combo.querySelector("[data-combo-sem-grupo]");
     const precoCombo = document.querySelector("[data-preco]");
+    const avisoRegraCombo = document.querySelector("[data-regra-combo]");
     const atualizarCombo = () => {
       corpo.hidden = !ativo.checked;
+      // Combo: a obrigatoriedade de cada grupo e a da secao Combo (a do grupo fica riscada na lista).
+      if (avisoRegraCombo) avisoRegraCombo.hidden = !ativo.checked;
+      document.querySelectorAll("[data-regra-grupo]").forEach((r) => r.classList.toggle("is-substituida", ativo.checked));
       // So mostra as opcoes dos grupos marcados em Complementos.
       let algum = false;
       combo.querySelectorAll("[data-combo-grupo]").forEach((g) => {
@@ -39,6 +43,20 @@
         algum = algum || marcado;
       });
       if (semGrupo) semGrupo.hidden = algum;
+      // Escolha obrigatoria ou opcional em cada grupo: "pelo menos" so aparece quando e obrigatoria.
+      combo.querySelectorAll("[data-combo-limite]").forEach((l) => {
+        const obrigatoria = l.querySelector("[data-combo-obrigatorio]")?.value === "1";
+        const campoMin = l.querySelector("[data-combo-minimo]");
+        const min = campoMin?.querySelector("input");
+        if (campoMin) campoMin.hidden = !obrigatoria;
+        if (min) min.disabled = !obrigatoria;
+        const nMin = obrigatoria ? Math.max(1, parseInt(min?.value || "1", 10) || 1) : 0;
+        const nMax = parseInt(l.querySelector("input[name$='[maximo]']")?.value || "0", 10) || 0;
+        const regra = l.closest("[data-combo-grupo]")?.querySelector("[data-combo-regra]");
+        if (!regra) return;
+        if (!obrigatoria) regra.textContent = nMax > 1 ? `opcional, até ${nMax}` : "opcional";
+        else regra.textContent = nMin === nMax || !nMax ? `obrigatório, escolhe ${nMin}` : `obrigatório, de ${nMin} a ${nMax}`;
+      });
       let centavos = 0;
       combo.querySelectorAll("[data-combo-fixo]").forEach((sel) => {
         const opcao = sel.selectedOptions[0];
