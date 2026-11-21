@@ -52,10 +52,10 @@ final class ImpressorasController extends BaseGerencia
         if (!Esquema::tem($this->db, 'impressoras')) {
             return $this->voltar($volta, 'erro', 'As impressoras ainda estão sendo ativadas. Tente de novo em alguns minutos.');
         }
-        $completo = ['ids' => self::ids($_POST['completo'] ?? null), 'padrao' => self::id($_POST['padrao_completo'] ?? null)];
+        $completo = ['ids' => self::ids($_POST['completo'] ?? null), 'padrao' => self::idPost($_POST['padrao_completo'] ?? null)];
         $config = array_fill_keys(self::COMPLETO, $completo);
-        $config['caixa_fechamento'] = ['ids' => self::ids($_POST['fechamento'] ?? null), 'padrao' => self::id($_POST['padrao_fechamento'] ?? null)];
-        $producao = self::id($_POST['producao'] ?? null);
+        $config['caixa_fechamento'] = ['ids' => self::ids($_POST['fechamento'] ?? null), 'padrao' => self::idPost($_POST['padrao_fechamento'] ?? null)];
+        $producao = self::idPost($_POST['producao'] ?? null);
         if ($producao !== null && Esquema::tem($this->db, 'impressao_produto')) {
             $config['producao'] = ['ids' => [$producao], 'padrao' => $producao];
         }
@@ -70,14 +70,14 @@ final class ImpressorasController extends BaseGerencia
     {
         $ids = [];
         foreach (is_array($lista) ? $lista : [] as $v) {
-            if (($id = self::id($v)) !== null) {
+            if (($id = self::idPost($v)) !== null) {
                 $ids[] = $id;
             }
         }
         return $ids;
     }
 
-    private static function id(mixed $v): ?int
+    private static function idPost(mixed $v): ?int
     {
         return is_string($v) && ctype_digit($v) && strlen($v) <= 18 && (int) $v > 0 ? (int) $v : null;
     }
