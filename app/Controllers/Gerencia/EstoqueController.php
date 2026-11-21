@@ -261,10 +261,6 @@ final class EstoqueController extends BaseGerencia
             'contagem' => $this->contagem(null, null),
             'abaAtual' => 'categorias',
             'impressorasProducao' => $this->impressorasProducao(),
-            'comboDados' => \Cardapim\Modules\Catalog\Combo::ativo($this->db) ? [
-                'produtos' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->produtosParaCombo($idRest, $produto !== null ? (int) $produto['id'] : null),
-                'opcoes' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->opcoes($idRest),
-            ] : null,
             'impressorasCategoria' => Esquema::tem($this->db, 'impressao_produto')
                 ? (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))->resumoCategorias($this->restaurante['id']) : [],
         ]);
@@ -550,6 +546,10 @@ final class EstoqueController extends BaseGerencia
             'insumos' => (new InsumoRepository($this->db))->mapaParaFicha($idRest),
             'gruposComplemento' => Esquema::tem($this->db, 'complementos') ? (new ComplementoRepository($this->db))->grupos($idRest) : null,
             'impressorasProducao' => $this->impressorasProducao(),
+            'comboDados' => \Cardapim\Modules\Catalog\Combo::ativo($this->db) ? [
+                'produtos' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->produtosParaCombo($idRest, $produto !== null ? (int) $produto['id'] : null),
+                'opcoes' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->opcoes($idRest),
+            ] : null,
             'fotoAtual' => $produto['imagem_path'] ?? null,
             'pageStyles' => ['css/complementos.css'],
             'pageScripts' => ['js/forms.js', 'js/estoque.js'],
