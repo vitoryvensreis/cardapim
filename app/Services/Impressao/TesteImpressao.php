@@ -9,7 +9,6 @@ use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Repositories\Desktop\ImpressaoRepository;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
-use Cardapim\Repositories\Desktop\ProdutoImpressoraRepository;
 use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Caixa\CaixaService;
@@ -26,7 +25,7 @@ use PDO;
  */
 final class TesteImpressao
 {
-    public const SITUACOES = ['delivery', 'garcom', 'caixa', 'conta'];
+    public const SITUACOES = ['delivery', 'garcom', 'caixa', 'cancelamento', 'conta'];
     public const MAX_ITENS = 20;
 
     private readonly FilaImpressao $fila;
@@ -195,19 +194,25 @@ final class TesteImpressao
             return Resultado::falha('A impressão por produto está desligada. Escolha a impressora padrão acima e salve.');
         }
         $padrao = $this->fila->opcoes('producao')[0];
-        $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_values(array_filter(array_column($itens, 'id_produto'))));
-        $grupos = CupomImpressao::dividir($itens, $porProduto, $padrao['id']);
+        // A MESMA regra da impressao real (RotaProducao): produto, padrao e "Nao imprime".
+        $rota = RotaProducao::dividir($this->db, $this->idRestaurante, $itens, $padrao['id']);
+        $porProduto = $rota['porProduto'];
+        $grupos = $rota['grupos'];
         $cabeca = match ($situacao) {
             'delivery' => CupomImpressao::cabecaPedido([
                 'numero' => 1, 'tipo' => 'entrega', 'origem' => 'cardapio', 'cliente_nome' => 'Cliente de teste', 'observacao' => '',
             ]),
-            'garcom' => ['titulo' => 'MESA 18', 'linha' => 'Comanda: Teste', 'detalhe' => 'Pedido #1', 'observacao' => ''],
+            'garcom', 'cancelamento' => ['titulo' => 'MESA 18', 'linha' => 'Comanda: Teste', 'detalhe' => 'Pedido #1', 'observacao' => ''],
             default => ['titulo' => 'BALCÃO', 'linha' => 'Cliente: Teste', 'detalhe' => 'Pedido #1', 'observacao' => ''],
         };
         $avisos = [];
+        if ($rota['fora'] !== []) {
+            $avisos[] = 'Não sai em nenhuma impressora (marcado "Não imprime" no produto): '
+                . implode(', ', array_unique(array_map(static fn (array $i): string => (string) $i['nome'], $rota['fora']))) . '.';
+        }
         $semMarcacao = [];
         foreach ($itens as $i) {
-            if (($porProduto[(int) $i['id_produto']] ?? []) === []) {
+            if (!isset($rota['naoImprime'][(int) $i['id_produto']]) && ($porProduto[(int) $i['id_produto']] ?? []) === []) {
                 $semMarcacao[] = $i['nome'];
             }
         }
@@ -228,7 +233,9 @@ final class TesteImpressao
             }
             $cupons[] = [
                 'id' => $imp['id'], 'apelido' => $imp['apelido'], 'ligada' => $imp['ligada'], 'padrao' => $imp['id'] === $padrao['id'],
-                'blocos' => $lista === [] ? null : CupomImpressao::producao($cabeca, $imp['apelido'], $lista, $this->autor->nome),
+                'blocos' => $lista === [] ? null : ($situacao === 'cancelamento'
+                    ? CupomImpressao::cancelamento($cabeca, $imp['apelido'], $lista, 'Cliente desistiu (teste)', false, $this->autor->nome)
+                    : CupomImpressao::producao($cabeca, $imp['apelido'], $lista, $this->autor->nome)),
                 'motivos' => $motivos,
             ];
         }

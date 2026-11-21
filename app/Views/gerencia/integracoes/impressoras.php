@@ -124,7 +124,7 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <fieldset class="impressao-teste-situacao">
                     <legend>1. Situação</legend>
-                    <?php foreach (['delivery' => ['bike', 'Delivery aceito'], 'garcom' => ['hand-platter', 'Garçom lança'], 'caixa' => ['monitor', 'Caixa: Novos itens'], 'conta' => ['receipt', 'Conta (cupom completo)']] as $valor => [$icone, $rotulo]): ?>
+                    <?php foreach (['delivery' => ['bike', 'Delivery aceito'], 'garcom' => ['hand-platter', 'Garçom lança'], 'caixa' => ['monitor', 'Caixa: Novos itens'], 'cancelamento' => ['circle-x', 'Item cancelado'], 'conta' => ['receipt', 'Conta (cupom completo)']] as $valor => [$icone, $rotulo]): ?>
                         <label class="chip-opcao"><input type="radio" name="situacao" value="<?= $e($valor) ?>"<?= $valor === 'delivery' ? ' checked' : '' ?>><span><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></span></label>
                     <?php endforeach; ?>
                 </fieldset>

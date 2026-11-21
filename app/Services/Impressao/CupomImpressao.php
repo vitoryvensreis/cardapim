@@ -284,6 +284,42 @@ final class CupomImpressao
     }
 
     /**
+     * Aviso de cancelamento para uma estacao: os itens cancelados (que ja tinham saido na producao), com a mesa ou
+     * o pedido em letra grande e o motivo. Assim a cozinha para de preparar.
+     * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
+     * @param list<array<string,mixed>> $itens
+     * @return list<array<string,mixed>>
+     */
+    public static function cancelamento(array $cabeca, string $estacao, array $itens, string $motivo, bool $tudo, string $quem = ''): array
+    {
+        $blocos = [
+            ['t' => 'centro', 'texto' => 'CANCELAMENTO · ' . mb_strtoupper($estacao)],
+            ['t' => 'linha'],
+            ['t' => 'titulo', 'texto' => $cabeca['titulo']],
+        ];
+        if ($cabeca['linha'] !== '') {
+            $blocos[] = ['t' => 'centro', 'texto' => $cabeca['linha']];
+        }
+        $blocos[] = ['t' => 'destaque', 'texto' => $cabeca['detalhe']];
+        $blocos[] = ['t' => 'texto', 'texto' => date('d/m/Y H:i') . ($quem !== '' ? ' · ' . $quem : '')];
+        $blocos[] = ['t' => 'linha'];
+        $blocos[] = ['t' => 'titulo', 'texto' => $tudo ? 'PEDIDO CANCELADO' : (count($itens) === 1 ? 'ITEM CANCELADO' : 'ITENS CANCELADOS')];
+        $blocos[] = ['t' => 'centro', 'texto' => 'Não preparar:'];
+        foreach ($itens as $i) {
+            $b = self::item($i);
+            $b['valor'] = '';
+            $blocos[] = $b;
+        }
+        $blocos[] = ['t' => 'linha'];
+        if (trim($motivo) !== '') {
+            $blocos[] = ['t' => 'destaque', 'texto' => 'MOTIVO'];
+            $blocos[] = ['t' => 'texto', 'texto' => trim($motivo)];
+            $blocos[] = ['t' => 'linha'];
+        }
+        return $blocos;
+    }
+
+    /**
      * Cabecalho da via de producao de uma comanda (mesa ou balcao).
      * @param array<string,mixed> $c ComandaService::detalhes
      * @return array{titulo:string,linha:string,detalhe:string,observacao:string}

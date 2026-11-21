@@ -137,7 +137,14 @@ esperar "comanda inteira continua inteira" "$(imprimir "$wj" "$w/comandas/$coman
 agente "$ta" >/dev/null
 esperar "pre-conta em um cupom so" "$(qtd_cupons)" "1"
 confirmar_todos
+
+echo "Cancelamento sai na impressora de cada item"
 enviar "$wj" "$w/comandas/$comanda/cancelar" "$w/comandas/$comanda" "motivo=Cliente desistiu" >/dev/null
+agente "$ta" >/dev/null
+esperar "comanda cancelada: aviso no Bar e na Cozinha" "$(qtd_cupons)" "2"
+case "$(cupom_da bar0000000001)" in *'CANCELAMENTO · BAR'*'MESA '*'PEDIDO CANCELADO'*Cerveja*'MOTIVO'*) ok "Bar recebe o cancelamento da cerveja com o motivo";; *) falha "cancelamento no Bar ($(cupom_da bar0000000001))";; esac
+[[ "$(cupom_da coz0000000001)" == *'CANCELAMENTO · COZINHA'* && "$(cupom_da coz0000000001)" != *Cerveja* ]] && ok "Cozinha recebe so os itens dela" || falha "cancelamento na Cozinha ($(cupom_da coz0000000001))"
+confirmar_todos
 
 echo "Caixa: itens novos para producao"
 r="$(enviar "$cx" "$c/balcao" "$c/mesas" nome=Producao)"
@@ -150,7 +157,16 @@ esperar "caixa envia para a producao" "$(imprimir "$cx" "$c/imprimir/comanda/$ve
 agente "$ta" >/dev/null
 case "$(cupom_da bar0000000001)" in *'BALCÃO'*Cerveja*) ok "balcao: cerveja no Bar";; *) falha "via do balcao";; esac
 confirmar_todos
+curl -s -b "$cx" "$c/comandas/$venda" -o "$tmp/cx.html"
+item="$(php -r 'if (preg_match("~/itens/(\d+)/cancelar~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/cx.html")"
+enviar "$cx" "$c/comandas/$venda/itens/$item/cancelar" "$c/comandas/$venda" "motivo=Lancado errado" >/dev/null
+agente "$ta" >/dev/null
+case "$(cupom_da bar0000000001)" in *'CANCELAMENTO · BAR'*'BALCÃO'*'ITEM CANCELADO'*Cerveja*'Lancado errado'*) ok "item cancelado no caixa sai no Bar";; *) falha "cancelamento do item ($(cupom_da bar0000000001))";; esac
+esperar "cancelamento so na impressora do item" "$(qtd_cupons)" "1"
+confirmar_todos
 enviar "$cx" "$c/comandas/$venda/cancelar" "$c/comandas/$venda" "motivo=Teste" >/dev/null
+agente "$ta" >/dev/null
+esperar "comanda sem itens ativos nao imprime cancelamento" "$(qtd_cupons)" "0"
 
 echo "Testar impressao (gerencia): o que sai em cada impressora, sem gravar pedido"
 curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
@@ -176,6 +192,30 @@ esperar "imprimir teste de verdade" "$(teste situacao=caixa "produto[]=$cerveja"
 agente "$ta" >/dev/null
 case "$(cupom_da bar0000000001)" in *'"TESTE"'*'BALCÃO'*Cerveja*) ok "Agent recebe o teste com TESTE no topo";; *) falha "cupom de teste ($(cupom_da bar0000000001))";; esac
 confirmar_todos
+esperar "teste do cancelamento" "$(teste situacao=cancelamento "produto[]=$cerveja" "quantidade[]=1")" "200"
+case "$(cupom_teste "$bar")" in *'CANCELAMENTO · BAR'*'ITEM CANCELADO'*Cerveja*) ok "teste mostra o cancelamento no Bar";; *) falha "teste cancelamento ($(cupom_teste "$bar"))";; esac
+
+echo "Nao imprime (categoria e teste seguem a mesma regra)"
+enviar "$gj" "$g/estoque/categorias/$cat_cerveja/impressoras" "$g/estoque/categorias" nao_imprime=1 >/dev/null
+curl -s -b "$gj" "$g/estoque/categorias" -o "$tmp/cats.html"
+contem "categoria marcada para nao imprimir" "$tmp/cats.html" 'não saem mais em nenhuma impressora'
+curl -s -b "$gj" "$g/estoque/produtos/$cerveja" -o "$tmp/prod.html"
+contem "ficha mostra Nao imprime ligado" "$tmp/prod.html" 'name="nao_imprime" value="1" data-nao-imprime checked'
+esperar "teste com produto que nao imprime" "$(teste situacao=garcom "produto[]=$cerveja" "quantidade[]=1" "produto[]=$outro" "quantidade[]=1")" "200"
+esperar "teste: Bar nao recebe nada" "$(cupom_teste "$bar")" "NADA"
+case "$(json "$tmp/teste.json" avisos)" in *'Não sai em nenhuma impressora'*Cerveja*) ok "teste avisa o produto que nao imprime";; *) falha "aviso nao imprime ($(json "$tmp/teste.json" avisos))";; esac
+curl -s -b "$wj" "$w" -o "$tmp/mesas.html"
+mesa="$(php -r 'if (preg_match("~/garcom/mesas/(\d+)/abrir~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/mesas.html")"
+r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
+comanda="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" >/dev/null
+agente "$ta" >/dev/null
+esperar "garcom lanca produto que nao imprime: nada sai" "$(qtd_cupons)" "0"
+enviar "$wj" "$w/comandas/$comanda/cancelar" "$w/comandas/$comanda" "motivo=Cliente desistiu" >/dev/null
+agente "$ta" >/dev/null
+esperar "cancelar item que nao imprimiu nao manda aviso" "$(qtd_cupons)" "0"
+enviar "$gj" "$g/estoque/categorias/$cat_cerveja/impressoras" "$g/estoque/categorias" "impressoras[]=$bar" >/dev/null
+
 esperar "teste sem produto recusado" "$(teste situacao=garcom)" "422"
 esperar "teste sem CSRF recusado" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'Accept: application/json' -d 'situacao=garcom' "$g/integracoes/impressoras/teste")" "401"
 esperar "garcom nao usa o teste" "$(curl -s -o /dev/null -w '%{http_code}' -b "$wj" -H 'Accept: application/json' -d 'situacao=garcom' "$g/integracoes/impressoras/teste")" "401"

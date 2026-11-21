@@ -75,3 +75,5 @@
 .combo-limite-campo > span { color: var(--c-ink); font-size: .84rem; font-weight: 700; }
 .combo-limite-campo[hidden] { display: none; }
 .combo-limite-campo select { min-height: 2.75rem; }
+.produto-grupos[hidden] { display: none; }
+.produto-impressoras { margin-top: .75rem; }

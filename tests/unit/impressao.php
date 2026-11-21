@@ -120,6 +120,15 @@ $ok(str_contains($vb, 'BALCÃO') && str_contains($vb, 'Para viagem') && str_cont
 $cp = CupomImpressao::cabecaPedido(['numero' => 88, 'tipo' => 'entrega', 'origem' => 'ifood', 'ifood_display_id' => '1234', 'cliente_nome' => 'Rita', 'observacao' => '']);
 $ok($cp['titulo'] === 'PEDIDO #88' && $cp['linha'] === 'ENTREGA · iFood #1234' && $cp['detalhe'] === 'Cliente: Rita', 'cabecalho da via do delivery');
 
+// Aviso de cancelamento (na impressora do item).
+$canc = CupomImpressao::cancelamento(['titulo' => 'MESA 5', 'linha' => 'Comanda: Ana', 'detalhe' => 'Pedido #9', 'observacao' => ''], 'Cozinha',
+    [['id' => 1, 'nome' => 'Picanha', 'quantidade' => '2.000', 'unidade' => 'un', 'total' => '80.00', 'preco_unitario' => '40.00', 'observacao' => 'mal passada', 'complementos_texto' => '']],
+    'Cliente desistiu', false, 'Joao');
+$txtC = json_encode($canc, JSON_UNESCAPED_UNICODE);
+$ok(str_contains($txtC, 'CANCELAMENTO · COZINHA') && str_contains($txtC, 'MESA 5') && str_contains($txtC, 'ITEM CANCELADO') && str_contains($txtC, 'Picanha')
+    && str_contains($txtC, 'Cliente desistiu') && !str_contains($txtC, '80,00'), 'cancelamento: estacao, mesa, item, motivo e sem valor');
+$ok(str_contains(json_encode(CupomImpressao::cancelamento(['titulo' => 'PEDIDO #3', 'linha' => '', 'detalhe' => 'Delivery', 'observacao' => ''], 'Bar', [], '', true), JSON_UNESCAPED_UNICODE), 'PEDIDO CANCELADO'), 'cancelamento do pedido inteiro');
+
 // Situacao unica do lote (impressao dividida).
 $c1 = ['apelido' => 'Churrasqueira', 'entregue_em' => '2026-11-20 12:00:00', 'resultado' => 'ok', 'erro' => null, 'vencido' => 0];
 $c2 = ['apelido' => 'Bar', 'entregue_em' => '2026-11-20 12:00:00', 'resultado' => null, 'erro' => null, 'vencido' => 0];

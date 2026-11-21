@@ -228,8 +228,29 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
             </section>
         <?php endif; ?>
 
+        <?php if (!empty($opcoesProduto)): $ondeVende = ($valores['onde_vende'] ?? 'todos') === 'presencial' ? 'presencial' : 'todos'; ?>
+            <section class="bloco" aria-labelledby="titulo-onde-vende" id="campo-onde-vende">
+                <div class="bloco-cabecalho">
+                    <h2 id="titulo-onde-vende"><?= Icon::svg('store') ?>Onde vende</h2>
+                    <p>Alguns produtos só podem ser vendidos no restaurante. Exemplo: cerveja de garrafa com casco retornável.</p>
+                </div>
+                <fieldset class="opcoes-modo">
+                    <legend class="sr-only">Onde este produto é vendido</legend>
+                    <label class="opcao-modo">
+                        <input type="radio" name="onde_vende" value="todos"<?= $ondeVende === 'todos' ? ' checked' : '' ?>>
+                        <span><strong>No delivery e no restaurante</strong><small>Aparece no cardápio online, no iFood, no caixa e no garçom.</small></span>
+                    </label>
+                    <label class="opcao-modo">
+                        <input type="radio" name="onde_vende" value="presencial"<?= $ondeVende === 'presencial' ? ' checked' : '' ?>>
+                        <span><strong>Só no restaurante (mesa e balcão)</strong><small>Some do cardápio online e do iFood. Continua no caixa e no garçom.</small></span>
+                    </label>
+                </fieldset>
+            </section>
+        <?php endif; ?>
+
         <?php if (isset($impressorasProducao) && is_array($impressorasProducao)):
             $impMarcadas = array_map('strval', is_array($valores['impressoras'] ?? null) ? $valores['impressoras'] : []);
+            $naoImprime = ($valores['nao_imprime'] ?? '') === '1';
         ?>
             <section class="bloco" aria-labelledby="titulo-impressoras" id="campo-impressoras">
                 <div class="bloco-cabecalho">
@@ -240,7 +261,13 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
                     <p class="texto-suave">Nenhuma impressora cadastrada ainda. Cadastre no <?= marca_html() ?> Agent do computador e veja em <a href="<?= $e($base . '/integracoes/impressoras') ?>">Integrações &gt; Impressoras</a>.</p>
                 <?php else: ?>
                     <input type="hidden" name="impressoras_enviado" value="1">
-                    <fieldset class="produto-grupos produto-impressoras">
+                    <?php if (!empty($opcoesProduto)): ?>
+                        <label class="alternador">
+                            <span><strong>Não imprime</strong><small>Este produto não sai em nenhuma impressora quando é lançado. Ex.: refrigerante pego no balcão.</small></span>
+                            <input type="checkbox" name="nao_imprime" value="1" data-nao-imprime<?= $naoImprime ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                        </label>
+                    <?php endif; ?>
+                    <fieldset class="produto-grupos produto-impressoras" data-impressoras-produto<?= $naoImprime ? ' hidden' : '' ?>>
                         <legend class="sr-only">Impressoras onde este produto sai</legend>
                         <?php foreach ($impressorasProducao as $imp): $iid = (string) $imp['id']; ?>
                             <div class="produto-grupo">

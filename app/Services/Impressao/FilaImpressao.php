@@ -7,7 +7,6 @@ namespace Cardapim\Services\Impressao;
 use Cardapim\Repositories\Caixa\CaixaRepository;
 use Cardapim\Repositories\Desktop\ImpressaoRepository;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
-use Cardapim\Repositories\Desktop\ProdutoImpressoraRepository;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Caixa\CaixaService;
@@ -131,6 +130,9 @@ final class FilaImpressao
         $ateItem = max(array_map(static fn (array $i): int => (int) $i['id'], $ativos));
         $rotulo = $c['pedido']['tipo'] === 'mesa' ? (string) $c['rotulo'] : 'Balcão';
         $ids = $this->enviarProducao($idPedido, 'itens_novos', $novos, CupomImpressao::cabecaComanda($c), $rotulo, $ateItem, true);
+        if ($ids === []) {
+            return Resultado::sucesso('Os itens novos estão marcados para não imprimir.');
+        }
         return $ids instanceof Resultado ? $ids : Resultado::sucesso('Enviado para ' . self::juntar(array_keys($ids)) . '.', reset($ids));
     }
 
@@ -160,6 +162,9 @@ final class FilaImpressao
         if ($ids instanceof Resultado) {
             return str_starts_with($ids->mensagem, 'Nenhuma impressora') ? null : $ids;
         }
+        if ($ids === []) {
+            return null; // so itens que nao imprimem
+        }
         return Resultado::sucesso('Enviado para ' . self::juntar(array_keys($ids)) . '.', reset($ids));
     }
 
@@ -171,10 +176,12 @@ final class FilaImpressao
      */
     private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas): array|Resultado
     {
-        // Cada item na impressora marcada no produto; sem marcacao, na padrao da impressao por produto.
-        $padrao = $this->opcoes('producao')[0]['id'];
-        $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_map(static fn (array $i): int => (int) ($i['id_produto'] ?? 0), $itens));
-        $grupos = CupomImpressao::dividir($itens, $porProduto, $padrao);
+        // Mesma regra do "Testar impressao": cada item na impressora do produto, sem marcacao na padrao, "Nao imprime" fora.
+        $rota = RotaProducao::dividir($this->db, $this->idRestaurante, $itens, $this->opcoes('producao')[0]['id']);
+        $grupos = $rota['grupos'];
+        if ($grupos === [] && $rota['fora'] !== []) {
+            return []; // so itens marcados "Nao imprime": nada a imprimir
+        }
         $impressoras = [];
         foreach ((new ImpressoraRepository($this->db))->listar($this->idRestaurante) as $imp) {
             $impressoras[$imp['id']] = $imp;
@@ -249,6 +256,84 @@ final class FilaImpressao
         (new self($db, $idRestaurante, '', $sistema))->producaoPedido($idPedido);
     }
 
+    /**
+     * Aviso de cancelamento na impressora de cada item (mesma regra da producao), so para o que ja tinha saido na
+     * producao: na comanda, itens ate o ultimo impresso; no delivery, quando as vias do pedido ja foram enviadas.
+     * Nunca impede o cancelamento: qualquer falha so vai para o log.
+     * @param list<int>|null $idsItens null = pedido/comanda inteira (itens ativos no momento do cancelamento)
+     */
+    public function cancelamento(int $idPedido, ?array $idsItens, string $motivo): void
+    {
+        try {
+            if (!Esquema::tem($this->db, 'produto_opcoes') || !$this->producaoAtiva()) {
+                return;
+            }
+            $pedidos = new PedidoRepository($this->db);
+            $p = $pedidos->buscar($this->idRestaurante, $idPedido);
+            if ($p === null) {
+                return;
+            }
+            if (in_array($p['tipo'], ['mesa', 'balcao'], true)) {
+                $c = (new ComandaService($this->db, $this->idRestaurante, $this->autor))->detalhes($idPedido);
+                if ($c === null) {
+                    return;
+                }
+                $desde = $this->repo->ultimoItemImpresso($this->idRestaurante, $idPedido);
+                $itens = array_values(array_filter($c['itens'], static fn (array $i): bool => (int) $i['id'] <= $desde
+                    && ($idsItens === null ? $i['cancelado_em'] === null : in_array((int) $i['id'], $idsItens, true))));
+                $cabeca = CupomImpressao::cabecaComanda($c);
+                $rotulo = $p['tipo'] === 'mesa' ? (string) $c['rotulo'] : 'Balcão';
+            } else {
+                if (!$this->repo->temProducao($this->idRestaurante, $idPedido)) {
+                    return;
+                }
+                $itens = array_map(static fn (array $i): array => ['cancelado_em' => null] + $i, $pedidos->itens($this->idRestaurante, $idPedido));
+                if ($idsItens !== null) {
+                    $itens = array_values(array_filter($itens, static fn (array $i): bool => in_array((int) $i['id'], $idsItens, true)));
+                }
+                $cabeca = CupomImpressao::cabecaPedido($p);
+                $rotulo = 'Pedido #' . (int) $p['numero'];
+            }
+            if ($itens === []) {
+                return;
+            }
+            $grupos = RotaProducao::dividir($this->db, $this->idRestaurante, $itens, $this->opcoes('producao')[0]['id'])['grupos'];
+            if ($grupos === []) {
+                return;
+            }
+            $impressoras = [];
+            foreach ((new ImpressoraRepository($this->db))->listar($this->idRestaurante) as $imp) {
+                $impressoras[$imp['id']] = $imp;
+            }
+            $lote = bin2hex(random_bytes(8));
+            $this->db->beginTransaction();
+            try {
+                foreach ($grupos as $idImp => $lista) {
+                    if (!isset($impressoras[$idImp])) {
+                        continue;
+                    }
+                    $apelido = $impressoras[$idImp]['apelido'];
+                    $this->repo->criar($this->idRestaurante, $idPedido, 'cancelamento', mb_substr('CANCELADO · ' . $apelido . ' · ' . $rotulo, 0, 80),
+                        CupomImpressao::cancelamento($cabeca, $apelido, $lista, $motivo, $idsItens === null, $this->autor->nome),
+                        null, $this->autor->id > 0 ? $this->autor->id : null, $idImp, $lote);
+                }
+                $this->db->commit();
+            } catch (\Throwable $e) {
+                $this->db->rollBack();
+                throw $e;
+            }
+        } catch (\Throwable $e) {
+            error_log('[Cardapim] Aviso de cancelamento nao impresso (' . get_class($e) . ').');
+        }
+    }
+
+    /** Cancelamento sem pessoa no sistema (iFood, Pix vencido) ou pelo fluxo comum de cancelar pedido. */
+    public static function cancelamentoDoSistema(PDO $db, int $idRestaurante, int $idPedido, string $motivo, ?UsuarioLogado $autor = null): void
+    {
+        $autor ??= new UsuarioLogado(0, 'sistema', '', '', true, $idRestaurante, null, null, null);
+        (new self($db, $idRestaurante, '', $autor))->cancelamento($idPedido, null, $motivo);
+    }
+
     /** @param list<string> $nomes */
     private static function juntar(array $nomes): string
     {
@@ -315,7 +400,12 @@ final class FilaImpressao
             return 0;
         }
         $desde = $this->repo->ultimoItemImpresso($this->idRestaurante, (int) $c['pedido']['id']);
-        return count(array_filter($c['itens'], static fn (array $i): bool => $i['cancelado_em'] === null && (int) $i['id'] > $desde));
+        $novos = array_filter($c['itens'], static fn (array $i): bool => $i['cancelado_em'] === null && (int) $i['id'] > $desde);
+        if ($novos !== [] && $this->producaoAtiva()) {
+            $nao = RotaProducao::naoImprimem($this->db, $this->idRestaurante, array_map(static fn (array $i): int => (int) ($i['id_produto'] ?? 0), $novos));
+            $novos = array_filter($novos, static fn (array $i): bool => !isset($nao[(int) ($i['id_produto'] ?? 0)]));
+        }
+        return count($novos);
     }
 
     /**
