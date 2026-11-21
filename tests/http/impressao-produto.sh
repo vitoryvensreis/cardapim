@@ -70,11 +70,11 @@ esperar "salao: Cozinha e Bar" "$(registrar "$ta" '{"impressoras":[{"chave":"coz
 esperar "churrasqueira (computador desligado)" "$(registrar "$tb" '{"impressoras":[{"chave":"chu0000000001","apelido":"Churrasqueira"}]}')" "200"
 agente "$ta" >/dev/null
 curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
-contem "ponto Producao na gerencia" "$tmp/ger.html" 'Produção: itens sem impressora marcada no produto'
+contem "bloco Impressao por produto na gerencia" "$tmp/ger.html" 'Impressão por produto'
 id_de() { php -r 'if (preg_match("~id=\"p-producao-(\d+)\"[^>]*>\s*<span>" . preg_quote($argv[2], "~") . "</span>~u", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/ger.html" "$1"; }
 cozinha="$(id_de Cozinha)"; bar="$(id_de Bar)"; churras="$(id_de Churrasqueira)"
 [[ -n "$cozinha" && -n "$bar" && -n "$churras" ]] && ok "impressoras pelos apelidos ($cozinha, $bar, $churras)" || falha "apelidos nao encontrados"
-enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" "padrao[producao]=$cozinha" >/dev/null
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "producao=$cozinha" >/dev/null
 
 echo "Categoria e produto pelos apelidos"
 curl -s -b "$wj" "$w" -o "$tmp/mesas.html"
@@ -104,12 +104,11 @@ curl -s -b "$gj" "$g/estoque/produtos/$cerveja" -o "$tmp/prod.html"
 contem "ficha do produto mostra Sai na impressora" "$tmp/prod.html" 'Sai na impressora'
 grep -q "id=\"impressora-$bar\" name=\"impressoras\[\]\" value=\"$bar\" checked" "$tmp/prod.html" && ok "Cerveja marcada no Bar" || falha "Cerveja sem o Bar na ficha"
 
-echo "Garcom: so os itens novos divididos por estacao"
+echo "Garcom: lancar ja imprime cada item na impressora do produto"
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" "qtd[$outro]=1" >/dev/null
 curl -s -b "$wj" "$w/comandas/$comanda" -o "$tmp/com.html"
-esperar "garcom envia os itens novos" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "202"
-case "$(json "$tmp/imp.json" mensagem)" in *Bar*Cozinha*|*Cozinha*Bar*) ok "avisa as estacoes";; *) falha "mensagem ($(json "$tmp/imp.json" mensagem))";; esac
-sit="$(json "$tmp/imp.json" situacao)"
+contem "garcom ve que imprimiu ao lancar" "$tmp/com.html" 'itens lançados. Enviado para'
+grep -q 'Só os itens novos' "$tmp/com.html" && falha "garcom ainda tem so os itens novos" || ok "garcom sem a opcao so os itens novos"
 agente "$ta" >/dev/null
 esperar "dois cupons (Bar e Cozinha)" "$(qtd_cupons)" "2"
 vbar="$(cupom_da bar0000000001)"; vcoz="$(cupom_da coz0000000001)"
@@ -118,16 +117,13 @@ case "$vbar" in *'PRODUÇÃO · BAR'*'MESA '*Cerveja*) ok "Bar recebe a cerveja 
 case "$vcoz" in *'PRODUÇÃO · COZINHA'*) ok "Cozinha recebe o item sem marcacao (padrao)";; *) falha "via da Cozinha ($vcoz)";; esac
 [[ "$vcoz" != *Cerveja* ]] && ok "cerveja nao sai na cozinha" || falha "cerveja saiu na cozinha"
 confirmar_todos
-curl -s -b "$wj" -H 'Accept: application/json' -o "$tmp/sit.json" "$base$sit"
-esperar "situacao unica: impresso" "$(json "$tmp/sit.json" status)" "impresso"
-case "$(json "$tmp/sit.json" mensagem)" in *Bar*Cozinha*|*Cozinha*Bar*) ok "impresso nas duas estacoes";; *) falha "mensagem do lote";; esac
-esperar "nada novo depois" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "409"
+esperar "itens impressos ao lancar nao sao mais novos" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "409"
 
 echo "Estacao desligada bloqueia o envio inteiro"
 enviar "$gj" "$g/estoque/categorias/$cat_outro/impressoras" "$g/estoque/categorias" "impressoras[]=$churras" >/dev/null
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$outro]=1" "qtd[$cerveja]=1" >/dev/null
-esperar "recusa com a Churrasqueira desligada" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "409"
-case "$(json "$tmp/imp.json" erro)" in *Churrasqueira*desligada*) ok "avisa qual estacao esta desligada";; *) falha "aviso ($(json "$tmp/imp.json" erro))";; esac
+curl -s -b "$wj" "$w/comandas/$comanda" -o "$tmp/com.html"
+contem "lanca mesmo com a Churrasqueira desligada e avisa" "$tmp/com.html" 'Não imprimiu: A impressora Churrasqueira está desligada'
 agente "$ta" >/dev/null
 esperar "nada foi enviado ao Bar" "$(qtd_cupons)" "0"
 enviar "$gj" "$g/estoque/categorias/$cat_outro/impressoras" "$g/estoque/categorias" >/dev/null
@@ -154,34 +150,17 @@ case "$(cupom_da bar0000000001)" in *'BALCÃO'*Cerveja*) ok "balcao: cerveja no 
 confirmar_todos
 enviar "$cx" "$c/comandas/$venda/cancelar" "$c/comandas/$venda" "motivo=Teste" >/dev/null
 
-echo "Garcom: imprime sozinho ao lancar (ponto Lancamento)"
-curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
-contem "ponto Lancamento na gerencia" "$tmp/ger.html" 'Garçom: ao lançar itens (impressão automática)'
-enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" \
-  "ponto[garcom_lancar][]=$bar" "ponto[garcom_lancar][]=$cozinha" "padrao[garcom_lancar]=$cozinha" >/dev/null
+echo "Impressao por produto desligada: lancar nao imprime"
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "producao=0" >/dev/null
 curl -s -b "$wj" "$w" -o "$tmp/mesas.html"
 mesa="$(php -r 'if (preg_match("~/garcom/mesas/(\d+)/abrir~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/mesas.html")"
 r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
 comanda="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
-enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" "qtd[$outro]=1" >/dev/null
-curl -s -b "$wj" "$w/comandas/$comanda" -o "$tmp/com.html"
-contem "garcom ve que imprimiu ao lancar" "$tmp/com.html" 'itens lançados. Enviado para'
-agente "$ta" >/dev/null
-esperar "lancar ja manda Bar e Cozinha" "$(qtd_cupons)" "2"
-case "$(cupom_da bar0000000001)" in *'PRODUÇÃO · BAR'*Cerveja*) ok "cerveja no Bar ao lancar";; *) falha "via do Bar ao lancar";; esac
-[[ "$(cupom_da coz0000000001)" != *Cerveja* ]] && ok "cerveja nao sai na cozinha ao lancar" || falha "cerveja na cozinha ao lancar"
-confirmar_todos
-esperar "itens impressos ao lancar nao sao mais novos" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=novos)" "409"
-enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" "ponto[garcom_lancar][]=$cozinha" >/dev/null
-enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$cerveja]=1" >/dev/null
-agente "$ta" >/dev/null
-esperar "cerveja sai no Bar (impressora do produto) mesmo com o ponto so com a Cozinha" "$(qtd_cupons):$(php -r '$d=json_decode(file_get_contents($argv[1]),true); echo $d["impressoes"][0]["impressora"]??"";' "$tmp/ag.json")" "1:bar0000000001"
-confirmar_todos
-enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "ponto[producao][]=$cozinha" >/dev/null
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$outro]=1" >/dev/null
 agente "$ta" >/dev/null
-esperar "sem o ponto, lancar nao imprime" "$(qtd_cupons)" "0"
+esperar "desligada: lancar nao imprime" "$(qtd_cupons)" "0"
 enviar "$wj" "$w/comandas/$comanda/cancelar" "$w/comandas/$comanda" "motivo=Cliente desistiu" >/dev/null
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "producao=$cozinha" >/dev/null
 
 echo "Delivery aceito manda as vias"
 pedido="$(php tests/http/desktop-pedido-ci.php "$slug")"

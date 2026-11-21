@@ -59,12 +59,8 @@ final class FilaImpressao
             return Resultado::falha('Comanda não encontrada.');
         }
         $desde = $modo === 'itens_novos' ? $this->repo->ultimoItemImpresso($this->idRestaurante, $idPedido) : 0;
-        $fora = $this->fora($c['itens'], $impressora);
-        $cupom = CupomImpressao::comanda($c, $this->restaurante, $modo, $desde, $this->autor->nome, $fora);
+        $cupom = CupomImpressao::comanda($c, $this->restaurante, $modo, $desde, $this->autor->nome);
         if ($cupom['itens'] === 0) {
-            if ($fora !== []) {
-                return Resultado::falha('Nenhum item desta comanda sai na impressora ' . $impressora['apelido'] . '.');
-            }
             return Resultado::falha($modo === 'itens_novos' ? 'Nenhum item novo desde a última impressão.' : 'A comanda ainda não tem itens.');
         }
         $id = $this->repo->criar($this->idRestaurante, $idPedido, $modo, $cupom['titulo'], $cupom['blocos'], $cupom['ate_item'], $this->autor->id, $impressora['id'] ?? null);
@@ -84,7 +80,7 @@ final class FilaImpressao
             return Resultado::falha('Pedido não encontrado.');
         }
         $itens = $pedidos->itens($this->idRestaurante, $idPedido);
-        $cupom = CupomImpressao::pedido($p, $itens, $this->restaurante, $this->fora($itens, $impressora));
+        $cupom = CupomImpressao::pedido($p, $itens, $this->restaurante);
         $id = $this->repo->criar($this->idRestaurante, $idPedido, 'pedido', $cupom['titulo'], $cupom['blocos'], null, $this->autor->id, $impressora['id'] ?? null);
         return Resultado::sucesso(self::enviado($impressora), $id);
     }
@@ -139,17 +135,13 @@ final class FilaImpressao
     }
 
     /**
-     * Ponto "Garcom: ao lancar itens": manda os itens novos logo depois do lancamento, cada item na impressora marcada
-     * no produto; sem marcacao, na padrao do ponto. Null = ponto sem configuracao (nao imprime).
-     * Falha nunca desfaz o lancamento: os itens continuam como "novos".
+     * Garcom ao lancar, com a impressao por produto ligada: manda os itens novos na hora, cada item na impressora
+     * marcada no produto; sem marcacao, na padrao. Null = impressao por produto desligada (nao imprime).
+     * Falha nunca desfaz o lancamento: os itens continuam em "Novos itens" no caixa.
      */
     public function aoLancar(int $idPedido): ?Resultado
     {
-        if (!$this->disponivel() || !Esquema::tem($this->db, 'impressao_lancamento')) {
-            return null;
-        }
-        $opcoes = $this->opcoes('garcom_lancar');
-        if ($opcoes === []) {
+        if (!$this->disponivel() || !$this->producaoAtiva()) {
             return null;
         }
         $c = (new ComandaService($this->db, $this->idRestaurante, $this->autor))->detalhes($idPedido);
@@ -164,7 +156,7 @@ final class FilaImpressao
         }
         $ateItem = max(array_map(static fn (array $i): int => (int) $i['id'], $ativos));
         $rotulo = $c['pedido']['tipo'] === 'mesa' ? (string) $c['rotulo'] : 'Balcão';
-        $ids = $this->enviarProducao($idPedido, 'itens_novos', $novos, CupomImpressao::cabecaComanda($c), $rotulo, $ateItem, true, $opcoes[0]['id']);
+        $ids = $this->enviarProducao($idPedido, 'itens_novos', $novos, CupomImpressao::cabecaComanda($c), $rotulo, $ateItem, true);
         if ($ids instanceof Resultado) {
             return str_starts_with($ids->mensagem, 'Nenhuma impressora') ? null : $ids;
         }
@@ -177,9 +169,10 @@ final class FilaImpressao
      * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
      * @return array<string,int>|Resultado apelido => id do cupom
      */
-    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas, ?int $padrao = null): array|Resultado
+    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas): array|Resultado
     {
-        $padrao ??= $this->opcoes('producao')[0]['id'];
+        // Cada item na impressora marcada no produto; sem marcacao, na padrao da impressao por produto.
+        $padrao = $this->opcoes('producao')[0]['id'];
         $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_map(static fn (array $i): int => (int) ($i['id_produto'] ?? 0), $itens));
         $grupos = CupomImpressao::dividir($itens, $porProduto, $padrao);
         $impressoras = [];
@@ -249,52 +242,6 @@ final class FilaImpressao
         }
     }
 
-    /**
-     * Pedido novo do delivery (ponto "Pedido novo do delivery" configurado): o sistema grava um cupom por impressora,
-     * no mesmo modelo do caixa e so com os produtos marcados nela (ou sem marcacao). Uma vez por pedido.
-     * Devolve false quando o ponto nao esta configurado: ai o Agent imprime sozinho na impressora principal.
-     */
-    public function pedidoNovo(int $idPedido): bool
-    {
-        if (!$this->disponivel() || !Esquema::tem($this->db, 'impressao_produto')) {
-            return false;
-        }
-        $opcoes = $this->opcoes('delivery_novo');
-        if ($opcoes === []) {
-            return false;
-        }
-        $lote = sprintf('N%015d', $idPedido);
-        $trava = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
-        $this->db->beginTransaction();
-        try {
-            $q = $this->db->prepare('SELECT id FROM pedidos WHERE id = ? AND id_restaurante = ?' . $trava);
-            $q->execute([$idPedido, $this->idRestaurante]);
-            if ($q->fetchColumn() === false || $this->repo->lote($this->idRestaurante, $lote) !== []) {
-                $this->db->commit();
-                return true;
-            }
-            $pedidos = new PedidoRepository($this->db);
-            $p = $pedidos->buscar($this->idRestaurante, $idPedido);
-            $itens = $pedidos->itens($this->idRestaurante, $idPedido);
-            if ($p !== null && $itens !== []) {
-                $ativos = array_values(array_filter($itens, static fn (array $i): bool => ($i['cancelado_em'] ?? null) === null));
-                foreach ($opcoes as $imp) {
-                    $fora = $this->fora($ativos, $imp);
-                    if (count($fora) >= count($ativos)) {
-                        continue; // nenhum produto do pedido sai nesta impressora
-                    }
-                    $cupom = CupomImpressao::pedido($p, $itens, $this->restaurante, $fora);
-                    $this->repo->criar($this->idRestaurante, $idPedido, 'pedido', $cupom['titulo'], $cupom['blocos'], null, null, $imp['id'], $lote);
-                }
-            }
-            $this->db->commit();
-        } catch (\Throwable $e) {
-            $this->db->rollBack();
-            throw $e;
-        }
-        return true;
-    }
-
     /** Vias de producao quando o aceite nao vem de uma pessoa (iFood aceito la ou aceite automatico). */
     public static function producaoDoSistema(PDO $db, int $idRestaurante, int $idPedido): void
     {
@@ -353,22 +300,6 @@ final class FilaImpressao
             return [null, Resultado::falha('A impressora ' . $escolhida['apelido'] . ' está desligada: abra o Deliveryzim Agent no computador "' . $escolhida['computador'] . '".')];
         }
         return [$escolhida, null];
-    }
-
-    /**
-     * Itens que nao podem sair na impressora escolhida (produto marcado so em outras impressoras).
-     * Sem impressora definida (Agent principal) nao ha o que filtrar.
-     * @param list<array<string,mixed>> $itens
-     * @param array{id:int}|null $impressora
-     * @return list<int>
-     */
-    private function fora(array $itens, ?array $impressora): array
-    {
-        if ($impressora === null || !Esquema::tem($this->db, 'impressao_produto')) {
-            return [];
-        }
-        $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_map(static fn (array $i): int => (int) ($i['id_produto'] ?? 0), $itens));
-        return CupomImpressao::foraDaImpressora($itens, $porProduto, (int) $impressora['id']);
     }
 
     /** @param array{apelido:string}|null $impressora */

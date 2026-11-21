@@ -30,7 +30,7 @@ final class CupomImpressao
      * @param array<string,mixed> $c
      * @return array{titulo:string,blocos:list<array<string,mixed>>,ate_item:int,itens:int}
      */
-    public static function comanda(array $c, string $restaurante, string $modo, int $desdeItem = 0, string $quem = '', array $fora = []): array
+    public static function comanda(array $c, string $restaurante, string $modo, int $desdeItem = 0, string $quem = ''): array
     {
         if (!in_array($modo, self::MODOS_COMANDA, true)) {
             throw new \InvalidArgumentException('Modo de impressao desconhecido.');
@@ -44,7 +44,6 @@ final class CupomImpressao
         $lista = $modo === 'itens_novos'
             ? array_values(array_filter($ativos, static fn (array $i): bool => (int) $i['id'] > $desdeItem))
             : $ativos;
-        $lista = self::semFora($lista, $fora);
 
         $mesa = $p['tipo'] === 'mesa';
         $nome = trim((string) ($c['nome'] ?? ''));
@@ -114,7 +113,7 @@ final class CupomImpressao
      * @param list<array<string,mixed>> $itens
      * @return array{titulo:string,blocos:list<array<string,mixed>>}
      */
-    public static function pedido(array $p, array $itens, string $restaurante, array $fora = []): array
+    public static function pedido(array $p, array $itens, string $restaurante): array
     {
         $entrega = $p['tipo'] === 'entrega';
         $blocos = [
@@ -145,8 +144,7 @@ final class CupomImpressao
         }
         $blocos[] = ['t' => 'linha'];
         $ativos = array_values(array_filter($itens, static fn (array $i): bool => ($i['cancelado_em'] ?? null) === null));
-        $lista = self::semFora($ativos, $fora);
-        foreach ($lista as $i) {
+        foreach ($ativos as $i) {
             $blocos[] = self::item($i);
         }
         $blocos[] = ['t' => 'linha'];
@@ -251,35 +249,6 @@ final class CupomImpressao
             }
         }
         return $grupos;
-    }
-
-    /**
-     * Itens que NAO podem sair na impressora: o produto tem impressoras marcadas e essa nao e uma delas.
-     * Produto sem nenhuma marcacao sai em qualquer impressora.
-     * @param list<array<string,mixed>> $itens
-     * @param array<int,list<int>> $porProduto id_produto => impressoras
-     * @return list<int> ids dos itens
-     */
-    public static function foraDaImpressora(array $itens, array $porProduto, int $idImpressora): array
-    {
-        $fora = [];
-        foreach ($itens as $i) {
-            $destinos = $porProduto[(int) ($i['id_produto'] ?? 0)] ?? [];
-            if ($destinos !== [] && !in_array($idImpressora, $destinos, true)) {
-                $fora[] = (int) $i['id'];
-            }
-        }
-        return $fora;
-    }
-
-    /**
-     * @param list<array<string,mixed>> $itens
-     * @param list<int> $fora
-     * @return list<array<string,mixed>>
-     */
-    private static function semFora(array $itens, array $fora): array
-    {
-        return $fora === [] ? $itens : array_values(array_filter($itens, static fn (array $i): bool => !in_array((int) $i['id'], $fora, true)));
     }
 
     /**

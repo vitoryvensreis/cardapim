@@ -1,28 +1,34 @@
 <?php
 /**
- * Impressoras do Deliveryzim Agent e pontos de impressao.
- * Espera: $ativo, $impressoras (ImpressoraRepository::listar), $pontos (ponto => ids/padrao), $rotulos, $agentDownload, $base, $csrf.
+ * Impressoras do Deliveryzim Agent: impressao por produto (padrao), cupom completo e resumo do caixa.
+ * Espera: $ativo, $porProduto, $impressoras (ImpressoraRepository::listar), $produtosPorImpressora, $padraoProducao,
+ * $completo e $fechamento (ids/padrao), $agentDownload, $base, $csrf.
  */
 use Cardapim\Core\Icon;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$ajuda = [
-    'caixa_conta' => 'Botão "Conta" na comanda do caixa.',
-    'caixa_delivery' => 'Botão "Imprimir" no pedido do delivery, no caixa.',
-    'caixa_fechamento' => 'Botão "Imprimir" no resumo do caixa.',
-    'garcom' => 'Botão "Imprimir" na comanda do app do garçom.',
-    'garcom_lancar' => 'Quando o garçom toca em "Lançar", os itens novos já saem impressos. Cada item sai na impressora marcada no produto; produto sem impressora marcada sai na padrão daqui. Sem nenhuma marcada, não imprime ao lançar.',
-    'delivery_novo' => 'Via completa quando chega pedido do cardápio ou do iFood. Sai em TODAS as impressoras marcadas (ex.: Balcão).',
-    'producao' => 'Liga as vias de produção: o botão "Novos itens" do caixa e o pedido do delivery aceito saem divididos, cada item na impressora marcada no produto (Estoque > produto ou Categorias). Itens sem impressora marcada saem na padrão.',
-];
 $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
+// Lista de impressoras com "Padrao" (cupom completo e resumo do caixa).
+$lista = static function (string $campo, array $cfg, array $impressoras) use ($e): void { ?>
+    <ul class="impressao-ponto-lista">
+        <?php foreach ($impressoras as $imp): $id = 'p-' . $campo . '-' . $imp['id']; ?>
+            <li>
+                <label class="impressao-ponto-usar" for="<?= $e($id) ?>">
+                    <input type="checkbox" id="<?= $e($id) ?>" name="<?= $e($campo) ?>[]" value="<?= (int) $imp['id'] ?>"<?= in_array($imp['id'], $cfg['ids'], true) ? ' checked' : '' ?>>
+                    <span><?= $e($imp['apelido']) ?></span>
+                </label>
+                <label class="impressao-ponto-padrao"><input type="radio" name="padrao_<?= $e($campo) ?>" value="<?= (int) $imp['id'] ?>"<?= $cfg['padrao'] === $imp['id'] ? ' checked' : '' ?>><span>Padrão</span></label>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+<?php };
 ?>
 <div class="painel-page painel-page-form">
     <header class="painel-cabecalho">
         <div>
             <a class="voltar-link" href="<?= $e($base . '/integracoes') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Integrações</a>
             <h1>Impressoras</h1>
-            <p>Escolha em qual impressora cada parte do sistema imprime. Com uma impressora marcada, imprime direto; com duas ou mais, quem imprime escolhe na hora (a padrão já vem selecionada).</p>
+            <p>Os itens saem sozinhos na impressora marcada em cada produto. A conta e a comanda inteira saem completas na impressora que você escolher.</p>
         </div>
     </header>
 
@@ -47,7 +53,7 @@ $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
             <ul class="impressoras-lista">
                 <?php foreach ($impressoras as $imp): ?>
                     <li>
-                        <span class="impressoras-nome"><strong><?= $e($imp['apelido']) ?></strong><small>Computador: <?= $e($imp['computador']) ?></small></span>
+                        <span class="impressoras-nome"><strong><?= $e($imp['apelido']) ?></strong><small>Computador: <?= $e($imp['computador']) ?><?php if ($porProduto): $n = (int) ($produtosPorImpressora[$imp['id']] ?? 0); ?> · <?= $n === 1 ? '1 produto' : $n . ' produtos' ?><?php endif; ?></small></span>
                         <?php if ($imp['ligada']): ?>
                             <span class="etiqueta etiqueta-ok"><?= Icon::svg('circle-check') ?>Ligada</span>
                         <?php else: ?>
@@ -60,28 +66,51 @@ $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
 
         <form method="post" action="<?= $e($base . '/integracoes/impressoras') ?>" class="impressao-pontos">
             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-            <?php foreach ($rotulos as $ponto => $rotulo): $cfg = $pontos[$ponto] ?? ['ids' => [], 'padrao' => null]; $automatico = in_array($ponto, ['delivery_novo', 'garcom_lancar'], true); ?>
+            <?php if ($porProduto): ?>
                 <fieldset class="bloco impressao-ponto">
-                    <legend><?= Icon::svg($automatico ? 'bell' : ($ponto === 'garcom' ? 'hand-platter' : ($ponto === 'producao' ? 'chef-hat' : 'monitor'))) ?><?= $e($rotulo) ?></legend>
-                    <p class="impressao-ponto-ajuda"><?= $e($ajuda[$ponto]) ?></p>
+                    <legend><?= Icon::svg('chef-hat') ?>Impressão por produto</legend>
+                    <p class="impressao-ponto-ajuda">Cada item sai sozinho na impressora marcada no produto, só com os itens daquela impressora:</p>
+                    <ul class="impressao-momentos">
+                        <li><?= Icon::svg('bike', 'icon-sm') ?>Delivery: quando o pedido é aceito</li>
+                        <li><?= Icon::svg('hand-platter', 'icon-sm') ?>Garçom: quando toca em Lançar</li>
+                        <li><?= Icon::svg('monitor', 'icon-sm') ?>Caixa: quando toca em Novos itens</li>
+                    </ul>
+                    <p class="impressao-ponto-titulo">Impressora padrão <small>para produtos sem impressora marcada</small></p>
                     <ul class="impressao-ponto-lista">
-                        <?php foreach ($impressoras as $imp): $marcada = in_array($imp['id'], $cfg['ids'], true); $idCampo = 'p-' . $ponto . '-' . $imp['id']; ?>
+                        <?php foreach ($impressoras as $imp): ?>
                             <li>
-                                <label class="impressao-ponto-usar" for="<?= $e($idCampo) ?>">
-                                    <input type="checkbox" id="<?= $e($idCampo) ?>" name="ponto[<?= $e($ponto) ?>][]" value="<?= (int) $imp['id'] ?>"<?= $marcada ? ' checked' : '' ?>>
+                                <label class="impressao-ponto-usar" for="p-producao-<?= (int) $imp['id'] ?>">
+                                    <input type="radio" id="p-producao-<?= (int) $imp['id'] ?>" name="producao" value="<?= (int) $imp['id'] ?>"<?= $padraoProducao === $imp['id'] ? ' checked' : '' ?>>
                                     <span><?= $e($imp['apelido']) ?></span>
                                 </label>
-                                <?php if (!$automatico): ?>
-                                    <label class="impressao-ponto-padrao"><input type="radio" name="padrao[<?= $e($ponto) ?>]" value="<?= (int) $imp['id'] ?>"<?= $cfg['padrao'] === $imp['id'] ? ' checked' : '' ?>><span>Padrão</span></label>
-                                <?php endif; ?>
                             </li>
                         <?php endforeach; ?>
+                        <li>
+                            <label class="impressao-ponto-usar" for="p-producao-0">
+                                <input type="radio" id="p-producao-0" name="producao" value="0"<?= $padraoProducao === null ? ' checked' : '' ?>>
+                                <span>Desligada <small>não imprime nada sozinho</small></span>
+                            </label>
+                        </li>
                     </ul>
-                    <p class="impressao-ponto-vazio"><?= $ponto === 'producao' ? 'Nenhuma marcada: vias de produção desligadas ("Só os itens novos" sai inteiro na impressora escolhida).' : 'Nenhuma marcada: imprime na impressora principal do Agent.' ?></p>
+                    <a class="impressao-link" href="<?= $e($base . '/estoque/categorias') ?>"><?= Icon::svg('tags', 'icon-sm') ?>Marcar a impressora dos produtos por categoria</a>
                 </fieldset>
-            <?php endforeach; ?>
+            <?php endif; ?>
+
+            <fieldset class="bloco impressao-ponto">
+                <legend><?= Icon::svg('receipt') ?>Cupom completo</legend>
+                <p class="impressao-ponto-ajuda">Botões "Conta" do caixa, "Comanda inteira" do garçom e "Imprimir" do pedido do delivery. Saem com todos os itens. Com duas ou mais marcadas, quem imprime escolhe na hora (a padrão já vem selecionada).</p>
+                <?php $lista('completo', $completo, $impressoras); ?>
+                <p class="impressao-ponto-vazio">Nenhuma marcada: imprime na impressora principal do Agent.</p>
+            </fieldset>
+
+            <fieldset class="bloco impressao-ponto">
+                <legend><?= Icon::svg('wallet') ?>Resumo do caixa</legend>
+                <p class="impressao-ponto-ajuda">Botão "Imprimir" no resumo e no fechamento do caixa.</p>
+                <?php $lista('fechamento', $fechamento, $impressoras); ?>
+                <p class="impressao-ponto-vazio">Nenhuma marcada: imprime na impressora principal do Agent.</p>
+            </fieldset>
             <div class="bloco-rodape">
-                <button class="btn btn-primary" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar pontos de impressão</button>
+                <button class="btn btn-primary" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar impressoras</button>
             </div>
         </form>
     <?php endif; ?>

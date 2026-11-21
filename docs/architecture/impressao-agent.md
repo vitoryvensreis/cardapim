@@ -3,77 +3,67 @@
 Os botões **Imprimir** do caixa e do garçom mandam o cupom para o **Deliveryzim Agent** instalado no computador
 da impressora (Windows). O navegador nunca abre a janela de impressão.
 
-## Onde imprime
+## Regra (uma só para 1, 2 ou várias impressoras)
+
+**1. Impressão por produto (sai sozinha ou pelo botão "Novos itens").** Cada item sai **só na impressora marcada
+no produto** (Estoque > produto > *Sai na impressora*, ou o atalho por categoria). Produto sem impressora marcada sai
+na **impressora padrão**. Um cupom por impressora, só com os itens dela (mesa ou pedido em letra grande, hora, quem
+lançou, complementos e observações, sem o total). Acontece em:
+
+| Momento | Quando |
+|---------|--------|
+| Delivery | quando o pedido é **aceito** (caixa, Receber do Agent, aceite no iFood ou aceite automático), uma vez por pedido |
+| Garçom | quando toca em **Lançar** (os itens já saem impressos) |
+| Caixa | quando toca em **Novos itens (N)** na comanda (balcão ou mesa; lançar pelo modal não imprime) |
+
+Quando o pedido do delivery **chega**, nada imprime: o Agent 0.8+ recebe `impressoras: []` no evento e só avisa.
+
+**2. Cupom completo (a pessoa pede).** Sai com **todos os itens**, sem cortar nada, na impressora escolhida:
 
 | Tela | Botão | Cupom |
 |------|-------|-------|
-| Caixa > comanda (mesa ou balcão) | Imprimir conta | `conta`: itens, serviço, desconto, total, já pago, observação do balcão |
+| Caixa > comanda (mesa ou balcão) | Conta | `conta`: itens, serviço, desconto, total, já pago, observação do balcão |
+| Garçom > comanda | Imprimir > Comanda inteira | `pre_conta`: mesa e nome da comanda no topo, itens e total até agora |
 | Caixa > delivery > pedido | Imprimir | `pedido`: cliente, telefone, endereço, itens, observação, pagamento e troco |
 | Caixa > fechamentos > caixa | Imprimir | `fechamento`: troco inicial, formas, entradas/saídas, esperado e contado |
-| Garçom > comanda | Imprimir > Comanda inteira | `pre_conta`: mesa e nome da comanda no topo, itens e total até agora |
-| Garçom > comanda | Imprimir > Só os itens novos | `itens_novos`: só o que foi lançado depois da última impressão da comanda |
 
-"Só os itens novos" usa `impressoes.ate_item` (maior item já impresso, de cupom entregue a um Agent e sem erro).
-Imprimir a comanda inteira também conta como impresso. Sem nada novo, o botão fica desligado.
+## Gerência > Integrações > Impressoras
 
-## Várias impressoras (Agent 0.8.0+)
+1. **Impressoras cadastradas:** apelido, computador, ligada/desligada e quantos produtos estão marcados em cada uma.
+2. **Impressão por produto:** escolhe **uma** impressora padrão (ponto `producao`) ou **Desligada** (nada imprime
+   sozinho e o caixa não mostra "Novos itens"). Link para marcar a impressora dos produtos por categoria.
+3. **Cupom completo:** uma lista com "Padrão", gravada nos pontos `caixa_conta`, `garcom` e `caixa_delivery`.
+4. **Resumo do caixa:** ponto `caixa_fechamento`.
 
-- **No Agent:** lista sem limite, cada impressora com apelido (Balcão, Cozinha, Bar...), impressora do Windows e papel.
-  A primeira é a principal. Botões Testar, Remover e "+ Adicionar impressora". O Agent manda ao sistema só a chave e o
-  apelido (`POST /api/v1/desktop/impressoras`, lista completa; quem saiu da lista vira `ativo = 0`).
-- **Gerência > Integrações > Impressoras:** impressoras cadastradas (computador, ligada/desligada) e, para cada ponto
-  (`caixa_conta`, `caixa_delivery`, `caixa_fechamento`, `garcom`, `delivery_novo`), as impressoras marcadas e a padrão.
-- **Na hora de imprimir:** ponto sem impressora marcada = impressora principal de qualquer Agent (como antes);
-  uma marcada = imprime direto nela; duas ou mais = o caixa escolhe no botão (lista com os apelidos, padrão em destaque)
-  e o garçom escolhe em "Imprimir em" (padrão já marcada). Impressora fora do ponto ou com o computador desligado é recusada
-  com o motivo.
-- **Pedido novo do delivery:** sai em TODAS as impressoras marcadas em `delivery_novo`; cada Agent recebe no evento
-  `impressoras` (chaves das impressoras dele; lista vazia = nada a imprimir neste computador; `null` = ponto sem
-  configuração, usa a principal).
-- **Compatibilidade:** Agent 0.7 (sem lista) só recebe cupons sem impressora escolhida e não aparece na lista da gerência.
+Cupom completo: ponto sem impressora = impressora principal de qualquer Agent; uma marcada = imprime direto; duas ou
+mais = quem imprime escolhe (a padrão já vem marcada). Impressora fora do ponto ou desligada é recusada com o motivo.
 
-Banco: migration `20261120230000_create_impressoras.php` (`impressoras`, `impressao_pontos`, `impressoes.id_impressora`),
-`database/verify-impressoras.php`, `deploy/scripts/apply-impressoras.sh` (gatilho `[cardapim-impressoras]`).
-Testes: `tests/http/impressoras.sh`, `desktop-agent/tests/test_printer_list.py`.
+Os pontos antigos `delivery_novo` e `garcom_lancar` saíram da tela e ficam vazios ao salvar.
 
-## Impressão por produto (vias de produção)
+**Exemplos:** 1 impressora = padrão e cupom completo nela. BALCÃO + COZINHA = bebida marcada no BALCÃO, comida na
+COZINHA (padrão), cupom completo no BALCÃO. Churrascaria = espeto na CHURRASQUEIRA, baião na COZINHA, bebida no BALCÃO,
+cupom completo no CAIXA.
 
-Para restaurantes com várias estações (Churrasqueira, Cozinha, Bar, Balcão):
+## Detalhes
 
-- **Produto:** Estoque > produto > **Sai na impressora**, com um check por apelido de impressora do Agent.
-  **Atalho:** Estoque > Categorias > *Impressora de produção por categoria* aplica as impressoras marcadas a todos
-  os produtos da categoria (depois dá para ajustar produto por produto).
-- **Ponto "Produção"** (Integrações > Impressoras): a impressora padrão recebe os itens sem impressora marcada.
-  Com o ponto configurado, as vias de produção ficam ligadas.
-- **Garçom:** em Imprimir > **Só os itens novos**, cada item sai na impressora do produto (um cupom por estação, com a
-  mesa em letra grande, hora, garçom, complementos e observações, sem o total). "Comanda inteira" continua num cupom só.
-- **Garçom ao lançar** (ponto "Garçom: ao lançar itens", migration `20261121300000_impressao_lancamento`): com
-  impressora marcada no ponto, tocar em **Lançar** já manda os itens novos, cada item na impressora marcada no produto
-  e o produto sem marcação na padrão do ponto (o ponto só liga a função e define essa padrão).
-  Estação desligada não desfaz o lançamento: o garçom vê "Não imprimiu" e os itens ficam em "Novos itens" no caixa.
-  A opção "Só os itens novos" saiu do Imprimir do garçom (fica só "Comanda inteira").
-  Sem impressora no ponto, lançar não imprime (como antes).
-- **Caixa:** na comanda, os botões **Novos itens (N)** (em destaque quando há itens) e **Conta** ficam lado a lado.
-  "Novos itens" divide por estação (balcão e mesa); "Conta" continua num cupom só.
-- **Produto nunca sai onde não está marcado:** vale para todos os cupons com impressora definida: "Imprimir conta",
-  "Comanda inteira", o pedido do delivery impresso pelo caixa e o pedido novo do delivery. Os itens cujo produto está
-  marcado só em outras impressoras ficam de fora (os totais continuam os da conta). Produto sem nenhuma marcação sai em
-  qualquer impressora. Se nenhum item puder sair, o envio é recusado com o nome da impressora.
-- **Pedido novo do delivery** (Agent 0.8.0+ com o ponto configurado): o sistema grava um cupom por impressora do ponto,
-  no mesmo modelo do caixa e só com os produtos dela (uma vez por pedido, lote `N<id do pedido>`). O evento chega ao
-  Agent com `impressoras: []`, então ele só avisa e imprime pela fila. Sem o ponto configurado, o Agent imprime o pedido
-  inteiro na impressora principal, como antes.
-- **Delivery:** quando o pedido é **aceito** (caixa, Receber do Agent, aceite no iFood ou aceite automático), as vias
-  de produção saem por estação, uma vez por pedido. A via do pedido novo sai nas impressoras do ponto "Pedido novo do delivery".
-- **Estação desligada:** no garçom/caixa o envio inteiro é recusado com o nome da estação (nada sai pela metade);
-  os itens continuam como "novos" para tentar de novo.
-- **Item cancelado** não sai na via de produção (nem gera aviso).
+- **Impressora desligada:** no Lançar do garçom, o lançamento nunca é desfeito; o garçom vê "Não imprimiu" e os itens
+  ficam em "Novos itens" no caixa. No caixa, o envio inteiro é recusado com o nome da impressora (nada sai pela metade).
+- "Novos itens" usa `impressoes.ate_item` (maior item já impresso, de cupom entregue a um Agent e sem erro).
+- **Item cancelado** não sai na impressão por produto.
 - A tela mostra uma situação única do envio dividido ("Impresso em Bar e Cozinha").
+- **Agent 0.7** (sem lista de impressoras) só recebe cupons sem impressora escolhida. Agent anterior à 0.8 com
+  impressão automática ligada no próprio Agent ainda imprime o pedido novo inteiro: atualize o Agent ou desligue a opção.
 
-Banco: migration `20261121000000_impressao_por_produto.php` (`produto_impressoras`, ponto `producao`, `impressoes.lote`,
-tipo `producao`), `database/verify-impressao-produto.php`, `deploy/scripts/apply-impressao-produto.sh`
-(gatilho `[cardapim-impressao-produto]`). Testes: `tests/unit/impressao.php`, `tests/http/impressao-produto.sh`.
-O Agent 0.8.0 já atende (não precisa atualizar).
+## Banco
+
+- `20261120230000_create_impressoras.php` (`impressoras`, `impressao_pontos`, `impressoes.id_impressora`),
+  `database/verify-impressoras.php`, `deploy/scripts/apply-impressoras.sh` (gatilho `[cardapim-impressoras]`).
+- `20261121000000_impressao_por_produto.php` (`produto_impressoras`, ponto `producao`, `impressoes.lote`, tipo
+  `producao`), `database/verify-impressao-produto.php`, `deploy/scripts/apply-impressao-produto.sh`.
+- `20261121300000_impressao_lancamento.php` (só amplia o CHECK dos pontos; o ponto não é mais usado).
+
+Testes: `tests/unit/impressao.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
+`tests/http/impressao-produto.sh`, `desktop-agent/tests/test_printer_list.py`.
 
 ## Fluxo
 

@@ -15,7 +15,15 @@
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
   padding: .55rem .8rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
 }
-.impressao-ponto-lista li:has(input[type="checkbox"]:checked) { border-color: var(--c-wine-400); background: var(--c-blush); }
+.impressao-ponto-lista li:has(input:checked) { border-color: var(--c-wine-400); background: var(--c-blush); }
+.impressao-ponto-usar small { margin-left: .35rem; color: var(--c-muted); font-size: .82rem; font-weight: 400; }
+.impressao-momentos { display: grid; gap: .35rem; margin: 0 0 1rem; padding: 0; list-style: none; }
+.impressao-momentos li { display: flex; align-items: center; gap: .5rem; color: var(--c-ink); font-size: .92rem; }
+.impressao-momentos .icon { color: var(--c-wine); }
+.impressao-ponto-titulo { margin: 0 0 .5rem; color: var(--c-ink); font-weight: 700; }
+.impressao-ponto-titulo small { color: var(--c-muted); font-size: .85rem; font-weight: 400; }
+.impressao-link { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; margin-top: .5rem; color: var(--c-wine); font-weight: 700; }
+.impressao-link:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
 .impressao-ponto-usar, .impressao-ponto-padrao { display: inline-flex; align-items: center; gap: .55rem; min-height: 2.75rem; cursor: pointer; }
 .impressao-ponto-usar span { color: var(--c-ink); font-weight: 700; }
 .impressao-ponto-padrao span { color: var(--c-muted); font-size: .88rem; }

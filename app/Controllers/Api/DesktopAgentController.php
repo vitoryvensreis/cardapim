@@ -18,7 +18,6 @@ use Cardapim\Services\Auth\Autorizacao;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Caixa\DeliveryService;
-use Cardapim\Services\Impressao\FilaImpressao;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Shared\Esquema;
 use PDO;
@@ -109,9 +108,9 @@ final class DesktopAgentController
             $q->execute([(int) $dispositivo['id_restaurante'], $cursor]);
             $pedidos = new PedidoRepository($db);
             $resposta = [];
-            // Agent 0.8.0+ (impressoras=1): diz em quais impressoras DELE o pedido novo sai (ponto delivery_novo).
+            // Agent 0.8.0+ (impressoras=1): recebe "impressoras": [] e so avisa o pedido novo. A impressao do delivery
+            // sai no aceite, por produto (FilaImpressao::producaoPedido); o pedido completo, pelo botao Imprimir do caixa.
             $porImpressora = ($_GET['impressoras'] ?? '') === '1';
-            $alvos = false; // false = ainda nao calculado; null = ponto sem configuracao (impressora principal)
             foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $evento) {
                 $cursor = (int) $evento['id'];
                 $dados = json_decode((string) $evento['dados'], true);
@@ -122,15 +121,9 @@ final class DesktopAgentController
                     || !in_array($p['status'], ['recebido', 'em_preparo', 'pronto'], true)) {
                     continue;
                 }
-                if ($porImpressora && $alvos === false) {
-                    $alvos = $this->alvosPedidoNovo($db, $dispositivo);
-                }
-                // Ponto configurado: o sistema grava os cupons por impressora (so os produtos marcados em cada uma)
-                // e o Agent imprime pela fila; a lista vazia faz o Agent so avisar, sem imprimir o pedido inteiro.
-                $pelaFila = $porImpressora && $alvos !== null && $this->pedidoNovoPelaFila($db, $dispositivo, (int) $p['id']);
                 $resposta[] = [
                     'evento_id' => $cursor, 'id' => (int) $p['id'],
-                    ...($porImpressora ? ['impressoras' => $pelaFila ? [] : $alvos] : []),
+                    ...($porImpressora ? ['impressoras' => []] : []),
                     'numero' => (int) $p['numero'], 'tipo' => (string) $p['tipo'],
                     'status' => (string) $p['status'], 'origem' => (string) $p['origem'],
                     // "Ver no sistema" do aviso: caminho relativo, o agente junta com o endereco oficial.
@@ -186,36 +179,6 @@ final class DesktopAgentController
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: fila de impressao indisponivel (' . get_class($e) . ').');
             return [];
-        }
-    }
-
-    /** @param array<string,mixed> $dispositivo */
-    private function pedidoNovoPelaFila(PDO $db, array $dispositivo, int $idPedido): bool
-    {
-        try {
-            $idRest = (int) $dispositivo['id_restaurante'];
-            $sistema = new UsuarioLogado(0, 'sistema', '', '', true, $idRest, null, null, null);
-            return (new FilaImpressao($db, $idRest, (string) $dispositivo['restaurante_nome'], $sistema))->pedidoNovo($idPedido);
-        } catch (Throwable $e) {
-            error_log('[Cardapim] Desktop: cupom do pedido novo nao gravado (' . get_class($e) . ').');
-            return false;
-        }
-    }
-
-    /**
-     * @param array<string,mixed> $dispositivo
-     * @return list<string>|null chaves das impressoras deste Agent para o pedido novo; null = ponto nao configurado
-     */
-    private function alvosPedidoNovo(PDO $db, array $dispositivo): ?array
-    {
-        try {
-            if (!Esquema::tem($db, 'impressoras')) {
-                return null;
-            }
-            return (new ImpressoraRepository($db))->chavesDoPonto((int) $dispositivo['id_restaurante'], (int) $dispositivo['id'], 'delivery_novo');
-        } catch (Throwable $e) {
-            error_log('[Cardapim] Desktop: pontos de impressao indisponiveis (' . get_class($e) . ').');
-            return null;
         }
     }
 
