@@ -447,6 +447,9 @@ final class ComandaService
             $this->db->rollBack();
             throw $erro;
         }
+        // Aviso de cancelamento na impressora do item (se ele ja tinha saido na producao).
+        (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, '', $this->autor))
+            ->cancelamento($id, array_map(static fn (array $l): int => (int) $l['id'], $linhas), $motivo);
         $itemTexto = QuantidadeVenda::comNome(QuantidadeVenda::doBanco($item['quantidade']), (string) ($item['unidade'] ?? 'un'), (string) $item['nome']);
         Auditoria::registrar($this->autor, 'Item cancelado', sprintf('%s: %s (%s). Motivo: %s. Estoque devolvido.',
             $this->rotulo($comanda), $itemTexto, Numero::reais((string) $item['total']), $motivo));

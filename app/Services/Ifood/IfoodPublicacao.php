@@ -345,7 +345,9 @@ final class IfoodPublicacao
     {
         $sql = 'SELECT p.id, p.nome, p.descricao, p.preco, p.codigo, p.imagem_path, p.unidade_venda, p.ordem, p.id_categoria, c.nome AS categoria, c.ordem AS categoria_ordem
             FROM produtos p LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
-            WHERE p.id_restaurante = ? AND p.ativo = 1';
+            WHERE p.id_restaurante = ? AND p.ativo = 1'
+            // "So no restaurante" (ex.: cerveja de casco) nao vai para o iFood; se ja estava la, a sincronizacao tira.
+            . (Esquema::tem($this->db, 'produto_opcoes') ? ' AND p.vende_delivery = 1' : '');
         $params = [$this->idRestaurante];
         if ($ids !== []) {
             $ids = array_values(array_unique(array_map('intval', $ids)));

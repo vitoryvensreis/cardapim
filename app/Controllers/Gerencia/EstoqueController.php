@@ -114,7 +114,7 @@ final class EstoqueController extends BaseGerencia
             'venda_minima' => $produto['venda_minima'] !== null ? \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($produto['venda_minima'])) : '',
             'porcoes' => array_map(static fn (string $p): string => \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($p)),
                 (new ProdutoRepository($this->db))->porcoes($this->restaurante['id'], $id)),
-        ] + $this->gruposDoProdutoParaForm($id) + $this->impressorasDoProdutoParaForm($id) + $this->comboParaForm($id), []);
+        ] + $this->gruposDoProdutoParaForm($id) + $this->impressorasDoProdutoParaForm($id) + $this->opcoesDoProdutoParaForm($id) + $this->comboParaForm($id), []);
     }
 
     public function criarProduto(string $slug): Response
@@ -263,6 +263,7 @@ final class EstoqueController extends BaseGerencia
             'impressorasProducao' => $this->impressorasProducao(),
             'impressorasCategoria' => Esquema::tem($this->db, 'impressao_produto')
                 ? (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))->resumoCategorias($this->restaurante['id']) : [],
+            'categoriasSemImpressao' => $this->categoriasSemImpressao(),
         ]);
     }
 
@@ -288,6 +289,18 @@ final class EstoqueController extends BaseGerencia
         return $this->responder($this->avisarEstoque($resultado, 'categoria', 'editado', $id), $this->url('estoque/categorias'));
     }
 
+    /** Categorias em que todos os produtos estao marcados "Nao imprime" (null = recurso ainda nao liberado). @return list<int>|null */
+    private function categoriasSemImpressao(): ?array
+    {
+        if (!Esquema::tem($this->db, 'produto_opcoes')) {
+            return null;
+        }
+        $q = $this->db->prepare('SELECT id_categoria FROM produtos WHERE id_restaurante = ? AND id_categoria IS NOT NULL
+            GROUP BY id_categoria HAVING MAX(imprime_producao) = 0');
+        $q->execute([$this->restaurante['id']]);
+        return array_map('intval', $q->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
     /** Atalho: marca as mesmas impressoras de producao (apelidos) em todos os produtos da categoria. */
     public function impressorasCategoria(string $slug, string $idTexto): Response
     {
@@ -308,8 +321,18 @@ final class EstoqueController extends BaseGerencia
         if (!Esquema::tem($this->db, 'impressao_produto')) {
             return $this->voltar($volta, 'erro', 'As impressoras por produto ainda estão sendo ativadas.');
         }
-        $ids = self::idsMarcados($_POST['impressoras'] ?? null);
+        $naoImprime = ($_POST['nao_imprime'] ?? '') === '1' && Esquema::tem($this->db, 'produto_opcoes');
+        $ids = $naoImprime ? [] : self::idsMarcados($_POST['impressoras'] ?? null);
         $n = (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))->aplicarCategoria($this->restaurante['id'], (int) $id, $ids);
+        if (Esquema::tem($this->db, 'produto_opcoes')) {
+            $this->db->prepare('UPDATE produtos SET imprime_producao = ? WHERE id_restaurante = ? AND id_categoria = ?')
+                ->execute([$naoImprime ? 0 : 1, $this->restaurante['id'], (int) $id]);
+        }
+        if ($naoImprime) {
+            \Cardapim\Services\Auditoria::registrar($this->usuario, 'Impressoras da categoria', 'Categoria "' . $categoria['nome'] . '": ' . $n . ' produto(s) marcados para não imprimir.');
+            return $this->voltar($volta, 'sucesso', $n === 0 ? 'A categoria "' . $categoria['nome'] . '" ainda não tem produtos.'
+                : 'Os ' . $n . ' produto(s) de "' . $categoria['nome'] . '" não saem mais em nenhuma impressora.');
+        }
         \Cardapim\Services\Auditoria::registrar($this->usuario, 'Impressoras da categoria', 'Categoria "' . $categoria['nome'] . '": impressoras de produção aplicadas a ' . $n . ' produto(s).');
         return $this->voltar($volta, 'sucesso', $n === 0 ? 'A categoria "' . $categoria['nome'] . '" ainda não tem produtos.'
             : ($ids === [] ? 'Os ' . $n . ' produto(s) de "' . $categoria['nome'] . '" voltam a sair na impressora padrão da produção.'
@@ -504,6 +527,7 @@ final class EstoqueController extends BaseGerencia
         $resultado = (new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST, is_array($_FILES['foto'] ?? null) ? $_FILES['foto'] : null);
         if ($this->avisarEstoque($resultado, 'produto', $id === null ? 'criado' : 'editado', $id ?? $resultado->id)->ok) {
             $this->salvarImpressorasDoProduto($id ?? $resultado->id);
+            $this->salvarOpcoesDoProduto($id ?? $resultado->id);
             $this->salvarCombo($id ?? $resultado->id, $combo);
             return $this->voltar($this->url('estoque/produtos'), 'sucesso', $resultado->mensagem);
         }
@@ -546,6 +570,7 @@ final class EstoqueController extends BaseGerencia
             'insumos' => (new InsumoRepository($this->db))->mapaParaFicha($idRest),
             'gruposComplemento' => Esquema::tem($this->db, 'complementos') ? (new ComplementoRepository($this->db))->grupos($idRest) : null,
             'impressorasProducao' => $this->impressorasProducao(),
+            'opcoesProduto' => Esquema::tem($this->db, 'produto_opcoes'),
             'comboDados' => \Cardapim\Modules\Catalog\Combo::ativo($this->db) ? [
                 'produtos' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->produtosParaCombo($idRest, $produto !== null ? (int) $produto['id'] : null),
                 'opcoes' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->opcoes($idRest),
@@ -586,6 +611,37 @@ final class EstoqueController extends BaseGerencia
         }
         (new \Cardapim\Repositories\Desktop\ProdutoImpressoraRepository($this->db))
             ->salvar($this->restaurante['id'], $idProduto, self::idsMarcados($_POST['impressoras'] ?? null));
+    }
+
+    /** "Nao imprime" e "So presencial" para o formulario. @return array{nao_imprime?:string, onde_vende?:string} */
+    private function opcoesDoProdutoParaForm(int $idProduto): array
+    {
+        if (!Esquema::tem($this->db, 'produto_opcoes')) {
+            return [];
+        }
+        $q = $this->db->prepare('SELECT imprime_producao, vende_delivery FROM produtos WHERE id = ? AND id_restaurante = ?');
+        $q->execute([$idProduto, $this->restaurante['id']]);
+        $r = $q->fetch(\PDO::FETCH_ASSOC);
+        return $r === false ? [] : [
+            'nao_imprime' => (int) $r['imprime_producao'] === 0 ? '1' : '',
+            'onde_vende' => (int) $r['vende_delivery'] === 1 ? 'todos' : 'presencial',
+        ];
+    }
+
+    /** Grava "Nao imprime" e "So presencial" (cada um so quando o formulario mostrou o campo). */
+    private function salvarOpcoesDoProduto(?int $idProduto): void
+    {
+        if ($idProduto === null || !Esquema::tem($this->db, 'produto_opcoes')) {
+            return;
+        }
+        if (($_POST['impressoras_enviado'] ?? '') === '1') {
+            $this->db->prepare('UPDATE produtos SET imprime_producao = ? WHERE id = ? AND id_restaurante = ?')
+                ->execute([($_POST['nao_imprime'] ?? '') === '1' ? 0 : 1, $idProduto, $this->restaurante['id']]);
+        }
+        if (in_array($_POST['onde_vende'] ?? null, ['todos', 'presencial'], true)) {
+            $this->db->prepare('UPDATE produtos SET vende_delivery = ? WHERE id = ? AND id_restaurante = ?')
+                ->execute([$_POST['onde_vende'] === 'todos' ? 1 : 0, $idProduto, $this->restaurante['id']]);
+        }
     }
 
     /** @return list<int> */

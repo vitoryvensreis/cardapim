@@ -44,6 +44,22 @@ Os pontos antigos `delivery_novo` e `garcom_lancar` saíram da tela e ficam vazi
 COZINHA (padrão), cupom completo no BALCÃO. Churrascaria = espeto na CHURRASQUEIRA, baião na COZINHA, bebida no BALCÃO,
 cupom completo no CAIXA.
 
+## Regra da via de produção (`RotaProducao`)
+
+Uma função só decide para onde vai cada item, usada pela impressão real, pelo aviso de cancelamento e pelo
+**Testar impressão** (por isso o teste é fiel a qualquer mudança no cadastro):
+- produto marcado **Não imprime** (ficha do produto ou atalho da categoria; `produtos.imprime_producao = 0`) não sai em
+  nenhuma impressora;
+- produto com impressoras marcadas sai nelas;
+- o resto sai na impressora padrão da produção.
+
+## Cancelamento
+
+Item cancelado (caixa ou garçom), comanda cancelada e pedido do delivery cancelado imprimem **CANCELAMENTO** na
+impressora de cada item (mesma regra acima), com a mesa/pedido, os itens ("Não preparar") e o motivo. Só sai o que já
+tinha saído na produção: na comanda, itens até o último impresso; no delivery, quando as vias do aceite já foram.
+Nunca impede o cancelamento (falha vai para o log). Tipo `cancelamento` em `impressoes`.
+
 ## Testar impressão (Gerência > Integrações > Impressoras)
 
 No fim da tela, o bloco **Testar impressão** monta um pedido com produtos cadastrados (quantidade e observação) e

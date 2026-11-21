@@ -28,6 +28,8 @@ final class Esquema
         'combos' => ['pedido_itens', 'combo_nome'],
         // Limite de escolhas de cada grupo dentro do combo.
         'combo_grupos' => ['combo_grupos', 'maximo'],
+        // Produto: nao imprime, so presencial e impressao de cancelamento (coluna criada no fim da migracao).
+        'produto_opcoes' => ['produtos', 'vende_delivery'],
     ];
 
     /** @var array<string,bool> */

@@ -21,6 +21,15 @@
   const resumoErros = document.querySelector("[data-erros-form]");
   if (resumoErros) resumoErros.focus();
 
+  /* ---------- Nao imprime: esconde a escolha de impressoras ---------- */
+  const naoImprime = document.querySelector("[data-nao-imprime]");
+  const listaImpressoras = document.querySelector("[data-impressoras-produto]");
+  if (naoImprime && listaImpressoras) {
+    const trocar = () => { listaImpressoras.hidden = naoImprime.checked; };
+    naoImprime.addEventListener("change", trocar);
+    trocar();
+  }
+
   /* ---------- Combo (ficha do produto) ---------- */
   const combo = document.querySelector("[data-combo]");
   if (combo) {

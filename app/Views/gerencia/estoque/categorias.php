@@ -68,22 +68,25 @@ $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css'];
             <section class="bloco" aria-labelledby="titulo-impressoras-categoria">
                 <div class="bloco-cabecalho">
                     <h2 id="titulo-impressoras-categoria"><?= Icon::svg('printer') ?>Impressora de produção por categoria</h2>
-                    <p>Marque as impressoras (pelos apelidos do <?= marca_html() ?> Agent) e aplique a todos os produtos da categoria. Ex.: Espetinhos na Churrasqueira, Bebidas no Bar. Depois dá para ajustar produto por produto.</p>
+                    <p>Marque as impressoras (pelos apelidos do <?= marca_html() ?> Agent) e aplique a todos os produtos da categoria. Ex.: Espetinhos na Churrasqueira, Bebidas no Bar. Marque "Não imprime" para os produtos da categoria não saírem em nenhuma impressora. Depois dá para ajustar produto por produto.</p>
                 </div>
                 <?php if ($impressorasProducao === []): ?>
                     <p class="texto-suave">Nenhuma impressora cadastrada ainda. Cadastre no <?= marca_html() ?> Agent e veja em <a href="<?= $e($base . '/integracoes/impressoras') ?>">Integrações &gt; Impressoras</a>.</p>
                 <?php else: ?>
                     <ul class="categoria-impressoras">
-                        <?php foreach ($categorias as $c): $id = (int) $c['id']; $atuais = $impressorasCategoria[$id] ?? []; ?>
+                        <?php foreach ($categorias as $c): $id = (int) $c['id']; $atuais = $impressorasCategoria[$id] ?? []; $semImpressao = is_array($categoriasSemImpressao ?? null) && in_array($id, $categoriasSemImpressao, true); ?>
                             <li>
                                 <form method="post" action="<?= $e($base . '/estoque/categorias/' . $id . '/impressoras') ?>">
                                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                                     <fieldset>
-                                        <legend><strong><?= $e($c['nome']) ?></strong> <small><?= (int) $c['produtos'] ?> produto(s)<?= $atuais === null ? ' · impressoras diferentes entre os produtos' : ($atuais === [] && $c['produtos'] > 0 ? ' · na impressora padrão' : '') ?></small></legend>
+                                        <legend><strong><?= $e($c['nome']) ?></strong> <small><?= (int) $c['produtos'] ?> produto(s)<?= $semImpressao ? ' · não imprime' : ($atuais === null ? ' · impressoras diferentes entre os produtos' : ($atuais === [] && $c['produtos'] > 0 ? ' · na impressora padrão' : '')) ?></small></legend>
                                         <div class="categoria-impressoras-opcoes">
                                             <?php foreach ($impressorasProducao as $imp): ?>
-                                                <label class="chip-opcao"><input type="checkbox" name="impressoras[]" value="<?= (int) $imp['id'] ?>"<?= is_array($atuais) && in_array($imp['id'], $atuais, true) ? ' checked' : '' ?>><span><?= $e($imp['apelido']) ?></span></label>
+                                                <label class="chip-opcao"><input type="checkbox" name="impressoras[]" value="<?= (int) $imp['id'] ?>"<?= !$semImpressao && is_array($atuais) && in_array($imp['id'], $atuais, true) ? ' checked' : '' ?>><span><?= $e($imp['apelido']) ?></span></label>
                                             <?php endforeach; ?>
+                                            <?php if (is_array($categoriasSemImpressao ?? null)): ?>
+                                                <label class="chip-opcao chip-nao-imprime"><input type="checkbox" name="nao_imprime" value="1"<?= $semImpressao ? ' checked' : '' ?>><span><?= Icon::svg('ban', 'icon-sm') ?>Não imprime</span></label>
+                                            <?php endif; ?>
                                         </div>
                                     </fieldset>
                                     <button class="btn btn-outline btn-sm" type="submit"<?= $c['produtos'] > 0 ? '' : ' disabled' ?>><?= Icon::svg('save', 'icon-sm') ?>Aplicar aos produtos</button>

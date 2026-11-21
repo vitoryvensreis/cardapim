@@ -50,12 +50,14 @@ final class CancelarPedido
             AvisosWhatsApp::enfileirar($this->db, $idRestaurante, $idPedido, 'cancelado');
             TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.cancelado', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
             $this->db->commit();
-            return true;
         } catch (Throwable $erro) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
             throw $erro;
         }
+        // Aviso de cancelamento nas impressoras de producao que ja receberam os itens (nunca impede o cancelamento).
+        \Cardapim\Services\Impressao\FilaImpressao::cancelamentoDoSistema($this->db, $idRestaurante, $idPedido, $motivo);
+        return true;
     }
 }

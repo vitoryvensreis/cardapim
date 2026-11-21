@@ -36,7 +36,9 @@ final class CardapioPublico
             'SELECT p.id, p.nome, p.descricao, p.preco, p.unidade_venda, p.venda_minima, p.imagem_path, p.id_categoria, c.nome AS categoria
              FROM produtos p
              LEFT JOIN categorias c ON c.id = p.id_categoria AND c.id_restaurante = p.id_restaurante
-             WHERE p.id_restaurante = ? AND p.ativo = 1 AND (c.id IS NULL OR c.ativo = 1)
+             WHERE p.id_restaurante = ? AND p.ativo = 1 AND (c.id IS NULL OR c.ativo = 1)'
+             // Cardapio online: "so no restaurante" (ex.: cerveja de casco) nao aparece. Caixa e garcom veem tudo.
+             . ($online && \Cardapim\Shared\Esquema::tem($this->db, 'produto_opcoes') ? ' AND p.vende_delivery = 1' : '') . '
              ORDER BY c.id IS NULL, c.ordem, c.nome, p.ordem, p.nome'
         );
         $q->execute([$idRestaurante]);
@@ -135,7 +137,8 @@ final class CardapioPublico
             return ['itens' => [], 'removidos' => []];
         }
         $lista = array_keys($ids);
-        $q = $this->db->prepare('SELECT id, nome, preco, unidade_venda FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN ('
+        $presencial = \Cardapim\Shared\Esquema::tem($this->db, 'produto_opcoes') ? ' AND vende_delivery = 1' : '';
+        $q = $this->db->prepare('SELECT id, nome, preco, unidade_venda FROM produtos WHERE id_restaurante = ? AND ativo = 1' . $presencial . ' AND id IN ('
             . implode(',', array_fill(0, count($lista), '?')) . ')');
         $q->execute([$idRestaurante, ...$lista]);
         $disponibilidade = (new DisponibilidadeProdutos($this->db))->verificar($idRestaurante, $lista);

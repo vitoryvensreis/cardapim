@@ -62,7 +62,9 @@ final class LinhasSacola
         if ($ids === []) {
             return ['linhas' => [], 'ausentes' => [], 'invalida' => false, 'mensagem' => null];
         }
-        $q = $db->prepare('SELECT id, nome, preco, unidade_venda FROM produtos WHERE id_restaurante = ? AND ativo = 1 AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
+        // Cardapio online: produto "so no restaurante" fica de fora (vira ausente na sacola).
+        $presencial = \Cardapim\Shared\Esquema::tem($db, 'produto_opcoes') ? ' AND vende_delivery = 1' : '';
+        $q = $db->prepare('SELECT id, nome, preco, unidade_venda FROM produtos WHERE id_restaurante = ? AND ativo = 1' . $presencial . ' AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
         $q->execute([$idRestaurante, ...$ids]);
         $produtos = [];
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
