@@ -13,8 +13,9 @@ use PDO;
 /**
  * Permissoes do perfil garcom, decididas pelo gerente (aba Entrega e pagamento, card "Perfil garçom"):
  * - remover_itens: tirar da comanda um item que ja foi lancado;
- * - cancelar_comanda: cancelar a comanda inteira.
- * Padrao: bloqueado. A regra so vale para o cargo "garcom": gerente e adm_master sempre podem.
+ * - cancelar_comanda: cancelar a comanda inteira;
+ * - fechar_conta: receber pagamento, gerar Pix e mexer nos 10% (padrao liberado, como sempre foi).
+ * Padrao de remover/cancelar: bloqueado. A regra so vale para o cargo "garcom": gerente e adm_master sempre podem.
  * Conferido no backend (GarcomController) e usado na tela so para esconder os botoes.
  */
 final class PermissoesGarcom
@@ -22,10 +23,11 @@ final class PermissoesGarcom
     public const ROTULOS = [
         'remover_itens' => 'Garçom pode remover itens já lançados',
         'cancelar_comanda' => 'Garçom pode cancelar comanda',
+        'fechar_conta' => 'Garçom pode fechar a conta',
     ];
 
     private readonly PermissoesGarcomRepository $repo;
-    /** @var array{remover_itens:int,cancelar_comanda:int}|null */
+    /** @var array{remover_itens:int,cancelar_comanda:int,fechar_conta:int}|null */
     private ?array $cache = null;
 
     public function __construct(PDO $db, private readonly int $idRestaurante)
@@ -33,7 +35,7 @@ final class PermissoesGarcom
         $this->repo = new PermissoesGarcomRepository($db);
     }
 
-    /** @return array{remover_itens:int,cancelar_comanda:int} */
+    /** @return array{remover_itens:int,cancelar_comanda:int,fechar_conta:int} */
     public function config(): array
     {
         return $this->cache ??= $this->repo->buscar($this->idRestaurante);
@@ -49,14 +51,23 @@ final class PermissoesGarcom
         return self::livre($usuario) || $this->config()['cancelar_comanda'] === 1;
     }
 
+    public function podeFecharConta(UsuarioLogado $usuario): bool
+    {
+        return self::livre($usuario) || $this->config()['fechar_conta'] === 1;
+    }
+
     /** @param array<string,mixed> $e */
     public function salvar(array $e, UsuarioLogado $autor): Resultado
     {
         $novo = [];
+        $antes = $this->config();
         foreach (PermissoesGarcomRepository::CAMPOS as $campo) {
             $novo[$campo] = ($e[$campo] ?? '') === '1' ? 1 : 0;
         }
-        $antes = $this->config();
+        // "Fechar a conta" so muda quando a tela mostrou o campo (formulario antigo nao tira a permissao sem querer).
+        if (($e['fechar_conta_enviado'] ?? '') !== '1') {
+            $novo['fechar_conta'] = $antes['fechar_conta'];
+        }
         try {
             $this->repo->salvar($this->idRestaurante, $novo);
         } catch (\PDOException) {
@@ -67,13 +78,13 @@ final class PermissoesGarcom
         if ($antes !== $novo) {
             Auditoria::registrar($autor, 'Permissões do garçom alteradas', Auditoria::diferencas($legivel($antes), $legivel($novo), self::ROTULOS));
         }
-        $liberado = array_keys(array_filter($novo));
         $mensagem = match (true) {
-            $liberado === [] => 'Salvo. O garçom não pode remover itens lançados nem cancelar comandas. Peça ao gerente ou ao caixa.',
-            count($liberado) === 2 => 'Salvo. O garçom pode remover itens lançados e cancelar comandas.',
+            $novo['remover_itens'] === 0 && $novo['cancelar_comanda'] === 0 => 'Salvo. O garçom não pode remover itens lançados nem cancelar comandas. Peça ao gerente ou ao caixa.',
+            $novo['remover_itens'] === 1 && $novo['cancelar_comanda'] === 1 => 'Salvo. O garçom pode remover itens lançados e cancelar comandas.',
             $novo['remover_itens'] === 1 => 'Salvo. O garçom pode remover itens lançados, mas não cancelar comandas.',
             default => 'Salvo. O garçom pode cancelar comandas, mas não remover itens lançados.',
         };
+        $mensagem .= $novo['fechar_conta'] === 1 ? ' Ele também fecha a conta.' : ' Fechar a conta: só o caixa ou o gerente.';
         return Resultado::sucesso($mensagem);
     }
 

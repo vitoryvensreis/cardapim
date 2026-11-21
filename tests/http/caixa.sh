@@ -359,6 +359,21 @@ esperar "mesa com historico excluida (pedidos ficam)" "$(aviso "$cx" "$c/mesas/g
 enviar "$cx" "$c/mesas" numero=2 >/dev/null
 esperar "numero da mesa excluida pode ser usado de novo" "$(aviso "$cx" "$c/mesas/gerenciar")" "Mesa 2 criada."
 
+echo "Comandas do periodo"
+curl -s -b "$cx" "$c/comandas?periodo=mes&status=todas" -o "$tmp/hist.html"
+contem "lista de comandas do periodo" "$tmp/hist.html" 'Comandas do período'
+contem "filtro de periodo" "$tmp/hist.html" 'Este mês'
+contem "comanda fechada na lista" "$tmp/hist.html" 'Fechada'
+det="$(php -r 'if (preg_match("~/comandas/(\d+)/detalhes~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/hist.html")"
+[[ -n "$det" ]] && ok "link para o detalhe ($det)" || falha "sem link para o detalhe"
+curl -s -b "$cx" "$c/comandas/$det/detalhes" -o "$tmp/det.html"
+contem "detalhe mostra quem e quando" "$tmp/det.html" 'Quem e quando'
+contem "detalhe mostra pagamentos" "$tmp/det.html" 'Pagamentos'
+contem "detalhe mostra o historico" "$tmp/det.html" 'Histórico'
+curl -s -b "$cx" "$c/comandas?periodo=hoje&status=canceladas" -o "$tmp/hist.html"
+contem "filtro de canceladas marcado" "$tmp/hist.html" 'status=canceladas" aria-current="true"'
+esperar "comanda de outro restaurante ou inexistente" "$(curl -s -o /dev/null -b "$cx" -w '%{http_code}' "$c/comandas/999999999/detalhes")" "303"
+
 echo "Limpeza"
 t="$(token "$aj" "$base/painel/integracoes/whatsapp")"
 curl -s -o /dev/null -c "$aj" -b "$aj" --data-urlencode "_csrf=$t" "$base/painel/integracoes/whatsapp/desconectar"

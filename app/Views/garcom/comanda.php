@@ -153,9 +153,14 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
         </details>
     <?php endif; ?>
 
+    <?php if (isset($podeFecharConta) && !$podeFecharConta): ?>
+        <p class="garcom-aviso-conta"><?= Icon::svg('info', 'icon-sm') ?>Para fechar a conta, chame o caixa.</p>
+    <?php endif; ?>
     <div class="garcom-acoes">
         <a class="btn btn-primary btn-lg" href="#adicionar" data-abrir-folha><?= Icon::svg('plus') ?>Adicionar</a>
-        <?php if ($c['total'] > 0): ?>
+        <?php if (isset($podeFecharConta) && !$podeFecharConta): ?>
+            <a class="btn btn-outline btn-lg" href="<?= $e($url . '/conta') ?>"><?= Icon::svg('receipt') ?>Ver conta</a>
+        <?php elseif ($c['total'] > 0): ?>
             <a class="btn btn-wine btn-lg" href="<?= $e($url . '/conta') ?>"><?= Icon::svg('receipt') ?>Fechar conta</a>
         <?php else: ?>
             <span class="btn btn-wine btn-lg is-desligado" aria-disabled="true"><?= Icon::svg('receipt') ?>Fechar conta</span>

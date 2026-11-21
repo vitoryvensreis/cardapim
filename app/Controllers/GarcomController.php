@@ -92,6 +92,7 @@ final class GarcomController
             'producaoAtiva' => $impressao->producaoAtiva(),
             'podeRemoverItens' => $this->permissoes()->podeRemoverItens($this->usuario),
             'podeCancelarComanda' => $this->permissoes()->podeCancelarComanda($this->usuario),
+            'podeFecharConta' => $this->permissoes()->podeFecharConta($this->usuario),
             'voltar' => $this->url(),
             'subtitulo' => 'Pedido #' . (int) $c['pedido']['numero'],
         ]);
@@ -282,6 +283,8 @@ final class GarcomController
         $enviado = Session::flash('garcom_enviado');
         return $this->tela('garcom/conta', 'mesas', $c['rotulo'], [
             'c' => $c,
+            // Sem permissao de fechar: o garcom so ve a conta (valores e o que falta pagar).
+            'podeFecharConta' => $this->permissoes()->podeFecharConta($this->usuario),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'pixDisponivel' => $c['aberta'] && $this->pix()->disponivel(),
             'troco' => Session::flash('garcom_troco'),
@@ -298,6 +301,9 @@ final class GarcomController
         if ($r = $this->entrar($slug, true)) {
             return $r;
         }
+        if (!$this->permissoes()->podeFecharConta($this->usuario)) {
+            return $this->voltar($this->url('comandas/' . (int) self::id($id)), 'erro', 'Você não tem permissão para fechar a conta. Chame o caixa.');
+        }
         $c = $this->detalhes($id);
         $volta = $this->url('comandas/' . (int) $id . '/conta');
         if ($c === null || !$c['aberta']) {
@@ -313,6 +319,9 @@ final class GarcomController
     {
         if ($r = $this->entrar($slug, true)) {
             return $r;
+        }
+        if (!$this->permissoes()->podeFecharConta($this->usuario)) {
+            return $this->voltar($this->url('comandas/' . (int) self::id($id)), 'erro', 'Você não tem permissão para fechar a conta. Chame o caixa.');
         }
         $idComanda = (int) self::id($id);
         $volta = $this->url('comandas/' . $idComanda . '/conta');
@@ -339,6 +348,9 @@ final class GarcomController
     {
         if ($r = $this->entrar($slug, true)) {
             return $r;
+        }
+        if (!$this->permissoes()->podeFecharConta($this->usuario)) {
+            return $this->voltar($this->url('comandas/' . (int) self::id($id)), 'erro', 'Você não tem permissão para fechar a conta. Chame o caixa.');
         }
         $c = $this->detalhes($id);
         $volta = $this->url('comandas/' . (int) $id . '/conta');

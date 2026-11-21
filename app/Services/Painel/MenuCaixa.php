@@ -12,6 +12,7 @@ final class MenuCaixa
         'caixa' => ['Caixa', 'wallet', ''],
         'mesas' => ['Mesas e comandas', 'armchair', 'mesas'],
         'delivery' => ['Delivery', 'bike', 'delivery'],
+        'comandas' => ['Comandas do período', 'receipt-text', 'comandas'],
         'movimentos' => ['Entradas e saídas', 'arrow-left-right', 'movimentos'],
         'historico' => ['Fechamentos', 'rotate-ccw-clock', 'historico'],
         'gerenciar-mesas' => ['Cadastro de mesas', 'settings', 'mesas/gerenciar'],
@@ -19,7 +20,7 @@ final class MenuCaixa
 
     public const GRUPOS = [
         '' => ['caixa'],
-        'Atendimento' => ['mesas', 'delivery'],
+        'Atendimento' => ['mesas', 'delivery', 'comandas'],
         'Dinheiro' => ['movimentos', 'historico'],
         'Ajustes' => ['gerenciar-mesas'],
     ];
