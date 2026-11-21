@@ -131,10 +131,15 @@ final class GarcomController
                 $falhas[] = $res->mensagem;
             }
         }
-        if ($falhas === []) {
-            return $this->voltar($volta, 'sucesso', $lancados === 1 ? '1 item lançado.' : $lancados . ' itens lançados.');
+        $impressao = $lancados > 0 ? $this->imprimirAoLancar((int) $idComanda) : null;
+        $texto = $lancados === 1 ? '1 item lançado.' : $lancados . ' itens lançados.';
+        if ($impressao !== null) {
+            $texto .= $impressao->ok ? ' ' . $impressao->mensagem : ' Não imprimiu: ' . $impressao->mensagem;
         }
-        $msg = ($lancados > 0 ? ($lancados === 1 ? '1 item lançado. ' : $lancados . ' itens lançados. ') : '') . implode(' ', array_slice($falhas, 0, 3));
+        if ($falhas === []) {
+            return $this->voltar($volta, $impressao === null || $impressao->ok ? 'sucesso' : 'aviso', $texto);
+        }
+        $msg = ($lancados > 0 ? $texto . ' ' : '') . implode(' ', array_slice($falhas, 0, 3));
         return $this->voltar($volta, $lancados > 0 ? 'aviso' : 'erro', $msg);
     }
 
@@ -478,6 +483,17 @@ final class GarcomController
     private function comandas(): ComandaService
     {
         return new ComandaService($this->db, $this->restaurante['id'], $this->usuario);
+    }
+
+    /** Impressao automatica do lancamento (ponto "Garcom: ao lancar itens"). Nunca desfaz o lancamento. */
+    private function imprimirAoLancar(int $idComanda): ?Resultado
+    {
+        try {
+            return $this->impressao()->aoLancar($idComanda);
+        } catch (\Throwable $e) {
+            error_log('[Cardapim] Impressao ao lancar indisponivel (' . get_class($e) . ').');
+            return Resultado::falha('a impressora não respondeu. Use Imprimir > Só os itens novos.');
+        }
     }
 
     private function impressao(): FilaImpressao

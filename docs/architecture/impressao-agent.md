@@ -47,6 +47,11 @@ Para restaurantes com várias estações (Churrasqueira, Cozinha, Bar, Balcão):
   Com o ponto configurado, as vias de produção ficam ligadas.
 - **Garçom:** em Imprimir > **Só os itens novos**, cada item sai na impressora do produto (um cupom por estação, com a
   mesa em letra grande, hora, garçom, complementos e observações, sem o total). "Comanda inteira" continua num cupom só.
+- **Garçom ao lançar** (ponto "Garçom: ao lançar itens", migration `20261121300000_impressao_lancamento`): com
+  impressora marcada no ponto, tocar em **Lançar** já manda os itens novos, cada item na impressora marcada no produto
+  (só entre as do ponto; produto marcado apenas em outras não sai) e o produto sem marcação na padrão do ponto.
+  Estação desligada não desfaz o lançamento: o garçom vê "Não imprimiu" e os itens continuam como novos.
+  Sem impressora no ponto, lançar não imprime (como antes).
 - **Caixa:** na comanda, **Itens novos para produção** faz o mesmo (balcão e mesa). "Imprimir conta" continua num cupom só.
 - **Produto nunca sai onde não está marcado:** vale para todos os cupons com impressora definida: "Imprimir conta",
   "Comanda inteira", o pedido do delivery impresso pelo caixa e o pedido novo do delivery. Os itens cujo produto está
