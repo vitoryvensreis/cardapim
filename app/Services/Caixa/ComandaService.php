@@ -15,6 +15,7 @@ use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Pedidos\CancelarPedido;
+use Cardapim\Modules\Catalog\Combo;
 use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
@@ -219,7 +220,7 @@ final class ComandaService
         if ($p === null || !in_array($p['tipo'], ['mesa', 'balcao'], true)) {
             return null;
         }
-        $comp = Esquema::tem($this->db, 'complementos') ? ', i.complementos_texto' : '';
+        $comp = (Esquema::tem($this->db, 'complementos') ? ', i.complementos_texto' : '') . (Esquema::tem($this->db, 'combos') ? ', i.combo_lote, i.combo_nome' : '');
         $q = $this->db->prepare(
             "SELECT i.id, i.id_produto, i.nome, i.preco_unitario, i.quantidade, i.unidade, i.observacao$comp, i.total, i.criado_em, i.cancelado_em, i.motivo_cancelamento,
                     u.nome AS autor
@@ -305,6 +306,11 @@ final class ComandaService
         if ($escolhas === null) {
             return Resultado::falha('Complementos inválidos. Escolha de novo.');
         }
+        // Combo: vira os itens separados, com o preco do combo dividido entre eles.
+        $combo = $unidade === 'un' ? (Combo::carregar($this->db, $this->idRestaurante, [$idProduto])[$idProduto] ?? null) : null;
+        if ($combo !== null) {
+            return $this->lancarCombo($id, $produto, $combo, intdiv($milesimos, 1000), $observacao, $escolhas);
+        }
         $grupos = $unidade === 'un' ? (Complementos::carregar($this->db, $this->idRestaurante, [$idProduto])[$idProduto] ?? []) : [];
         $conf = ['centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => []];
         if ($grupos !== [] || $escolhas !== []) {
@@ -347,6 +353,49 @@ final class ComandaService
         return Resultado::sucesso(QuantidadeVenda::comNome($milesimos, $unidade, (string) $produto['nome']) . ' lançado.');
     }
 
+    /**
+     * Lanca N combos: as linhas separadas (mesmo combo_lote) e a baixa de estoque de todos os itens de uma vez.
+     * @param array<string,mixed> $produto
+     * @param array<string,mixed> $combo de Combo::carregar()
+     * @param list<array{id:int, quantidade:int}> $escolhas
+     */
+    private function lancarCombo(int $id, array $produto, array $combo, int $n, string $observacao, array $escolhas): Resultado
+    {
+        $conf = Combo::conferir($combo, $escolhas);
+        if (!$conf['ok']) {
+            return Resultado::falha('"' . $produto['nome'] . '": ' . $conf['erro']);
+        }
+        $m = Combo::montar($combo, $conf['escolhidos'], Numero::centavos((string) $produto['preco']), $n);
+        $nome = Combo::rotulo((string) $produto['nome'], $n);
+        $lote = Combo::novoLote();
+        $agora = date('Y-m-d H:i:s');
+        $this->db->beginTransaction();
+        try {
+            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($this->idRestaurante, $m['produtos'], $m['insumos']);
+            $ins = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, id_user,
+                    consumo_estoque, criado_em, complementos_texto, combo_lote, combo_nome) VALUES (?, ?, ?, ?, ?, ?, \'un\', ?, ?, ?, ?, ?, ?, ?, ?)');
+            foreach ($m['linhas'] as $i => $l) {
+                // O consumo do combo inteiro fica na primeira linha (cancelar devolve tudo de uma vez).
+                $ins->execute([$id, $this->idRestaurante, $l['id_produto'], mb_substr($l['nome'], 0, 180), CaixaService::dec($l['centavos']),
+                    QuantidadeVenda::paraBanco($l['unidades'] * 1000), $i === 0 && $observacao !== '' ? $observacao : null,
+                    CaixaService::dec($l['centavos'] * $l['unidades']), $this->autor->id,
+                    $i === 0 && $consumo !== [] ? json_encode($consumo, JSON_THROW_ON_ERROR) : null, $agora,
+                    'Combo: ' . $nome, $lote, $nome]);
+            }
+            $this->recalcular($id);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
+            $this->db->commit();
+        } catch (EstoqueInsuficiente $falta) {
+            $this->db->rollBack();
+            $nomes = implode(', ', array_map(static fn (array $f): string => $f['nome'] . ' (tem ' . self::quantidade((string) $f['disponivel']) . ')', $falta->faltas));
+            return Resultado::falha('Não deu para lançar "' . $produto['nome'] . '": falta ' . $nomes . '.');
+        } catch (Throwable $erro) {
+            $this->db->rollBack();
+            throw $erro;
+        }
+        return Resultado::sucesso($nome . ' lançado.');
+    }
+
     public function cancelarItem(int $id, int $idItem, string $motivo): Resultado
     {
         $comanda = $this->aberta($id);
@@ -359,19 +408,33 @@ final class ComandaService
         }
         $this->db->beginTransaction();
         try {
-            $q = $this->db->prepare('SELECT id, nome, quantidade, unidade, total, consumo_estoque FROM pedido_itens WHERE id = ? AND id_pedido = ? AND id_restaurante = ? AND cancelado_em IS NULL');
+            $comCombo = Esquema::tem($this->db, 'combos');
+            $q = $this->db->prepare('SELECT id, nome, quantidade, unidade, total, consumo_estoque' . ($comCombo ? ', combo_lote, combo_nome' : '')
+                . ' FROM pedido_itens WHERE id = ? AND id_pedido = ? AND id_restaurante = ? AND cancelado_em IS NULL');
             $q->execute([$idItem, $id, $this->idRestaurante]);
             $item = $q->fetch(PDO::FETCH_ASSOC);
             if ($item === false) {
                 $this->db->rollBack();
                 return Resultado::falha('Item não encontrado. Ele pode já ter sido cancelado.');
             }
+            // Item de combo: o combo nao pode ser alterado, sai inteiro (todas as linhas do mesmo lote).
+            $linhas = [$item];
+            if (($item['combo_lote'] ?? null) !== null) {
+                $q = $this->db->prepare('SELECT id, nome, quantidade, unidade, total, consumo_estoque FROM pedido_itens
+                    WHERE id_pedido = ? AND id_restaurante = ? AND combo_lote = ? AND cancelado_em IS NULL');
+                $q->execute([$id, $this->idRestaurante, $item['combo_lote']]);
+                $linhas = $q->fetchAll(PDO::FETCH_ASSOC);
+                $item = ['nome' => (string) $item['combo_nome'], 'quantidade' => '1.000', 'unidade' => 'un',
+                    'total' => CaixaService::dec(array_sum(array_map(static fn (array $l): int => Numero::centavos((string) $l['total']), $linhas)))];
+            }
             $agora = date('Y-m-d H:i:s');
-            $this->db->prepare('UPDATE pedido_itens SET cancelado_em = ?, motivo_cancelamento = ?, id_user_cancelou = ?, consumo_estoque = NULL WHERE id = ? AND id_restaurante = ?')
-                ->execute([$agora, $motivo, $this->autor->id, $idItem, $this->idRestaurante]);
-            $consumo = json_decode((string) ($item['consumo_estoque'] ?? ''), true);
-            if (is_array($consumo) && $consumo !== []) {
-                (new BaixaEstoque($this->db))->devolver($this->idRestaurante, array_map('strval', $consumo));
+            $cancela = $this->db->prepare('UPDATE pedido_itens SET cancelado_em = ?, motivo_cancelamento = ?, id_user_cancelou = ?, consumo_estoque = NULL WHERE id = ? AND id_restaurante = ?');
+            foreach ($linhas as $linha) {
+                $cancela->execute([$agora, $motivo, $this->autor->id, (int) $linha['id'], $this->idRestaurante]);
+                $consumo = json_decode((string) ($linha['consumo_estoque'] ?? ''), true);
+                if (is_array($consumo) && $consumo !== []) {
+                    (new BaixaEstoque($this->db))->devolver($this->idRestaurante, array_map('strval', $consumo));
+                }
             }
             $this->recalcular($id);
             if (Numero::centavos((string) $this->pedidos->buscar($this->idRestaurante, $id)['total']) < $this->somaPagamentos($id)) {

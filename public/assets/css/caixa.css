@@ -499,3 +499,19 @@
 
 /* Conta: botoes Itens novos para producao e Imprimir conta lado a lado */
 .conta-imprimir { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
+
+/* Combo: itens inclusos e escolhas com quantidade (caixa e garcom) */
+.combo-inclusos { width: 100%; margin: 0 0 .6rem; padding: .55rem .75rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-ink); font-size: .88rem; font-weight: 700; }
+.comps-grupo.is-combo { display: grid; gap: .4rem; }
+.combo-passo { display: grid; grid-template-columns: minmax(0, 1fr) 2.75rem 2rem 2.75rem; align-items: center; gap: .35rem; padding: .3rem .3rem .3rem .75rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); }
+.combo-passo.is-escolhido { border-color: var(--c-wine); background: var(--c-blush); }
+.combo-passo.is-indisponivel { opacity: .55; }
+.combo-passo span { color: var(--c-ink); font-size: .9rem; }
+.combo-passo output { text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.combo-passo-btn { min-height: 2.75rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); color: var(--c-wine); font: 700 1.2rem/1 var(--f-head); cursor: pointer; }
+.combo-passo-btn:disabled { cursor: not-allowed; opacity: .5; }
+.combo-passo-btn:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+/* Conta: linhas do combo agrupadas */
+.conta-combo-titulo { font-weight: 700; }
+.conta-itens li.is-combo-item .conta-nome { padding-left: .9rem; color: var(--c-muted); }
+.combo-passo-num { width: 2rem; padding: 0; border: 0; background: transparent; color: var(--c-ink); font: 700 1rem/1 var(--f-head); text-align: center; font-variant-numeric: tabular-nums; }

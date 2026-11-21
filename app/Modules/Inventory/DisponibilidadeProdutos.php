@@ -107,6 +107,14 @@ final class DisponibilidadeProdutos
                     array_filter($grupos, static fn (array $g): bool => \Cardapim\Modules\Catalog\Complementos::bloqueia([$g]))));
             }
         }
+        // Combo: indisponivel se faltar item obrigatorio ou opcoes suficientes num grupo obrigatorio.
+        foreach (\Cardapim\Modules\Catalog\Combo::carregar($this->db, $idRestaurante, array_keys($resultado)) as $idProduto => $combo) {
+            if (($resultado[$idProduto]['disponivel'] ?? false) && !$combo['disponivel']) {
+                $resultado[$idProduto]['disponivel'] = false;
+                $resultado[$idProduto]['motivo'] = self::MOTIVO_SEM_COMPLEMENTO;
+                $resultado[$idProduto]['faltando'] = $combo['faltando'];
+            }
+        }
         return $resultado;
     }
 

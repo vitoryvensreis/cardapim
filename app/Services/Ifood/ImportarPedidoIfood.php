@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Ifood;
 
+use Cardapim\Modules\Catalog\Combo;
 use Cardapim\Modules\Inventory\BaixaEstoque;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\EstoqueInsuficiente;
@@ -108,8 +109,15 @@ final class ImportarPedidoIfood
             $ins = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $baixar = [];
+            $extrasCombo = [];
             $unidades = $this->unidadesVenda(array_values(array_filter(array_column($p['itens'], 'id_produto'))));
+            $combos = Combo::carregar($this->db, $this->idRestaurante, array_values(array_filter(array_column($p['itens'], 'id_produto'))));
             foreach ($p['itens'] as $i) {
+                // Combo publicado pelo Cardapim: entra com os itens separados (estoque e impressao de cada um),
+                // dividindo o valor que o iFood cobrou. Se algo nao for reconhecido, entra como antes (uma linha).
+                if ($this->gravarCombo($idPedido, $i, $combos, $agora, $baixar, $extrasCombo)) {
+                    continue;
+                }
                 [$quantidade, $unidade, $preco, $nome] = [QuantidadeVenda::paraBanco($i['quantidade'] * 1000), 'un', $i['preco_unitario'], $i['nome']];
                 $baixa = $i['baixa'] * 1000;
                 // Peso do iFood num produto vendido por quilo/litro aqui: grava o peso real (quando o valor fecha ao centavo).
@@ -133,6 +141,21 @@ final class ImportarPedidoIfood
             $semLigacao = array_values(array_unique(array_map(static fn (array $i): string => $i['nome_ifood'] ?: $i['nome'],
                 array_filter($p['itens'], static fn (array $i): bool => $i['id_produto'] === null))));
             [$consumo, $faltou] = $this->baixarEstoque($baixar);
+            if ($extrasCombo !== []) { // ficha das opcoes de combo sem produto ligado
+                try {
+                    $todos = [];
+                    foreach ($consumo as $idInsumo => $qtd) {
+                        $todos[(int) $idInsumo] = Quantidade::paraMilesimos((string) $qtd);
+                    }
+                    foreach ((new BaixaEstoque($this->db))->baixarMilesimos($this->idRestaurante, [], $extrasCombo) as $idInsumo => $qtd) {
+                        $todos[(int) $idInsumo] = ($todos[(int) $idInsumo] ?? 0) + Quantidade::paraMilesimos((string) $qtd);
+                    }
+                    ksort($todos);
+                    $consumo = array_map(static fn (int $m): string => Quantidade::paraDecimal($m), $todos);
+                } catch (EstoqueInsuficiente | InvalidArgumentException) {
+                    $faltou[] = 'opções do combo';
+                }
+            }
             if ($faltou !== []) {
                 $dados['avisos'][] = 'Faltou estoque no sistema para: ' . implode(', ', $faltou) . '. Confira o estoque.';
             }
@@ -163,6 +186,51 @@ final class ImportarPedidoIfood
      * @param array<int,int> $itens id_produto => quantidade em milesimos (2 un = 2000; 0,846 kg = 846)
      * @return array{0:array<int,string>, 1:list<string>} consumo e nomes dos produtos sem estoque
      */
+    /**
+     * Combo publicado pelo Cardapim (1 unidade, todas as escolhas com codigo reconhecido): grava os itens separados,
+     * com o valor cobrado pelo iFood dividido entre eles. Devolve false quando nao da para ter certeza (entra como antes).
+     * @param array<string,mixed> $i item de PedidoIfood
+     * @param array<int,array<string,mixed>> $combos de Combo::carregar()
+     * @param array<int,int> $baixar id_produto => milesimos (acumula)
+     * @param array<int,int> $extras id_insumo => milesimos (acumula)
+     */
+    private function gravarCombo(int $idPedido, array $i, array $combos, string $agora, array &$baixar, array &$extras): bool
+    {
+        $combo = $i['id_produto'] !== null ? ($combos[$i['id_produto']] ?? null) : null;
+        if ($combo === null || (int) $i['quantidade'] !== 1 || ($i['peso'] ?? null) !== null) {
+            return false;
+        }
+        foreach ($i['opcoes'] ?? [] as $op) {
+            if (!empty($op['customizado'])) {
+                return false;
+            }
+        }
+        $escolhidos = Combo::escolhasIfood($combo, $i['opcoes'] ?? []);
+        if ($escolhidos === null) {
+            return false;
+        }
+        $m = Combo::montar($combo, $escolhidos, 0, 1, (int) $i['total']);
+        if ($m['linhas'] === []) {
+            return false;
+        }
+        $nome = Combo::rotulo((string) (($i['nome_ifood'] ?? '') !== '' ? $i['nome_ifood'] : $i['nome']), 1);
+        $lote = Combo::novoLote();
+        $ins = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em,
+                complementos_texto, combo_lote, combo_nome) VALUES (?, ?, ?, ?, ?, ?, \'un\', ?, ?, ?, ?, ?, ?)');
+        foreach ($m['linhas'] as $n => $l) {
+            $ins->execute([$idPedido, $this->idRestaurante, $l['id_produto'], mb_substr($l['nome'], 0, 180), PedidoIfood::decimal($l['centavos']),
+                QuantidadeVenda::paraBanco($l['unidades'] * 1000), $n === 0 ? $i['observacao'] : null,
+                PedidoIfood::decimal($l['centavos'] * $l['unidades']), $agora, 'Combo: ' . $nome, $lote, $nome]);
+        }
+        foreach ($m['produtos'] as $idProduto => $mil) {
+            $baixar[$idProduto] = ($baixar[$idProduto] ?? 0) + $mil;
+        }
+        foreach ($m['insumos'] as $idInsumo => $mil) {
+            $extras[$idInsumo] = ($extras[$idInsumo] ?? 0) + $mil;
+        }
+        return true;
+    }
+
     private function baixarEstoque(array $itens): array
     {
         if ($itens === []) {

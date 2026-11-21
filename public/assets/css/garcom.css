@@ -374,3 +374,7 @@ output.passo-num { display: grid; place-items: center; }
 .comps-grupo .chip-opcao input:checked + span { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); }
 .comps-grupo .chip-opcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }
 .comps-grupo .chip-opcao.is-indisponivel span { opacity: .55; cursor: not-allowed; text-decoration: line-through; }
+
+/* Combo na comanda: titulo com o total e os itens embaixo */
+.comanda-combo-item { padding-top: .2rem; padding-bottom: .2rem; padding-left: 1.4rem; border-top: 0; }
+.comanda-combo-item .comanda-item-texto strong { color: var(--c-muted); font-weight: 400; }

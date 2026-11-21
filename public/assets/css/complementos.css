@@ -42,3 +42,26 @@
 .produto-grupo-ordem { width: 4.5rem; margin-left: auto; }
 .produto-foto { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
 .produto-foto img { width: 6rem; height: 6rem; border-radius: var(--r-md); object-fit: cover; }
+
+/* Ficha do produto: secao Combo */
+.combo-corpo { display: grid; gap: .65rem; margin-top: 1rem; }
+.combo-corpo[hidden] { display: none; }
+.combo-subtitulo { margin: .5rem 0 0; color: var(--c-ink); font: 700 1rem/1.3 var(--f-head); }
+.combo-subtitulo small, .combo-grupo h4 small { color: var(--c-muted); font-weight: 400; font-size: .82rem; }
+.combo-fixos { display: grid; gap: .45rem; }
+.combo-fixo, .combo-opcao { display: grid; grid-template-columns: minmax(0, 1fr) 5rem; gap: .5rem; align-items: center; }
+.combo-opcao { grid-template-columns: minmax(0, 1fr); padding: .55rem .7rem; border: 1px solid var(--c-line); border-radius: var(--r-md); }
+.combo-qtd { width: 100%; text-align: center; }
+.combo-soma { margin: 0; color: var(--c-ink); font-size: .9rem; }
+.combo-soma strong { color: var(--c-wine); }
+.combo-maximo { display: grid; grid-template-columns: minmax(0, 1fr) 6rem; gap: .75rem; align-items: center; }
+.combo-maximo strong { display: block; color: var(--c-ink); font-size: .92rem; }
+.combo-maximo small { display: block; color: var(--c-muted); font-size: .8rem; }
+.combo-grupo { display: grid; gap: .45rem; }
+.combo-grupo[hidden] { display: none; }
+.combo-grupo h4 { margin: .35rem 0 0; color: var(--c-ink); font: 700 .95rem/1.3 var(--f-head); }
+.combo-opcao-nome { color: var(--c-ink); font-weight: 700; }
+.combo-opcao-nome small { color: var(--c-muted); font-weight: 400; }
+@media (min-width: 40rem) {
+  .combo-opcao { grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.4fr) 5rem; }
+}

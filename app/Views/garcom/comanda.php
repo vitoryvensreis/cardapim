@@ -42,8 +42,45 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
             <p>Toque aqui para lançar o primeiro pedido.</p>
         </a>
     <?php else: ?>
+        <?php
+        // Combo: linhas do mesmo lote juntas, com o nome e o total; remover tira o combo inteiro.
+        $lotes = [];
+        foreach ($itens as $i) {
+            if (($i['combo_lote'] ?? null) !== null) {
+                $lotes[$i['combo_lote']] ??= ['primeiro' => (int) $i['id'], 'centavos' => 0, 'nome' => (string) $i['combo_nome']];
+                $lotes[$i['combo_lote']]['centavos'] += Numero::centavos((string) $i['total']);
+            }
+        }
+        ?>
         <ul class="comanda-itens">
-            <?php foreach ($itens as $i): ?>
+            <?php foreach ($itens as $i): $lote = $i['combo_lote'] ?? null; ?>
+                <?php if ($lote !== null && $lotes[$lote]['primeiro'] === (int) $i['id']): ?>
+                    <li class="comanda-item comanda-combo">
+                        <span class="comanda-item-qtd"><?= Icon::svg('boxes', 'icon-sm') ?></span>
+                        <div class="comanda-item-texto"><strong><?= $e($lotes[$lote]['nome']) ?></strong><small>Combo · <?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small></div>
+                        <span class="comanda-item-valor"><?= $e(GarcomController::reais($lotes[$lote]['centavos'])) ?></span>
+                        <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
+                        <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
+                        <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover o combo inteiro"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover o combo <?= $e($lotes[$lote]['nome']) ?></span></label>
+                        <form method="post" action="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" class="remover-form" id="<?= $e($idRemover) ?>-form">
+                            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                            <fieldset>
+                                <legend>O combo sai inteiro. Por quê?</legend>
+                                <label class="chip-opcao"><input type="radio" name="motivo" value="Lançado errado" checked><span>Lancei errado</span></label>
+                                <label class="chip-opcao"><input type="radio" name="motivo" value="Cliente desistiu"><span>Cliente desistiu</span></label>
+                                <label class="chip-opcao"><input type="radio" name="motivo" value="Demorou demais"><span>Demorou</span></label>
+                            </fieldset>
+                            <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover combo</button>
+                        </form>
+                    </li>
+                <?php endif; ?>
+                <?php if ($lote !== null): ?>
+                    <li class="comanda-item comanda-combo-item">
+                        <span class="comanda-item-qtd"><?= $e(QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?></span>
+                        <div class="comanda-item-texto"><strong><?= $e((string) $i['nome']) ?></strong><?php if ($i['observacao']): ?><span class="comanda-item-obs"><?= Icon::svg('sticky-note', 'icon-sm') ?><?= $e((string) $i['observacao']) ?></span><?php endif; ?></div>
+                    </li>
+                    <?php continue; ?>
+                <?php endif; ?>
                 <li class="comanda-item">
                     <span class="comanda-item-qtd"><?= $e(QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?></span>
                     <div class="comanda-item-texto">
@@ -177,7 +214,25 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                                         <input class="passo-num" type="number" name="qtd[<?= (int) $p['id'] ?>]" value="0" min="0" max="<?= $p['porcoes'] !== null ? min(99, (int) $p['porcoes']) : 99 ?>" inputmode="numeric" aria-label="Quantidade de <?= $e($p['nome']) ?>" data-qtd>
                                         <button type="button" class="passo-btn passo-mais" data-mais aria-label="Adicionar um <?= $e($p['nome']) ?>"><?= Icon::svg('plus') ?></button>
                                     </div>
-                                    <?php if (!empty($p['grupos'])): ?>
+                                    <?php if (!empty($p['combo'])): ?>
+                                        <?php // Combo: inclusos e escolhas com quantidade (ex.: 2 espetos de carne). O servidor confere tudo. ?>
+                                        <div class="produto-comps" data-comps data-combo-max="<?= $p['combo']['maximo_escolhas'] !== null ? (int) $p['combo']['maximo_escolhas'] : '' ?>" hidden>
+                                            <?php if ($p['combo']['inclusos'] !== []): ?><p class="combo-inclusos">Incluso: <?= $e(implode(' · ', $p['combo']['inclusos'])) ?><?= $p['combo']['maximo_escolhas'] !== null && !empty($p['grupos']) ? ' · Escolha até ' . (int) $p['combo']['maximo_escolhas'] : '' ?></p><?php endif; ?>
+                                            <?php foreach ($p['grupos'] as $g): ?>
+                                                <fieldset class="comps-grupo is-combo" data-combo-grupo data-max="<?= (int) $g['maximo'] ?>">
+                                                    <legend><?= $e($g['nome']) ?> <small><?= $g['minimo'] > 0 ? 'obrigatório' : 'opcional' ?><?= $g['maximo'] > 1 ? ', até ' . (int) $g['maximo'] : '' ?></small></legend>
+                                                    <?php foreach ($g['opcoes'] as $o): ?>
+                                                        <div class="combo-passo<?= $o['disponivel'] ? '' : ' is-indisponivel' ?>" data-combo-opcao data-max="<?= $o['maximo'] !== null ? (int) $o['maximo'] : '' ?>">
+                                                            <span><?= $e($o['nome']) ?><?= $o['centavos'] > 0 ? ' +' . $e($o['preco']) : '' ?><?= $o['disponivel'] ? '' : ' (acabou)' ?><?= $o['maximo'] !== null ? ' · até ' . (int) $o['maximo'] : '' ?></span>
+                                                            <button type="button" class="combo-passo-btn" data-combo-menos aria-label="Tirar um <?= $e($o['nome']) ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>−</button>
+                                                            <input class="combo-passo-num" name="comp[<?= (int) $p['id'] ?>][<?= (int) $o['id'] ?>]" value="0" readonly tabindex="-1" aria-label="Quantidade de <?= $e($o['nome']) ?>" data-combo-qtd data-centavos="<?= (int) $o['centavos'] ?>">
+                                                            <button type="button" class="combo-passo-btn" data-combo-mais aria-label="Mais um <?= $e($o['nome']) ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>+</button>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </fieldset>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php elseif (!empty($p['grupos'])): ?>
                                         <div class="produto-comps" data-comps hidden>
                                             <?php foreach ($p['grupos'] as $g): ?>
                                                 <fieldset class="comps-grupo" data-comps-grupo data-max="<?= (int) $g['maximo'] ?>">

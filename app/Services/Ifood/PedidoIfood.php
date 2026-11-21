@@ -156,11 +156,17 @@ final class PedidoIfood
                 $nome .= $porUnidade ? ' (' . self::numero($qtdIfood) . ' un.)' : ' (' . self::numero($qtdIfood) . ' ' . mb_strtolower($unidade) . ')';
             }
             $complementos = [];
+            $opcoes = []; // codigo e quantidade de cada escolha: o combo publicado pelo Cardapim e desmembrado ao importar
             foreach (is_array($item['options'] ?? null) ? $item['options'] : [] as $op) {
                 if (!is_array($op) || trim((string) ($op['name'] ?? '')) === '') {
                     continue;
                 }
                 $q = is_numeric($op['quantity'] ?? null) ? (float) $op['quantity'] : 1.0;
+                $opcoes[] = [
+                    'codigo' => is_scalar($op['externalCode'] ?? null) && trim((string) $op['externalCode']) !== '' ? mb_substr(trim((string) $op['externalCode']), 0, 80) : null,
+                    'quantidade' => abs($q - round($q)) < 0.0001 && $q >= 1 && $q <= 99 ? (int) round($q) : null,
+                    'customizado' => is_array($op['customizations'] ?? null) && $op['customizations'] !== [],
+                ];
                 $texto = ($q > 1 ? self::numero($q) . 'x ' : '') . trim((string) $op['name']);
                 $extras = [];
                 foreach (is_array($op['customizations'] ?? null) ? $op['customizations'] : [] as $c) {
@@ -181,6 +187,7 @@ final class PedidoIfood
                 'ifood_item_id' => is_string($item['id'] ?? null) ? mb_substr($item['id'], 0, 64) : null,
                 'codigo_externo' => is_scalar($item['externalCode'] ?? null) && trim((string) $item['externalCode']) !== '' ? mb_substr(trim((string) $item['externalCode']), 0, 80) : null,
                 'nome_ifood' => mb_substr(trim((string) ($item['name'] ?? '')), 0, 180),
+                'opcoes' => $opcoes,
                 'baixa' => $porUnidade && $inteiro ? max(1, (int) round($qtdIfood)) : 1,
                 // Item vendido por peso no iFood (KG/G/L/ML): peso em milesimos (gramas/ml). Ligado a um produto por
                 // quilo/litro, entra com o peso real e baixa o estoque proporcional (ImportarPedidoIfood).

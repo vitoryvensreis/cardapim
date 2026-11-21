@@ -203,15 +203,63 @@
     let unidade = "un";
     let minimo = 0;
     let grupos = [];
+    let combo = null; // {inclusos, maximo_escolhas}: escolhas com quantidade (ex.: 2 espetos de carne)
     const areaGrupos = $("[data-produto-grupos]", dlgProduto);
     const erroGrupos = $("[data-grupos-erro]", dlgProduto);
     // Complementos (adicionais, borda...): cada grupo vira chips; a soma entra no preco de cada unidade.
-    const extraComps = () => (areaGrupos ? $$("input:checked", areaGrupos).reduce((t, c) => t + (parseInt(c.dataset.centavos, 10) || 0), 0) : 0);
+    const extraComps = () => (areaGrupos ? $$("input:checked", areaGrupos).reduce((t, c) => t + (parseInt(c.dataset.centavos, 10) || 0), 0)
+      + $$("[data-combo-qtd]", areaGrupos).reduce((t, c) => t + (parseInt(c.dataset.centavos, 10) || 0) * (parseInt(c.value, 10) || 0), 0) : 0);
+    const qtdGrupo = (caixa) => $$("input:checked", caixa).length + $$("[data-combo-qtd]", caixa).reduce((t, c) => t + (parseInt(c.value, 10) || 0), 0);
+    // Combo: cada opcao com - e + (respeita o maximo do grupo, da opcao e o total de escolhas do combo).
+    const passoCombo = (g, o, caixa) => {
+      const linha = document.createElement("div");
+      linha.className = "combo-passo" + (o.disponivel ? "" : " is-indisponivel");
+      const nome = document.createElement("span");
+      nome.textContent = o.nome + (o.centavos > 0 ? ` +${reais(o.centavos)}` : "") + (o.disponivel ? "" : " (acabou)") + (o.maximo ? ` · até ${o.maximo}` : "");
+      const campo = document.createElement("input");
+      campo.type = "hidden";
+      campo.name = `complementos[${o.id}]`;
+      campo.value = "0";
+      campo.dataset.comboQtd = "";
+      campo.dataset.centavos = String(o.centavos);
+      const valor = document.createElement("output");
+      valor.textContent = "0";
+      const botao = (rotulo, delta) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "combo-passo-btn";
+        b.textContent = delta > 0 ? "+" : "−";
+        b.setAttribute("aria-label", `${rotulo} ${o.nome}`);
+        b.disabled = !o.disponivel;
+        b.addEventListener("click", () => {
+          const atual = parseInt(campo.value, 10) || 0;
+          if (delta > 0) {
+            const total = $$("[data-combo-qtd]", areaGrupos).reduce((t, c) => t + (parseInt(c.value, 10) || 0), 0) + $$("input:checked", areaGrupos).length;
+            if (qtdGrupo(caixa) >= g.maximo || (o.maximo && atual >= o.maximo) || (combo.maximo_escolhas !== null && total >= combo.maximo_escolhas)) return;
+          } else if (atual === 0) return;
+          campo.value = String(atual + delta);
+          valor.textContent = campo.value;
+          linha.classList.toggle("is-escolhido", atual + delta > 0);
+          if (erroGrupos) erroGrupos.hidden = true;
+          desenhar();
+        });
+        return b;
+      };
+      linha.append(nome, botao("Tirar um", -1), valor, botao("Mais um", 1), campo);
+      return linha;
+    };
     const desenharGrupos = () => {
       if (!areaGrupos) return;
       areaGrupos.replaceChildren();
-      areaGrupos.hidden = grupos.length === 0;
+      areaGrupos.hidden = grupos.length === 0 && !combo;
       if (erroGrupos) erroGrupos.hidden = true;
+      if (combo) {
+        const inclusos = document.createElement("p");
+        inclusos.className = "combo-inclusos";
+        inclusos.textContent = (combo.inclusos.length ? `Incluso: ${combo.inclusos.join(" · ")}` : "")
+          + (combo.maximo_escolhas !== null && grupos.length ? `${combo.inclusos.length ? " · " : ""}Escolha até ${combo.maximo_escolhas}` : "");
+        if (inclusos.textContent) areaGrupos.append(inclusos);
+      }
       grupos.forEach((g) => {
         const caixa = document.createElement("fieldset");
         caixa.className = "comps-grupo";
@@ -222,6 +270,12 @@
         regra.textContent = g.minimo > 0 ? ` obrigatório${g.maximo > 1 ? `, de ${g.minimo} a ${g.maximo}` : ""}` : ` opcional${g.maximo > 1 ? `, até ${g.maximo}` : ""}`;
         legenda.append(regra);
         caixa.append(legenda);
+        if (combo) {
+          caixa.classList.add("is-combo");
+          g.opcoes.forEach((o) => caixa.append(passoCombo(g, o, caixa)));
+          areaGrupos.append(caixa);
+          return;
+        }
         g.opcoes.forEach((o) => {
           const rotulo = document.createElement("label");
           rotulo.className = "chip-opcao" + (o.disponivel ? "" : " is-indisponivel");
@@ -249,9 +303,10 @@
     };
     // Confere o minimo antes de enviar (o servidor confere tudo de novo).
     const conferirGrupos = () => {
+      const caixas = areaGrupos ? $$(".comps-grupo", areaGrupos) : [];
       for (const g of grupos) {
-        const caixa = areaGrupos ? [...areaGrupos.children][grupos.indexOf(g)] : null;
-        const marcados = caixa ? $$("input:checked", caixa).length : 0;
+        const caixa = caixas[grupos.indexOf(g)] || null;
+        const marcados = caixa ? qtdGrupo(caixa) : 0;
         if (marcados < g.minimo) return g.minimo === 1 && g.maximo === 1 ? `Escolha uma opção em "${g.nome}".` : `Escolha pelo menos ${g.minimo} em "${g.nome}".`;
       }
       return "";
@@ -286,6 +341,7 @@
       unidade = b.dataset.produtoUnidade || "un";
       minimo = parseInt(b.dataset.produtoMinimo, 10) || 0;
       try { grupos = JSON.parse(b.dataset.produtoGrupos || "[]"); } catch (e) { grupos = []; }
+      try { combo = b.dataset.produtoCombo ? JSON.parse(b.dataset.produtoCombo) : null; } catch (e) { combo = null; }
       desenharGrupos();
       const porPeso = unidade === "kg" || unidade === "l";
       $("[data-produto-titulo]", dlgProduto).textContent = b.dataset.produtoNome || "Produto";

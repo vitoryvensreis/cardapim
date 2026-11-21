@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Pedidos;
 
+use Cardapim\Modules\Catalog\Combo;
 use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Services\Cardapio\CardapioPublico;
@@ -69,6 +70,7 @@ final class LinhasSacola
         }
         $porcoes = (new CardapioPublico($db))->porcoes($idRestaurante, $ids);
         $grupos = Complementos::carregar($db, $idRestaurante, $ids);
+        $combos = Combo::carregar($db, $idRestaurante, $ids);
         $saida = [];
         $invalida = false;
         $mensagem = null;
@@ -97,6 +99,29 @@ final class LinhasSacola
             }
             $centavos = Numero::centavos((string) $p['preco']);
             $escolhas = $l['complementos'] ?? [];
+            // Combo: confere as escolhas pela regra do combo; ao gravar o pedido vira os itens separados (CriarPedido).
+            $combo = $unidade === 'un' ? ($combos[$l['id']] ?? null) : null;
+            if ($combo !== null) {
+                $conf = Combo::conferir($combo, $escolhas);
+                if (!$conf['ok']) {
+                    $invalida = true;
+                    $mensagem ??= $p['nome'] . ': ' . $conf['erro'];
+                    continue;
+                }
+                $unitario = $centavos + $conf['extras'];
+                $saida[] = array_replace($l, [
+                    'nome' => (string) $p['nome'],
+                    'unidade' => $unidade,
+                    'centavos' => $unitario,
+                    'milesimos' => $milesimos,
+                    'total' => $unitario * $l['quantidade'],
+                    'complementos' => [],
+                    'complementos_texto' => $conf['texto'],
+                    'insumos_complementos' => [],
+                    'combo' => Combo::montar($combo, $conf['escolhidos'], $centavos, $l['quantidade']),
+                ]);
+                continue;
+            }
             $gruposProduto = $unidade === 'un' ? ($grupos[$l['id']] ?? []) : [];
             $conf = ['ok' => true, 'centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => []];
             if ($gruposProduto !== [] || $escolhas !== []) {

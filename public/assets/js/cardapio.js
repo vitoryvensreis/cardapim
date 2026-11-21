@@ -81,6 +81,8 @@
       precoTexto: b.dataset.precoTexto || "",
       porcoes: (b.dataset.porcoes || "").split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0),
       grupos: (() => { try { return JSON.parse(b.dataset.grupos || "[]"); } catch (e) { return []; } })(),
+      // Combo: itens inclusos e limite de escolhas; cada opcao tem - e + (ex.: 2 espetos de carne).
+      combo: (() => { try { return b.dataset.combo ? JSON.parse(b.dataset.combo) : null; } catch (e) { return null; } })(),
       imagem: b.dataset.imagem || "",
       disponivel: !b.disabled,
       botao: b,
@@ -288,9 +290,33 @@
     atual.grupos.forEach((g) => g.opcoes.forEach((o) => { total += (compsAtual.get(o.id) || 0) * o.centavos; }));
     return total;
   };
+  const totalEscolhas = () => [...compsAtual.values()].reduce((t, q) => t + q, 0);
+  const podeMais = (g, o) => {
+    const soma = g.opcoes.reduce((t, x) => t + (compsAtual.get(x.id) || 0), 0);
+    const limite = atual && atual.combo ? atual.combo.maximo_escolhas : null;
+    return o.disponivel && soma < g.maximo && (!o.maximo || (compsAtual.get(o.id) || 0) < o.maximo) && (limite === null || limite === undefined || totalEscolhas() < limite);
+  };
+  const marcarCombo = (g, caixa) => {
+    const soma = g.opcoes.reduce((t, o) => t + (compsAtual.get(o.id) || 0), 0);
+    caixa.querySelectorAll("[data-combo-opcao]").forEach((linha) => {
+      const o = g.opcoes.find((x) => x.id === Number(linha.dataset.comboOpcao));
+      const q = compsAtual.get(o.id) || 0;
+      linha.querySelector("output").textContent = String(q);
+      linha.classList.toggle("is-escolhido", q > 0);
+      linha.querySelector("[data-combo-menos]").disabled = q === 0;
+      linha.querySelector("[data-combo-mais]").disabled = !podeMais(g, o);
+    });
+    const contador = caixa.querySelector("[data-grupo-contador]");
+    if (contador) contador.textContent = `${soma} de ${g.maximo}`;
+    caixa.classList.toggle("is-completo", soma >= g.minimo);
+  };
   const marcarGrupo = (g) => {
     const caixa = areaGrupos.querySelector(`[data-grupo="${g.id}"]`);
     if (!caixa) return;
+    if (atual && atual.combo) {
+      atual.grupos.forEach((x) => { const c = areaGrupos.querySelector(`[data-grupo="${x.id}"]`); if (c) marcarCombo(x, c); });
+      return;
+    }
     const soma = g.opcoes.reduce((t, o) => t + (compsAtual.get(o.id) || 0), 0);
     caixa.querySelectorAll("input[data-opcao]").forEach((input) => {
       const id = Number(input.value);
@@ -305,7 +331,12 @@
   const desenharGrupos = (produto) => {
     areaGrupos.replaceChildren();
     erroGrupos.hidden = true;
-    areaGrupos.hidden = produto.grupos.length === 0;
+    areaGrupos.hidden = produto.grupos.length === 0 && !produto.combo;
+    if (produto.combo) {
+      const texto = (produto.combo.inclusos.length ? `Incluso: ${produto.combo.inclusos.join(" · ")}` : "")
+        + (produto.combo.maximo_escolhas !== null && produto.grupos.length ? `${produto.combo.inclusos.length ? " · " : ""}Escolha até ${produto.combo.maximo_escolhas}` : "");
+      if (texto) areaGrupos.append(el("p", "cd-combo-inclusos", texto));
+    }
     produto.grupos.forEach((g) => {
       const caixa = el("fieldset", "cd-grupo");
       caixa.dataset.grupo = String(g.id);
@@ -316,6 +347,44 @@
       contador.setAttribute("aria-live", "polite");
       legenda.append(contador);
       caixa.append(legenda);
+      if (produto.combo) {
+        g.opcoes.forEach((o) => {
+          const linha = el("div", "cd-combo-opcao" + (o.disponivel ? "" : " is-indisponivel"));
+          linha.dataset.comboOpcao = String(o.id);
+          const texto = el("span", "cd-opcao-texto");
+          texto.append(el("strong", "", o.nome));
+          const extra = [!o.disponivel ? "Acabou" : (o.centavos > 0 ? `+ ${reais(o.centavos)}` : ""), o.maximo ? `até ${o.maximo}` : ""].filter(Boolean).join(" · ");
+          if (extra) texto.append(el("small", "", extra));
+          const menos = el("button", "cd-combo-btn", "−");
+          menos.type = "button";
+          menos.dataset.comboMenos = "";
+          menos.setAttribute("aria-label", `Tirar um ${o.nome}`);
+          const mais = el("button", "cd-combo-btn", "+");
+          mais.type = "button";
+          mais.dataset.comboMais = "";
+          mais.setAttribute("aria-label", `Mais um ${o.nome}`);
+          const valor = el("output", "cd-combo-qtd", "0");
+          menos.addEventListener("click", () => {
+            const q = compsAtual.get(o.id) || 0;
+            if (q <= 1) compsAtual.delete(o.id); else compsAtual.set(o.id, q - 1);
+            marcarGrupo(g);
+            pintarQtd();
+          });
+          mais.addEventListener("click", () => {
+            if (!podeMais(g, o)) return;
+            compsAtual.set(o.id, (compsAtual.get(o.id) || 0) + 1);
+            erroGrupos.hidden = true;
+            caixa.classList.remove("tem-erro");
+            marcarGrupo(g);
+            pintarQtd();
+          });
+          linha.append(texto, menos, valor, mais);
+          caixa.append(linha);
+        });
+        areaGrupos.append(caixa);
+        marcarGrupo(g);
+        return;
+      }
       g.opcoes.forEach((o) => {
         const rotulo = el("label", "cd-opcao" + (o.disponivel ? "" : " is-indisponivel"));
         const input = el("input");

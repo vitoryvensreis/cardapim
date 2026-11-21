@@ -44,6 +44,7 @@ final class CardapioPublico
         $disponibilidade = (new DisponibilidadeProdutos($this->db))->verificar($idRestaurante);
         $porcoes = $this->porcoes($idRestaurante);
         $grupos = Complementos::carregar($this->db, $idRestaurante, array_map(static fn (array $p): int => (int) $p['id'], $linhas));
+        $combos = \Cardapim\Modules\Catalog\Combo::carregar($this->db, $idRestaurante, array_map(static fn (array $p): int => (int) $p['id'], $linhas));
 
         $categorias = [];
         $total = 0;
@@ -58,7 +59,7 @@ final class CardapioPublico
             $chave = $p['id_categoria'] !== null ? 'c' . (int) $p['id_categoria'] : 'outros';
             $categorias[$chave] ??= ['id' => $chave, 'nome' => $p['categoria'] !== null ? (string) $p['categoria'] : 'Outros', 'produtos' => []];
             $d = $disponibilidade[(int) $p['id']] ?? ['disponivel' => false];
-            $categorias[$chave]['produtos'][] = [
+            $categorias[$chave]['produtos'][] = array_replace([
                 'id' => (int) $p['id'],
                 'nome' => (string) $p['nome'],
                 'descricao' => trim((string) ($p['descricao'] ?? '')),
@@ -71,7 +72,7 @@ final class CardapioPublico
                 'imagem' => $p['imagem_path'] !== null ? \Cardapim\Shared\MidiaUrl::publica((string) $p['imagem_path']) : null,
                 // Complementos (adicionais, bordas...): so produto por unidade.
                 'grupos' => $unidade === 'un' ? Complementos::publico($grupos[(int) $p['id']] ?? []) : [],
-            ];
+            ], self::combo($combos[(int) $p['id']] ?? null));
         }
         // Disponiveis primeiro dentro de cada categoria (os indisponiveis continuam visiveis, no fim).
         foreach ($categorias as &$c) {
@@ -140,10 +141,11 @@ final class CardapioPublico
         $disponibilidade = (new DisponibilidadeProdutos($this->db))->verificar($idRestaurante, $lista);
         $porcoes = $this->porcoes($idRestaurante, $lista);
         $grupos = Complementos::carregar($this->db, $idRestaurante, $lista);
+        $combos = \Cardapim\Modules\Catalog\Combo::carregar($this->db, $idRestaurante, $lista);
         $saida = [];
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
             $unidade = QuantidadeVenda::unidade($p['unidade_venda'] ?? 'un');
-            $saida[(int) $p['id']] = [
+            $saida[(int) $p['id']] = array_replace([
                 'id' => (int) $p['id'],
                 'nome' => (string) $p['nome'],
                 'centavos' => self::centavos((string) $p['preco']),
@@ -153,7 +155,7 @@ final class CardapioPublico
                 'porcoes' => QuantidadeVenda::porPeso($unidade) ? ($porcoes[(int) $p['id']] ?? []) : [],
                 // Complementos de agora: a sacola refaz o preco da linha e tira a escolha que sumiu ou acabou.
                 'grupos' => $unidade === 'un' ? Complementos::publico($grupos[(int) $p['id']] ?? []) : [],
-            ];
+            ], self::combo($combos[(int) $p['id']] ?? null));
         }
         return ['itens' => array_values($saida), 'removidos' => array_values(array_diff($lista, array_keys($saida)))];
     }
@@ -217,5 +219,19 @@ final class CardapioPublico
             return 0;
         }
         return (int) $m[1] * 100 + (int) str_pad($m[2] ?? '0', 2, '0');
+    }
+
+    /**
+     * Combo: "combo" (inclusos e limite de escolhas) e os grupos com o maximo de cada opcao (substitui "grupos").
+     * @param array<string,mixed>|null $combo
+     * @return array<string,mixed>
+     */
+    private static function combo(?array $combo): array
+    {
+        if ($combo === null) {
+            return [];
+        }
+        $publico = \Cardapim\Modules\Catalog\Combo::publico($combo);
+        return ['combo' => ['inclusos' => $publico['inclusos'], 'maximo_escolhas' => $publico['maximo_escolhas']], 'grupos' => $publico['grupos']];
     }
 }
