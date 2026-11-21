@@ -154,7 +154,7 @@ r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
 comanda="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
 enviar "$wj" "$w/comandas/$comanda/itens" "$w" "qtd[$produto]=1" >/dev/null
 curl -s -b "$wj" -o "$tmp/pag.html" "$w/comandas/$comanda"
-contem "garcom escolhe a impressora" "$tmp/pag.html" 'Imprimir em'
+contem "garcom escolhe a impressora" "$tmp/pag.html" 'Comanda inteira sai em'
 grep -q "name=\"impressora\" value=\"$cozinha\" checked" "$tmp/pag.html" && ok "Cozinha ja marcada (padrao)" || falha "padrao nao marcada"
 contem "Balcao como opcao" "$tmp/pag.html" "name=\"impressora\" value=\"$balcao\""
 esperar "garcom nao usa impressora fora do ponto" "$(imprimir "$wj" "$w/comandas/$comanda/imprimir" "$w/comandas/$comanda" modo=toda "impressora=$bar")" "409"
@@ -170,7 +170,7 @@ resultado "$ta" "$(cupom id)" >/dev/null
 echo "Agent tira a Cozinha da lista"
 esperar "PC do caixa fica so com o Balcao" "$(registrar "$ta" '{"impressoras":[{"chave":"aaaa1111bbbb","apelido":"Balcão"}]}')" "200"
 curl -s -b "$wj" -o "$tmp/pag.html" "$w/comandas/$comanda"
-nao_contem "garcom volta a imprimir direto" "$tmp/pag.html" 'Imprimir em'
+nao_contem "garcom volta a imprimir direto" "$tmp/pag.html" 'Comanda inteira sai em'
 contem "garcom imprime no Balcao" "$tmp/pag.html" 'Sai na impressora Balcão'
 curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
 nao_contem "Cozinha some da gerencia" "$tmp/ger.html" '<strong>Cozinha</strong>'
