@@ -117,7 +117,7 @@ $fora = CupomImpressao::foraDaImpressora($todos, [101 => [5], 102 => [6]], 7);
 $ok($fora === [20, 21], 'na cozinha ficam de fora o espeto e a cerveja');
 $conta = $textos(CupomImpressao::comanda($comanda('balcao', $todos), 'Bar', 'conta', 0, '', $fora)['blocos']);
 $ok(!str_contains($conta, 'Espeto de picanha') && !str_contains($conta, 'Cerveja') && str_contains($conta, 'Baião de dois'), 'conta na cozinha sem os itens de outras impressoras');
-$ok(str_contains($conta, '2 itens não saem nesta impressora.'), 'conta avisa que ha itens em outra impressora');
+$ok(!str_contains($conta, 'não sai'), 'conta sem aviso de itens de outra impressora');
 
 $via = CupomImpressao::producao(CupomImpressao::cabecaComanda($comanda('mesa', [])), 'Churrasqueira', $grupos[5], 'Ana');
 $tv = $textos($via);
