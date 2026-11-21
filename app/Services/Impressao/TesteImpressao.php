@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Impressao;
 
+use Cardapim\Modules\Catalog\Combo;
+use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Repositories\Desktop\ImpressaoRepository;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
@@ -19,6 +21,8 @@ use PDO;
  * Gerencia > Impressoras > Testar impressao: monta, sem gravar nada no pedido, os mesmos cupons da impressao real
  * (mesma divisao por produto e mesmo CupomImpressao) para mostrar o que sai em cada impressora e por que.
  * "Imprimir de verdade" grava os cupons na fila do Agent com TESTE no topo (sem pedido ligado).
+ * Complementos e combos seguem a mesma regra do caixa (Complementos::conferir, Combo::conferir/montar); so o estoque
+ * e ignorado (e um teste: nada e baixado, entao opcao "acabou" tambem pode ser escolhida).
  */
 final class TesteImpressao
 {
@@ -37,7 +41,7 @@ final class TesteImpressao
     }
 
     /**
-     * @param list<array{id_produto:int,quantidade:int,observacao:string}> $pedidos
+     * @param list<array{id_produto:int,quantidade:int,observacao:string,complementos?:list<array{id:int,quantidade:int}>}> $pedidos
      * @return array{cupons:list<array<string,mixed>>,avisos:list<string>,mensagem?:string}|Resultado
      */
     public function executar(string $situacao, array $pedidos, ?int $idImpressora, bool $imprimir): array|Resultado
@@ -49,6 +53,9 @@ final class TesteImpressao
             return Resultado::falha('As impressoras ainda estão sendo ativadas.');
         }
         $itens = $this->itens($pedidos);
+        if ($itens instanceof Resultado) {
+            return $itens;
+        }
         if ($itens === []) {
             return Resultado::falha('Adicione pelo menos um produto ao teste.');
         }
@@ -60,27 +67,119 @@ final class TesteImpressao
     }
 
     /**
-     * Itens no mesmo formato do banco (pedido_itens), so com produtos ativos deste restaurante.
-     * @param list<array{id_produto:int,quantidade:int,observacao:string}> $pedidos
-     * @return list<array<string,mixed>>
+     * Grupos de complementos e combo de cada produto, para a tela do teste escolher as opcoes como no caixa.
+     * Tudo aparece disponivel (o teste nao baixa estoque).
+     * @param list<int> $idsProdutos
+     * @return array<int, array{grupos:list<array<string,mixed>>, combo:?array<string,mixed>}> so produtos com escolhas
      */
-    private function itens(array $pedidos): array
+    public static function escolhasDosProdutos(PDO $db, int $idRestaurante, array $idsProdutos): array
+    {
+        [$grupos, $combos] = self::regras($db, $idRestaurante, $idsProdutos);
+        $saida = [];
+        foreach ($combos as $id => $combo) {
+            $pub = Combo::publico($combo);
+            $saida[$id] = ['grupos' => $pub['grupos'], 'combo' => ['inclusos' => $pub['inclusos'], 'maximo_escolhas' => $pub['maximo_escolhas']]];
+        }
+        foreach ($grupos as $id => $lista) {
+            if (!isset($saida[$id]) && $lista !== []) {
+                $saida[$id] = ['grupos' => Complementos::publico($lista), 'combo' => null];
+            }
+        }
+        return $saida;
+    }
+
+    /**
+     * Regras de complementos e combos dos produtos, com todas as opcoes e itens vendaveis (teste sem estoque).
+     * @param list<int> $ids
+     * @return array{0:array<int,list<array<string,mixed>>>, 1:array<int,array<string,mixed>>}
+     */
+    private static function regras(PDO $db, int $idRestaurante, array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $i): bool => $i > 0)));
+        if ($ids === []) {
+            return [[], []];
+        }
+        $liberar = static function (array $lista): array {
+            foreach ($lista as &$g) {
+                foreach ($g['opcoes'] as &$o) {
+                    $o['vendavel'] = true;
+                }
+                unset($o);
+            }
+            unset($g);
+            return $lista;
+        };
+        $grupos = array_map($liberar, Complementos::carregar($db, $idRestaurante, $ids));
+        $combos = Combo::carregar($db, $idRestaurante, $ids);
+        foreach ($combos as &$c) {
+            $c['grupos'] = $liberar($c['grupos']);
+            foreach ($c['fixos'] as &$f) {
+                $f['disponivel'] = true;
+            }
+            unset($f);
+        }
+        unset($c);
+        return [$grupos, $combos];
+    }
+
+    /**
+     * Itens no mesmo formato do banco (pedido_itens), so com produtos ativos deste restaurante. Complementos viram o
+     * texto do item (e somam no preco); combo vira os itens separados com o mesmo combo_lote, como no caixa.
+     * @param list<array{id_produto:int,quantidade:int,observacao:string,complementos?:list<array{id:int,quantidade:int}>}> $pedidos
+     * @return list<array<string,mixed>>|Resultado
+     */
+    private function itens(array $pedidos): array|Resultado
     {
         $repo = new ProdutoRepository($this->db);
+        $pedidos = array_slice($pedidos, 0, self::MAX_ITENS);
+        [$grupos, $combos] = self::regras($this->db, $this->idRestaurante, array_column($pedidos, 'id_produto'));
         $itens = [];
-        foreach (array_slice($pedidos, 0, self::MAX_ITENS) as $n => $pedido) {
+        $n = 0;
+        $linha = static function (array $base) use (&$n): array {
+            $n++;
+            return $base + ['id' => $n, 'unidade' => 'un', 'cancelado_em' => null, 'combo_lote' => null, 'combo_nome' => null, 'complementos_texto' => ''];
+        };
+        foreach ($pedidos as $pedido) {
             $p = $repo->buscar($this->idRestaurante, $pedido['id_produto']);
             if ($p === null || (int) $p['ativo'] !== 1) {
                 continue;
             }
             $qtd = max(1, min(99, $pedido['quantidade']));
-            $itens[] = [
-                'id' => $n + 1, 'id_produto' => (int) $p['id'], 'nome' => (string) $p['nome'],
-                'preco_unitario' => (string) $p['preco'], 'quantidade' => $qtd . '.000', 'unidade' => 'un',
-                'observacao' => $pedido['observacao'], 'complementos_texto' => '',
-                'total' => CaixaService::dec(Numero::centavos((string) $p['preco']) * $qtd),
-                'cancelado_em' => null, 'combo_lote' => null,
-            ];
+            $escolhas = $pedido['complementos'] ?? [];
+            $porUnidade = ($p['unidade_venda'] ?? 'un') === 'un';
+            $combo = $porUnidade ? ($combos[(int) $p['id']] ?? null) : null;
+            if ($combo !== null) {
+                $conf = Combo::conferir($combo, $escolhas);
+                if (!$conf['ok']) {
+                    return Resultado::falha('"' . $p['nome'] . '": ' . $conf['erro']);
+                }
+                $m = Combo::montar($combo, $conf['escolhidos'], Numero::centavos((string) $p['preco']), $qtd);
+                $nome = Combo::rotulo((string) $p['nome'], $qtd);
+                $lote = Combo::novoLote();
+                foreach ($m['linhas'] as $i => $l) {
+                    $itens[] = $linha([
+                        'id_produto' => $l['id_produto'], 'nome' => $l['nome'], 'preco_unitario' => CaixaService::dec($l['centavos']),
+                        'quantidade' => $l['unidades'] . '.000', 'observacao' => $i === 0 ? $pedido['observacao'] : '',
+                        'total' => CaixaService::dec($l['centavos'] * $l['unidades']),
+                        'complementos_texto' => 'Combo: ' . $nome, 'combo_lote' => $lote, 'combo_nome' => $nome,
+                    ]);
+                }
+                continue;
+            }
+            $lista = $porUnidade ? ($grupos[(int) $p['id']] ?? []) : [];
+            $conf = ['centavos' => 0, 'texto' => ''];
+            if ($lista !== [] || $escolhas !== []) {
+                $conf = Complementos::conferir($lista, $escolhas);
+                if (!$conf['ok']) {
+                    return Resultado::falha('"' . $p['nome'] . '": ' . $conf['erro']);
+                }
+            }
+            $preco = Numero::centavos((string) $p['preco']) + (int) $conf['centavos'];
+            $itens[] = $linha([
+                'id_produto' => (int) $p['id'], 'nome' => (string) $p['nome'], 'preco_unitario' => CaixaService::dec($preco),
+                'quantidade' => $qtd . '.000', 'observacao' => $pedido['observacao'], 'complementos_texto' => (string) $conf['texto'],
+                'total' => CaixaService::dec($preco * $qtd),
+            ]);
         }
         return $itens;
     }
@@ -96,7 +195,7 @@ final class TesteImpressao
             return Resultado::falha('A impressão por produto está desligada. Escolha a impressora padrão acima e salve.');
         }
         $padrao = $this->fila->opcoes('producao')[0];
-        $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_column($itens, 'id_produto'));
+        $porProduto = (new ProdutoImpressoraRepository($this->db))->dosProdutos($this->idRestaurante, array_values(array_filter(array_column($itens, 'id_produto'))));
         $grupos = CupomImpressao::dividir($itens, $porProduto, $padrao['id']);
         $cabeca = match ($situacao) {
             'delivery' => CupomImpressao::cabecaPedido([
@@ -108,7 +207,7 @@ final class TesteImpressao
         $avisos = [];
         $semMarcacao = [];
         foreach ($itens as $i) {
-            if (($porProduto[$i['id_produto']] ?? []) === []) {
+            if (($porProduto[(int) $i['id_produto']] ?? []) === []) {
                 $semMarcacao[] = $i['nome'];
             }
         }
@@ -120,7 +219,9 @@ final class TesteImpressao
             $lista = $grupos[$imp['id']] ?? [];
             $motivos = array_map(static fn (array $i): array => [
                 'nome' => QuantidadeVenda::textoDoBanco($i['quantidade'], 'un') . ' ' . $i['nome'],
-                'motivo' => ($porProduto[$i['id_produto']] ?? []) === [] ? 'sem impressora no produto: foi para a padrão' : 'marcado nesta impressora no produto',
+                'motivo' => ($i['id_produto'] === null ? 'opção do combo sem produto ligado: foi para a padrão'
+                    : (($porProduto[(int) $i['id_produto']] ?? []) === [] ? 'sem impressora no produto: foi para a padrão' : 'marcado nesta impressora no produto'))
+                    . ($i['combo_nome'] !== null ? ' (veio do ' . $i['combo_nome'] . ')' : ''),
             ], $lista);
             if ($lista !== [] && !$imp['ligada']) {
                 $avisos[] = $imp['apelido'] . ' está desligada: abra o Deliveryzim Agent no computador "' . $imp['computador'] . '" (na hora real, o envio seria recusado).';

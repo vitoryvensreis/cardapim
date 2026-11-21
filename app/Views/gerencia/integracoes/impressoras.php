@@ -2,13 +2,13 @@
 /**
  * Impressoras do Deliveryzim Agent: impressao por produto (padrao), cupom completo e resumo do caixa.
  * Espera: $ativo, $porProduto, $impressoras (ImpressoraRepository::listar), $produtosPorImpressora, $padraoProducao,
- * $completo e $fechamento (ids/padrao), $produtosTeste, $agentDownload, $base, $csrf.
+ * $completo e $fechamento (ids/padrao), $produtosTeste (com grupos/combo), $logoCupom, $agentDownload, $base, $csrf.
  */
 use Cardapim\Core\Icon;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css', 'css/impressao-teste.css'];
-$pageScripts = [...($pageScripts ?? []), 'js/impressao-teste.js'];
+$pageScripts = [...($pageScripts ?? []), 'js/complementos.js', 'js/impressao-teste.js'];
 // Lista de impressoras com "Padrao" (cupom completo e resumo do caixa).
 $lista = static function (string $campo, array $cfg, array $impressoras) use ($e): void { ?>
     <ul class="impressao-ponto-lista">
@@ -115,7 +115,7 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
             </div>
         </form>
 
-        <section class="bloco impressao-teste" aria-labelledby="titulo-teste" data-impressao-teste>
+        <section class="bloco impressao-teste" aria-labelledby="titulo-teste" data-impressao-teste data-logo="<?= $e($logoCupom) ?>">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-teste"><?= Icon::svg('flask-conical') ?>Testar impressão</h2>
                 <p>Monte um pedido com seus produtos e veja o que sai em cada impressora, e por quê. Nada é gravado. Salve as mudanças acima antes de testar.</p>
@@ -149,7 +149,7 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                                     <?php $grupo = null; foreach ($produtosTeste as $pt): if ($pt['categoria'] !== $grupo): ?>
                                         <?php if ($grupo !== null): ?></optgroup><?php endif; $grupo = $pt['categoria']; ?><optgroup label="<?= $e($grupo) ?>">
                                     <?php endif; ?>
-                                        <option value="<?= (int) $pt['id'] ?>"><?= $e($pt['nome']) ?></option>
+                                        <option value="<?= (int) $pt['id'] ?>"<?php if ($pt['grupos'] !== []): ?> data-grupos="<?= $e((string) json_encode($pt['grupos'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?><?php if ($pt['combo'] !== null): ?> data-combo="<?= $e((string) json_encode($pt['combo'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"<?php endif; ?>><?= $e($pt['nome']) ?><?= $pt['combo'] !== null ? ' (combo)' : ($pt['grupos'] !== [] ? ' (com escolhas)' : '') ?></option>
                                     <?php endforeach; ?></optgroup>
                                 </select>
                             </label>
@@ -157,6 +157,8 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                             <label class="impressao-teste-campo impressao-teste-obs"><span>Observação (opcional)</span><input type="text" maxlength="140" placeholder="Ex.: sem cebola, bem passado" data-teste-obs></label>
                             <button class="btn btn-outline" type="button" data-teste-adicionar><?= Icon::svg('plus', 'icon-sm') ?>Adicionar</button>
                         </div>
+                        <div class="impressao-teste-escolhas" data-teste-escolhas hidden></div>
+                        <p class="impressao-teste-erro" data-teste-escolhas-erro role="alert" hidden></p>
                     <?php endif; ?>
                     <ul class="impressao-teste-itens" data-teste-itens></ul>
                     <p class="impressao-teste-vazio" data-teste-vazio>Nenhum produto no teste ainda. Escolha um produto e toque em Adicionar.</p>

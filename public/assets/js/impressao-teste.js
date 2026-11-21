@@ -16,6 +16,10 @@
   const conta = raiz.querySelector("[data-teste-conta]");
   const botaoVer = raiz.querySelector("[data-teste-ver]");
   const botaoImprimir = raiz.querySelector("[data-teste-imprimir]");
+  const areaEscolhas = raiz.querySelector("[data-teste-escolhas]");
+  const erroEscolhas = raiz.querySelector("[data-teste-escolhas-erro]");
+  const logo = raiz.dataset.logo || "";
+  const regraTexto = window.CardapimComplementos ? window.CardapimComplementos.regra : null;
   const MAX = 20;
   let ultimo = null;
 
@@ -26,24 +30,144 @@
     return n;
   };
 
+  const reais = (c) => "R$ " + (c / 100).toFixed(2).replace(".", ",");
+  const lerJson = (texto, padrao) => { try { return texto ? JSON.parse(texto) : padrao; } catch (_) { return padrao; } };
+
+  /* ---------- Escolhas do produto (complementos e combo), como no caixa ---------- */
+  let grupos = [];
+  let combo = null;
+  const select = raiz.querySelector("[data-teste-produto]");
+
+  const avisoEscolha = (texto) => {
+    if (!erroEscolhas) return;
+    erroEscolhas.textContent = texto || "";
+    erroEscolhas.hidden = !texto;
+  };
+
+  // Quantidade escolhida de cada opcao: Map(id -> qtd), por grupo.
+  const escolhidas = () => {
+    const mapa = new Map();
+    if (!areaEscolhas) return mapa;
+    areaEscolhas.querySelectorAll("[data-opcao]").forEach((c) => {
+      const q = c.type === "checkbox" ? (c.checked ? 1 : 0) : (parseInt(c.value, 10) || 0);
+      if (q > 0) mapa.set(Number(c.dataset.opcao), q);
+    });
+    return mapa;
+  };
+  const somaGrupo = (g, mapa) => (g.opcoes || []).reduce((t, o) => t + (mapa.get(o.id) || 0), 0);
+  const somaTudo = (mapa) => [...mapa.values()].reduce((t, q) => t + q, 0);
+
+  const regra = (g) => (regraTexto ? regraTexto(g) : (g.minimo > 0 ? "Obrigatório" : "Opcional"));
+
+  const passo = (g, o) => {
+    const linha = el("div", "impressao-teste-passo");
+    const nome = el("span", "impressao-teste-passo-nome", o.nome + (o.centavos > 0 ? " +" + reais(o.centavos) : "") + (o.maximo ? " · até " + o.maximo : ""));
+    const campo = document.createElement("input");
+    campo.type = "hidden";
+    campo.value = "0";
+    campo.dataset.opcao = String(o.id);
+    const valor = el("output", "impressao-teste-passo-valor", "0");
+    const botao = (rotulo, delta) => {
+      const b = el("button", "impressao-teste-passo-btn", delta > 0 ? "+" : "\u2212");
+      b.type = "button";
+      b.setAttribute("aria-label", rotulo + " " + o.nome);
+      b.addEventListener("click", () => {
+        const atual = parseInt(campo.value, 10) || 0;
+        const mapa = escolhidas();
+        if (delta > 0) {
+          if (somaGrupo(g, mapa) >= g.maximo) { avisoEscolha("Em \"" + g.nome + "\" o máximo é " + g.maximo + "."); return; }
+          if (o.maximo && atual >= o.maximo) { avisoEscolha("No máximo " + o.maximo + " de \"" + o.nome + "\" neste combo."); return; }
+          if (combo && combo.maximo_escolhas !== null && somaTudo(mapa) >= combo.maximo_escolhas) { avisoEscolha("Este combo deixa escolher até " + combo.maximo_escolhas + "."); return; }
+        } else if (atual === 0) return;
+        campo.value = String(atual + delta);
+        valor.textContent = campo.value;
+        linha.classList.toggle("is-escolhido", atual + delta > 0);
+        avisoEscolha("");
+      });
+      return b;
+    };
+    linha.append(nome, botao("Tirar um", -1), valor, botao("Mais um", 1), campo);
+    return linha;
+  };
+
+  const chip = (g, o, caixa) => {
+    const rotulo = el("label", "impressao-teste-chip");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset.opcao = String(o.id);
+    input.addEventListener("change", () => {
+      // Maximo 1: escolha unica. Maximo maior: nao passa do limite.
+      if (g.maximo === 1 && input.checked) caixa.querySelectorAll("input:checked").forEach((c) => { if (c !== input) c.checked = false; });
+      else if (caixa.querySelectorAll("input:checked").length > g.maximo) { input.checked = false; avisoEscolha("Em \"" + g.nome + "\" o máximo é " + g.maximo + "."); return; }
+      avisoEscolha("");
+    });
+    rotulo.append(input, el("span", "", o.nome + (o.centavos > 0 ? " +" + reais(o.centavos) : "")));
+    return rotulo;
+  };
+
+  const desenharEscolhas = () => {
+    const opt = select && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+    grupos = lerJson(opt && opt.dataset.grupos, []);
+    combo = lerJson(opt && opt.dataset.combo, null);
+    avisoEscolha("");
+    if (!areaEscolhas) return;
+    areaEscolhas.replaceChildren();
+    areaEscolhas.hidden = grupos.length === 0 && !combo;
+    if (areaEscolhas.hidden) return;
+    const topo = el("p", "impressao-teste-escolhas-topo");
+    topo.append(el("strong", "", combo ? "Monte o combo" : "Escolhas do produto"));
+    const partes = [];
+    if (combo && combo.inclusos.length) partes.push("Incluso: " + combo.inclusos.join(" · "));
+    if (combo && combo.maximo_escolhas !== null && grupos.length) partes.push("Escolha até " + combo.maximo_escolhas);
+    if (partes.length) topo.append(el("span", "", partes.join(" · ")));
+    areaEscolhas.append(topo);
+    grupos.forEach((g) => {
+      const caixa = el("fieldset", "impressao-teste-grupo" + (combo ? " is-combo" : ""));
+      const legenda = el("legend", "", g.nome);
+      legenda.append(el("span", "etiqueta " + (g.minimo > 0 ? "etiqueta-atencao" : "etiqueta-neutra"), regra(g)));
+      caixa.append(legenda);
+      (g.opcoes || []).forEach((o) => caixa.append(combo ? passo(g, o) : chip(g, o, caixa)));
+      areaEscolhas.append(caixa);
+    });
+  };
+  select?.addEventListener("change", desenharEscolhas);
+
+  // Confere as escolhas (o servidor confere tudo de novo). Devolve {erro} ou {valor, texto}.
+  const conferirEscolhas = () => {
+    const mapa = escolhidas();
+    const partes = [];
+    for (const g of grupos) {
+      const soma = somaGrupo(g, mapa);
+      if (soma < g.minimo) return { erro: g.minimo === 1 && g.maximo === 1 ? "Escolha uma opção em \"" + g.nome + "\"." : "Escolha pelo menos " + g.minimo + " em \"" + g.nome + "\"." };
+      if (soma > g.maximo) return { erro: "Escolha no máximo " + g.maximo + " em \"" + g.nome + "\"." };
+      const nomes = (g.opcoes || []).filter((o) => mapa.get(o.id)).map((o) => (mapa.get(o.id) > 1 ? mapa.get(o.id) + "x " : "") + o.nome);
+      if (nomes.length) partes.push(g.nome + ": " + nomes.join(", "));
+    }
+    if (combo && !combo.inclusos.length && !somaTudo(mapa)) return { erro: "Escolha os itens do combo." };
+    return { valor: [...mapa].map(([id, q]) => id + ":" + q).join(","), texto: partes.join(" · ") };
+  };
+
   /* ---------- Lista de produtos do teste ---------- */
   const atualizarVazio = () => { vazio.hidden = lista.children.length > 0; };
 
   const adicionar = () => {
-    const select = raiz.querySelector("[data-teste-produto]");
     if (!select || !select.value) return;
     if (lista.children.length >= MAX) { mostrarErro("Use até " + MAX + " produtos no teste."); return; }
+    const conf = conferirEscolhas();
+    if (conf.erro) { avisoEscolha(conf.erro); return; }
     const qtdCampo = raiz.querySelector("[data-teste-qtd]");
     const obsCampo = raiz.querySelector("[data-teste-obs]");
     const qtd = Math.min(99, Math.max(1, parseInt(qtdCampo.value, 10) || 1));
     const obs = obsCampo.value.trim().slice(0, 140);
-    const nome = select.options[select.selectedIndex].textContent;
+    const nome = select.options[select.selectedIndex].textContent.replace(/ \((combo|com escolhas)\)$/, "");
 
     const li = el("li");
     const texto = el("span", "impressao-teste-item-texto");
     texto.append(el("strong", "", qtd + "x " + nome));
+    if (combo && combo.inclusos.length) texto.append(el("small", "", "Incluso: " + combo.inclusos.join(" · ")));
+    if (conf.texto) texto.append(el("small", "", conf.texto));
     if (obs) texto.append(el("small", "", "Obs.: " + obs));
-    for (const [nomeCampo, valor] of [["produto[]", select.value], ["quantidade[]", String(qtd)], ["observacao[]", obs]]) {
+    for (const [nomeCampo, valor] of [["produto[]", select.value], ["quantidade[]", String(qtd)], ["observacao[]", obs], ["complementos[]", conf.valor]]) {
       const h = document.createElement("input");
       h.type = "hidden"; h.name = nomeCampo; h.value = valor;
       li.append(h);
@@ -56,6 +180,7 @@
     lista.append(li);
     qtdCampo.value = "1";
     obsCampo.value = "";
+    desenharEscolhas();
     atualizarVazio();
   };
   raiz.querySelector("[data-teste-adicionar]")?.addEventListener("click", adicionar);
@@ -104,6 +229,15 @@
   const desenhar = (blocos, largura) => {
     const papelEl = el("div", "cupom-papel");
     papelEl.dataset.colunas = String(largura);
+    // Logo oficial no topo, como o Agent imprime (quando "Imprimir a logo" esta marcado nele).
+    if (logo) {
+      const img = document.createElement("img");
+      img.className = "cupom-logo";
+      img.src = logo;
+      img.alt = "Deliveryzim";
+      img.decoding = "async";
+      papelEl.append(img);
+    }
     const linha = (texto, classe) => papelEl.append(el("span", "cupom-linha" + (classe ? " " + classe : ""), texto || " "));
     for (const b of blocos) {
       const t = b.t;
@@ -163,6 +297,7 @@
       partes.push(ul);
     }
     partes.push(cartoes);
+    if (logo) partes.push(el("p", "impressao-teste-dica", "A logo sai no topo quando \"Imprimir a logo do Deliveryzim no cupom\" está marcado no Deliveryzim Agent."));
     resultado.replaceChildren(...partes);
   };
 
@@ -189,5 +324,6 @@
   form.addEventListener("submit", (ev) => { ev.preventDefault(); enviar(false); });
   botaoImprimir.addEventListener("click", () => enviar(true));
   papel.addEventListener("change", () => { if (ultimo) mostrar(ultimo); });
+  desenharEscolhas();
   atualizarVazio();
 })();

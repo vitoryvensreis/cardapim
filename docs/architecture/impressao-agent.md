@@ -55,6 +55,12 @@ impressora desenhado como no papel e o motivo de cada item estar ali. Impressora
 - A tela quebra as linhas igual ao Agent (`printing.py`), na largura escolhida: 48, 42 ou 32 letras por linha.
   Letras fora do alfabeto da impressora (emoji) aparecem como "?" com aviso.
 - Avisos: produtos sem impressora marcada (vão para a padrão) e impressora desligada que receberia itens.
+- **Complementos e combos**: ao escolher um produto com grupos de complemento, a tela mostra as opções como no caixa
+  (chips; no combo, "−/+" por opção, com os inclusos e o limite total) e marca cada grupo como obrigatório ou opcional.
+  As escolhas vão como `complementos[]` = `id:qtd,id:qtd` por item e o servidor confere com `Complementos::conferir`
+  e `Combo::conferir/montar` (o combo vira os itens separados, cada um na impressora dele). O teste ignora estoque.
+- O papel desenhado traz a logo oficial (`public/assets/img/logo-preta.svg`) no topo, como o Agent imprime quando
+  "Imprimir a logo do Deliveryzim no cupom" está marcado nele.
 - **Imprimir teste de verdade** grava os mesmos cupons na fila com **TESTE** no topo (sem pedido ligado).
 
 ## Detalhes

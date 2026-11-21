@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Cardapim\Controllers\Gerencia;
 
+use Cardapim\Core\AssetUrl;
 use Cardapim\Core\Response;
 use Cardapim\Core\Session;
+use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
 use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Gerencia\Resultado;
@@ -44,11 +46,22 @@ final class ImpressorasController extends BaseGerencia
             'completo' => $pontos['caixa_conta'] ?? ['ids' => [], 'padrao' => null],
             'fechamento' => $pontos['caixa_fechamento'] ?? ['ids' => [], 'padrao' => null],
             'agentDownload' => IntegracoesController::AGENT_DOWNLOAD,
-            // Testar impressao: produtos cadastrados (nome e categoria) para montar o teste.
-            'produtosTeste' => $ativo ? array_map(static fn (array $p): array => [
-                'id' => (int) $p['id'], 'nome' => (string) $p['nome'], 'categoria' => (string) ($p['categoria'] ?? 'Sem categoria'),
-            ], (new ProdutoRepository($this->db))->listar($this->restaurante['id'])) : [],
+            // Testar impressao: produtos cadastrados (nome, categoria e as escolhas de complemento/combo).
+            'produtosTeste' => $ativo ? $this->produtosTeste() : [],
+            'logoCupom' => AssetUrl::asset('img/logo-preta.svg'),
         ]);
+    }
+
+    /** @return list<array{id:int,nome:string,categoria:string,grupos:list<array<string,mixed>>,combo:?array<string,mixed>}> */
+    private function produtosTeste(): array
+    {
+        $produtos = array_values(array_filter((new ProdutoRepository($this->db))->listar($this->restaurante['id']), static fn (array $p): bool => (int) $p['ativo'] === 1));
+        $porUnidade = array_map(static fn (array $p): int => (int) $p['id'], array_filter($produtos, static fn (array $p): bool => ($p['unidade_venda'] ?? 'un') === 'un'));
+        $escolhas = TesteImpressao::escolhasDosProdutos($this->db, $this->restaurante['id'], array_values($porUnidade));
+        return array_map(static fn (array $p): array => [
+            'id' => (int) $p['id'], 'nome' => (string) $p['nome'], 'categoria' => (string) ($p['categoria'] ?? 'Sem categoria'),
+            'grupos' => $escolhas[(int) $p['id']]['grupos'] ?? [], 'combo' => $escolhas[(int) $p['id']]['combo'] ?? null,
+        ], $produtos);
     }
 
     /**
@@ -70,12 +83,19 @@ final class ImpressorasController extends BaseGerencia
         $ids = is_array($_POST['produto'] ?? null) ? $_POST['produto'] : [];
         $qtds = is_array($_POST['quantidade'] ?? null) ? $_POST['quantidade'] : [];
         $obs = is_array($_POST['observacao'] ?? null) ? $_POST['observacao'] : [];
+        $comps = is_array($_POST['complementos'] ?? null) ? $_POST['complementos'] : [];
         foreach (array_slice($ids, 0, TesteImpressao::MAX_ITENS, true) as $k => $v) {
             $id = self::idPost($v);
             $q = is_string($qtds[$k] ?? null) && ctype_digit($qtds[$k]) ? (int) $qtds[$k] : 1;
-            if ($id !== null) {
-                $pedidos[] = ['id_produto' => $id, 'quantidade' => $q, 'observacao' => is_string($obs[$k] ?? null) ? mb_substr(trim($obs[$k]), 0, 140) : ''];
+            if ($id === null) {
+                continue;
             }
+            $escolhas = self::escolhas($comps[$k] ?? '');
+            if ($escolhas === null) {
+                return Response::json(['ok' => false, 'erro' => 'Complementos inválidos. Tire o produto e adicione de novo.'], 422);
+            }
+            $pedidos[] = ['id_produto' => $id, 'quantidade' => $q, 'observacao' => is_string($obs[$k] ?? null) ? mb_substr(trim($obs[$k]), 0, 140) : '',
+                'complementos' => $escolhas];
         }
         $imprimir = ($_POST['imprimir'] ?? '') === '1';
         $res = (new TesteImpressao($this->db, $this->restaurante['id'], $this->restaurante['nome'], $this->usuario))
@@ -109,6 +129,25 @@ final class ImpressorasController extends BaseGerencia
         (new ImpressoraRepository($this->db))->salvarPontos($this->restaurante['id'], $config);
         Auditoria::registrar($this->usuario, 'Impressoras salvas', 'Configuração das impressoras do Agent atualizada.');
         return $this->voltar($volta, 'sucesso', 'Impressoras salvas.');
+    }
+
+    /**
+     * Escolhas de complemento de um item do teste: "id:quantidade,id:quantidade" (vazio = nenhuma).
+     * @return list<array{id:int,quantidade:int}>|null null = formato invalido
+     */
+    private static function escolhas(mixed $texto): ?array
+    {
+        if (!is_string($texto) || strlen($texto) > 600) {
+            return null;
+        }
+        $lista = [];
+        foreach (array_filter(explode(',', trim($texto)), static fn (string $p): bool => $p !== '') as $parte) {
+            if (preg_match('/\A(\d{1,18}):(\d{1,2})\z/', $parte, $m) !== 1) {
+                return null;
+            }
+            $lista[] = ['id' => $m[1], 'quantidade' => $m[2]];
+        }
+        return Complementos::formato($lista);
     }
 
     /** @return list<int> */
