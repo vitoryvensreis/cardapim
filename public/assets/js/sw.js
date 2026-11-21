@@ -1,18 +1,19 @@
 /*
  * Cardapim - service worker do app instalavel (servido em /pwa/sw pelo PwaController, com Service-Worker-Allowed: / para valer no site todo).
  * Regra de seguranca: NUNCA guarda paginas logadas nem respostas da API (dados do restaurante e de clientes).
- * - Paginas: sempre da internet. Sem conexao, mostra /offline.html (pagina estatica, sem dados de ninguem).
+ * - Paginas: sempre da internet. Sem conexao, mostra /pwa/offline (tela sem dados de ninguem, com a logo atual).
  * - Guarda so os arquivos da pagina offline. O resto do site segue o cache normal do navegador.
  * Ao mudar a lista abaixo ou a pagina offline, troque a VERSAO para o navegador baixar de novo.
+ * O PwaController troca __LOGO_OFFLINE__ pela logo enviada em Configuracoes e __VERSAO_MARCA__ por um resumo dela.
  */
-const VERSAO = "cardapim-offline-v2";
-const OFFLINE = "/offline.html";
+const VERSAO = "cardapim-offline-v3-__VERSAO_MARCA__";
+const OFFLINE = "/pwa/offline";
 const ARQUIVOS = [
   OFFLINE,
   "/assets/css/core.css",
   "/assets/css/pages.css",
   "/assets/icons/lucide.svg",
-  "/assets/img/logo-preta.svg",
+  "__LOGO_OFFLINE__",
 ];
 
 self.addEventListener("install", (evento) => {

@@ -40,6 +40,7 @@ $router->get('/status', [StatusController::class, 'index']);
 // Sem extensao de arquivo de proposito: o Nginx manda direto ao PHP (com o tipo certo e sem cache), sem regra de estaticos.
 $router->get('/pwa/manifesto', [PwaController::class, 'manifesto']);
 $router->get('/pwa/sw', [PwaController::class, 'serviceWorker']);
+$router->get('/pwa/offline', [PwaController::class, 'offline']);
 $router->get('/catalogo', Guard::paginaPublica([CatalogoController::class, 'index']));
 $router->get('/restaurantes', static fn (): \Cardapim\Core\Response => \Cardapim\Core\Response::redirect('/catalogo', 301));
 $router->get('/privacidade', Guard::paginaPublica([LegalController::class, 'privacidade']));
