@@ -18,7 +18,7 @@ from agent.alerts import AlertBoard, RING_INTERVAL_MS
 from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
 from agent.notifier import OrderToasts
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
-from agent.printing import job_receipt, printers, receipt, spool
+from agent.printing import MARGEM_PADRAO, MARGENS_CORTE, job_receipt, printers, receipt, spool
 from agent.printer_list import by_key, from_preferences, normalize, principal, resolve, server_payload
 from agent.printer_panel import PrinterPanel
 from agent.scale import ScaleMonitor, ScaleSettings
@@ -117,6 +117,9 @@ class DeliveryzimApp:
         # O instalador já liga "abrir com o Windows"; a caixa de seleção mostra o que está valendo.
         self.start_var = tk.BooleanVar(value=bool(self.preferences.get("iniciar_windows")) or self._startup_registered())
         self.logo_var = tk.BooleanVar(value=self.preferences.get("logo_cupom") is not False)
+        margem = self.preferences.get("margem_corte")
+        nome_margem = next((k for k, v in MARGENS_CORTE.items() if v == margem), "Normal")
+        self.margin_var = tk.StringVar(value=nome_margem)
         self.open_panel_var = tk.BooleanVar(value=self.preferences.get("abrir_painel") is not False)
         self.sound_var = tk.BooleanVar(value=bool(self.preferences.get("som_ativo")))
         # Cópia simples para a bandeja (outra thread) ler sem tocar em variáveis do Tk.
@@ -262,6 +265,14 @@ class DeliveryzimApp:
                        self._save_preferences).pack(anchor="w")
         self._label(logo, "Se aparecerem símbolos estranhos no topo do cupom, desmarque.", 9, GRAY,
                     wrap=520).pack(anchor="w", padx=(28, 0))
+        # Espaço em branco antes do corte: a guilhotina de algumas térmicas cortava a última linha.
+        corte = ctk.CTkFrame(printer, fg_color=WHITE, corner_radius=0)
+        corte.pack(fill="x", padx=18, pady=(0, 14))
+        self._label(corte, "Espaço antes do corte do papel", 10, DARK, bold=True).pack(anchor="w")
+        self._segmented(corte, tuple(MARGENS_CORTE.keys()), self.margin_var,
+                        lambda _l: self._save_preferences()).pack(anchor="w", pady=(6, 2))
+        self._label(corte, "Se a impressora cortar o fim do cupom, escolha mais espaço e use \"Imprimir teste\".",
+                    9, GRAY, wrap=520).pack(anchor="w")
 
         # Balança.
         scale = self._card(self.settings_page)
@@ -417,16 +428,22 @@ class DeliveryzimApp:
         job = {"id": 0, "titulo": "Teste " + name, "blocos": [
             {"t": "titulo", "texto": "TESTE"}, {"t": "centro", "texto": "Impressora: " + name},
             {"t": "texto", "texto": time.strftime("%d/%m/%Y %H:%M")}, {"t": "linha"},
-            {"t": "texto", "texto": "Se você leu isto, a impressora está pronta."}]}
+            {"t": "texto", "texto": "Se você leu isto, a impressora está pronta."},
+            {"t": "linha"}, {"t": "centro", "texto": "Esta linha precisa aparecer inteira acima do corte."}]}
         logo = bool(self.logo_var.get())
+        margem = self._margem()
 
         def task():
             try:
-                spool(printer["windows"], job_receipt(job, printer["papel"], logo), "Deliveryzim teste " + name)
+                spool(printer["windows"], job_receipt(job, printer["papel"], logo, margem), "Deliveryzim teste " + name)
                 self.messages.put(("job_status", "Teste enviado para " + name + "."))
             except Exception as exc:
                 self.messages.put(("job_status", "Falha no teste de " + name + ": " + str(exc)[:100]))
         threading.Thread(target=task, daemon=True).start()
+
+    def _margem(self):
+        """Linhas em branco antes do corte, conforme a escolha em Configurações."""
+        return MARGENS_CORTE.get(self.margin_var.get(), MARGEM_PADRAO)
 
     def _save_preferences(self):
         self.preferences.set(
@@ -438,6 +455,7 @@ class DeliveryzimApp:
             iniciar_windows=bool(self.start_var.get()),
             som_ativo=bool(self.sound_var.get()),
             logo_cupom=bool(self.logo_var.get()),
+            margem_corte=self._margem(),
             abrir_painel=bool(self.open_panel_var.get()),
         )
         self.sound_on = bool(self.sound_var.get())
@@ -737,14 +755,14 @@ class DeliveryzimApp:
             return
         self.store.update(event_id, "imprimindo")
         logo = bool(self.logo_var.get())
-        threading.Thread(target=self._print_task, args=(order, targets, logo), daemon=True).start()
+        threading.Thread(target=self._print_task, args=(order, targets, logo, self._margem()), daemon=True).start()
 
-    def _print_task(self, order, targets, logo=True):
+    def _print_task(self, order, targets, logo=True, margem=MARGEM_PADRAO):
         try:
             if not targets:
                 raise RuntimeError("Selecione uma impressora nas configuracoes.")
             for target in targets:
-                payload = receipt(order, target["papel"], logo)
+                payload = receipt(order, target["papel"], logo, margem)
                 spool(target["windows"], payload, "Deliveryzim pedido #" + str(order.get("numero", "")))
             self.messages.put(("printed", order))
         except Exception as exc:
@@ -757,15 +775,15 @@ class DeliveryzimApp:
         """
         target = by_key(self.printer_items, str(job.get("impressora") or ""))
         logo = bool(self.logo_var.get())
-        threading.Thread(target=self._print_job_task, args=(job, target, logo), daemon=True,
+        threading.Thread(target=self._print_job_task, args=(job, target, logo, self._margem()), daemon=True,
                          name="deliveryzim-cupom").start()
 
-    def _print_job_task(self, job, target, logo=True):
+    def _print_job_task(self, job, target, logo=True, margem=MARGEM_PADRAO):
         title = str(job.get("titulo") or "Cupom")[:80]
         try:
             if target is None or not target.get("windows"):
                 raise RuntimeError("Impressora não configurada neste computador. Confira o Deliveryzim Agent.")
-            spool(target["windows"], job_receipt(job, target["papel"], logo), "Deliveryzim " + title)
+            spool(target["windows"], job_receipt(job, target["papel"], logo, margem), "Deliveryzim " + title)
             ok, error = True, ""
             self.messages.put(("job_status", title + ": enviado ao Windows."))
         except Exception as exc:

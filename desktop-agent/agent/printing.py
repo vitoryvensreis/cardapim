@@ -7,6 +7,20 @@ import win32print
 # Pontos por linha das térmicas comuns (203 dpi): 58 mm = 384, 80 mm = 576.
 DOTS = {58: 384, 80: 576}
 LOGO_FILE = "logo-branca.png"
+# Espaco em branco antes do corte (linhas). A lamina fica alguns milimetros acima da cabeca de impressao: sem esse
+# avanco, a ultima informacao do cupom era cortada em algumas termicas. Escolhido no Agent ("Espaco antes do corte").
+MARGENS_CORTE = {"Normal": 4, "Mais espaço": 7, "Bem mais espaço": 10}
+MARGEM_PADRAO = 4
+
+
+def fim_do_cupom(margem=MARGEM_PADRAO):
+    """Avanca o papel `margem` linhas (ESC d n) e corta (GS V 0). Valor fora do intervalo vira o padrao."""
+    try:
+        n = int(margem)
+    except (TypeError, ValueError):
+        n = MARGEM_PADRAO
+    n = n if 0 <= n <= 20 else MARGEM_PADRAO
+    return b"\x1bd" + bytes((n,)) + b"\x1dV\x00"
 
 
 def printers():
@@ -97,7 +111,7 @@ def logo_raster(paper=80, path=None):
     return b"\x1ba\x01" + header + bytes(data) + b"\n\x1ba\x00"
 
 
-def receipt(order, paper=80, logo=True):
+def receipt(order, paper=80, logo=True, margem=MARGEM_PADRAO):
     """Cupom em CP850 + ESC/POS, compativel com drivers que deixam RAW passar.
 
     Com logo=True o topo leva a logo do Deliveryzim; sem a imagem (ou desligado) sai o nome em texto.
@@ -129,7 +143,7 @@ def receipt(order, paper=80, logo=True):
     lines.append("")
     lines.append("")
     # ESC @ inicializa, LF avanca, GS V 0 corta (quando suportado pela impressora).
-    return b"\x1b@" + image + ("\n".join(lines) + "\n").encode("cp850", errors="replace") + b"\x1dV\x00"
+    return b"\x1b@" + image + ("\n".join(lines) + "\n").encode("cp850", errors="replace") + fim_do_cupom(margem)
 
 
 def _wrap(text, width):
@@ -168,7 +182,7 @@ def _pair(label, value, width):
     return parts[:-1] + [parts[-1].ljust(room) + " " + value]
 
 
-def job_receipt(job, paper=80, logo=True):
+def job_receipt(job, paper=80, logo=True, margem=MARGEM_PADRAO):
     """Cupom pedido pelo caixa/garçom (fila de impressão do sistema), montado a partir de blocos.
 
     O servidor manda blocos simples (titulo, centro, destaque, texto, linha, valor, item); aqui só
@@ -230,7 +244,7 @@ def job_receipt(job, paper=80, logo=True):
                 line(part)
     line()
     line()
-    out.extend(b"\x1dV\x00")
+    out.extend(fim_do_cupom(margem))
     return bytes(out)
 
 

@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from PIL import Image
-from agent.printing import DOTS, logo_raster, receipt, money
+from agent.printing import DOTS, MARGEM_PADRAO, fim_do_cupom, job_receipt, logo_raster, receipt, money
 
 class ReceiptTests(unittest.TestCase):
     def test_cupom_escpos(self):
@@ -46,6 +46,16 @@ class ReceiptTests(unittest.TestCase):
             self.assertEqual(data[7:11], bytes((2, 0, 2, 0)))
             self.assertEqual(data[11:15], bytes((0x80, 0x00, 0x00, 0x40)))
             self.assertEqual(logo_raster(80, os.path.join(folder, "nao-existe.png")), b"")
+
+    def test_espaco_antes_do_corte(self):
+        # Avanca o papel antes da guilhotina (ESC d n) para nao cortar a ultima linha.
+        self.assertEqual(fim_do_cupom(), b"\x1bd" + bytes((MARGEM_PADRAO,)) + b"\x1dV\x00")
+        self.assertEqual(fim_do_cupom(10), b"\x1bd\x0a\x1dV\x00")
+        self.assertEqual(fim_do_cupom("x"), fim_do_cupom())
+        self.assertEqual(fim_do_cupom(99), fim_do_cupom())
+        job = {"blocos": [{"t": "texto", "texto": "Fim"}]}
+        self.assertTrue(job_receipt(job, 80, False, 7).endswith(b"\x1bd\x07\x1dV\x00"))
+        self.assertTrue(receipt({"numero": 1, "itens": []}, 80, False, 7).endswith(b"\x1bd\x07\x1dV\x00"))
 
     def test_moeda(self):
         self.assertEqual(money("1234.56"), "R$ 1.234,56")

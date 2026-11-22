@@ -20,6 +20,8 @@ class Preferences:
             "automatico": False, "impressora": "", "papel": 80,
             "iniciar_windows": False, "cursor": 0, "restaurante": "", "device_id": 0,
             "som_ativo": True, "configurado": False, "logo_cupom": True, "abrir_painel": True,
+            # Linhas em branco antes do corte (0.8.1+): evita a guilhotina cortar o fim do cupom.
+            "margem_corte": 4,
             "balanca_ativa": False, "balanca_porta": "", "balanca_baudrate": 9600,
             "balanca_protocolo": "continuo", "balanca_unidade": "kg",
             # Varias impressoras (0.8.0+): [{chave, apelido, windows, papel}]; a primeira e a principal.
