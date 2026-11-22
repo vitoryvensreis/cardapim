@@ -11,6 +11,7 @@ use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
 use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Impressao\CupomImagem;
 use Cardapim\Services\Impressao\TesteImpressao;
 use Cardapim\Services\Auditoria;
 use Cardapim\Shared\Esquema;
@@ -108,7 +109,34 @@ final class ImpressorasController extends BaseGerencia
         if ($imprimir) {
             Auditoria::registrar($this->usuario, 'Teste de impressão', 'Cupons de teste enviados ao Agent.');
         }
+        $res['cupons'] = $this->comImagem($res['cupons'] ?? []);
         return Response::json(['ok' => true] + $res)->comCabecalhos(['Cache-Control' => 'no-store']);
+    }
+
+    /**
+     * Cupom desenhado como a impressora vai receber (Agent 0.9.0+): papel, logo e espaco antes do corte
+     * informados pelo Agent para cada impressora. Sem GD no servidor, a tela desenha so o texto, como antes.
+     * @param list<array<string,mixed>> $cupons
+     * @return list<array<string,mixed>>
+     */
+    private function comImagem(array $cupons): array
+    {
+        if (!CupomImagem::disponivel()) {
+            return $cupons;
+        }
+        $formatos = Esquema::tem($this->db, 'impressoras')
+            ? (new ImpressoraRepository($this->db))->formatos($this->restaurante['id'], Esquema::tem($this->db, 'impressora_papel'))
+            : [];
+        foreach ($cupons as &$c) {
+            if (!is_array($c['blocos'] ?? null)) {
+                continue;
+            }
+            $f = $formatos[(int) ($c['id'] ?? 0)] ?? ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO];
+            $c['imagem'] = 'data:image/png;base64,' . base64_encode(CupomImagem::png($c['blocos'], $f['papel'], $f['margem'], $f['logo']));
+            $c['papel'] = $f['papel'];
+        }
+        unset($c);
+        return $cupons;
     }
 
     public function salvar(string $slug): Response

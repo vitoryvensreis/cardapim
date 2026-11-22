@@ -18,7 +18,8 @@ from agent.alerts import AlertBoard, RING_INTERVAL_MS
 from agent.api import ApiClient, AuthenticationError, NeedTwoFactor
 from agent.notifier import OrderToasts
 from agent.config import Preferences, EventStore, save_credential, load_credential, delete_credential
-from agent.printing import MARGEM_PADRAO, MARGENS_CORTE, job_receipt, printers, receipt, spool
+from agent import updater
+from agent.printing import MARGEM_PADRAO, MARGENS_CORTE, image_receipt, job_receipt, printers, receipt, spool
 from agent.printer_list import by_key, from_preferences, normalize, principal, resolve, server_payload
 from agent.printer_panel import PrinterPanel
 from agent.scale import ScaleMonitor, ScaleSettings
@@ -121,6 +122,11 @@ class DeliveryzimApp:
         nome_margem = next((k for k, v in MARGENS_CORTE.items() if v == margem), "Normal")
         self.margin_var = tk.StringVar(value=nome_margem)
         self.open_panel_var = tk.BooleanVar(value=self.preferences.get("abrir_painel") is not False)
+        # 0.9.0+: instala sozinho a versão nova quando o Agent está parado (pode desligar nas configurações).
+        self.update_var = tk.BooleanVar(value=self.preferences.get("atualizar_sozinho") is not False)
+        self.last_print = 0.0
+        self.update_path = ""
+        self.last_sync = None
         self.sound_var = tk.BooleanVar(value=bool(self.preferences.get("som_ativo")))
         # Cópia simples para a bandeja (outra thread) ler sem tocar em variáveis do Tk.
         self.sound_on = bool(self.preferences.get("som_ativo"))
@@ -136,6 +142,8 @@ class DeliveryzimApp:
         if self.token:
             self._start_worker()
         self.root.after(500, self._recover_jobs)
+        if getattr(sys, "frozen", False):
+            self.root.after(60000, self._start_updater)
 
     # ---------- componentes (CustomTkinter, cores oficiais) ----------
     def _font(self, size=10, bold=False):
@@ -286,6 +294,8 @@ class DeliveryzimApp:
         self._checkbox(foot, "Abrir sozinho quando o Windows ligar", self.start_var,
                        self._save_preferences).pack(anchor="w", pady=(0, 8))
         self._checkbox(foot, "Abrir o painel do Deliveryzim no navegador ao iniciar", self.open_panel_var,
+                       self._save_preferences).pack(anchor="w", pady=(0, 8))
+        self._checkbox(foot, "Atualizar sozinho quando sair versão nova (recomendado)", self.update_var,
                        self._save_preferences).pack(anchor="w", pady=(0, 10))
         self._button(foot, "Testar impressão e aviso", self._test, primary=False).pack(fill="x", pady=(0, 8))
         self._button(foot, "Concluir e deixar em segundo plano", self._finish_setup).pack(fill="x")
@@ -404,7 +414,8 @@ class DeliveryzimApp:
         """Manda a lista (chave + apelido) para o sistema, para o gerente escolher os pontos de impressão."""
         if not self.token:
             return
-        items = server_payload(self.printer_items)
+        items = server_payload(self.printer_items, self._margem(), bool(self.logo_var.get()))
+        self.last_sync = items
         token = self.token
 
         def task():
@@ -457,7 +468,11 @@ class DeliveryzimApp:
             logo_cupom=bool(self.logo_var.get()),
             margem_corte=self._margem(),
             abrir_painel=bool(self.open_panel_var.get()),
+            atualizar_sozinho=bool(self.update_var.get()),
         )
+        # Papel, logo e espaço antes do corte vão para o sistema, que desenha o cupom (0.9.0+).
+        if self.token and server_payload(self.printer_items, self._margem(), bool(self.logo_var.get())) != self.last_sync:
+            self._sync_printers()
         self.sound_on = bool(self.sound_var.get())
         if self.icon is not None:
             try:
@@ -591,7 +606,7 @@ class DeliveryzimApp:
         while not self.quit_flag.is_set() and self.client is client:
             try:
                 cursor = int(self.preferences.get("cursor") or 0)
-                response = client.events(cursor)
+                response = client.events(cursor, (principal(self.printer_items) or {}).get("chave", ""))
                 orders = response.get("pedidos")
                 if not isinstance(orders, list):
                     raise ValueError("Resposta da API invalida.")
@@ -783,7 +798,13 @@ class DeliveryzimApp:
         try:
             if target is None or not target.get("windows"):
                 raise RuntimeError("Impressora não configurada neste computador. Confira o Deliveryzim Agent.")
-            spool(target["windows"], job_receipt(job, target["papel"], logo, margem), "Deliveryzim " + title)
+            # 0.9.0+: o sistema manda o cupom desenhado (imagem); sem imagem, monta pelos blocos como antes.
+            if job.get("imagem"):
+                payload = image_receipt(job["imagem"], target["papel"])
+            else:
+                payload = job_receipt(job, target["papel"], logo, margem)
+            self.last_print = time.time()
+            spool(target["windows"], payload, "Deliveryzim " + title)
             ok, error = True, ""
             self.messages.put(("job_status", title + ": enviado ao Windows."))
         except Exception as exc:
@@ -912,6 +933,9 @@ class DeliveryzimApp:
                 self.root.lift()
             elif kind == "quit":
                 self._quit()
+            elif kind == "update_ready":
+                self.update_path = str(payload)
+                self._try_update()
         self.root.after(150, self._drain)
 
     def hide(self):
@@ -923,6 +947,46 @@ class DeliveryzimApp:
     def _quit(self):
         if not messagebox.askyesno("Encerrar", "Encerrar o agente? Pedidos nao serao avisados enquanto ele estiver fechado."):
             return
+        self.quit_flag.set()
+        self.client = None
+        self.scale_monitor.stop()
+        if self.icon is not None:
+            self.icon.stop()
+        self.root.destroy()
+
+    # ---------- atualização automática ----------
+    def _start_updater(self):
+        threading.Thread(target=self._update_loop, daemon=True, name="deliveryzim-atualizacao").start()
+
+    def _update_loop(self):
+        """Confere a versão nova ao abrir e a cada 6 horas. Baixa e confere o SHA-256 antes de avisar a janela."""
+        user_agent = "Deliveryzim-Agent/" + __version__ + " (Windows)"
+        while not self.quit_flag.is_set():
+            if self.preferences.get("atualizar_sozinho") is not False and not self.update_path:
+                try:
+                    update = updater.check(user_agent)
+                    if update:
+                        self.messages.put(("job_status", "Baixando a versão " + update["versao"] + " do Agent..."))
+                        self.messages.put(("update_ready", updater.download(update, user_agent)))
+                except Exception as exc:
+                    self.messages.put(("job_status", "Atualização não conferida agora: " + str(exc)[:80]))
+            self.quit_flag.wait(6 * 3600)
+
+    def _try_update(self):
+        """Instala só com o Agent parado: nenhum pedido tocando e nenhum cupom saindo há 2 minutos."""
+        if not self.update_path or self.quit_flag.is_set():
+            return
+        if not self.update_var.get():
+            return
+        if self.alerts.ids() or time.time() - self.last_print < 120:
+            self.root.after(60000, self._try_update)
+            return
+        try:
+            updater.install(self.update_path)
+        except Exception as exc:
+            self.status_var.set("Não foi possível atualizar: " + str(exc)[:100])
+            return
+        # O instalador espera o Agent fechar, atualiza e abre de novo (impressoras e vínculo continuam).
         self.quit_flag.set()
         self.client = None
         self.scale_monitor.stop()

@@ -3,6 +3,23 @@
 Os botões **Imprimir** do caixa e do garçom mandam o cupom para o **Deliveryzim Agent** instalado no computador
 da impressora (Windows). O navegador nunca abre a janela de impressão.
 
+## Cupom desenhado no servidor (Agent 0.9.0+)
+
+O servidor desenha cada cupom como **imagem preto e branco do tamanho do papel** (`app/Services/Impressao/CupomImagem.php`:
+58 mm = 384 pontos, 80 mm = 576 pontos; fonte Poppins sem suavização; logo oficial `resources/img/logo-cupom.png`;
+espaço antes do corte no fim da própria imagem). O Agent manda de cada impressora o **papel**, a **logo** e o **espaço
+antes do corte** (`POST /api/v1/desktop/impressoras`, colunas `impressoras.papel`, `logo`, `margem_corte`), pede
+`/eventos?imagem=1&principal=<chave da principal>` e recebe em cada cupom o campo `imagem` (PNG em base64) e `papel`.
+Ele só converte em ESC/POS (GS v 0 em faixas de 128 linhas) e corta.
+
+- A rota dos itens (qual impressora recebe o quê) não mudou: continua no servidor (`RotaProducao`).
+- Cupom sem impressora escolhida usa o papel da **principal** do Agent (`principal`).
+- Sem GD no servidor, ou se o desenho falhar, o cupom segue só com os `blocos` e o Agent monta como antes.
+- Agent antigo (sem `imagem=1`) continua recebendo só os blocos. Agent antigo que reenvia a lista sem papel não apaga o
+  papel já gravado.
+- Gerência > Impressoras > Testar impressão mostra a mesma imagem que vai para a impressora.
+- O Agent 0.9.0+ se atualiza sozinho (Releases do GitHub, SHA-256 conferido, instala com o Agent parado).
+
 ## Regra (uma só para 1, 2 ou várias impressoras)
 
 **1. Impressão por produto (sai sozinha ou pelo botão "Novos itens").** Cada item sai **só na impressora marcada
@@ -97,8 +114,10 @@ impressora desenhado como no papel e o motivo de cada item estar ali. Impressora
 - `20261121000000_impressao_por_produto.php` (`produto_impressoras`, ponto `producao`, `impressoes.lote`, tipo
   `producao`), `database/verify-impressao-produto.php`, `deploy/scripts/apply-impressao-produto.sh`.
 - `20261121300000_impressao_lancamento.php` (só amplia o CHECK dos pontos; o ponto não é mais usado).
+- `20261122400000_impressora_papel.php` (`impressoras.papel`, `logo`, `margem_corte`), `database/verify-impressora-papel.php`,
+  `deploy/scripts/apply-impressora-papel.sh` (gatilho `[cardapim-impressora-papel]`; `Esquema::tem('impressora_papel')`).
 
-Testes: `tests/unit/impressao.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
+Testes: `tests/unit/impressao.php`, `tests/unit/cupom-imagem.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
 `tests/http/impressao-produto.sh`, `desktop-agent/tests/test_printer_list.py`.
 
 ## Fluxo

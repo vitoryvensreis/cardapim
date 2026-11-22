@@ -263,6 +263,9 @@
   const mostrar = (dados) => {
     const largura = parseInt(papel.value, 10) || 48;
     semSuporte = false;
+    // Com o cupom em imagem, a largura vem da impressora (informada pelo Agent): a escolha da tela some.
+    const campoPapel = papel.closest(".impressao-teste-papel");
+    if (campoPapel) campoPapel.hidden = (dados.cupons || []).some((c) => c.imagem);
     const cartoes = el("div", "impressao-teste-cartoes");
     for (const c of dados.cupons || []) {
       const cartao = el("article", "impressao-teste-cartao" + (c.blocos ? "" : " is-vazio"));
@@ -276,7 +279,18 @@
       if (!c.blocos) {
         cartao.append(el("p", "impressao-teste-nada", "Não sai nada nesta impressora."));
       } else {
-        cartao.append(desenhar(c.blocos, largura));
+        if (c.imagem) {
+          // Agent 0.9.0+: o cupom sai exatamente como esta imagem (papel, logo e espaço antes do corte da impressora).
+          const img = document.createElement("img");
+          img.className = "cupom-imagem";
+          img.src = c.imagem;
+          img.alt = "Cupom de " + c.apelido + " como sai na impressora";
+          img.decoding = "async";
+          img.dataset.papel = String(c.papel || 80);
+          cartao.append(img, el("p", "impressao-teste-papel-info", "Papel de " + (c.papel || 80) + " mm. Confira no Deliveryzim Agent se é a largura certa."));
+        } else {
+          cartao.append(desenhar(c.blocos, largura));
+        }
         const por = el("ul", "impressao-teste-motivos");
         for (const m of c.motivos || []) {
           const li = el("li");

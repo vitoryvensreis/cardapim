@@ -162,6 +162,27 @@ agente "$ta" "$cursor" >/dev/null
 esperar "cupom na Cozinha" "$(cupom impressora)" "cccc2222dddd"
 resultado "$ta" "$(cupom id)" >/dev/null
 
+echo "Cupom em imagem (Agent 0.9.0+): papel, logo e espaco antes do corte vem do Agent"
+esperar "papel invalido recusado" "$(registrar "$ta" '{"impressoras":[{"chave":"aaaa1111bbbb","apelido":"Balcão","papel":70,"logo":true,"margem":4}]}')" "422"
+esperar "margem invalida recusada" "$(registrar "$ta" '{"impressoras":[{"chave":"aaaa1111bbbb","apelido":"Balcão","papel":58,"logo":true,"margem":21}]}')" "422"
+esperar "Balcao com papel 58 mm" "$(registrar "$ta" '{"impressoras":[{"chave":"aaaa1111bbbb","apelido":"Balcão","papel":58,"logo":false,"margem":7},{"chave":"cccc2222dddd","apelido":"Cozinha","papel":80,"logo":true,"margem":4}]}')" "200"
+largura_imagem() { php -r '$d=json_decode(file_get_contents($argv[1]),true); $j=$d["impressoes"][0]??null; if(!$j||empty($j["imagem"])){echo "sem-imagem";exit;} $i=imagecreatefromstring(base64_decode($j["imagem"])); echo $i?imagesx($i):"invalida";' "$tmp/ag.json"; }
+esperar "caixa imprime no Balcao" "$(imprimir "$cx" "$c/imprimir/comanda/$venda" "$c/comandas/$venda" "impressora=$balcao")" "202"
+curl -s -o "$tmp/ag.json" -H "Authorization: Bearer $ta" "$base/api/v1/desktop/eventos?desde=$cursor&impressoes=1&impressoras=1&imagem=1&principal=cccc2222dddd"
+esperar "cupom chega desenhado no papel de 58 mm" "$(largura_imagem)" "384"
+esperar "informa o papel" "$(cupom papel)" "58"
+[[ -n "$(cupom blocos)" ]] && ok "blocos continuam junto (reserva)" || falha "blocos sumiram"
+resultado "$ta" "$(cupom id)" >/dev/null
+esperar "Agent antigo continua sem imagem" "$(imprimir "$cx" "$c/imprimir/comanda/$venda" "$c/comandas/$venda" "impressora=$balcao")" "202"
+agente "$ta" "$cursor" >/dev/null
+esperar "sem imagem=1 nao manda imagem" "$(largura_imagem)" "sem-imagem"
+resultado "$ta" "$(cupom id)" >/dev/null
+esperar "Agent antigo (sem papel) nao apaga o papel" "$(registrar "$ta" '{"impressoras":[{"chave":"aaaa1111bbbb","apelido":"Balcão"},{"chave":"cccc2222dddd","apelido":"Cozinha"}]}')" "200"
+imprimir "$cx" "$c/imprimir/comanda/$venda" "$c/comandas/$venda" "impressora=$balcao" >/dev/null
+curl -s -o "$tmp/ag.json" -H "Authorization: Bearer $ta" "$base/api/v1/desktop/eventos?desde=$cursor&impressoes=1&impressoras=1&imagem=1"
+esperar "papel de 58 mm mantido" "$(largura_imagem)" "384"
+resultado "$ta" "$(cupom id)" >/dev/null
+
 echo "Agent tira a Cozinha da lista"
 esperar "PC do caixa fica so com o Balcao" "$(registrar "$ta" '{"impressoras":[{"chave":"aaaa1111bbbb","apelido":"Balcão"}]}')" "200"
 curl -s -b "$wj" -o "$tmp/pag.html" "$w/comandas/$comanda"

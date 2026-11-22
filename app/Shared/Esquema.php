@@ -34,6 +34,8 @@ final class Esquema
         'garcom_fechar' => ['restaurante_garcom_permissoes', 'fechar_conta'],
         // Quantidade por opcao de complemento e liga/desliga do aviso de cancelamento (tabela criada no fim da migracao).
         'complemento_qtd' => ['restaurante_impressao_config', 'cancelamento'],
+        // Cupom em imagem: papel, logo e espaco antes do corte de cada impressora (coluna criada no fim da migracao).
+        'impressora_papel' => ['impressoras', 'margem_corte'],
     ];
 
     /** @var array<string,bool> */

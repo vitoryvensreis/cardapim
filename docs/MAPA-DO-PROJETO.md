@@ -272,24 +272,29 @@ Navegador: public/assets/js/tempo-real.js
 Caixa/garçom clica Imprimir  ─┐
 Pedido aceito (produção)     ─┼─► FilaImpressao ─► RotaProducao (qual impressora) ─► CupomImpressao (blocos)
 Cancelamento de item         ─┘                    └─► INSERT impressoes (fila)
-Agent (Windows) ─ GET /api/v1/desktop/eventos?impressoes=1&impressoras=1 ─► reserva os cupons ─► ESC/POS
+Agent (Windows) ─ GET /api/v1/desktop/eventos?impressoes=1&impressoras=1&imagem=1&principal=<chave>
+                   ─► reserva os cupons ─► CupomImagem desenha cada um no papel da impressora ─► Agent imprime a imagem e corta
 ```
+
+Desde o Agent 0.9.0 **o cupom é desenhado no servidor** (`CupomImagem`): o Agent informa de cada impressora o papel (58/80 mm), a logo e o espaço antes do corte (`POST /api/v1/desktop/impressoras`, colunas `impressoras.papel`, `logo`, `margem_corte`), recebe a imagem pronta e só converte em ESC/POS. Mudança de layout, letra, acento, logo ou margem é só no PHP, sem instalar nada. Agents antigos continuam recebendo os blocos e montando como antes.
 
 | Onde | O quê |
 | --- | --- |
 | `app/Services/Impressao/RotaProducao.php` | Regra única: item → impressora (produção, cancelamento e simulador usam a mesma) |
 | `app/Services/Impressao/CupomImpressao.php` | Monta os blocos (`titulo`, `centro`, `destaque`, `texto`, `linha`, `valor`, `item`) |
+| `app/Services/Impressao/CupomImagem.php` | Desenha os blocos como PNG preto e branco (384 ou 576 pontos), com fonte Poppins, logo (`resources/img/logo-cupom.png`) e espaço antes do corte |
 | `app/Services/Impressao/TesteImpressao.php` | Simulador da Gerência > Impressoras (não grava nada) |
 | `app/Controllers/Api/DesktopAgentController.php` | API do Agent: vínculo, eventos, impressões, balança, situação |
 | `app/Repositories/Desktop/*` | Fila `impressoes`, `impressoras`, produto↔impressora, pesagens |
-| `desktop-agent/agent/printing.py` | Converte blocos em ESC/POS (58/80 mm), logo, **espaço antes do corte** (`fim_do_cupom`) |
+| `desktop-agent/agent/printing.py` | `image_receipt`: imagem do sistema → ESC/POS (GS v 0) + corte; `job_receipt`: montagem antiga pelos blocos (reserva) |
+| `desktop-agent/agent/updater.py` | Atualização automática: confere os Releases (`agent-vX.Y.Z`), baixa, confere o SHA-256 e instala em silêncio com o Agent parado |
 | `desktop-agent/agent/app.py` | Janela do Agent, preferências, polling e fila de impressão |
 | `desktop-agent/agent/scale.py`, `scale_panel.py` | Balança serial/TCP |
 | `desktop-agent/agent/api.py`, `config.py`, `alerts.py`, `sound.py`, `notifier.py` | API, preferências, aviso sonoro de pedido |
 | `desktop-agent/installer/deliveryzim-agent.iss` | Instalador (Inno Setup) |
 | `.github/workflows/desktop-agent-windows.yml` | Push na `main` em `desktop-agent/**` → testes + Release `Deliveryzim-Agent-Setup.exe` |
 
-Versão do Agent: `desktop-agent/agent/__init__.py`. Mudanças só no PHP (formato do cupom) chegam na hora. Mudanças no Agent exigem que as lojas instalem a versão nova. Guia: `docs/architecture/impressao-agent.md` e `desktop-agent/README.md`.
+Versão do Agent: `desktop-agent/agent/__init__.py`. Mudanças no cupom (PHP) chegam na hora. Mudanças no próprio Agent saem num Release novo e, a partir da 0.9.0, cada Agent se atualiza sozinho. Guia: `docs/architecture/impressao-agent.md` e `desktop-agent/README.md`.
 
 ---
 
@@ -352,9 +357,10 @@ Fluxo de trabalho: branch → PR → CI verde → merge autorizado → deploy au
 | --- | --- | --- |
 | Criar uma tela nova no gerente | `routes/gerencia.php`, controller em `Controllers/Gerencia/` (estende `BaseGerencia`), service em `Services/Gerencia/`, view em `Views/gerencia/<aba>/`, CSS/JS próprios | Item no menu: `Services/Painel/MenuGerencia.php` |
 | Mudar quem pode acessar algo | `Services/Auth/Autorizacao.php` | Bases dos controllers; regras do garçom em `Garcom/PermissoesGarcom` |
-| Mudar o cupom impresso | `Services/Impressao/CupomImpressao.php` | `TesteImpressao` (simulador) e `printing.py` se for bloco novo |
+| Mudar o conteúdo do cupom | `Services/Impressao/CupomImpressao.php` | `TesteImpressao` (simulador); bloco novo também em `CupomImagem` e `printing.py` (reserva) |
+| Mudar o visual do cupom (letra, tamanho, logo, margens) | `Services/Impressao/CupomImagem.php` | Vale na hora para Agents 0.9.0+; rode `tests/unit/cupom-imagem.php` |
 | Mudar qual impressora recebe o item | `Services/Impressao/RotaProducao.php` | `ProdutoImpressoraRepository`, gerência > Impressoras |
-| Corrigir corte do papel ou largura | `desktop-agent/agent/printing.py` | Exige nova versão do Agent |
+| Corrigir corte do papel ou largura | Espaço e largura: escolhidos no Agent e desenhados em `CupomImagem` | Envio direto à impressora: `printing.py` (Release novo, atualização automática) |
 | Mudar regra de complemento ou combo | `Modules/Catalog/Complementos.php` / `Combo.php` | Afeta cardápio, caixa, garçom e iFood; rode `tests/unit/complementos.php` e `combos.php` |
 | Mudar o que aparece no cardápio do cliente | `Services/Cardapio/CardapioPublico.php`, `Views/restaurante/`, `cardapio.css/js` | Disponibilidade: `Modules/Inventory/DisponibilidadeProdutos.php` |
 | Mudar a criação do pedido online | `Services/Pedidos/CriarPedido.php`, `LinhasSacola.php`, `CheckoutPublico.php` | Estoque (`BaixaEstoque`), descontos, tempo real, Agent |

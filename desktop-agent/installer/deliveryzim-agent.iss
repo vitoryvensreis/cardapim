@@ -51,3 +51,5 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\{#MyAppExe}"; Description: "Abrir o Deliveryzim Agent agora"; Flags: nowait postinstall skipifsilent
+; Atualizacao automatica (Agent 0.9.0+ roda este instalador em silencio): abre o Agent de novo no fim.
+Filename: "{app}\{#MyAppExe}"; Flags: nowait; Check: WizardSilent

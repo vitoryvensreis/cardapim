@@ -40,9 +40,13 @@ class PrinterListTests(unittest.TestCase):
 
     def test_envio_ao_sistema_sem_nome_do_windows(self):
         items = [new_printer("Balcão", "EPSON", 80), new_printer("", "OUTRA", 80)]
-        payload = server_payload(items)
+        items[1]["papel"] = 58
+        payload = server_payload(items, 7, False)
         self.assertEqual([p["apelido"] for p in payload], ["Balcão", "Impressora 2"])
-        self.assertTrue(all(set(p) == {"chave", "apelido"} for p in payload))
+        self.assertTrue(all(set(p) == {"chave", "apelido", "papel", "logo", "margem"} for p in payload))
+        self.assertEqual([p["papel"] for p in payload], [80, 58])
+        self.assertTrue(all(p["margem"] == 7 and p["logo"] is False for p in payload))
+        self.assertTrue(all(p["margem"] == 4 for p in server_payload(items, 99)))
 
     def test_avisos(self):
         items = [new_printer("Balcão", "A"), new_printer("balcão", ""), new_printer("", "C")]
