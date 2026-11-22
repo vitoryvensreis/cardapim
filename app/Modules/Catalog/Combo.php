@@ -76,6 +76,12 @@ final class Combo
             foreach ($grupos as $idCombo => &$lista) {
                 foreach ($lista as &$g) {
                     [$g['minimo'], $g['maximo']] = $limites[$idCombo][(int) $g['id']] ?? [0, (int) $g['maximo']];
+                    // No combo a quantidade por opcao e sempre livre (com o maximo de cada opcao do combo).
+                    $g['repetir'] = true;
+                    foreach ($g['opcoes'] as &$op) {
+                        $op['qtd_max'] = null;
+                    }
+                    unset($op);
                 }
                 unset($g);
             }

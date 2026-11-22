@@ -117,4 +117,5 @@ $quando = static function (?string $data): string {
             <p class="lista-vazia" id="equipe-nenhum" hidden>Ninguém encontrado com essa busca.</p>
         <?php endif; ?>
     <?php endif; ?>
+    <?php if (isset($permissoesGarcom)) { require __DIR__ . '/_perfis.php'; } ?>
 </div>

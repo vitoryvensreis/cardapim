@@ -150,4 +150,24 @@ final class ImpressoraRepository
         return $lista;
     }
 
+    /** Imprimir o aviso de item/comanda cancelado? Sem configuracao (ou recurso ainda nao liberado) = sim. */
+    public function cancelamentoAtivo(int $idRestaurante): bool
+    {
+        if (!\Cardapim\Shared\Esquema::tem($this->db, 'complemento_qtd')) {
+            return true;
+        }
+        $q = $this->db->prepare('SELECT cancelamento FROM restaurante_impressao_config WHERE id_restaurante = ?');
+        $q->execute([$idRestaurante]);
+        $v = $q->fetchColumn();
+        return $v === false || (int) $v === 1;
+    }
+
+    public function salvarCancelamento(int $idRestaurante, bool $ativo): void
+    {
+        if (!\Cardapim\Shared\Esquema::tem($this->db, 'complemento_qtd')) {
+            return;
+        }
+        $this->db->prepare('INSERT INTO restaurante_impressao_config (id_restaurante, cancelamento) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE cancelamento = VALUES(cancelamento)')->execute([$idRestaurante, $ativo ? 1 : 0]);
+    }
 }

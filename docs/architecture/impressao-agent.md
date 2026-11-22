@@ -58,7 +58,8 @@ Uma função só decide para onde vai cada item, usada pela impressão real, pel
 Item cancelado (caixa ou garçom), comanda cancelada e pedido do delivery cancelado imprimem **CANCELAMENTO** na
 impressora de cada item (mesma regra acima), com a mesa/pedido, os itens ("Não preparar") e o motivo. Só sai o que já
 tinha saído na produção: na comanda, itens até o último impresso; no delivery, quando as vias do aceite já foram.
-Nunca impede o cancelamento (falha vai para o log). Tipo `cancelamento` em `impressoes`.
+Nunca impede o cancelamento (falha vai para o log). Tipo `cancelamento` em `impressoes`. Liga/desliga em Integrações >
+Impressoras > "Aviso de cancelamento" (`restaurante_impressao_config.cancelamento`, padrão ligado).
 
 ## Testar impressão (Gerência > Integrações > Impressoras)
 

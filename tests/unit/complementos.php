@@ -58,6 +58,22 @@ $ok(Complementos::consumoDaLinha([5 => 50, 7 => 60], 3) === [5 => 150, 7 => 180]
 $pub = Complementos::publico($grupos);
 $ok(!isset($pub[0]['opcoes'][0]['ficha']) && !isset($pub[0]['opcoes'][0]['codigo']) && $pub[1]['opcoes'][2]['disponivel'] === false, 'dados publicos sem segredo');
 
+// Quantidade por opcao (ex.: 3 ovos): so no grupo que repete, com limite por opcao.
+$ovos = [['id' => 5, 'nome' => 'Adicionais', 'minimo' => 0, 'maximo' => 10, 'repetir' => false, 'opcoes' => [
+    ['id' => 50, 'nome' => 'Ovo', 'preco' => '1.00', 'centavos' => 100, 'vendavel' => true, 'ficha' => [], 'qtd_max' => null, 'imagem_path' => null],
+    ['id' => 51, 'nome' => 'Bacon', 'preco' => '3.00', 'centavos' => 300, 'vendavel' => true, 'ficha' => [], 'qtd_max' => 2, 'imagem_path' => null],
+]]];
+$ok(!Complementos::conferir($ovos, [['id' => 50, 'quantidade' => 3]])['ok'], 'grupo sem quantidade: opcao uma vez so');
+$ovos[0]['repetir'] = true;
+$r3 = Complementos::conferir($ovos, [['id' => 50, 'quantidade' => 3]]);
+$ok($r3['ok'] && $r3['centavos'] === 300 && str_contains($r3['texto'], '3x Ovo'), 'grupo com quantidade: 3 ovos somam e aparecem no texto');
+$ok(!Complementos::conferir($ovos, [['id' => 51, 'quantidade' => 3]])['ok'], 'limite da opcao respeitado (bacon ate 2)');
+$ok(!Complementos::conferir($ovos, [['id' => 50, 'quantidade' => 9], ['id' => 51, 'quantidade' => 2]])['ok'], 'soma continua limitada pelo maximo do grupo');
+$pubOvos = Complementos::publico($ovos);
+$ok($pubOvos[0]['repetir'] === true && $pubOvos[0]['opcoes'][1]['maximo'] === 2 && $pubOvos[0]['opcoes'][0]['maximo'] === null, 'dados publicos com quantidade e limite');
+$semChave = [['id' => 6, 'nome' => 'Antigo', 'minimo' => 0, 'maximo' => 5, 'opcoes' => [['id' => 60, 'nome' => 'X', 'preco' => '0.00', 'centavos' => 0, 'vendavel' => true, 'ficha' => []]]]];
+$ok(Complementos::conferir($semChave, [['id' => 60, 'quantidade' => 2]])['ok'], 'grupo sem a informacao (combo antigo) continua aceitando quantidade');
+
 if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s) nos complementos.\n");
     exit(1);

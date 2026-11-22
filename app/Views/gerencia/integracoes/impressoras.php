@@ -95,6 +95,17 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                     </ul>
                     <a class="impressao-link" href="<?= $e($base . '/estoque/categorias') ?>"><?= Icon::svg('tags', 'icon-sm') ?>Marcar a impressora dos produtos por categoria</a>
                 </fieldset>
+                <?php if (isset($cancelamentoAtivo) && $cancelamentoAtivo !== null): ?>
+                    <fieldset class="bloco impressao-ponto">
+                        <legend><?= Icon::svg('circle-x') ?>Aviso de cancelamento</legend>
+                        <input type="hidden" name="cancelamento_enviado" value="1">
+                        <label class="alternador">
+                            <span><strong>Imprimir quando um item ou comanda for cancelado</strong>
+                                <small>Sai "CANCELAMENTO" na impressora de cada item (ex.: na Cozinha: "1x Picanha da Mesa 5 foi cancelado"), com o motivo. Só para itens que já tinham sido impressos. Vale para caixa, garçom e delivery.</small></span>
+                            <input type="checkbox" name="cancelamento" value="1"<?= $cancelamentoAtivo ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                        </label>
+                    </fieldset>
+                <?php endif; ?>
             <?php endif; ?>
 
             <fieldset class="bloco impressao-ponto">

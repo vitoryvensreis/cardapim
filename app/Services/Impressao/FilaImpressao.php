@@ -265,7 +265,8 @@ final class FilaImpressao
     public function cancelamento(int $idPedido, ?array $idsItens, string $motivo): void
     {
         try {
-            if (!Esquema::tem($this->db, 'produto_opcoes') || !$this->producaoAtiva()) {
+            if (!Esquema::tem($this->db, 'produto_opcoes') || !$this->producaoAtiva()
+                || !(new ImpressoraRepository($this->db))->cancelamentoAtivo($this->idRestaurante)) {
                 return;
             }
             $pedidos = new PedidoRepository($this->db);

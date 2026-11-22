@@ -50,3 +50,4 @@
   .lista-areas .area-editar { padding-top: .25rem; }
 }
 
+.equipe-perfis-aviso { display: flex; align-items: center; gap: .5rem; margin: 1rem 0; }

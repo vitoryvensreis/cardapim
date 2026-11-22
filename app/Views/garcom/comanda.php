@@ -240,13 +240,26 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                                             <?php endforeach; ?>
                                         </div>
                                     <?php elseif (!empty($p['grupos'])): ?>
-                                        <div class="produto-comps" data-comps hidden>
+                                        <div class="produto-comps" data-comps data-combo-max="" hidden>
                                             <?php foreach ($p['grupos'] as $g): ?>
+                                                <?php if (!empty($g['repetir'])): // quantidade de cada opcao (ex.: 3 ovos): - e + ?>
+                                                    <fieldset class="comps-grupo is-combo" data-combo-grupo data-max="<?= (int) $g['maximo'] ?>">
+                                                        <legend><?= $e($g['nome']) ?> <small><?= $g['minimo'] > 0 ? 'obrigatório' : 'opcional' ?><?= $g['maximo'] > 1 ? ', até ' . (int) $g['maximo'] : '' ?></small></legend>
+                                                        <?php foreach ($g['opcoes'] as $o): ?>
+                                                            <div class="combo-passo<?= $o['disponivel'] ? '' : ' is-indisponivel' ?>" data-combo-opcao data-max="<?= ($o['maximo'] ?? null) !== null ? (int) $o['maximo'] : '' ?>">
+                                                                <span><?= $e($o['nome']) ?><?= $o['centavos'] > 0 ? ' +' . $e($o['preco']) : '' ?><?= $o['disponivel'] ? '' : ' (acabou)' ?><?= ($o['maximo'] ?? null) !== null ? ' · até ' . (int) $o['maximo'] : '' ?></span>
+                                                                <button type="button" class="combo-passo-btn" data-combo-menos aria-label="Tirar um <?= $e($o['nome']) ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>−</button>
+                                                                <input class="combo-passo-num" name="comp[<?= (int) $p['id'] ?>][<?= (int) $o['id'] ?>]" value="0" readonly tabindex="-1" aria-label="Quantidade de <?= $e($o['nome']) ?>" data-combo-qtd data-centavos="<?= (int) $o['centavos'] ?>">
+                                                                <button type="button" class="combo-passo-btn" data-combo-mais aria-label="Mais um <?= $e($o['nome']) ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>+</button>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    </fieldset>
+                                                    <?php continue; endif; ?>
                                                 <fieldset class="comps-grupo" data-comps-grupo data-max="<?= (int) $g['maximo'] ?>">
                                                     <legend><?= $e($g['nome']) ?> <small><?= $g['minimo'] > 0 ? 'obrigatório' : 'opcional' ?><?= $g['maximo'] > 1 ? ', até ' . (int) $g['maximo'] : '' ?></small></legend>
                                                     <?php foreach ($g['opcoes'] as $o): ?>
                                                         <label class="chip-opcao<?= $o['disponivel'] ? '' : ' is-indisponivel' ?>">
-                                                            <input type="checkbox" name="comp[<?= (int) $p['id'] ?>][]" value="<?= (int) $o['id'] ?>" data-centavos="<?= (int) $o['centavos'] ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>
+                                                            <input type="checkbox" name="comp[<?= (int) $p['id'] ?>][<?= (int) $o['id'] ?>]" value="1" data-centavos="<?= (int) $o['centavos'] ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>
                                                             <span><?= $e($o['nome']) ?><?= $o['centavos'] > 0 ? ' +' . $e($o['preco']) : '' ?><?= $o['disponivel'] ? '' : ' (acabou)' ?></span>
                                                         </label>
                                                     <?php endforeach; ?>

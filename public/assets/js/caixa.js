@@ -235,7 +235,7 @@
           const atual = parseInt(campo.value, 10) || 0;
           if (delta > 0) {
             const total = $$("[data-combo-qtd]", areaGrupos).reduce((t, c) => t + (parseInt(c.value, 10) || 0), 0) + $$("input:checked", areaGrupos).length;
-            if (qtdGrupo(caixa) >= g.maximo || (o.maximo && atual >= o.maximo) || (combo.maximo_escolhas !== null && total >= combo.maximo_escolhas)) return;
+            if (qtdGrupo(caixa) >= g.maximo || (o.maximo && atual >= o.maximo) || (combo && combo.maximo_escolhas !== null && total >= combo.maximo_escolhas)) return;
           } else if (atual === 0) return;
           campo.value = String(atual + delta);
           valor.textContent = campo.value;
@@ -270,7 +270,8 @@
         regra.textContent = g.minimo > 0 ? ` obrigatório${g.maximo > 1 ? `, de ${g.minimo} a ${g.maximo}` : ""}` : ` opcional${g.maximo > 1 ? `, até ${g.maximo}` : ""}`;
         legenda.append(regra);
         caixa.append(legenda);
-        if (combo) {
+        // Combo e grupo com quantidade por opcao (ex.: 3 ovos): - e + em cada opcao.
+        if (combo || g.repetir) {
           caixa.classList.add("is-combo");
           g.opcoes.forEach((o) => caixa.append(passoCombo(g, o, caixa)));
           areaGrupos.append(caixa);
@@ -281,8 +282,9 @@
           rotulo.className = "chip-opcao" + (o.disponivel ? "" : " is-indisponivel");
           const input = document.createElement("input");
           input.type = "checkbox";
-          input.name = "complementos[]";
-          input.value = String(o.id);
+          // complementos[id] = 1 (mesmo formato do - e +, que manda complementos[id] = quantidade).
+          input.name = `complementos[${o.id}]`;
+          input.value = "1";
           input.dataset.centavos = String(o.centavos);
           input.dataset.complemento = "";
           input.disabled = !o.disponivel;

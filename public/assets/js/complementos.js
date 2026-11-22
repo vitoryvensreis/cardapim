@@ -28,6 +28,11 @@
         return { ok: false, grupo: g.id, erro: g.minimo === 1 && g.maximo === 1 ? `Escolha uma opção em "${g.nome}".` : `Escolha pelo menos ${g.minimo} em "${g.nome}".`, centavos: 0, texto: "" };
       }
       if (soma > g.maximo) return { ok: false, grupo: g.id, erro: `Escolha no máximo ${g.maximo} em "${g.nome}".`, centavos: 0, texto: "" };
+      // Quantidade por opcao: so no grupo que repete (g.repetir), com o limite de cada opcao (o.maximo).
+      for (const [o, q] of escolhidos) {
+        if (q > 1 && g.repetir === false) return { ok: false, grupo: g.id, erro: `Em "${g.nome}" cada opção pode ser escolhida uma vez.`, centavos: 0, texto: "" };
+        if (g.repetir && o.maximo && q > o.maximo) return { ok: false, grupo: g.id, erro: `No máximo ${o.maximo} de "${o.nome}".`, centavos: 0, texto: "" };
+      }
       const nomes = escolhidos.map(([o, q]) => { centavos += o.centavos * q; return (q > 1 ? `${q}x ` : "") + o.nome; });
       if (nomes.length) partes.push(`${g.nome}: ${nomes.join(", ")}`);
     }

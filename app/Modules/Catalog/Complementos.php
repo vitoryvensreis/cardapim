@@ -170,6 +170,15 @@ final class Complementos
             if ($soma > $g['maximo']) {
                 return $falha('Escolha no máximo ' . $g['maximo'] . ' em "' . $g['nome'] . '".');
             }
+            // Grupo sem quantidade por opcao: cada opcao uma vez so. Combo (repetir = true) tem a regra dele.
+            foreach ($escolhidos as [$o, $qtd]) {
+                if ($qtd > 1 && array_key_exists('repetir', $g) && !$g['repetir']) {
+                    return $falha('Em "' . $g['nome'] . '" cada opção pode ser escolhida uma vez.');
+                }
+                if (!empty($g['repetir']) && ($o['qtd_max'] ?? null) !== null && $qtd > (int) $o['qtd_max']) {
+                    return $falha('No máximo ' . (int) $o['qtd_max'] . ' de "' . $o['nome'] . '".');
+                }
+            }
             $nomes = [];
             foreach ($escolhidos as [$o, $qtd]) {
                 $c = (int) ($o['centavos'] ?? Numero::centavos((string) $o['preco']));
@@ -192,7 +201,10 @@ final class Complementos
     {
         return array_map(static fn (array $g): array => [
             'id' => $g['id'], 'nome' => $g['nome'], 'minimo' => $g['minimo'], 'maximo' => $g['maximo'],
+            // repetir: o cliente escolhe a quantidade de cada opcao (- e +); maximo da opcao: null = livre.
+            'repetir' => !empty($g['repetir']),
             'opcoes' => array_map(static fn (array $o): array => [
+                'maximo' => !empty($g['repetir']) && ($o['qtd_max'] ?? null) !== null ? (int) $o['qtd_max'] : null,
                 'id' => $o['id'], 'nome' => $o['nome'], 'descricao' => (string) ($o['descricao'] ?? ''), 'centavos' => (int) $o['centavos'],
                 'preco' => Numero::reais((string) $o['preco']), 'disponivel' => !empty($o['vendavel']),
                 'imagem' => $o['imagem_path'] !== null ? \Cardapim\Shared\MidiaUrl::publica((string) $o['imagem_path']) : null,

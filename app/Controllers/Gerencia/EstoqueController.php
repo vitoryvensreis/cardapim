@@ -467,6 +467,7 @@ final class EstoqueController extends BaseGerencia
             'imagens' => $imagens,
             'erros' => $erros,
             'insumos' => (new InsumoRepository($this->db))->mapaParaFicha($this->restaurante['id']),
+            'quantidadeLiberada' => Esquema::tem($this->db, 'complemento_qtd'),
             'pageStyles' => ['css/complementos.css'],
             'pageScripts' => ['js/forms.js', 'js/estoque.js'],
         ], $status);
@@ -479,7 +480,9 @@ final class EstoqueController extends BaseGerencia
             'nome' => $grupo['nome'],
             'minimo' => (string) $grupo['minimo'],
             'maximo' => (string) $grupo['maximo'],
+            'repetir' => !empty($grupo['repetir']) ? '1' : '',
             'opcoes' => array_map(static fn (array $o): array => [
+                'qtd_max' => ($o['qtd_max'] ?? null) !== null ? (string) $o['qtd_max'] : '',
                 'id' => (string) $o['id'], 'nome' => $o['nome'], 'preco' => Numero::dinheiroCampo($o['preco']), 'codigo' => (string) ($o['codigo'] ?? ''),
                 'descricao' => (string) ($o['descricao'] ?? ''), 'disponivel' => $o['disponivel'] ? '1' : '',
                 'insumo' => isset($o['ficha'][0]) ? (string) $o['ficha'][0]['id_insumo'] : '',
