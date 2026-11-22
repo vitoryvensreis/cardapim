@@ -24,7 +24,7 @@ $iconeForma = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' =>
         <span class="etiqueta etiqueta-neutra"><?= Icon::svg('lock') ?>Caixa fechado</span>
     </header>
 
-    <section class="bloco caixa-abrir" aria-labelledby="titulo-abrir">
+    <section class="bloco caixa-abrir" id="abrir-caixa" aria-labelledby="titulo-abrir" data-abrir-caixa>
         <span class="caixa-abrir-icone" aria-hidden="true"><?= Icon::svg('lock-open', 'icon-lg') ?></span>
         <h2 id="titulo-abrir">Abrir o caixa</h2>
         <p>Conte o dinheiro que está na gaveta agora (o troco para começar o dia) e digite abaixo.</p>

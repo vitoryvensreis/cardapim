@@ -11,11 +11,14 @@
 
   if (dialogo && typeof dialogo.showModal === "function") {
     let pendente = null;
+    let pendenteBotao = null;
     document.addEventListener("submit", (event) => {
       const form = event.target;
-      if (!(form instanceof HTMLFormElement) || !form.dataset.confirm || form.dataset.confirmado === "1") return;
+      // Campo invalido (forms.js ja cancelou o envio): nao pergunta nada, a pessoa corrige primeiro.
+      if (!(form instanceof HTMLFormElement) || !form.dataset.confirm || form.dataset.confirmado === "1" || event.defaultPrevented) return;
       event.preventDefault();
       pendente = form;
+      pendenteBotao = event.submitter || null;
       titulo.textContent = form.dataset.confirmTitulo || "Tem certeza?";
       texto.textContent = form.dataset.confirm;
       ok.textContent = form.dataset.confirmAcao || "Confirmar";
@@ -25,9 +28,15 @@
     dialogo.addEventListener("close", () => {
       if (dialogo.returnValue === "confirmar" && pendente) {
         pendente.dataset.confirmado = "1";
-        pendente.requestSubmit ? pendente.requestSubmit() : pendente.submit();
+        // Envia pelo mesmo botao (mantem o name/value dele, ex.: acao=padrao) e passa pela trava contra clique duplo.
+        if (!pendente.requestSubmit) pendente.submit();
+        else if (pendenteBotao && !pendenteBotao.disabled) pendente.requestSubmit(pendenteBotao);
+        else pendente.requestSubmit();
+        // Formulario que fica na tela (envio sem recarregar) volta a pedir confirmacao na proxima vez.
+        delete pendente.dataset.confirmado;
       }
       pendente = null;
+      pendenteBotao = null;
     });
   }
 

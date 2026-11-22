@@ -94,3 +94,11 @@ relatorios por periodo e por operador, area do entregador com as entregas dele.
 ## Painel do garçom
 
 O garçom usa as mesmas comandas e regras de pagamento pelo celular em `/{slug}/garcom` (ver [garcom.md](garcom.md)). O que ele lança e recebe aparece aqui na hora (tempo real, canal `mesas`).
+
+## Botões que pedem confirmação (correção de 22/11/2026)
+
+Formulários com `data-confirm` (janela "Tem certeza?", `confirmar.js`) e `data-validate-form` (trava contra clique
+duplo, `forms.js`): a trava só vale **depois** do "Confirmar". Antes, o primeiro clique travava o botão e o envio
+confirmado era cancelado, e "Fechar caixa" (e outros formulários com confirmação) não faziam nada. Campo inválido não
+abre a janela. O "Abrir caixa" do topo (caixa fechado) leva ao campo "Troco inicial" e, na própria tela, rola, foca e
+destaca o formulário em vez de recarregar. Teste: `tests/js/confirmar-trava.js` (roda no CI).

@@ -77,6 +77,8 @@ jobs:
         run: |
           set -euo pipefail
           for file in public/assets/js/*.js; do node --check "$file"; done
+          # Comportamento sem navegador: confirmacao ("Tem certeza?") + trava contra clique duplo.
+          node tests/js/confirmar-trava.js
 
       - name: Testes unitarios sem banco
         shell: bash
