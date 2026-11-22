@@ -1,5 +1,7 @@
 # Deliveryzim Agent para Windows — v0.8 (teste controlado)
 
+**Desde 0.8.1 — espaço antes do corte:** em Configurações > Impressoras, "Espaço antes do corte do papel" (Normal = 4 linhas, Mais espaço = 7, Bem mais espaço = 10). O papel avança (ESC d n) antes da guilhotina (GS V 0), para a última linha do cupom não ser cortada. O teste de impressão termina com uma linha que precisa sair inteira.
+
 **Desde 0.8.0 — várias impressoras:** no cartão **Impressoras**, cadastre quantas quiser, cada uma com apelido
 (Balcão, Cozinha, Bar...), impressora do Windows e papel; **Testar** imprime um cupom curto nela. A primeira é a
 principal. No painel, em **Gerência > Integrações > Impressoras**, o gerente escolhe onde cada parte do sistema
