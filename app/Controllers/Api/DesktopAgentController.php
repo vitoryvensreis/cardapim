@@ -19,6 +19,7 @@ use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Caixa\DeliveryService;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
+use Cardapim\Services\Impressao\AparenciaCupom;
 use Cardapim\Services\Impressao\CupomImagem;
 use Cardapim\Shared\Esquema;
 use PDO;
@@ -211,11 +212,12 @@ final class DesktopAgentController
             $porChave = [];
         }
         $padrao = ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO];
+        $aparencia = AparenciaCupom::doRestaurante($db, (int) $dispositivo['id_restaurante']);
         foreach ($cupons as &$c) {
             $chave = (string) ($c['impressora'] ?? '') !== '' ? (string) $c['impressora'] : $principal;
             $f = $porChave[$chave] ?? $padrao;
             try {
-                $c['imagem'] = base64_encode(CupomImagem::png($c['blocos'] ?? [], $f['papel'], $f['margem'], $f['logo']));
+                $c['imagem'] = base64_encode(CupomImagem::png($c['blocos'] ?? [], $f['papel'], $f['margem'], $f['logo'], $aparencia));
                 $c['papel'] = $f['papel'];
             } catch (Throwable $e) {
                 error_log('[Cardapim] Desktop: cupom em imagem indisponivel (' . get_class($e) . ').');
@@ -268,7 +270,7 @@ final class DesktopAgentController
                 return Response::json(['ok' => true, 'aguardando' => true]); // migracao ainda nao aplicada
             }
             (new ImpressoraRepository($db))->sincronizar((int) $d['id_restaurante'], (int) $d['id'], array_values($limpa),
-                Esquema::tem($db, 'impressora_papel'));
+                Esquema::tem($db, 'impressora_papel'), Esquema::tem($db, 'cupom_aparencia'));
             return Response::json(['ok' => true]);
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: registro de impressoras indisponivel (' . get_class($e) . ').');

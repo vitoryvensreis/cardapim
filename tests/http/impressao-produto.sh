@@ -199,6 +199,22 @@ confirmar_todos
 esperar "teste do cancelamento" "$(teste situacao=cancelamento "produto[]=$cerveja" "quantidade[]=1")" "200"
 case "$(cupom_teste "$bar")" in *'CANCELAMENTO · BAR'*'ITEM CANCELADO'*Cerveja*) ok "teste mostra o cancelamento no Bar";; *) falha "teste cancelamento ($(cupom_teste "$bar"))";; esac
 
+echo "Testar impressao segue as regras atuais: aviso de cancelamento desligado e produto so no local"
+config_cancelamento() { php -r 'require "bootstrap/app.php"; $d=\Cardapim\Core\Database::connect(); $id=(int)$d->query("SELECT id FROM restaurantes WHERE slug=".$d->quote($argv[1]))->fetchColumn(); $d->prepare("INSERT INTO restaurante_impressao_config (id_restaurante, cancelamento) VALUES (?, ?) ON DUPLICATE KEY UPDATE cancelamento = VALUES(cancelamento)")->execute([$id, (int)$argv[2]]);' "$slug" "$1"; }
+vende_delivery() { php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE produtos SET vende_delivery = ? WHERE id = ?")->execute([(int)$argv[2], (int)$argv[1]]);' "$1" "$2"; }
+config_cancelamento 0
+esperar "cancelamento desligado: teste recusa" "$(teste situacao=cancelamento "produto[]=$cerveja" "quantidade[]=1")" "422"
+case "$(json "$tmp/teste.json" erro)" in *'aviso de cancelamento está desligado'*) ok "teste explica que nada sai";; *) falha "mensagem do cancelamento desligado ($(json "$tmp/teste.json" erro))";; esac
+config_cancelamento 1
+vende_delivery "$outro" 0
+esperar "delivery com produto so no local" "$(teste situacao=delivery "produto[]=$cerveja" "quantidade[]=1" "produto[]=$outro" "quantidade[]=1")" "200"
+case "$(json "$tmp/teste.json" avisos)" in *'Vendido só no local'*) ok "teste avisa o produto so no local";; *) falha "aviso so no local ($(json "$tmp/teste.json" avisos))";; esac
+[[ "$(cupom_teste "$cozinha")" != *'PRODUÇÃO · COZINHA'* ]] && ok "produto so no local nao entra no delivery" || falha "produto so no local saiu no delivery ($(cupom_teste "$cozinha"))"
+esperar "delivery so com produto do local recusado" "$(teste situacao=delivery "produto[]=$outro" "quantidade[]=1")" "422"
+esperar "no garcom o produto do local sai normal" "$(teste situacao=garcom "produto[]=$outro" "quantidade[]=1")" "200"
+[[ "$(cupom_teste "$cozinha")" == *'PRODUÇÃO · COZINHA'* ]] && ok "produto do local sai no garcom" || falha "garcom sem o produto do local"
+vende_delivery "$outro" 1
+
 echo "Nao imprime (categoria e teste seguem a mesma regra)"
 enviar "$gj" "$g/estoque/categorias/$cat_cerveja/impressoras" "$g/estoque/categorias" nao_imprime=1 >/dev/null
 curl -s -b "$gj" "$g/estoque/categorias" -o "$tmp/cats.html"

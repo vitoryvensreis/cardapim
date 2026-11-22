@@ -43,10 +43,19 @@ jobs:
       - name: Preparar ícone e logo oficiais
         shell: pwsh
         run: python desktop-agent/tools/prepare_brand.py
-      - name: Gerar executavel unico
+      - name: Gerar o Agent (pasta para o instalador e executavel unico avulso)
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name Deliveryzim-Agent --icon "desktop-agent/agent/assets/deliveryzim.ico" --add-data "desktop-agent/agent/assets/icone.png;agent/assets" --add-data "desktop-agent/agent/assets/logo-branca.png;agent/assets" --add-data "desktop-agent/agent/assets/deliveryzim.ico;agent/assets" --collect-data customtkinter desktop-agent/main.py
+          $comum = @("--noconfirm", "--clean", "--windowed", "--name", "Deliveryzim-Agent", "--icon", "desktop-agent/agent/assets/deliveryzim.ico",
+            "--add-data", "desktop-agent/agent/assets/icone.png;agent/assets", "--add-data", "desktop-agent/agent/assets/logo-branca.png;agent/assets",
+            "--add-data", "desktop-agent/agent/assets/deliveryzim.ico;agent/assets", "--collect-data", "customtkinter")
+          # Instalador: PASTA (onedir). Nada e descompactado no Temp ao abrir, entao nao existe mais o erro
+          # "Failed to load Python DLL ... _MEI" quando o instalador fecha o Agent antigo e abre o novo.
+          pyinstaller @comum --onedir --distpath dist/app --workpath build/onedir desktop-agent/main.py
+          if (-not (Test-Path dist/app/Deliveryzim-Agent/Deliveryzim-Agent.exe)) { throw "Pasta do Agent nao gerada." }
+          # Versao sem instalacao (um arquivo so), para quem baixa o Deliveryzim-Agent.exe direto.
+          pyinstaller @comum --onefile --distpath dist --workpath build/onefile desktop-agent/main.py
+          if (-not (Test-Path dist/Deliveryzim-Agent.exe)) { throw "Executavel unico nao gerado." }
       - name: Gerar instalador (Inno Setup)
         shell: pwsh
         run: |

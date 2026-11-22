@@ -11,7 +11,8 @@ namespace Cardapim\Services\Impressao;
  *
  * - Largura em pontos das termicas de 203 dpi: 58 mm = 384, 80 mm = 576.
  * - Texto sem suavizacao (ponto preto ou branco), para sair nitido no papel termico.
- * - Fonte Poppins (resources/fonts), a mesma da marca. Caractere que ela nao tem (ex.: emoji) vira "?".
+ * - Fonte, pesos e tamanho da letra pela aparencia do restaurante (AparenciaCupom; padrao Roboto Mono).
+ *   Caractere que a fonte nao tem (ex.: emoji) vira "?".
  * - Espaco antes do corte: linhas em branco no fim da propria imagem (mesma medida do "ESC d n" do Agent).
  */
 final class CupomImagem
@@ -23,27 +24,46 @@ final class CupomImagem
     private const ALTURA_MAXIMA = 20000;
     private const LADO = 6;
 
-    /** Tamanhos em pontos tipograficos do GD (96 dpi) e altura de cada linha em pontos da impressora. */
-    private const ESTILOS = [
-        'normal' => ['fonte' => 'Poppins-Medium.ttf', 'tamanho' => 15.5, 'linha' => 31],
-        'forte' => ['fonte' => 'Poppins-Bold.ttf', 'tamanho' => 15.5, 'linha' => 31],
-        'detalhe' => ['fonte' => 'Poppins-Medium.ttf', 'tamanho' => 14.0, 'linha' => 28],
-        'titulo' => ['fonte' => 'Poppins-Bold.ttf', 'tamanho' => 27.0, 'linha' => 52],
-    ];
+    /**
+     * Estilos do desenho atual: arquivo da fonte, tamanho (pontos do GD, 96 dpi) e altura da linha em pontos da impressora.
+     * @var array<string,array{fonte:string,tamanho:float,linha:int}>
+     */
+    private static array $estilos = [];
 
     /** GD com fontes TrueType disponivel neste servidor? Sem ele, o Agent monta o cupom como antes. */
     public static function disponivel(): bool
     {
+        $p = AparenciaCupom::PADRAO;
         return function_exists('imagettftext') && function_exists('imagepng')
-            && is_file(self::fonte('Poppins-Medium.ttf')) && is_file(self::fonte('Poppins-Bold.ttf'));
+            && is_file(AparenciaCupom::arquivo($p['fonte'], $p['peso_texto'])) && is_file(AparenciaCupom::arquivo($p['fonte'], $p['peso_destaque']));
+    }
+
+    /** @param array<string,mixed>|null $aparencia */
+    private static function preparar(?array $aparencia): void
+    {
+        $a = is_array($aparencia) ? AparenciaCupom::validar($aparencia) : null;
+        $a = is_array($a) ? $a : AparenciaCupom::PADRAO;
+        $base = AparenciaCupom::FONTES[$a['fonte']]['base'] * AparenciaCupom::TAMANHOS[$a['tamanho']][1];
+        $estilo = static fn (int $peso, float $tamanho, float $altura): array => [
+            'fonte' => AparenciaCupom::arquivo($a['fonte'], $peso), 'tamanho' => $tamanho,
+            'linha' => (int) round($tamanho * 96 / 72 * $altura),
+        ];
+        self::$estilos = [
+            'normal' => $estilo($a['peso_texto'], $base, 1.5),
+            'forte' => $estilo($a['peso_destaque'], $base, 1.5),
+            'detalhe' => $estilo($a['peso_texto'], $base * 0.9, 1.5),
+            'titulo' => $estilo($a['peso_destaque'], $base * 1.75, 1.45),
+        ];
     }
 
     /**
      * PNG do cupom.
      * @param list<array<string,mixed>> $blocos
+     * @param array<string,mixed>|null $aparencia AparenciaCupom (null = padrao do Deliveryzim)
      */
-    public static function png(array $blocos, int $papel = 80, int $margem = self::MARGEM_PADRAO, bool $logo = true): string
+    public static function png(array $blocos, int $papel = 80, int $margem = self::MARGEM_PADRAO, bool $logo = true, ?array $aparencia = null): string
     {
+        self::preparar($aparencia);
         $largura = self::PONTOS[$papel] ?? self::PONTOS[80];
         $margem = $margem >= 0 && $margem <= 20 ? $margem : self::MARGEM_PADRAO;
         $util = $largura - 2 * self::LADO;
@@ -58,7 +78,7 @@ final class CupomImagem
         }
         $poe = static function (string $estilo, string $texto, string $alinha = 'esq', int $recuo = 0, string $direita = '') use (&$ops, &$altura): void {
             $ops[] = ['texto', $altura, $estilo, $texto, $alinha, $recuo, $direita];
-            $altura += self::ESTILOS[$estilo]['linha'];
+            $altura += self::$estilos[$estilo]['linha'];
         };
         foreach ($blocos as $b) {
             if (!is_array($b)) {
@@ -95,7 +115,7 @@ final class CupomImagem
                     foreach (self::quebrar($texto, 'normal', $util) as $l) $poe('normal', $l);
             }
         }
-        $altura += 2 * self::ESTILOS['normal']['linha'] + $margem * self::LINHA_CORTE;
+        $altura += 2 * self::$estilos['normal']['linha'] + $margem * self::LINHA_CORTE;
         $altura = min($altura, self::ALTURA_MAXIMA);
 
         // 2) Desenha (paleta de 2 cores; indice negativo = sem suavizacao).
@@ -115,18 +135,18 @@ final class CupomImagem
                 }
             } elseif ($op[0] === 'texto') {
                 [, $y, $estilo, $texto, $alinha, $recuo, $direita] = $op;
-                $e = self::ESTILOS[$estilo];
+                $e = self::$estilos[$estilo];
                 $base = $y + (int) round($e['linha'] * 0.78);
                 $x = self::LADO + $recuo;
                 if ($alinha === 'centro') {
                     $x = (int) (($largura - self::medir($texto, $estilo)) / 2);
                 }
                 if ($texto !== '') {
-                    imagettftext($img, $e['tamanho'], 0, $x, $base, -$preto, self::fonte($e['fonte']), $texto);
+                    imagettftext($img, $e['tamanho'], 0, $x, $base, -$preto, $e['fonte'], $texto);
                 }
                 if ($direita !== '') {
                     $xd = $largura - self::LADO - self::medir($direita, $estilo);
-                    imagettftext($img, $e['tamanho'], 0, $xd, $base, -$preto, self::fonte($e['fonte']), $direita);
+                    imagettftext($img, $e['tamanho'], 0, $xd, $base, -$preto, $e['fonte'], $direita);
                 }
             }
         }
@@ -195,8 +215,11 @@ final class CupomImagem
         if ($texto === '') {
             return 0;
         }
-        $e = self::ESTILOS[$estilo];
-        $caixa = imagettfbbox($e['tamanho'], 0, self::fonte($e['fonte']), $texto);
+        if (self::$estilos === []) {
+            self::preparar(null);
+        }
+        $e = self::$estilos[$estilo];
+        $caixa = imagettfbbox($e['tamanho'], 0, $e['fonte'], $texto);
         return $caixa === false ? 0 : (int) (max($caixa[2], $caixa[4]) - min($caixa[0], $caixa[6]));
     }
 
@@ -239,10 +262,5 @@ final class CupomImagem
                 }
             }
         }
-    }
-
-    private static function fonte(string $arquivo): string
-    {
-        return dirname(__DIR__, 3) . '/resources/fonts/' . $arquivo;
     }
 }

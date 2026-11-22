@@ -282,7 +282,9 @@ Desde o Agent 0.9.0 **o cupom é desenhado no servidor** (`CupomImagem`): o Agen
 | --- | --- |
 | `app/Services/Impressao/RotaProducao.php` | Regra única: item → impressora (produção, cancelamento e simulador usam a mesma) |
 | `app/Services/Impressao/CupomImpressao.php` | Monta os blocos (`titulo`, `centro`, `destaque`, `texto`, `linha`, `valor`, `item`) |
-| `app/Services/Impressao/CupomImagem.php` | Desenha os blocos como PNG preto e branco (384 ou 576 pontos), com fonte Poppins, logo (`resources/img/logo-cupom.png`) e espaço antes do corte |
+| `app/Services/Impressao/CupomImagem.php` | Desenha os blocos como PNG preto e branco (384 ou 576 pontos), com a fonte/pesos/tamanho da loja, logo (`resources/img/logo-cupom.png`) e espaço antes do corte |
+| `app/Services/Impressao/AparenciaCupom.php` | **Fonte única** da aparência do cupom: padrão do sistema (Roboto Mono 400/700, letra Normal), fontes (Roboto Mono, Poppins) e pesos disponíveis, tamanhos, validação e prévia de exemplo. Arquivos das fontes em `resources/fonts/` |
+| `app/Repositories/Desktop/CupomAparenciaRepository.php` | Tabela `restaurante_cupom_aparencia` (sem linha = padrão) |
 | `app/Services/Impressao/TesteImpressao.php` | Simulador da Gerência > Impressoras (não grava nada) |
 | `app/Controllers/Api/DesktopAgentController.php` | API do Agent: vínculo, eventos, impressões, balança, situação |
 | `app/Repositories/Desktop/*` | Fila `impressoes`, `impressoras`, produto↔impressora, pesagens |
@@ -359,6 +361,7 @@ Fluxo de trabalho: branch → PR → CI verde → merge autorizado → deploy au
 | Mudar quem pode acessar algo | `Services/Auth/Autorizacao.php` | Bases dos controllers; regras do garçom em `Garcom/PermissoesGarcom` |
 | Mudar o conteúdo do cupom | `Services/Impressao/CupomImpressao.php` | `TesteImpressao` (simulador); bloco novo também em `CupomImagem` e `printing.py` (reserva) |
 | Mudar o visual do cupom (letra, tamanho, logo, margens) | `Services/Impressao/CupomImagem.php` | Vale na hora para Agents 0.9.0+; rode `tests/unit/cupom-imagem.php` |
+| Nova fonte ou mudar o padrão da aparência do cupom | `Services/Impressao/AparenciaCupom.php` (`FONTES`, `PADRAO`) + arquivos `.ttf` em `resources/fonts/` | Tela: card "Aparência do cupom" em `Views/gerencia/integracoes/impressoras.php` e `public/assets/js/cupom-aparencia.js`; rode `tests/unit/aparencia-cupom.php` |
 | Mudar qual impressora recebe o item | `Services/Impressao/RotaProducao.php` | `ProdutoImpressoraRepository`, gerência > Impressoras |
 | Corrigir corte do papel ou largura | Espaço e largura: escolhidos no Agent e desenhados em `CupomImagem` | Envio direto à impressora: `printing.py` (Release novo, atualização automática) |
 | Mudar regra de complemento ou combo | `Modules/Catalog/Complementos.php` / `Combo.php` | Afeta cardápio, caixa, garçom e iFood; rode `tests/unit/complementos.php` e `combos.php` |
