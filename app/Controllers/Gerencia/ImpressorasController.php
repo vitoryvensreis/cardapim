@@ -8,9 +8,11 @@ use Cardapim\Core\AssetUrl;
 use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Modules\Catalog\Complementos;
+use Cardapim\Repositories\Desktop\CupomAparenciaRepository;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
 use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Impressao\AparenciaCupom;
 use Cardapim\Services\Impressao\CupomImagem;
 use Cardapim\Services\Impressao\TesteImpressao;
 use Cardapim\Services\Auditoria;
@@ -52,7 +54,73 @@ final class ImpressorasController extends BaseGerencia
             'logoCupom' => AssetUrl::asset('img/logo-preta.svg'),
             // Aviso de cancelamento: null = recurso ainda nao liberado.
             'cancelamentoAtivo' => Esquema::tem($this->db, 'complemento_qtd') ? $repo->cancelamentoAtivo($this->restaurante['id']) : null,
+            // Papel informado pelo Agent de cada impressora (cupom em imagem).
+            'formatos' => $ativo ? $this->formatos() : [],
+            // Aparencia do cupom: null = recurso ainda nao liberado (migracao) ou servidor sem GD.
+            'aparencia' => Esquema::tem($this->db, 'cupom_aparencia') && CupomImagem::disponivel()
+                ? AparenciaCupom::doRestaurante($this->db, $this->restaurante['id']) : null,
+            'aparenciaOpcoes' => AparenciaCupom::opcoes(),
+            'aparenciaPadrao' => AparenciaCupom::PADRAO,
         ]);
+    }
+
+    /** @return array<int,array{chave:string,id_dispositivo:int,papel:int,logo:bool,margem:int,informado:bool}> */
+    private function formatos(): array
+    {
+        return (new ImpressoraRepository($this->db))->formatos($this->restaurante['id'],
+            Esquema::tem($this->db, 'impressora_papel'), null, Esquema::tem($this->db, 'cupom_aparencia'));
+    }
+
+    /**
+     * POST: salva a aparencia do cupom (fonte, pesos e tamanho) ou volta ao padrao do Deliveryzim (acao=padrao).
+     */
+    public function aparencia(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $volta = $this->url('integracoes/impressoras') . '#aparencia-cupom';
+        if (!Esquema::tem($this->db, 'cupom_aparencia')) {
+            return $this->voltar($volta, 'erro', 'A aparência do cupom ainda está sendo ativada. Tente de novo em alguns minutos.');
+        }
+        $repo = new CupomAparenciaRepository($this->db);
+        if (($_POST['acao'] ?? '') === 'padrao') {
+            $repo->apagar($this->restaurante['id']);
+            Auditoria::registrar($this->usuario, 'Aparência do cupom', 'Voltou ao padrão do sistema.');
+            return $this->voltar($volta, 'sucesso', 'Cupom de volta ao padrão.');
+        }
+        $a = AparenciaCupom::validar($_POST);
+        if (is_string($a)) {
+            return $this->voltar($volta, 'erro', $a);
+        }
+        $repo->salvar($this->restaurante['id'], $a);
+        Auditoria::registrar($this->usuario, 'Aparência do cupom', AparenciaCupom::FONTES[$a['fonte']]['nome'] . ', texto '
+            . $a['peso_texto'] . ', destaques ' . $a['peso_destaque'] . ', letra ' . AparenciaCupom::TAMANHOS[$a['tamanho']][0] . '.');
+        return $this->voltar($volta, 'sucesso', 'Aparência do cupom salva. Os próximos cupons já saem assim.');
+    }
+
+    /**
+     * POST (JSON): previa em tempo real da aparencia escolhida (ainda sem salvar), no papel pedido (58 ou 80 mm).
+     */
+    public function previa(string $slug): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return Response::json(['ok' => false, 'erro' => 'Sua sessão expirou. Atualize a página.'], 401);
+        }
+        if (!Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return Response::json(['ok' => false, 'erro' => 'Sua sessão expirou. Atualize a página e tente de novo.'], 401);
+        }
+        if (!CupomImagem::disponivel()) {
+            return Response::json(['ok' => false, 'erro' => 'Prévia indisponível agora.'], 503);
+        }
+        $a = AparenciaCupom::validar($_POST);
+        if (is_string($a)) {
+            return Response::json(['ok' => false, 'erro' => $a], 422);
+        }
+        $papel = ($_POST['papel'] ?? '') === '58' ? 58 : 80;
+        $png = CupomImagem::png(AparenciaCupom::exemplo($this->restaurante['nome']), $papel, CupomImagem::MARGEM_PADRAO, true, $a);
+        return Response::json(['ok' => true, 'imagem' => 'data:image/png;base64,' . base64_encode($png), 'papel' => $papel])
+            ->comCabecalhos(['Cache-Control' => 'no-store']);
     }
 
     /** @return list<array{id:int,nome:string,categoria:string,grupos:list<array<string,mixed>>,combo:?array<string,mixed>}> */
@@ -124,16 +192,16 @@ final class ImpressorasController extends BaseGerencia
         if (!CupomImagem::disponivel()) {
             return $cupons;
         }
-        $formatos = Esquema::tem($this->db, 'impressoras')
-            ? (new ImpressoraRepository($this->db))->formatos($this->restaurante['id'], Esquema::tem($this->db, 'impressora_papel'))
-            : [];
+        $formatos = Esquema::tem($this->db, 'impressoras') ? $this->formatos() : [];
+        $aparencia = AparenciaCupom::doRestaurante($this->db, $this->restaurante['id']);
         foreach ($cupons as &$c) {
             if (!is_array($c['blocos'] ?? null)) {
                 continue;
             }
-            $f = $formatos[(int) ($c['id'] ?? 0)] ?? ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO];
-            $c['imagem'] = 'data:image/png;base64,' . base64_encode(CupomImagem::png($c['blocos'], $f['papel'], $f['margem'], $f['logo']));
+            $f = $formatos[(int) ($c['id'] ?? 0)] ?? ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO, 'informado' => false];
+            $c['imagem'] = 'data:image/png;base64,' . base64_encode(CupomImagem::png($c['blocos'], $f['papel'], $f['margem'], $f['logo'], $aparencia));
             $c['papel'] = $f['papel'];
+            $c['papel_informado'] = $f['informado'];
         }
         unset($c);
         return $cupons;

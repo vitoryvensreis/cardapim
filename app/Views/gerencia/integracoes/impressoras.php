@@ -2,13 +2,15 @@
 /**
  * Impressoras do Deliveryzim Agent: impressao por produto (padrao), cupom completo e resumo do caixa.
  * Espera: $ativo, $porProduto, $impressoras (ImpressoraRepository::listar), $produtosPorImpressora, $padraoProducao,
- * $completo e $fechamento (ids/padrao), $produtosTeste (com grupos/combo), $logoCupom, $agentDownload, $base, $csrf.
+ * $completo e $fechamento (ids/padrao), $produtosTeste (com grupos/combo), $logoCupom, $agentDownload, $base, $csrf,
+ * $formatos (papel informado pelo Agent, por id), $aparencia (null = indisponivel), $aparenciaOpcoes, $aparenciaPadrao.
  */
 use Cardapim\Core\Icon;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $pageStyles = [...($pageStyles ?? []), 'css/impressoras.css', 'css/impressao-teste.css'];
-$pageScripts = [...($pageScripts ?? []), 'js/complementos.js', 'js/impressao-teste.js'];
+$pageScripts = [...($pageScripts ?? []), 'js/complementos.js', 'js/impressao-teste.js', 'js/cupom-aparencia.js'];
+$formatos = $formatos ?? [];
 // Lista de impressoras com "Padrao" (cupom completo e resumo do caixa).
 $lista = static function (string $campo, array $cfg, array $impressoras) use ($e): void { ?>
     <ul class="impressao-ponto-lista">
@@ -54,7 +56,9 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
             <ul class="impressoras-lista">
                 <?php foreach ($impressoras as $imp): ?>
                     <li>
-                        <span class="impressoras-nome"><strong><?= $e($imp['apelido']) ?></strong><small>Computador: <?= $e($imp['computador']) ?><?php if ($porProduto): $n = (int) ($produtosPorImpressora[$imp['id']] ?? 0); ?> · <?= $n === 1 ? '1 produto' : $n . ' produtos' ?><?php endif; ?></small></span>
+                        <?php $fmt = $formatos[$imp['id']] ?? null; ?>
+                        <span class="impressoras-nome"><strong><?= $e($imp['apelido']) ?></strong><small>Computador: <?= $e($imp['computador']) ?><?php if ($porProduto): $n = (int) ($produtosPorImpressora[$imp['id']] ?? 0); ?> · <?= $n === 1 ? '1 produto' : $n . ' produtos' ?><?php endif; ?></small>
+                            <small class="impressoras-papel"><?= Icon::svg('receipt', 'icon-sm') ?><?php if ($fmt !== null && $fmt['informado']): ?>Papel <?= (int) $fmt['papel'] ?> mm (informado pelo Agent)<?php else: ?>Papel não informado: usando 80 mm. Atualize o Agent para a versão 0.9 ou mais nova.<?php endif; ?></small></span>
                         <?php if ($imp['ligada']): ?>
                             <span class="etiqueta etiqueta-ok"><?= Icon::svg('circle-check') ?>Ligada</span>
                         <?php else: ?>
@@ -126,6 +130,85 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
             </div>
         </form>
 
+        <?php if ($aparencia !== null):
+            $pesosPorFonte = [];
+            foreach ($aparenciaOpcoes['fontes'] as $f) { $pesosPorFonte[$f['id']] = $f['pesos']; }
+            $pesoOpcoes = static function (string $nome, int $atual, array $pesos) use ($e): void {
+                foreach ($pesos as $p): ?><option value="<?= (int) $p['valor'] ?>"<?= $p['valor'] === $atual ? ' selected' : '' ?>><?= $e($p['rotulo']) ?></option><?php endforeach;
+            };
+            $nomePadrao = '';
+            foreach ($aparenciaOpcoes['fontes'] as $f) { if ($f['id'] === $aparenciaPadrao['fonte']) { $nomePadrao = $f['nome']; } }
+        ?>
+        <section class="bloco cupom-aparencia" id="aparencia-cupom" aria-labelledby="titulo-aparencia" data-cupom-aparencia
+                 data-previa="<?= $e($base . '/integracoes/impressoras/aparencia/previa') ?>"
+                 data-pesos="<?= $e((string) json_encode($pesosPorFonte, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>"
+                 data-padrao="<?= $e((string) json_encode($aparenciaPadrao, JSON_UNESCAPED_SLASHES)) ?>"
+                 data-fraco="<?= (int) \Cardapim\Services\Impressao\AparenciaCupom::PESO_FRACO ?>">
+            <div class="bloco-cabecalho">
+                <h2 id="titulo-aparencia"><?= Icon::svg('type') ?>Aparência do cupom</h2>
+                <p>Escolha a letra dos cupons deste restaurante. A prévia ao lado mostra na hora como sai no papel. Vale para o <?= marca_html() ?> Agent 0.9 ou mais novo.</p>
+            </div>
+            <div class="cupom-aparencia-grade">
+                <form method="post" action="<?= $e($base . '/integracoes/impressoras/aparencia') ?>" class="cupom-aparencia-form" data-aparencia-form>
+                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                    <p class="cupom-aparencia-status">
+                        <?php if ($aparencia['personalizada']): ?>
+                            <span class="etiqueta etiqueta-ok"><?= Icon::svg('palette') ?>Personalizado</span>
+                        <?php else: ?>
+                            <span class="etiqueta etiqueta-neutra"><?= Icon::svg('circle-check') ?>Padrão do sistema</span>
+                        <?php endif; ?>
+                        <small>Padrão: <?= $e($nomePadrao) ?>, texto Regular, destaques em Negrito, letra Normal.</small>
+                    </p>
+                    <fieldset class="cupom-aparencia-chips">
+                        <legend>Fonte</legend>
+                        <?php foreach ($aparenciaOpcoes['fontes'] as $f): ?>
+                            <label class="chip-opcao"><input type="radio" name="fonte" value="<?= $e($f['id']) ?>"<?= $aparencia['fonte'] === $f['id'] ? ' checked' : '' ?>><span><?= $e($f['nome']) ?><?= $f['id'] === $aparenciaPadrao['fonte'] ? ' (padrão)' : '' ?></span></label>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <fieldset class="cupom-aparencia-chips">
+                        <legend>Tamanho da letra</legend>
+                        <?php foreach ($aparenciaOpcoes['tamanhos'] as $t): ?>
+                            <label class="chip-opcao"><input type="radio" name="tamanho" value="<?= $e($t['id']) ?>"<?= $aparencia['tamanho'] === $t['id'] ? ' checked' : '' ?>><span><?= $e($t['rotulo']) ?></span></label>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <div class="cupom-aparencia-pesos">
+                        <label class="impressao-teste-campo"><span>Peso do texto</span>
+                            <select name="peso_texto" data-peso="texto"><?php $pesoOpcoes('peso_texto', $aparencia['peso_texto'], $pesosPorFonte[$aparencia['fonte']]); ?></select>
+                        </label>
+                        <label class="impressao-teste-campo"><span>Peso dos destaques <small>(itens, títulos e total)</small></span>
+                            <select name="peso_destaque" data-peso="destaque"><?php $pesoOpcoes('peso_destaque', $aparencia['peso_destaque'], $pesosPorFonte[$aparencia['fonte']]); ?></select>
+                        </label>
+                    </div>
+                    <p class="cupom-aparencia-aviso" data-aparencia-aviso role="status" hidden><?= Icon::svg('info', 'icon-sm') ?>Pesos finos (Fina, Extra fina e Leve) podem sair apagados na impressora térmica. Confira com um teste.</p>
+                    <div class="cupom-aparencia-acoes">
+                        <button class="btn btn-primary" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar aparência</button>
+                        <?php if ($aparencia['personalizada']): ?>
+                            <button class="btn btn-outline" type="submit" form="form-aparencia-padrao"><?= Icon::svg('rotate-ccw', 'icon-sm') ?>Voltar ao padrão</button>
+                        <?php endif; ?>
+                    </div>
+                </form>
+                <?php if ($aparencia['personalizada']): ?>
+                    <form method="post" action="<?= $e($base . '/integracoes/impressoras/aparencia') ?>" id="form-aparencia-padrao" hidden
+                          data-confirm="A sua personalização será apagada e os cupons voltam ao padrão do sistema." data-confirm-titulo="Voltar ao padrão?">
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <input type="hidden" name="acao" value="padrao">
+                    </form>
+                <?php endif; ?>
+                <figure class="cupom-aparencia-previa" aria-live="polite">
+                    <div class="cupom-aparencia-papel" role="group" aria-label="Largura do papel da prévia">
+                        <button type="button" class="chip-mini is-ativo" data-previa-papel="80" aria-pressed="true">80 mm</button>
+                        <button type="button" class="chip-mini" data-previa-papel="58" aria-pressed="false">58 mm</button>
+                    </div>
+                    <div class="cupom-aparencia-quadro" data-previa-quadro>
+                        <img class="cupom-imagem" data-previa-imagem alt="Prévia do cupom com a aparência escolhida" hidden>
+                        <p class="cupom-aparencia-carregando" data-previa-carregando><?= Icon::svg('loader-circle', 'icon-sm') ?>Montando a prévia...</p>
+                    </div>
+                    <figcaption data-previa-legenda>Prévia com um pedido de exemplo.</figcaption>
+                </figure>
+            </div>
+        </section>
+        <?php endif; ?>
+
         <section class="bloco impressao-teste" aria-labelledby="titulo-teste" data-impressao-teste data-logo="<?= $e($logoCupom) ?>">
             <div class="bloco-cabecalho">
                 <h2 id="titulo-teste"><?= Icon::svg('flask-conical') ?>Testar impressão</h2>
@@ -174,14 +257,6 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                     <ul class="impressao-teste-itens" data-teste-itens></ul>
                     <p class="impressao-teste-vazio" data-teste-vazio>Nenhum produto no teste ainda. Escolha um produto e toque em Adicionar.</p>
                 </fieldset>
-
-                <label class="impressao-teste-campo impressao-teste-papel"><span>3. Largura do papel na tela</span>
-                    <select data-teste-papel>
-                        <option value="48">80 mm (48 letras por linha)</option>
-                        <option value="42">80 mm compacta (42 letras por linha)</option>
-                        <option value="32">58 mm (32 letras por linha)</option>
-                    </select>
-                </label>
 
                 <div class="impressao-teste-acoes">
                     <button class="btn btn-primary" type="submit" data-teste-ver><?= Icon::svg('eye', 'icon-sm') ?>Ver como sai</button>

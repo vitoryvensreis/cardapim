@@ -183,6 +183,47 @@ curl -s -o "$tmp/ag.json" -H "Authorization: Bearer $ta" "$base/api/v1/desktop/e
 esperar "papel de 58 mm mantido" "$(largura_imagem)" "384"
 resultado "$ta" "$(cupom id)" >/dev/null
 
+echo "Aparencia do cupom (Gerencia > Impressoras): previa em tempo real, salvar e voltar ao padrao"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "card Aparencia do cupom" "$tmp/ger.html" 'Aparência do cupom'
+contem "padrao do sistema marcado" "$tmp/ger.html" 'Padrão do sistema'
+contem "Roboto Mono padrao" "$tmp/ger.html" 'Roboto Mono (padrão)'
+contem "Poppins como segunda opcao" "$tmp/ger.html" 'value="poppins"'
+contem "papel informado pelo Agent" "$tmp/ger.html" 'Papel 58 mm (informado pelo Agent)'
+nao_contem "sem a escolha de largura antiga" "$tmp/ger.html" 'Largura do papel na tela'
+previa() { # campos... -> codigo; resposta em $tmp/previa.json
+  local t args=()
+  t="$(token "$gj" "$g/integracoes/impressoras")"
+  for campo in "$@"; do args+=(--data-urlencode "$campo"); done
+  curl -s -o "$tmp/previa.json" -b "$gj" -c "$gj" -w '%{http_code}' -H 'Accept: application/json' --data-urlencode "_csrf=$t" "${args[@]}" "$g/integracoes/impressoras/aparencia/previa"
+}
+largura_previa() { php -r '$d=json_decode(file_get_contents($argv[1]),true); $s=(string)($d["imagem"]??""); $i=str_starts_with($s,"data:image/png;base64,")?imagecreatefromstring(base64_decode(substr($s,22))):false; echo $i?imagesx($i):"sem-imagem";' "$tmp/previa.json"; }
+esperar "previa em 58 mm" "$(previa fonte=roboto-mono peso_texto=300 peso_destaque=700 tamanho=grande papel=58)" "200"
+esperar "previa desenhada no papel de 58 mm" "$(largura_previa)" "384"
+esperar "previa com Poppins 900" "$(previa fonte=poppins peso_texto=500 peso_destaque=900 tamanho=pequena)" "200"
+esperar "previa em 80 mm por padrao" "$(largura_previa)" "576"
+esperar "Roboto Mono nao tem peso 900" "$(previa fonte=roboto-mono peso_texto=400 peso_destaque=900 tamanho=normal)" "422"
+esperar "previa sem CSRF recusada" "$(curl -s -o /dev/null -w '%{http_code}' -b "$gj" -H 'Accept: application/json' -d 'fonte=poppins' "$g/integracoes/impressoras/aparencia/previa")" "401"
+esperar "garcom nao usa a previa" "$(curl -s -o /dev/null -w '%{http_code}' -b "$wj" -H 'Accept: application/json' -d 'fonte=poppins' "$g/integracoes/impressoras/aparencia/previa")" "401"
+esperar "salva Poppins grande" "$(enviar "$gj" "$g/integracoes/impressoras/aparencia" "$g/integracoes/impressoras" fonte=poppins peso_texto=500 peso_destaque=800 tamanho=grande | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "aparencia salva" "$tmp/ger.html" 'Aparência do cupom salva.'
+contem "marcado como personalizado" "$tmp/ger.html" 'Personalizado'
+grep -q 'name="fonte" value="poppins" checked' "$tmp/ger.html" && ok "Poppins marcada" || falha "Poppins nao marcada"
+grep -q 'value="800" selected' "$tmp/ger.html" && ok "destaque 800 selecionado" || falha "peso do destaque nao selecionado"
+esperar "peso invalido nao salva" "$(enviar "$gj" "$g/integracoes/impressoras/aparencia" "$g/integracoes/impressoras" fonte=roboto-mono peso_texto=450 peso_destaque=700 tamanho=normal | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "avisa peso indisponivel" "$tmp/ger.html" 'Escolha um peso disponível'
+grep -q 'name="fonte" value="poppins" checked' "$tmp/ger.html" && ok "aparencia anterior mantida" || falha "aparencia mudou com dado invalido"
+esperar "caixa imprime com a aparencia nova" "$(imprimir "$cx" "$c/imprimir/comanda/$venda" "$c/comandas/$venda" "impressora=$balcao")" "202"
+curl -s -o "$tmp/ag.json" -H "Authorization: Bearer $ta" "$base/api/v1/desktop/eventos?desde=$cursor&impressoes=1&impressoras=1&imagem=1"
+esperar "cupom com a aparencia sai desenhado" "$(largura_imagem)" "384"
+resultado "$ta" "$(cupom id)" >/dev/null
+esperar "volta ao padrao" "$(enviar "$gj" "$g/integracoes/impressoras/aparencia" "$g/integracoes/impressoras" acao=padrao | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "de volta ao padrao" "$tmp/ger.html" 'Cupom de volta ao padrão.'
+grep -q 'name="fonte" value="roboto-mono" checked' "$tmp/ger.html" && ok "Roboto Mono de volta" || falha "padrao nao voltou"
+
 echo "Agent tira a Cozinha da lista"
 esperar "PC do caixa fica so com o Balcao" "$(registrar "$ta" '{"impressoras":[{"chave":"aaaa1111bbbb","apelido":"Balcão"}]}')" "200"
 curl -s -b "$wj" -o "$tmp/pag.html" "$w/comandas/$comanda"

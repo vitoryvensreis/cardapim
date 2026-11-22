@@ -12,7 +12,6 @@
   const lista = raiz.querySelector("[data-teste-itens]");
   const vazio = raiz.querySelector("[data-teste-vazio]");
   const resultado = raiz.querySelector("[data-teste-resultado]");
-  const papel = raiz.querySelector("[data-teste-papel]");
   const conta = raiz.querySelector("[data-teste-conta]");
   const botaoVer = raiz.querySelector("[data-teste-ver]");
   const botaoImprimir = raiz.querySelector("[data-teste-imprimir]");
@@ -261,11 +260,7 @@
   };
 
   const mostrar = (dados) => {
-    const largura = parseInt(papel.value, 10) || 48;
     semSuporte = false;
-    // Com o cupom em imagem, a largura vem da impressora (informada pelo Agent): a escolha da tela some.
-    const campoPapel = papel.closest(".impressao-teste-papel");
-    if (campoPapel) campoPapel.hidden = (dados.cupons || []).some((c) => c.imagem);
     const cartoes = el("div", "impressao-teste-cartoes");
     for (const c of dados.cupons || []) {
       const cartao = el("article", "impressao-teste-cartao" + (c.blocos ? "" : " is-vazio"));
@@ -287,9 +282,12 @@
           img.alt = "Cupom de " + c.apelido + " como sai na impressora";
           img.decoding = "async";
           img.dataset.papel = String(c.papel || 80);
-          cartao.append(img, el("p", "impressao-teste-papel-info", "Papel de " + (c.papel || 80) + " mm. Confira no Deliveryzim Agent se é a largura certa."));
+          cartao.append(img, el("p", "impressao-teste-papel-info", c.papel_informado
+            ? "Papel de " + (c.papel || 80) + " mm, informado pelo Agent."
+            : "Papel não informado pelo Agent: usando 80 mm. Atualize o Agent para a versão 0.9 ou mais nova."));
         } else {
-          cartao.append(desenhar(c.blocos, largura));
+          // Sem imagem (servidor sem desenho): texto na largura do papel da impressora.
+          cartao.append(desenhar(c.blocos, Number(c.papel) === 58 ? 32 : 48));
         }
         const por = el("ul", "impressao-teste-motivos");
         for (const m of c.motivos || []) {
@@ -337,7 +335,6 @@
 
   form.addEventListener("submit", (ev) => { ev.preventDefault(); enviar(false); });
   botaoImprimir.addEventListener("click", () => enviar(true));
-  papel.addEventListener("change", () => { if (ultimo) mostrar(ultimo); });
   desenharEscolhas();
   atualizarVazio();
 })();

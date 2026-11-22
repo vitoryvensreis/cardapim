@@ -50,3 +50,64 @@
 }
 .categoria-impressoras .chip-opcao input:checked + span { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); font-weight: 700; }
 .categoria-impressoras .chip-opcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+
+/* Papel de cada impressora (informado pelo Agent 0.9.0+) */
+.impressoras-papel { display: flex; align-items: center; gap: .3rem; margin-top: .15rem; }
+.impressoras-papel .icon { width: .95rem; height: .95rem; flex: none; }
+
+/* ---------- Aparência do cupom: formulário + prévia em tempo real ---------- */
+.cupom-aparencia-grade { display: grid; gap: 1.25rem; }
+@media (min-width: 60rem) {
+  .cupom-aparencia-grade { grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); align-items: start; }
+}
+.cupom-aparencia-form { display: grid; gap: 1rem; }
+.cupom-aparencia-status { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0; }
+.cupom-aparencia-status small { color: var(--c-muted); font-size: .85rem; }
+.cupom-aparencia-chips { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0; padding: 0; border: 0; }
+.cupom-aparencia-chips legend { width: 100%; margin-bottom: .35rem; padding: 0; color: var(--c-ink); font-weight: 700; }
+.cupom-aparencia-chips .chip-opcao { position: relative; display: inline-flex; }
+.cupom-aparencia-chips .chip-opcao input { position: absolute; opacity: 0; pointer-events: none; }
+.cupom-aparencia-chips .chip-opcao span {
+  display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 .95rem;
+  border: 1.5px solid var(--c-line); border-radius: var(--r-pill); background: var(--c-white);
+  color: var(--c-ink); font-size: .9rem; cursor: pointer; transition: border-color .15s ease, background-color .15s ease;
+}
+.cupom-aparencia-chips .chip-opcao input:checked + span { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); font-weight: 700; }
+.cupom-aparencia-chips .chip-opcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.cupom-aparencia-pesos { display: grid; gap: .85rem; }
+@media (min-width: 40rem) { .cupom-aparencia-pesos { grid-template-columns: 1fr 1fr; } }
+.cupom-aparencia-pesos small { color: var(--c-muted); font-weight: 400; }
+.cupom-aparencia-aviso {
+  display: flex; align-items: flex-start; gap: .45rem; margin: 0; padding: .65rem .8rem;
+  border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-cream); color: var(--c-ink); font-size: .88rem;
+}
+.cupom-aparencia-aviso .icon { flex: none; margin-top: .1rem; color: var(--c-orange); }
+.cupom-aparencia-acoes { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+.cupom-aparencia-previa { display: grid; gap: .6rem; margin: 0; }
+.cupom-aparencia-papel { display: flex; gap: .4rem; justify-content: center; }
+.chip-mini {
+  min-height: 2.5rem; padding: 0 .9rem; border: 1.5px solid var(--c-line); border-radius: var(--r-pill);
+  background: var(--c-white); color: var(--c-ink); font: inherit; font-size: .85rem; cursor: pointer;
+}
+.chip-mini.is-ativo { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); font-weight: 700; }
+.chip-mini:focus-visible { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.cupom-aparencia-quadro {
+  position: relative; display: grid; place-items: center; min-height: 18rem; padding: .75rem;
+  border-radius: var(--r-xl); background: var(--c-blush);
+}
+.cupom-aparencia-quadro .cupom-imagem { transition: opacity .15s ease; }
+.cupom-aparencia.is-carregando .cupom-imagem { opacity: .55; }
+.cupom-aparencia-carregando {
+  position: absolute; top: .55rem; right: .55rem; display: flex; align-items: center; gap: .4rem; margin: 0;
+  padding: .3rem .6rem; border-radius: var(--r-pill); background: var(--c-white); box-shadow: var(--sh-sm);
+  color: var(--c-muted); font-size: .82rem;
+}
+.cupom-aparencia-quadro .cupom-imagem[hidden] { display: none; }
+.cupom-aparencia-carregando[hidden] { display: none; }
+.cupom-aparencia-previa figcaption { color: var(--c-muted); font-size: .85rem; text-align: center; }
+.cupom-aparencia-previa figcaption.is-erro { color: var(--c-danger); }
+@media (prefers-reduced-motion: no-preference) {
+  .cupom-aparencia-carregando .icon { animation: cupom-girar 1s linear infinite; }
+}
+@keyframes cupom-girar { to { transform: rotate(360deg); } }

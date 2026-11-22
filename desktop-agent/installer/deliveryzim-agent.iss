@@ -39,7 +39,12 @@ Name: "iniciar"; Description: "Abrir o Deliveryzim Agent quando o Windows ligar 
 Name: "atalho"; Description: "Criar atalho na área de trabalho"
 
 [Files]
-Source: "..\..\dist\{#MyAppExe}"; DestDir: "{app}"; Flags: ignoreversion
+; Agent em pasta (onedir): abre sem descompactar nada no Temp (antes: "Failed to load Python DLL" no fim da instalacao).
+Source: "..\..\dist\app\Deliveryzim-Agent\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+; Restos da versao anterior da pasta interna (troca limpa a cada atualizacao).
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Icons]
 Name: "{userprograms}\Deliveryzim Agent"; Filename: "{app}\{#MyAppExe}"

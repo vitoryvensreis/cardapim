@@ -146,6 +146,8 @@ return static function (Router $router): void {
     $router->get($g . '/integracoes/impressoras', [ImpressorasController::class, 'inicio']);
     $router->post($g . '/integracoes/impressoras', [ImpressorasController::class, 'salvar']);
     $router->post($g . '/integracoes/impressoras/teste', [ImpressorasController::class, 'teste']);
+    $router->post($g . '/integracoes/impressoras/aparencia', [ImpressorasController::class, 'aparencia']);
+    $router->post($g . '/integracoes/impressoras/aparencia/previa', [ImpressorasController::class, 'previa']);
     $router->get($g . '/integracoes/asaas', [IntegracoesController::class, 'asaas']);
     $router->post($g . '/integracoes/asaas', [IntegracoesController::class, 'asaasConectar']);
     $router->post($g . '/integracoes/asaas/webhook', [IntegracoesController::class, 'asaasWebhook']);

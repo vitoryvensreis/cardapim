@@ -18,7 +18,14 @@ Ele só converte em ESC/POS (GS v 0 em faixas de 128 linhas) e corta.
 - Agent antigo (sem `imagem=1`) continua recebendo só os blocos. Agent antigo que reenvia a lista sem papel não apaga o
   papel já gravado.
 - Gerência > Impressoras > Testar impressão mostra a mesma imagem que vai para a impressora.
-- O Agent 0.9.0+ se atualiza sozinho (Releases do GitHub, SHA-256 conferido, instala com o Agent parado).
+- O Agent 0.9.0+ se atualiza sozinho (Releases do GitHub, SHA-256 conferido, instala com o Agent parado). Desde a 0.9.1
+  o instalador usa a pasta do Agent (PyInstaller onedir), sem descompactar no Temp.
+- **Aparência do cupom por loja** (Gerência > Impressoras > "Aparência do cupom"): fonte (Roboto Mono, padrão, ou Poppins),
+  peso do texto, peso dos destaques (itens, títulos e total) e tamanho da letra (Pequena, Normal, Grande), com prévia em
+  tempo real (`POST .../integracoes/impressoras/aparencia/previa`, mesmo desenho da impressão) e "Voltar ao padrão".
+  Regras em `AparenciaCupom` (fonte única); tabela `restaurante_cupom_aparencia` (sem linha = padrão do sistema).
+- Cada impressora mostra o papel informado pelo Agent (`impressoras.papel_informado`); o "Testar impressão" desenha no
+  papel de cada impressora e respeita o aviso de cancelamento desligado e os produtos "só no local" no delivery.
 
 ## Regra (uma só para 1, 2 ou várias impressoras)
 
@@ -116,8 +123,11 @@ impressora desenhado como no papel e o motivo de cada item estar ali. Impressora
 - `20261121300000_impressao_lancamento.php` (só amplia o CHECK dos pontos; o ponto não é mais usado).
 - `20261122400000_impressora_papel.php` (`impressoras.papel`, `logo`, `margem_corte`), `database/verify-impressora-papel.php`,
   `deploy/scripts/apply-impressora-papel.sh` (gatilho `[cardapim-impressora-papel]`; `Esquema::tem('impressora_papel')`).
+- `20261122500000_aparencia_cupom.php` (`impressoras.papel_informado`, `restaurante_cupom_aparencia`),
+  `database/verify-aparencia-cupom.php`, `deploy/scripts/apply-aparencia-cupom.sh` (gatilho `[cardapim-aparencia-cupom]`;
+  `Esquema::tem('cupom_aparencia')`).
 
-Testes: `tests/unit/impressao.php`, `tests/unit/cupom-imagem.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
+Testes: `tests/unit/impressao.php`, `tests/unit/cupom-imagem.php`, `tests/unit/aparencia-cupom.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
 `tests/http/impressao-produto.sh`, `desktop-agent/tests/test_printer_list.py`.
 
 ## Fluxo

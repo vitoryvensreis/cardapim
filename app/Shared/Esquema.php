@@ -36,6 +36,8 @@ final class Esquema
         'complemento_qtd' => ['restaurante_impressao_config', 'cancelamento'],
         // Cupom em imagem: papel, logo e espaco antes do corte de cada impressora (coluna criada no fim da migracao).
         'impressora_papel' => ['impressoras', 'margem_corte'],
+        // Aparencia do cupom por restaurante e papel informado pelo Agent (tabela criada no fim da migracao).
+        'cupom_aparencia' => ['restaurante_cupom_aparencia', 'tamanho'],
     ];
 
     /** @var array<string,bool> */

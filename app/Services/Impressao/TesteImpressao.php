@@ -13,6 +13,7 @@ use Cardapim\Repositories\Estoque\ProdutoRepository;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Caixa\CaixaService;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 use PDO;
 
@@ -51,18 +52,50 @@ final class TesteImpressao
         if (!$this->fila->disponivel()) {
             return Resultado::falha('As impressoras ainda estão sendo ativadas.');
         }
-        $itens = $this->itens($pedidos);
+        // A mesma regra da impressao real: com o aviso de cancelamento desligado, nada sai.
+        if ($situacao === 'cancelamento' && !(new ImpressoraRepository($this->db))->cancelamentoAtivo($this->idRestaurante)) {
+            return Resultado::falha('O aviso de cancelamento está desligado (acima, em "Aviso de cancelamento"): ao cancelar um item, nada sai na impressora.');
+        }
+        // Delivery: produto marcado "só no local" nunca chega num pedido do cardápio online.
+        $soNoLocal = $situacao === 'delivery' ? $this->soNoLocal(array_column($pedidos, 'id_produto')) : [];
+        $itens = $this->itens(array_values(array_filter($pedidos, static fn (array $p): bool => !isset($soNoLocal[$p['id_produto']]))));
         if ($itens instanceof Resultado) {
             return $itens;
         }
         if ($itens === []) {
-            return Resultado::falha('Adicione pelo menos um produto ao teste.');
+            return Resultado::falha($soNoLocal !== []
+                ? 'Os produtos do teste são vendidos só no local e não entram em pedido de delivery: ' . implode(', ', $soNoLocal) . '.'
+                : 'Adicione pelo menos um produto ao teste.');
         }
         $saida = $situacao === 'conta' ? $this->conta($itens, $idImpressora) : $this->producao($situacao, $itens);
+        if (is_array($saida) && $soNoLocal !== []) {
+            $saida['avisos'][] = 'Vendido só no local, não entra em pedido de delivery: ' . implode(', ', $soNoLocal) . '.';
+        }
         if ($saida instanceof Resultado || !$imprimir) {
             return $saida;
         }
         return $this->imprimir($saida, $situacao);
+    }
+
+    /**
+     * Produtos marcados "so no local" (vende_delivery = 0), por id => nome.
+     * @param list<int> $ids
+     * @return array<int,string>
+     */
+    private function soNoLocal(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $i): bool => $i > 0)));
+        if ($ids === [] || !Esquema::tem($this->db, 'produto_opcoes')) {
+            return [];
+        }
+        $q = $this->db->prepare('SELECT id, nome FROM produtos WHERE id_restaurante = ? AND vende_delivery = 0 AND id IN ('
+            . implode(',', array_fill(0, count($ids), '?')) . ')');
+        $q->execute([$this->idRestaurante, ...$ids]);
+        $saida = [];
+        foreach ($q->fetchAll(\PDO::FETCH_ASSOC) as $r) {
+            $saida[(int) $r['id']] = (string) $r['nome'];
+        }
+        return $saida;
     }
 
     /**
