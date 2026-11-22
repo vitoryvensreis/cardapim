@@ -276,7 +276,10 @@
         firstInvalid.focus();
         return;
       }
-      const button = form.querySelector("[type=submit]");
+      // Formulario com confirmacao (data-confirm, confirmar.js): a trava contra clique duplo so vale depois do
+      // "Confirmar". Antes, o primeiro clique travava o botao e o envio confirmado era cancelado (ex.: Fechar caixa).
+      if (form.dataset.confirm && form.dataset.confirmado !== "1") return;
+      const button = event.submitter || form.querySelector("[type=submit]");
       if (button) {
         if (button.classList.contains("is-loading")) { event.preventDefault(); return; }
         button.classList.add("is-loading");

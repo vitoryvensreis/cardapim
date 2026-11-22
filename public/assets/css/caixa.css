@@ -525,3 +525,10 @@
 @media (min-width: 64rem) {
   .lista-comandas { --colunas: minmax(0, 1.6fr) 8rem minmax(0, 1fr) minmax(0, 1fr) 7rem 6rem; }
 }
+
+/* "Abrir caixa" do topo: destaca o formulario de abrir (troco inicial) */
+.caixa-abrir.is-destaque { box-shadow: 0 0 0 3px var(--c-orange), var(--sh-md); }
+@media (prefers-reduced-motion: no-preference) {
+  .caixa-abrir.is-destaque { animation: caixa-destaque 1.2s var(--ease-out) 1; }
+}
+@keyframes caixa-destaque { 0% { box-shadow: 0 0 0 0 rgb(255 88 37 / 55%); } 100% { box-shadow: 0 0 0 3px var(--c-orange), var(--sh-md); } }

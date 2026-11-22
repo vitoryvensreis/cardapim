@@ -28,6 +28,28 @@
   };
   const reais = (c) => `R$ ${campoDinheiro(c)}`;
 
+  /* ---------- Abrir caixa pelo botao do topo ---------- */
+  // Caixa fechado: o "Abrir caixa" do topo leva ao campo "Troco inicial". Na propria tela de abrir, nao recarrega:
+  // rola ate o formulario, foca o campo e destaca, para ficar claro onde digitar e confirmar.
+  const areaAbrir = $("[data-abrir-caixa]");
+  if (areaAbrir) {
+    const destacarAbrir = () => {
+      const campo = $("input[name='valor_abertura']", areaAbrir);
+      areaAbrir.scrollIntoView({ behavior: reduzir ? "auto" : "smooth", block: "center" });
+      if (campo) campo.focus({ preventScroll: true });
+      areaAbrir.classList.remove("is-destaque");
+      void areaAbrir.offsetWidth; // reinicia a animacao
+      areaAbrir.classList.add("is-destaque");
+    };
+    document.addEventListener("click", (ev) => {
+      const link = ev.target.closest("a[href$='#abrir-caixa']");
+      if (!link) return;
+      ev.preventDefault();
+      destacarAbrir();
+    });
+    if (window.location.hash === "#abrir-caixa") destacarAbrir();
+  }
+
   /* ---------- Aviso (toast) ---------- */
   let toast = null;
   let toastTempo = 0;

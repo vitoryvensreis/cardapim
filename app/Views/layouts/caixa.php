@@ -43,7 +43,8 @@ $painel = [
     'lateral_extra' => $lateral,
     'trilha' => 'Caixa',
     'titulo_atual' => (string) ($tituloTela ?? 'Caixa'),
-    'acao_topo' => $caixaAtual === null ? [MenuCaixa::url($slug, 'caixa'), 'Abrir caixa', 'lock-open'] : null,
+    // Caixa fechado: leva ao campo "Troco inicial" da tela de abrir (caixa.js foca e destaca se ja estiver nela).
+    'acao_topo' => $caixaAtual === null ? [MenuCaixa::url($slug, 'caixa') . '#abrir-caixa', 'Abrir caixa', 'lock-open'] : null,
     'botao_ifood' => BotaoLojaIfood::config((int) $restaurante['id'], '/' . rawurlencode($slug) . '/caixa/ifood'),
     'tempo_real' => TempoReal::ativo()
         ? ['ticket' => '/api/v1/tempo-real/ticket?restaurante=' . rawurlencode($slug), 'canais' => 'pedidos,mesas,caixa']
