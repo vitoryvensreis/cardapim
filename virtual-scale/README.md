@@ -1,4 +1,24 @@
-# Deliveryzim Balança Virtual — Android (somente teste)
+# Deliveryzim Testes Android — Balança Virtual e Impressora Virtual (somente teste)
+
+Um APK só, com **dois apps** no celular: **Deliveryzim Balança Virtual** e **Deliveryzim Impressora Virtual**.
+Download: GitHub > Releases > `android-teste-vX.Y.Z` (pre-release) > `Deliveryzim-Testes-Android.apk`.
+
+## Impressora Virtual
+
+Recebe na porta **9100** (TCP, rede privada) os mesmos bytes ESC/POS que iriam para a térmica e desenha cada cupom na
+tela, inclusive o **cupom em imagem** do Agent 0.9+ (GS v 0, juntando as faixas), a logo, negrito, letra dupla,
+acentos (CP850), o espaço antes do corte e a marca de **corte**. Largura automática pela imagem (384 = 58 mm, 576 =
+80 mm) ou escolhida na tela. Guarda os 30 últimos cupons. Leitor em `EscPos.java`, testado em `tests/EscPosTest.java`.
+
+1. Abra **Deliveryzim Impressora Virtual** no celular (liga sozinha) e anote o IP mostrado.
+2. No Windows: Configurações > Impressoras > Adicionar > "A impressora que eu quero não está na lista" >
+   endereço TCP/IP > IP do celular, porta **9100**, protocolo **RAW** > driver **Generic / Text Only**.
+3. No Deliveryzim Agent, escolha essa impressora (papel 58 ou 80 mm) e use **Testar**, ou mande
+   **Imprimir teste de verdade** em Gerência > Impressoras.
+4. O cupom aparece na tela do celular como sairia no papel. Celular e PC na mesma rede Wi-Fi.
+
+## Balança Virtual
+
 
 O APK **não pesa alimentos**: um operador digita um peso fictício em kg (até três casas) e escolhe o estado **Estável**, **Instável** ou **Sobrecarga**. Ele emite tramas de balanças comerciais por Wi-Fi para testar o Agent Windows e o caixa. **Nunca usar peso simulado para cobrar clientes ou movimentar estoque real.**
 

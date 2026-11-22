@@ -16,6 +16,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity android:name=".PrinterActivity" android:exported="true"
+            android:label="Deliveryzim Impressora Virtual" android:taskAffinity="br.com.deliveryzim.virtualprinter"
+            android:screenOrientation="unspecified">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
         <service android:name=".ScaleService" android:exported="false"
             android:foregroundServiceType="connectedDevice"/>
     </application>
