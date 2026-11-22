@@ -113,3 +113,20 @@
 /* Logo oficial no topo do papel (como o Agent imprime) */
 .cupom-logo { display: block; width: calc(var(--colunas) * .72ch); max-width: 100%; height: auto; margin: 0 auto .5rem; justify-self: center; }
 .impressao-teste-dica { margin: .8rem 0 0; color: var(--c-muted); font-size: .86rem; }
+
+/* Cupom em imagem (Agent 0.9.0+): o mesmo arquivo que vai para a impressora, em escala de tela. */
+.cupom-imagem {
+  display: block;
+  width: 100%;
+  max-width: 20rem;
+  height: auto;
+  margin: 0 auto;
+  background: var(--c-white);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-sm);
+  image-rendering: pixelated;
+}
+.cupom-imagem[data-papel="58"] { max-width: 14rem; }
+.impressao-teste-papel-info { margin: .5rem 0 0; font-size: .82rem; color: var(--c-muted); text-align: center; }
+.impressao-teste-papel[hidden] { display: none; }

@@ -248,6 +248,43 @@ def job_receipt(job, paper=80, logo=True, margem=MARGEM_PADRAO):
     return bytes(out)
 
 
+def image_receipt(image_b64, paper=80):
+    """Cupom desenhado pelo sistema (Agent 0.9.0+): PNG preto e branco do tamanho do papel, já com a logo e o
+    espaço antes do corte. Aqui só vira imagem ESC/POS (GS v 0, em faixas) e corta. Nada de layout no Agent.
+    """
+    import base64
+    import io
+    from PIL import Image
+    try:
+        data = base64.b64decode(str(image_b64 or ""), validate=True)
+        with Image.open(io.BytesIO(data)) as source:
+            image = source.convert("L")
+    except Exception as exc:
+        raise RuntimeError("Cupom em imagem inválido.") from exc
+    max_width = DOTS.get(int(paper), 576)
+    if image.width > max_width:
+        # Papel configurado menor que a imagem: reduz para não cortar a lateral.
+        image = image.resize((max_width, max(1, round(image.height * max_width / image.width))), Image.Resampling.LANCZOS)
+    width, height = image.size
+    row_bytes = (width + 7) // 8
+    pixels = image.load()
+    out = bytearray(b"\x1b@\x1ba\x01")
+    band = 128  # faixas curtas: cabe no buffer das térmicas simples
+    for top in range(0, height, band):
+        rows = min(band, height - top)
+        out += b"\x1d\x76\x30\x00" + bytes((row_bytes & 0xFF, row_bytes >> 8, rows & 0xFF, rows >> 8))
+        for y in range(top, top + rows):
+            for xb in range(row_bytes):
+                byte = 0
+                for bit in range(8):
+                    x = xb * 8 + bit
+                    if x < width and pixels[x, y] < 128:
+                        byte |= 0x80 >> bit
+                out.append(byte)
+    out += b"\x1ba\x00\x1dV\x00"
+    return bytes(out)
+
+
 def spool(printer, payload, label):
     if not printer:
         raise RuntimeError("Selecione uma impressora nas configuracoes.")

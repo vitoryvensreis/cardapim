@@ -62,3 +62,37 @@ class ReceiptTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ImageReceiptTests(unittest.TestCase):
+    """Cupom desenhado pelo sistema (0.9.0+): o Agent só converte a imagem e corta."""
+
+    def _png(self, width, height, black_rows=()):
+        import base64
+        import io
+        image = Image.new("L", (width, height), 255)
+        for y in black_rows:
+            for x in range(width):
+                image.putpixel((x, y), 0)
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        return base64.b64encode(buffer.getvalue()).decode()
+
+    def test_imagem_vira_raster_em_faixas_e_corta(self):
+        from agent.printing import image_receipt
+        payload = image_receipt(self._png(576, 300, black_rows=(0,)), 80)
+        self.assertTrue(payload.startswith(b"\x1b@\x1ba\x01\x1dv0\x00"))
+        self.assertTrue(payload.endswith(b"\x1ba\x00\x1dV\x00"))
+        self.assertEqual(payload.count(b"\x1dv0\x00"), 3)  # 128 + 128 + 44 linhas
+        self.assertEqual(payload[9:11], bytes((72, 0)))  # 576 / 8 bytes por linha
+        self.assertEqual(payload[13:13 + 72], b"\xff" * 72)  # primeira linha toda preta
+
+    def test_imagem_larga_demais_reduz_ao_papel(self):
+        from agent.printing import image_receipt
+        payload = image_receipt(self._png(576, 100), 58)
+        self.assertEqual(payload[9:11], bytes((48, 0)))  # 384 / 8
+
+    def test_imagem_invalida(self):
+        from agent.printing import image_receipt
+        with self.assertRaises(RuntimeError):
+            image_receipt("isto nao e imagem", 80)

@@ -19,6 +19,7 @@ use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Caixa\DeliveryService;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
+use Cardapim\Services\Impressao\CupomImagem;
 use Cardapim\Shared\Esquema;
 use PDO;
 use Throwable;
@@ -152,6 +153,10 @@ final class DesktopAgentController
             // Agent antigo nunca pega um cupom que ele nao saberia imprimir.
             if (($_GET['impressoes'] ?? '') === '1') {
                 $saida['impressoes'] = $this->reservarImpressoes($db, $dispositivo, ($_GET['impressoras'] ?? '') === '1');
+                // Agent 0.9.0+ (imagem=1): cada cupom vai tambem desenhado, no papel da impressora de destino.
+                if (($_GET['imagem'] ?? '') === '1' && $saida['impressoes'] !== []) {
+                    $saida['impressoes'] = $this->comImagem($db, $dispositivo, $saida['impressoes'], (string) ($_GET['principal'] ?? ''));
+                }
             }
             return Response::json($saida);
         } catch (Throwable $e) {
@@ -183,6 +188,44 @@ final class DesktopAgentController
     }
 
     /**
+     * Desenha cada cupom reservado (CupomImagem) com o papel, a logo e o espaco antes do corte que o Agent informou
+     * para a impressora de destino. Cupom sem impressora escolhida ("") vai para a principal do Agent ($principal).
+     * Se der errado, o cupom segue so com os blocos e o Agent monta como antes: nunca deixa de imprimir.
+     * @param array<string,mixed> $dispositivo
+     * @param list<array<string,mixed>> $cupons
+     * @return list<array<string,mixed>>
+     */
+    private function comImagem(PDO $db, array $dispositivo, array $cupons, string $principal): array
+    {
+        if (!CupomImagem::disponivel()) {
+            return $cupons;
+        }
+        try {
+            $porChave = [];
+            $formatos = (new ImpressoraRepository($db))->formatos((int) $dispositivo['id_restaurante'],
+                Esquema::tem($db, 'impressoras') && Esquema::tem($db, 'impressora_papel'), (int) $dispositivo['id']);
+            foreach ($formatos as $f) {
+                $porChave[$f['chave']] = $f;
+            }
+        } catch (Throwable) {
+            $porChave = [];
+        }
+        $padrao = ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO];
+        foreach ($cupons as &$c) {
+            $chave = (string) ($c['impressora'] ?? '') !== '' ? (string) $c['impressora'] : $principal;
+            $f = $porChave[$chave] ?? $padrao;
+            try {
+                $c['imagem'] = base64_encode(CupomImagem::png($c['blocos'] ?? [], $f['papel'], $f['margem'], $f['logo']));
+                $c['papel'] = $f['papel'];
+            } catch (Throwable $e) {
+                error_log('[Cardapim] Desktop: cupom em imagem indisponivel (' . get_class($e) . ').');
+            }
+        }
+        unset($c);
+        return $cupons;
+    }
+
+    /**
      * POST /api/v1/desktop/impressoras - o Agent (0.8.0+) manda a lista completa de impressoras dele:
      * {"impressoras":[{"chave":"a1b2...","apelido":"Cozinha"}, ...]}. O nome da impressora no Windows fica no computador.
      * Quem tirou uma impressora da lista some dos pontos de impressao (ativo = 0).
@@ -208,13 +251,24 @@ final class DesktopAgentController
             if (preg_match('/\A[a-z0-9]{8,40}\z/', $chave) !== 1 || $apelido === '' || mb_strlen($apelido) > 40) {
                 return Response::json(['erro' => 'Cada impressora precisa de um apelido de até 40 letras.'], 422);
             }
-            $limpa[$chave] = ['chave' => $chave, 'apelido' => $apelido];
+            $item = ['chave' => $chave, 'apelido' => $apelido];
+            // Agent 0.9.0+: papel (58/80), logo e espaco antes do corte (0 a 20 linhas) para montar o cupom em imagem.
+            if (isset($i['papel'], $i['logo'], $i['margem'])) {
+                $papel = filter_var($i['papel'], FILTER_VALIDATE_INT);
+                $margem = filter_var($i['margem'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 20]]);
+                if (!in_array($papel, [58, 80], true) || $margem === false || !is_bool($i['logo'])) {
+                    return Response::json(['erro' => 'Papel (58 ou 80 mm), logo ou espaço antes do corte inválido.'], 422);
+                }
+                $item += ['papel' => $papel, 'logo' => $i['logo'], 'margem' => $margem];
+            }
+            $limpa[$chave] = $item;
         }
         try {
             if (!Esquema::tem($db, 'impressoras')) {
                 return Response::json(['ok' => true, 'aguardando' => true]); // migracao ainda nao aplicada
             }
-            (new ImpressoraRepository($db))->sincronizar((int) $d['id_restaurante'], (int) $d['id'], array_values($limpa));
+            (new ImpressoraRepository($db))->sincronizar((int) $d['id_restaurante'], (int) $d['id'], array_values($limpa),
+                Esquema::tem($db, 'impressora_papel'));
             return Response::json(['ok' => true]);
         } catch (Throwable $e) {
             error_log('[Cardapim] Desktop: registro de impressoras indisponivel (' . get_class($e) . ').');

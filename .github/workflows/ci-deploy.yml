@@ -110,6 +110,7 @@ jobs:
           php tests/unit/sms.php
           php tests/unit/impressao.php
           php tests/unit/combos.php
+          php tests/unit/cupom-imagem.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -164,6 +165,7 @@ jobs:
           php database/verify-garcom-fechar.php --verify
           php database/verify-complemento-quantidade.php --verify
           php database/verify-garcom-permissoes.php --verify
+          php database/verify-impressora-papel.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -588,6 +590,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-complemento-quantidade.sh'"
+
+      - name: Aplicar papel e espaco antes do corte das impressoras com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-impressora-papel]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-impressora-papel.sh'"
 
       - name: Aplicar permissoes do garcom com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-garcom-permissoes]') }}

@@ -47,9 +47,16 @@ def alias_of(printer, index):
     return printer.get("apelido") or ("Principal" if index == 0 else "Impressora " + str(index + 1))
 
 
-def server_payload(items):
-    """O que vai para o sistema: só chave e apelido (o gerente escolhe os pontos de impressão por ele)."""
-    return [{"chave": p["chave"], "apelido": alias_of(p, i)} for i, p in enumerate(items)]
+def server_payload(items, margem=4, logo=True):
+    """O que vai para o sistema: chave e apelido (o gerente escolhe os pontos de impressão por ele) e, desde a 0.9.0,
+    o papel, a logo e o espaço antes do corte, para o sistema desenhar o cupom do tamanho certo."""
+    try:
+        margem = int(margem)
+    except (TypeError, ValueError):
+        margem = 4
+    margem = margem if 0 <= margem <= 20 else 4
+    return [{"chave": p["chave"], "apelido": alias_of(p, i), "papel": 58 if int(p.get("papel") or 80) == 58 else 80,
+             "logo": bool(logo), "margem": margem} for i, p in enumerate(items)]
 
 
 def principal(items):

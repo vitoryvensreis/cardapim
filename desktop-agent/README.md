@@ -1,4 +1,8 @@
-# Deliveryzim Agent para Windows — v0.8 (teste controlado)
+# Deliveryzim Agent para Windows — v0.9
+
+**Desde 0.9.0 — cupom desenhado pelo sistema e atualização automática:**
+- O Agent manda ao sistema, de cada impressora, o papel (58/80 mm), a logo e o espaço antes do corte. O sistema desenha o cupom como imagem preto e branco do tamanho do papel (`app/Services/Impressao/CupomImagem.php`) e o Agent só converte em imagem ESC/POS (GS v 0, em faixas de 128 linhas) e corta (`image_receipt`). Mudanças de layout, letras, acentos e logo valem na hora, sem instalar nada. Cupom sem imagem (servidor sem GD ou erro) sai montado pelos blocos, como antes.
+- "Atualizar sozinho quando sair versão nova" (ligado por padrão): a cada 6 horas o Agent confere os Releases do GitHub (tag `agent-vX.Y.Z`), baixa o instalador, confere o SHA-256 publicado e instala em silêncio quando nenhum pedido está tocando e nenhum cupom saiu nos últimos 2 minutos. O instalador mantém impressoras, vínculo e preferências e abre o Agent de novo. Quem está na 0.8.x instala a 0.9.0 uma vez; depois é automático.
 
 **Desde 0.8.1 — espaço antes do corte:** em Configurações > Impressoras, "Espaço antes do corte do papel" (Normal = 4 linhas, Mais espaço = 7, Bem mais espaço = 10). O papel avança (ESC d n) antes da guilhotina (GS V 0), para a última linha do cupom não ser cortada. O teste de impressão termina com uma linha que precisa sair inteira.
 

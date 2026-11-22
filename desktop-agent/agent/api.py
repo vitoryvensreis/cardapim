@@ -87,14 +87,15 @@ class ApiClient:
             raise AuthenticationError("Servidor nao retornou uma credencial valida.")
         return data
 
-    def events(self, cursor):
+    def events(self, cursor, principal=""):
         if not self.token:
             raise AuthenticationError("Agente sem credencial.")
         response = requests.get(
             self.url("/api/v1/desktop/eventos"),
             # impressoes=1: sabe imprimir os cupons pedidos pelo caixa/garçom (fila do sistema).
             # impressoras=1: tem lista de impressoras (cupom e pedido novo chegam com a impressora escolhida).
-            params={"desde": int(cursor), "impressoes": 1, "impressoras": 1},
+            # imagem=1 (0.9.0+): o cupom chega desenhado pelo sistema; principal = impressora dos cupons sem escolha.
+            params={"desde": int(cursor), "impressoes": 1, "impressoras": 1, "imagem": 1, "principal": str(principal or "")},
             headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
             timeout=(7, 20),
         )
@@ -187,7 +188,9 @@ class ApiClient:
             raise AuthenticationError("Agente sem credencial.")
         response = requests.post(
             self.url("/api/v1/desktop/impressoras"),
-            json={"impressoras": [{"chave": str(i["chave"]), "apelido": str(i["apelido"])[:40]} for i in items][:50]},
+            # Nunca manda o nome da impressora no Windows; papel/logo/margem só se vierem (0.9.0+).
+            json={"impressoras": [dict({"chave": str(i["chave"]), "apelido": str(i["apelido"])[:40]},
+                                       **{k: i[k] for k in ("papel", "logo", "margem") if k in i}) for i in items][:50]},
             headers={"Authorization": "Bearer " + self.token, "User-Agent": USER_AGENT},
             timeout=(4, 10),
         )

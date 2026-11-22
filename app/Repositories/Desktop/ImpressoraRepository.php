@@ -28,17 +28,24 @@ final class ImpressoraRepository
 
     /**
      * O Agent manda a lista completa dele: cria/atualiza pela chave e desativa o que saiu da lista.
-     * @param list<array{chave:string,apelido:string}> $lista
+     * Agent 0.9.0+ manda tambem papel, logo e margem (cupom em imagem); $comPapel = migracao aplicada.
+     * Agent antigo (sem esses campos) nao apaga o que ja estava gravado.
+     * @param list<array{chave:string,apelido:string,papel?:int,logo?:bool,margem?:int}> $lista
      */
-    public function sincronizar(int $idRestaurante, int $idDispositivo, array $lista): void
+    public function sincronizar(int $idRestaurante, int $idDispositivo, array $lista, bool $comPapel = false): void
     {
         $this->db->beginTransaction();
         try {
             $grava = $this->db->prepare('INSERT INTO impressoras (id_restaurante, id_dispositivo, chave, apelido, ativo)
                 VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE apelido = VALUES(apelido), ativo = 1');
+            $papel = $comPapel ? $this->db->prepare('UPDATE impressoras SET papel = ?, logo = ?, margem_corte = ?
+                WHERE id_dispositivo = ? AND id_restaurante = ? AND chave = ?') : null;
             $chaves = [];
             foreach ($lista as $i) {
                 $grava->execute([$idRestaurante, $idDispositivo, $i['chave'], $i['apelido']]);
+                if ($papel !== null && isset($i['papel'], $i['logo'], $i['margem'])) {
+                    $papel->execute([(int) $i['papel'], $i['logo'] ? 1 : 0, (int) $i['margem'], $idDispositivo, $idRestaurante, $i['chave']]);
+                }
                 $chaves[] = $i['chave'];
             }
             $sql = 'UPDATE impressoras SET ativo = 0 WHERE id_dispositivo = ? AND id_restaurante = ?';
@@ -53,6 +60,33 @@ final class ImpressoraRepository
             $this->db->rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Papel, logo e espaco antes do corte de cada impressora ativa (cupom em imagem), por id.
+     * Sem a migracao ou sem informacao do Agent: 80 mm, com logo, espaco normal.
+     * @return array<int,array{chave:string,id_dispositivo:int,papel:int,logo:bool,margem:int}>
+     */
+    public function formatos(int $idRestaurante, bool $comPapel, ?int $idDispositivo = null): array
+    {
+        $colunas = $comPapel ? 'papel, logo, margem_corte' : '80 AS papel, 1 AS logo, 4 AS margem_corte';
+        $sql = 'SELECT id, chave, id_dispositivo, ' . $colunas . ' FROM impressoras WHERE id_restaurante = ? AND ativo = 1';
+        $params = [$idRestaurante];
+        if ($idDispositivo !== null) {
+            $sql .= ' AND id_dispositivo = ?';
+            $params[] = $idDispositivo;
+        }
+        $q = $this->db->prepare($sql);
+        $q->execute($params);
+        $saida = [];
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $saida[(int) $r['id']] = [
+                'chave' => (string) $r['chave'], 'id_dispositivo' => (int) $r['id_dispositivo'],
+                'papel' => (int) $r['papel'] === 58 ? 58 : 80, 'logo' => (int) $r['logo'] === 1,
+                'margem' => max(0, min(20, (int) $r['margem_corte'])),
+            ];
+        }
+        return $saida;
     }
 
     /**

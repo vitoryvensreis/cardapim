@@ -57,8 +57,9 @@ class PrintResultApiTests(unittest.TestCase):
         client.token = "dzag_" + "a" * 64
         with patch("agent.api.requests.get") as get:
             get.return_value = MagicMock(status_code=200, json=lambda: {"cursor": 1, "pedidos": []})
-            client.events(5)
-        self.assertEqual(get.call_args.kwargs["params"], {"desde": 5, "impressoes": 1, "impressoras": 1})
+            client.events(5, "abcd1234ef")
+        self.assertEqual(get.call_args.kwargs["params"],
+                         {"desde": 5, "impressoes": 1, "impressoras": 1, "imagem": 1, "principal": "abcd1234ef"})
 
     def test_resultado_ok_e_erro(self):
         client = ApiClient()
@@ -80,6 +81,12 @@ class PrintResultApiTests(unittest.TestCase):
             client.register_printers([{"chave": "abcd1234ef", "apelido": "Cozinha", "windows": "EPSON"}])
         self.assertTrue(post.call_args.args[0].endswith("/api/v1/desktop/impressoras"))
         self.assertEqual(post.call_args.kwargs["json"], {"impressoras": [{"chave": "abcd1234ef", "apelido": "Cozinha"}]})
+        with patch("agent.api.requests.post") as post:
+            post.return_value = MagicMock(status_code=200)
+            client.register_printers([{"chave": "abcd1234ef", "apelido": "Cozinha", "windows": "EPSON",
+                                       "papel": 58, "logo": False, "margem": 7}])
+        self.assertEqual(post.call_args.kwargs["json"], {"impressoras": [
+            {"chave": "abcd1234ef", "apelido": "Cozinha", "papel": 58, "logo": False, "margem": 7}]})
         with patch("agent.api.requests.post") as post:
             post.return_value = MagicMock(status_code=422, json=lambda: {"erro": "Apelido grande"})
             with self.assertRaises(RuntimeError):
