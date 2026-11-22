@@ -238,6 +238,13 @@
     const lista = formGrupo.querySelector("[data-opcoes]");
     const modelo = formGrupo.querySelector("[data-opcao-modelo]");
     let proximo = Number.parseInt(lista?.dataset.proximo || "0", 10) || 0;
+    // "Ate quantas desta opcao" so aparece quando o cliente escolhe a quantidade de cada opcao.
+    const repetir = formGrupo.querySelector("[data-grupo-repetir]");
+    const mostrarQtdMax = () => {
+      formGrupo.querySelectorAll("[data-so-repetir]").forEach((c) => { c.hidden = !(repetir && repetir.checked); });
+    };
+    repetir?.addEventListener("change", mostrarQtdMax);
+    mostrarQtdMax();
     formGrupo.querySelector("[data-opcao-adicionar]")?.addEventListener("click", () => {
       if (!lista || !modelo) return;
       const html = modelo.innerHTML.replaceAll("__i__", String(proximo));
@@ -246,6 +253,7 @@
       area.innerHTML = html;
       const linha = area.firstElementChild;
       lista.append(linha);
+      mostrarQtdMax();
       window.CardapimMascaras?.(linha);
       linha.querySelector("input[name$='[nome]']")?.focus();
     });

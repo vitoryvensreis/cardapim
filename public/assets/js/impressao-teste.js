@@ -122,11 +122,11 @@
     if (partes.length) topo.append(el("span", "", partes.join(" · ")));
     areaEscolhas.append(topo);
     grupos.forEach((g) => {
-      const caixa = el("fieldset", "impressao-teste-grupo" + (combo ? " is-combo" : ""));
+      const caixa = el("fieldset", "impressao-teste-grupo" + (combo || g.repetir ? " is-combo" : ""));
       const legenda = el("legend", "", g.nome);
       legenda.append(el("span", "etiqueta " + (g.minimo > 0 ? "etiqueta-atencao" : "etiqueta-neutra"), regra(g)));
       caixa.append(legenda);
-      (g.opcoes || []).forEach((o) => caixa.append(combo ? passo(g, o) : chip(g, o, caixa)));
+      (g.opcoes || []).forEach((o) => caixa.append(combo || g.repetir ? passo(g, o) : chip(g, o, caixa)));
       areaEscolhas.append(caixa);
     });
   };

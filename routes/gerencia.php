@@ -66,6 +66,8 @@ return static function (Router $router): void {
     $router->get($g . '/equipe', [EquipeController::class, 'lista']);
     $router->get($g . '/equipe/nova', [EquipeController::class, 'nova']);
     $router->post($g . '/equipe', [EquipeController::class, 'criar']);
+    $router->post($g . '/equipe/regras/entregador', [EquipeController::class, 'regrasEntregador']);
+    $router->post($g . '/equipe/regras/garcom', [EquipeController::class, 'regrasGarcom']);
     $router->get($g . '/equipe/{id}', [EquipeController::class, 'editar']);
     $router->post($g . '/equipe/{id}', [EquipeController::class, 'atualizar']);
     $router->post($g . '/equipe/{id}/senha', [EquipeController::class, 'senha']);

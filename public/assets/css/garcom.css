@@ -31,7 +31,8 @@
 /* ---------- Menu: barra embaixo no celular, abas no topo no computador ---------- */
 .garcom-barra {
   position: fixed; right: 0; bottom: 0; left: 0; z-index: 45; display: grid; grid-template-columns: repeat(2, 1fr);
-  min-height: var(--gc-barra); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--c-line);
+  /* A area segura do iPhone fica ABAIXO dos botoes (antes ela comia a altura e os icones encostavam na borda de cima). */
+  min-height: calc(var(--gc-barra) + env(safe-area-inset-bottom, 0px)); padding: .5rem 0 calc(.35rem + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--c-line);
   background: rgb(255 255 255 / 96%); box-shadow: 0 -10px 30px -18px rgb(42 16 23 / 35%); backdrop-filter: blur(8px);
 }
 .garcom-barra a {

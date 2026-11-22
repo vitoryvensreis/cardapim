@@ -6,6 +6,11 @@ Produto sem grupo de complementos funciona exatamente como antes.
 ## Conceitos
 
 - **Grupo** (`complemento_grupos`): nome, mínimo e máximo de escolhas. Mínimo 0 = opcional; 1 ou mais = obrigatório.
+- **Quantidade por opção** (`complemento_grupos.repetir`, `complementos.qtd_max`): com "O cliente escolhe a quantidade de
+  cada opção" ligado, cardápio, caixa, garçom e o teste de impressão mostram − e + (ex.: 3 ovos). O máximo do grupo vale
+  para a soma; `qtd_max` limita cada opção (NULL = livre). Desligado, cada opção vale uma vez (o servidor recusa 2x).
+  Combos não mudam (no combo a quantidade é sempre livre, com o máximo de cada opção do combo) e o iFood também não
+  (a publicação continua com mínimo/máximo do grupo; o pedido do iFood já chega com a quantidade de cada opção).
   Reutilizável: o mesmo grupo ("Bordas") pode estar em vários produtos (`produto_complemento_grupos`, com ordem).
 - **Opção** (`complementos`): nome, preço a mais (0 = grátis), foto, código, pausa (`disponivel`) e ficha técnica
   (`complemento_insumos`, quanto de cada insumo vai em 1 unidade da opção). Nunca apagada: arquivada (`ativo = 0`).

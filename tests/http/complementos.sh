@@ -123,11 +123,42 @@ esperar "garcom lanca com borda" "$(enviar "$wj" "$w/comandas/$comanda/itens" "$
 esperar "aviso de 1 item" "$(aviso "$wj" "$w/comandas/$comanda")" "1 item lançado."
 contem "comanda do garcom mostra a escolha" "$tmp/aviso.html" "$grupo_nome: Sem borda CI"
 pagina "$wj" "$w/comandas/$comanda" >/dev/null
-contem "folha do garcom tem os complementos" "$tmp/pagina.html" "name=\"comp\[$pizza\]\[\]\""
+contem "folha do garcom tem os complementos" "$tmp/pagina.html" "name=\"comp\[$pizza\]\[$sem_op\]\""
 esperar "garcom sem a borda" "$(enviar "$wj" "$w/comandas/$comanda/itens" "$w/comandas/$comanda" "qtd[$pizza]=1" | cut -d' ' -f1)" "303"
 aviso "$wj" "$w/comandas/$comanda" >/dev/null
 contem "garcom: borda obrigatoria faltando" "$tmp/aviso.html" 'Escolha uma opção'
 enviar "$gj" "$c/comandas/$comanda/cancelar" "$c/comandas/$comanda" motivo='Teste' >/dev/null
+
+echo "Quantidade por opcao (ex.: 3 ovos)"
+ovos_nome="CI Adicionais $r4"
+esperar "grupo com quantidade e limite por opcao" "$(enviar "$gj" "$g/estoque/complementos" "$g/estoque/complementos/novo" nome="$ovos_nome" minimo=0 maximo=5 repetir=1 \
+  'opcoes[0][nome]=Ovo CI' 'opcoes[0][preco]=1,00' 'opcoes[0][disponivel]=1' 'opcoes[0][qtd_max]=' \
+  'opcoes[1][nome]=Bacon CI' 'opcoes[1][preco]=3,00' 'opcoes[1][disponivel]=1' 'opcoes[1][qtd_max]=2' | cut -d' ' -f1)" "303"
+pagina "$gj" "$g/estoque/complementos" >/dev/null
+grupo_ovos="$(php -r 'if (preg_match("~<h2 id=\"grupo-(\d+)\">" . preg_quote(htmlspecialchars($argv[2]), "~") . "</h2>~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$ovos_nome")"
+ovo="$(opcao_id 'Ovo CI')"; bacon="$(opcao_id 'Bacon CI')"
+pagina "$gj" "$g/estoque/complementos/$grupo_ovos" >/dev/null
+contem "edicao mostra a quantidade ligada" "$tmp/pagina.html" 'name="repetir" value="1" data-grupo-repetir checked'
+contem "edicao mostra o limite da opcao" "$tmp/pagina.html" 'value="2" type="number" min="1" max="30"'
+prato="CI Feijao $r4"
+enviar "$gj" "$g/estoque/produtos" "$g/estoque/produtos/novo" nome="$prato" unidade_venda=un preco='30,00' controle=livre disponivel=1 categoria= "grupos[]=$grupo_ovos" "ordem_grupo[$grupo_ovos]=1" >/dev/null
+pagina "$gj" "$g/estoque/produtos" >/dev/null
+feijao="$(php -r 'if (preg_match("~estoque/produtos/(\d+)\"[^>]*>(?:(?!</li>).)*?" . preg_quote($argv[2], "~") . "~s", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html" "$prato")"
+curl -s -o "$tmp/sacola.json" -H 'Content-Type: application/json' --data "{\"itens\":[{\"id\":$feijao,\"quantidade\":1}]}" "$base/api/v1/restaurantes/$slug/sacola"
+esperar "cardapio sabe que escolhe a quantidade" "$(json "$tmp/sacola.json" itens.0.grupos.0.repetir)" "true"
+esperar "cardapio traz o limite do bacon" "$(json "$tmp/sacola.json" itens.0.grupos.0.opcoes.1.maximo)" "2"
+r="$(enviar "$gj" "$c/mesas/$mesa/abrir" "$c/mesas")"
+comanda2="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 | head -1)"
+enviar "$gj" "$c/comandas/$comanda2/itens" "$c/comandas/$comanda2" produto="$feijao" quantidade=1 "complementos[$ovo]=3" >/dev/null
+aviso "$gj" "$c/comandas/$comanda2" >/dev/null
+contem "caixa lanca 3 ovos" "$tmp/aviso.html" "$ovos_nome: 3x Ovo CI"
+contem "conta com 30 + 3 x 1" "$tmp/aviso.html" 'R$ 33,00'
+enviar "$gj" "$c/comandas/$comanda2/itens" "$c/comandas/$comanda2" produto="$feijao" quantidade=1 "complementos[$bacon]=3" >/dev/null
+esperar "limite do bacon respeitado" "$(aviso "$gj" "$c/comandas/$comanda2")" "\"$prato\": No máximo 2 de \"Bacon CI\"."
+esperar "garcom lanca 2 ovos" "$(enviar "$wj" "$w/comandas/$comanda2/itens" "$w/comandas/$comanda2" "qtd[$feijao]=1" "comp[$feijao][$ovo]=2" | cut -d' ' -f1)" "303"
+contem "garcom: 2 ovos na comanda" "$(curl -s -b "$wj" -o "$tmp/g2.html" "$w/comandas/$comanda2"; echo "$tmp/g2.html")" "$ovos_nome: 2x Ovo CI"
+contem "folha do garcom com - e + no grupo de quantidade" "$tmp/g2.html" "name=\"comp\[$feijao\]\[$ovo\]\" value=\"0\" readonly"
+enviar "$gj" "$c/comandas/$comanda2/cancelar" "$c/comandas/$comanda2" motivo='Teste' >/dev/null
 
 echo "Pausar a opcao"
 pagina "$gj" "$g/estoque/complementos" >/dev/null

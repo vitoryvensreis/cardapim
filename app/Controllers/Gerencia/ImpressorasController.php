@@ -49,6 +49,8 @@ final class ImpressorasController extends BaseGerencia
             // Testar impressao: produtos cadastrados (nome, categoria e as escolhas de complemento/combo).
             'produtosTeste' => $ativo ? $this->produtosTeste() : [],
             'logoCupom' => AssetUrl::asset('img/logo-preta.svg'),
+            // Aviso de cancelamento: null = recurso ainda nao liberado.
+            'cancelamentoAtivo' => Esquema::tem($this->db, 'complemento_qtd') ? $repo->cancelamentoAtivo($this->restaurante['id']) : null,
         ]);
     }
 
@@ -126,7 +128,11 @@ final class ImpressorasController extends BaseGerencia
             $config['producao'] = ['ids' => [$producao], 'padrao' => $producao];
         }
         // Pontos antigos (pedido novo do delivery, garcom ao lancar) ficam vazios: sairam da tela.
-        (new ImpressoraRepository($this->db))->salvarPontos($this->restaurante['id'], $config);
+        $repo = new ImpressoraRepository($this->db);
+        $repo->salvarPontos($this->restaurante['id'], $config);
+        if (($_POST['cancelamento_enviado'] ?? '') === '1') {
+            $repo->salvarCancelamento($this->restaurante['id'], ($_POST['cancelamento'] ?? '') === '1');
+        }
         Auditoria::registrar($this->usuario, 'Impressoras salvas', 'Configuração das impressoras do Agent atualizada.');
         return $this->voltar($volta, 'sucesso', 'Impressoras salvas.');
     }

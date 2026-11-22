@@ -43,7 +43,7 @@ final class EntregaPagamentoController extends BaseGerencia
             return $r;
         }
         $resultado = $this->servico()->salvarPainelEntregador($_POST);
-        return $this->voltar($this->url('entrega-pagamento') . '#entregador', $resultado->ok ? 'sucesso' : 'erro', $resultado->mensagem);
+        return $this->voltar($this->url('equipe') . '#entregador', $resultado->ok ? 'sucesso' : 'erro', $resultado->mensagem);
     }
 
     /** Card "Perfil garçom": o gerente libera ou bloqueia remover itens lancados e cancelar comanda. */
@@ -53,7 +53,7 @@ final class EntregaPagamentoController extends BaseGerencia
             return $r;
         }
         $resultado = (new PermissoesGarcom($this->db, $this->restaurante['id']))->salvar($_POST, $this->usuario);
-        return $this->voltar($this->url('entrega-pagamento') . '#perfil-garcom', $resultado->ok ? 'sucesso' : 'erro', $resultado->mensagem);
+        return $this->voltar($this->url('equipe') . '#perfil-garcom', $resultado->ok ? 'sucesso' : 'erro', $resultado->mensagem);
     }
 
     public function criarArea(string $slug): Response
@@ -171,8 +171,6 @@ final class EntregaPagamentoController extends BaseGerencia
             'local' => $local,
             'precisaLocal' => AreaEntrega::precisaDeLocalizacao($areas),
             'asaasConectado' => $servico->asaasConectado(),
-            'entregadorVeValores' => $servico->entregadorVeValores(),
-            'permissoesGarcom' => (new PermissoesGarcom($this->db, $this->restaurante['id']))->config(),
             'teste' => $teste,
             'erros' => $erros,
             'pageScripts' => ['js/forms.js', 'js/entrega-pagamento.js'],

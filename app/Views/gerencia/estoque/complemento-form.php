@@ -1,7 +1,7 @@
 <?php
 /**
  * Cadastro/edicao de um grupo de complementos com as opcoes.
- * Espera: $grupo (null = novo), $valores, $imagens (id da opcao => foto), $erros, $insumos (mapaParaFicha), $base, $csrf.
+ * Espera: $grupo (null = novo), $valores, $imagens (id da opcao => foto), $erros, $insumos (mapaParaFicha), $quantidadeLiberada, $base, $csrf.
  */
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Inventory\UnidadeMedida;
@@ -21,7 +21,8 @@ $erroGeral = $erros['_geral'] ?? null;
 $errosCampos = array_filter($erros, static fn (string $k): bool => !str_starts_with($k, 'opcoes.') && $k !== '_geral', ARRAY_FILTER_USE_KEY);
 
 /** Uma opcao do grupo (tambem e o modelo para "Adicionar opção", com o indice __i__). */
-$linha = static function (string $i, array $l) use ($e, $insumos, $erros, $imagens): string {
+$qtdLiberada = !empty($quantidadeLiberada);
+$linha = static function (string $i, array $l) use ($e, $insumos, $erros, $imagens, $qtdLiberada): string {
     $val = static fn (string $c): string => is_string($l[$c] ?? null) ? $l[$c] : '';
     $id = $val('id');
     $err = static fn (string $c): string => isset($erros['opcoes.' . $i . '.' . $c]) ? '<p class="field-msg ficha-erro" role="alert">' . $e($erros['opcoes.' . $i . '.' . $c]) . '</p>' : '';
@@ -40,7 +41,9 @@ $linha = static function (string $i, array $l) use ($e, $insumos, $erros, $image
         . '<label class="opcao-campo opcao-preco"><span>Preço a mais</span><input class="campo-simples" name="' . $n . '[preco]" value="' . $e($val('preco')) . '" inputmode="numeric" data-mask="money" placeholder="0,00" autocomplete="off"></label>'
         . '<label class="opcao-disponivel"><input type="checkbox" name="' . $n . '[disponivel]" value="1"' . ($val('disponivel') === '1' ? ' checked' : '') . '><span>Disponível</span></label>'
         . '</div>'
-        . $err('nome') . $err('preco')
+        . ($qtdLiberada ? '<label class="opcao-campo opcao-qtd-max" data-so-repetir><span>Até quantas desta opção <span class="field-optional">(vazio = livre)</span></span>'
+            . '<input class="campo-simples" name="' . $n . '[qtd_max]" value="' . $e($val('qtd_max')) . '" type="number" min="1" max="30" inputmode="numeric" placeholder="Livre"></label>' : '')
+        . $err('nome') . $err('preco') . $err('qtd_max')
         . '<div class="opcao-foto">'
         . ($foto ? '<img src="' . $e(MidiaUrl::publica($foto)) . '" alt="Foto atual" width="56" height="56" loading="lazy">'
             . '<label class="opcao-tirar"><input type="checkbox" name="' . $n . '[tirar_foto]" value="1"><span>Tirar foto</span></label>' : '')
@@ -90,6 +93,13 @@ $linha = static function (string $i, array $l) use ($e, $insumos, $erros, $image
                 <?= Campo::texto(['nome' => 'maximo', 'rotulo' => 'Máximo de escolhas', 'valor' => $v('maximo'), 'icone' => 'plus', 'erro' => $erros['maximo'] ?? null, 'tipo' => 'number',
                     'dica' => 'Exemplo: borda = 1; adicionais = 5.', 'attrs' => ['min' => 1, 'max' => ComplementoService::MAX_ESCOLHAS, 'inputmode' => 'numeric']]) ?>
             </div>
+            <?php if ($qtdLiberada): ?>
+                <label class="alternador grupo-repetir">
+                    <span><strong>O cliente escolhe a quantidade de cada opção</strong>
+                        <small>Ex.: "Quantos ovos?" com − e +. O máximo de escolhas acima vale para a soma de tudo; em cada opção dá para limitar (vazio = livre). Desligado, cada opção é escolhida uma vez só.</small></span>
+                    <input type="checkbox" name="repetir" value="1" data-grupo-repetir<?= $v('repetir') === '1' ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                </label>
+            <?php endif; ?>
         </section>
 
         <section class="bloco" aria-labelledby="titulo-opcoes" id="campo-opcoes">

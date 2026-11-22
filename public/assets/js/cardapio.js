@@ -317,6 +317,7 @@
       atual.grupos.forEach((x) => { const c = areaGrupos.querySelector(`[data-grupo="${x.id}"]`); if (c) marcarCombo(x, c); });
       return;
     }
+    if (g.repetir) { marcarCombo(g, caixa); return; } // quantidade por opcao (ex.: 3 ovos)
     const soma = g.opcoes.reduce((t, o) => t + (compsAtual.get(o.id) || 0), 0);
     caixa.querySelectorAll("input[data-opcao]").forEach((input) => {
       const id = Number(input.value);
@@ -347,7 +348,7 @@
       contador.setAttribute("aria-live", "polite");
       legenda.append(contador);
       caixa.append(legenda);
-      if (produto.combo) {
+      if (produto.combo || g.repetir) {
         g.opcoes.forEach((o) => {
           const linha = el("div", "cd-combo-opcao" + (o.disponivel ? "" : " is-indisponivel"));
           linha.dataset.comboOpcao = String(o.id);

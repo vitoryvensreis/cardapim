@@ -77,3 +77,6 @@
 .combo-limite-campo select { min-height: 2.75rem; }
 .produto-grupos[hidden] { display: none; }
 .produto-impressoras { margin-top: .75rem; }
+.grupo-repetir { margin-top: 1rem; }
+.opcao-qtd-max { max-width: 16rem; margin-top: .5rem; }
+.opcao-qtd-max[hidden] { display: none; }

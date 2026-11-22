@@ -69,11 +69,13 @@ final class ComplementoService
             $erros['maximo'] = 'O máximo precisa ser igual ou maior que o mínimo.';
         }
 
+        // Cliente escolhe a mesma opcao mais de uma vez (ex.: 3 ovos), com - e +.
+        $repetir = ($entrada['repetir'] ?? '') === '1';
         [$opcoes, $removidas, $errosOpcoes] = $this->validarOpcoes($entrada['opcoes'] ?? [], $existentes);
         $erros += $errosOpcoes;
         if ($opcoes === [] && !isset($erros['opcoes'])) {
             $erros['opcoes'] = 'Cadastre pelo menos uma opção.';
-        } elseif ($minimo !== null && $minimo > 0 && $minimo > count(array_filter($opcoes, static fn (array $o): bool => $o['disponivel'] === 1))) {
+        } elseif (!$repetir && $minimo !== null && $minimo > 0 && $minimo > count(array_filter($opcoes, static fn (array $o): bool => $o['disponivel'] === 1))) {
             $erros['minimo'] = 'O mínimo é maior que o número de opções disponíveis.';
         }
         if ($erros !== []) {
@@ -105,6 +107,7 @@ final class ComplementoService
             } else {
                 $this->repo->atualizarGrupo($this->idRestaurante, $id, $nome, (int) $minimo, (int) $maximo);
             }
+            $this->repo->definirRepetir($this->idRestaurante, (int) $id, $repetir);
             foreach ($removidas as $idOpcao) {
                 $this->repo->arquivarOpcao($this->idRestaurante, $idOpcao);
             }
@@ -124,6 +127,7 @@ final class ComplementoService
                     $this->repo->atualizarOpcao($this->idRestaurante, $idOpcao, $dados);
                 }
                 $this->repo->salvarFicha($this->idRestaurante, $idOpcao, $o['ficha']);
+                $this->repo->definirQtdMax($this->idRestaurante, $idOpcao, $repetir ? $o['qtd_max'] : null);
             }
             $this->db->commit();
         } catch (Throwable $erro) {
@@ -259,7 +263,18 @@ final class ComplementoService
                     }
                 }
             }
+            // Limite de vezes desta opcao no grupo que repete (vazio = livre, ate o maximo do grupo).
+            $qtdMaxTexto = is_string($l['qtd_max'] ?? null) ? trim($l['qtd_max']) : '';
+            $qtdMax = null;
+            if ($qtdMaxTexto !== '') {
+                if (!ctype_digit($qtdMaxTexto) || (int) $qtdMaxTexto < 1 || (int) $qtdMaxTexto > 30) {
+                    $erros[$campo . '.qtd_max'] = 'Até quantas: de 1 a 30 (ou deixe vazio para livre).';
+                } else {
+                    $qtdMax = (int) $qtdMaxTexto;
+                }
+            }
             $opcoes[$i] = [
+                'qtd_max' => $qtdMax,
                 'id' => $idOpcao, 'nome' => $nome, 'descricao' => $descricao !== '' ? $descricao : null, 'preco' => $preco ?? '0.00',
                 'codigo' => $codigo !== '' ? $codigo : null, 'disponivel' => ($l['disponivel'] ?? '') === '1' ? 1 : 0,
                 'tirar_foto' => ($l['tirar_foto'] ?? '') === '1', 'ficha' => $ficha,

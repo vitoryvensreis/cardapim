@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Repositories\Estoque;
 
+use Cardapim\Shared\Esquema;
 use PDO;
 
 /**
@@ -30,9 +31,12 @@ final class ComplementoRepository
         $grupos = [];
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $g) {
             $grupos[(int) $g['id']] = ['id' => (int) $g['id'], 'nome' => (string) $g['nome'], 'minimo' => (int) $g['minimo'], 'maximo' => (int) $g['maximo'],
-                'ordem' => (int) $g['ordem'], 'produtos' => (int) $g['produtos'], 'opcoes' => []];
+                'ordem' => (int) $g['ordem'], 'produtos' => (int) $g['produtos'], 'repetir' => false, 'opcoes' => []];
         }
         if ($grupos !== []) {
+            foreach ($this->repetirDosGrupos($idRestaurante, array_keys($grupos)) as $idGrupo => $repetir) {
+                $grupos[$idGrupo]['repetir'] = $repetir;
+            }
             foreach ($this->opcoesDosGrupos($idRestaurante, array_keys($grupos)) as $o) {
                 $grupos[$o['id_grupo']]['opcoes'][] = $o;
             }
@@ -50,6 +54,7 @@ final class ComplementoRepository
             return null;
         }
         return ['id' => (int) $g['id'], 'nome' => (string) $g['nome'], 'minimo' => (int) $g['minimo'], 'maximo' => (int) $g['maximo'], 'ordem' => (int) $g['ordem'],
+            'repetir' => $this->repetirDosGrupos($idRestaurante, [(int) $g['id']])[(int) $g['id']] ?? false,
             'opcoes' => $this->opcoesDosGrupos($idRestaurante, [(int) $g['id']])];
     }
 
@@ -74,8 +79,16 @@ final class ComplementoRepository
                 'id' => (int) $o['id'], 'id_grupo' => (int) $o['id_grupo'], 'nome' => (string) $o['nome'],
                 'descricao' => $o['descricao'] !== null ? (string) $o['descricao'] : null, 'preco' => (string) $o['preco'],
                 'codigo' => $o['codigo'] !== null ? (string) $o['codigo'] : null, 'imagem_path' => $o['imagem_path'] !== null ? (string) $o['imagem_path'] : null,
-                'disponivel' => (int) $o['disponivel'] === 1, 'ordem' => (int) $o['ordem'], 'ficha' => [],
+                'disponivel' => (int) $o['disponivel'] === 1, 'ordem' => (int) $o['ordem'], 'ficha' => [], 'qtd_max' => null,
             ];
+        }
+        if ($opcoes !== [] && Esquema::tem($this->db, 'complemento_qtd')) {
+            $marcQ = implode(',', array_fill(0, count($opcoes), '?'));
+            $m = $this->db->prepare("SELECT id, qtd_max FROM complementos WHERE id_restaurante = ? AND qtd_max IS NOT NULL AND id IN ($marcQ)");
+            $m->execute([$idRestaurante, ...array_keys($opcoes)]);
+            foreach ($m->fetchAll(PDO::FETCH_KEY_PAIR) as $id => $max) {
+                $opcoes[(int) $id]['qtd_max'] = (int) $max;
+            }
         }
         if ($opcoes !== []) {
             $marc = implode(',', array_fill(0, count($opcoes), '?'));
@@ -112,10 +125,11 @@ final class ComplementoRepository
         foreach ($this->opcoesDosGrupos($idRestaurante, array_map(static fn (array $l): int => (int) $l['id'], $linhas)) as $o) {
             $opcoes[$o['id_grupo']][] = $o;
         }
+        $repetir = $this->repetirDosGrupos($idRestaurante, array_map(static fn (array $l): int => (int) $l['id'], $linhas));
         $saida = [];
         foreach ($linhas as $l) {
             $saida[(int) $l['id_produto']][] = ['id' => (int) $l['id'], 'nome' => (string) $l['nome'], 'minimo' => (int) $l['minimo'], 'maximo' => (int) $l['maximo'],
-                'opcoes' => $opcoes[(int) $l['id']] ?? []];
+                'repetir' => $repetir[(int) $l['id']] ?? false, 'opcoes' => $opcoes[(int) $l['id']] ?? []];
         }
         return $saida;
     }
@@ -243,6 +257,38 @@ final class ComplementoRepository
             WHERE ci.id_insumo = ? AND ci.id_restaurante = ? AND c.ativo = 1 ORDER BY c.nome');
         $q->execute([$idInsumo, $idRestaurante]);
         return array_map('strval', $q->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Grupos em que o cliente pode escolher a mesma opcao mais de uma vez (ex.: 3 ovos).
+     * @param list<int> $ids
+     * @return array<int,bool>
+     */
+    public function repetirDosGrupos(int $idRestaurante, array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === [] || !Esquema::tem($this->db, 'complemento_qtd')) {
+            return [];
+        }
+        $q = $this->db->prepare('SELECT id, repetir FROM complemento_grupos WHERE id_restaurante = ? AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
+        $q->execute([$idRestaurante, ...$ids]);
+        return array_map(static fn ($v): bool => (int) $v === 1, $q->fetchAll(PDO::FETCH_KEY_PAIR));
+    }
+
+    /** Liga/desliga "escolher a mesma opcao mais de uma vez" (sem a migracao, nao faz nada). */
+    public function definirRepetir(int $idRestaurante, int $idGrupo, bool $repetir): void
+    {
+        if (Esquema::tem($this->db, 'complemento_qtd')) {
+            $this->db->prepare('UPDATE complemento_grupos SET repetir = ? WHERE id = ? AND id_restaurante = ?')->execute([$repetir ? 1 : 0, $idGrupo, $idRestaurante]);
+        }
+    }
+
+    /** Limite de vezes da opcao no grupo que repete (null = livre). */
+    public function definirQtdMax(int $idRestaurante, int $idOpcao, ?int $maximo): void
+    {
+        if (Esquema::tem($this->db, 'complemento_qtd')) {
+            $this->db->prepare('UPDATE complementos SET qtd_max = ? WHERE id = ? AND id_restaurante = ?')->execute([$maximo, $idOpcao, $idRestaurante]);
+        }
     }
 
     public function proximaOrdemGrupo(int $idRestaurante): int

@@ -27,7 +27,32 @@ final class EquipeController extends BaseGerencia
         if ($filtro !== 'todos') {
             $pessoas = array_values(array_filter($pessoas, static fn (array $p): bool => $p['cargo'] === $filtro));
         }
-        return $this->tela('gerencia/equipe/lista', 'equipe', 'Equipe', compact('pessoas', 'filtro', 'contagem', 'total'));
+        return $this->tela('gerencia/equipe/lista', 'equipe', 'Equipe', compact('pessoas', 'filtro', 'contagem', 'total') + [
+            // Regras de cada funcao (antes ficavam em Entrega e pagamento).
+            'entregadorVeValores' => (new \Cardapim\Services\Gerencia\EntregaPagamentoService($this->db, $this->usuario, $this->restaurante['id']))->entregadorVeValores(),
+            'permissoesGarcom' => (new \Cardapim\Services\Garcom\PermissoesGarcom($this->db, $this->restaurante['id']))->config(),
+            'pageStyles' => ['css/equipe-perfis.css'],
+        ]);
+    }
+
+    /** Regras do entregador: ve ou nao os valores das taxas no painel dele. */
+    public function regrasEntregador(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = (new \Cardapim\Services\Gerencia\EntregaPagamentoService($this->db, $this->usuario, $this->restaurante['id']))->salvarPainelEntregador($_POST);
+        return $this->voltar($this->url('equipe') . '#entregador', $res->ok ? 'sucesso' : 'erro', $res->mensagem);
+    }
+
+    /** Perfil garcom: remover itens, cancelar comanda e fechar a conta. */
+    public function regrasGarcom(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $res = (new \Cardapim\Services\Garcom\PermissoesGarcom($this->db, $this->restaurante['id']))->salvar($_POST, $this->usuario);
+        return $this->voltar($this->url('equipe') . '#perfil-garcom', $res->ok ? 'sucesso' : 'erro', $res->mensagem);
     }
 
     public function nova(string $slug): Response

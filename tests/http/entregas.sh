@@ -170,9 +170,10 @@ curl -s -b "$mj" "$e" -o "$tmp/sem-valores.html"
 nao_contem "entregador nao ve o total em taxas" "$tmp/sem-valores.html" "em taxas"
 nao_contem "entregador nao ve a taxa de cada entrega" "$tmp/sem-valores.html" 'class="feitas-valor"'
 contem "entregador continua vendo a entrega feita" "$tmp/sem-valores.html" "<strong>#$numero</strong>"
-curl -s -b "$gj" "$g/entrega-pagamento" -o "$tmp/ep.html"
+curl -s -b "$gj" "$g/equipe" -o "$tmp/ep.html"
+contem "opcao do entregador fica na aba Equipe" "$tmp/ep.html" 'name="entregador_ve_valores"'
 nao_contem "opcao aparece desligada para o gerente" "$tmp/ep.html" 'name="entregador_ve_valores" value="1" checked'
-esperar "gerente volta a mostrar os valores" "$(enviar "$gj" "$g/entrega-pagamento/entregador" "$g/entrega-pagamento" entregador_ve_valores=1 | cut -d' ' -f1)" "303"
+esperar "gerente volta a mostrar os valores" "$(enviar "$gj" "$g/equipe/regras/entregador" "$g/equipe" entregador_ve_valores=1 | cut -d' ' -f1)" "303"
 curl -s -b "$mj" "$e" -o "$tmp/com-valores.html"
 contem "entregador volta a ver as taxas" "$tmp/com-valores.html" "em taxas"
 esperar "motoqueiro nao muda a opcao" "$(curl -s -o /dev/null -b "$mj" -w '%{http_code}' -X POST "$g/entrega-pagamento/entregador")" "403"

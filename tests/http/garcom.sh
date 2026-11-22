@@ -103,7 +103,7 @@ subtotal=$((preco_cerveja * 2 + preco_outro))
 contem "total dos itens com 10%" "$tmp/aviso.html" "$(reais $((subtotal + (subtotal * 1000 + 5000) / 10000)))"
 
 echo "Perfil garcom: sem permissao, nao remove item nem cancela comanda"
-esperar "aba entrega e pagamento tem o card Perfil garcom" "$(pagina "$gj" "$g/entrega-pagamento")" "200"
+esperar "aba equipe tem o card Perfil garcom" "$(pagina "$gj" "$g/equipe")" "200"
 contem "card Perfil garcom" "$tmp/pagina.html" 'id="perfil-garcom"'
 contem "check de remover itens" "$tmp/pagina.html" 'name="remover_itens"'
 contem "check de cancelar comanda" "$tmp/pagina.html" 'name="cancelar_comanda"'
@@ -137,7 +137,7 @@ subtotal=$((preco_cerveja * 2))
 
 echo "Fechar conta: 10% e dinheiro com troco"
 echo "Perfil garcom: fechar a conta"
-pagina "$gj" "$g/entrega-pagamento" >/dev/null
+pagina "$gj" "$g/equipe" >/dev/null
 contem "check de fechar a conta (marcado por padrao)" "$tmp/pagina.html" 'name="fechar_conta" value="1" checked'
 enviar "$gj" "$g/entrega-pagamento/garcom" "$g/entrega-pagamento" remover_itens=1 cancelar_comanda=1 fechar_conta_enviado=1 >/dev/null
 case "$(aviso "$gj" "$g/entrega-pagamento")" in *"Fechar a conta: só o caixa"*) ok "aviso de fechar conta bloqueado";; *) falha "aviso de fechar conta bloqueado";; esac
