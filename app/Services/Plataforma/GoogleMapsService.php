@@ -6,6 +6,8 @@ namespace Cardapim\Services\Plataforma;
 
 use Cardapim\Core\RateLimiter;
 use Cardapim\Modules\Integracoes\GoogleRoutesApi;
+use Cardapim\Modules\Integracoes\IntegracaoErro;
+use Cardapim\Shared\Http\ErroHttp;
 use Cardapim\Repositories\Plataforma\GoogleMapsRepository;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
@@ -83,9 +85,17 @@ final class GoogleMapsService
             $this->repo->salvar($dados);
             Auditoria::registrar($this->usuario, 'Google Routes: teste concluído', 'Conexão e cálculo de rota válidos.');
             return Resultado::sucesso('Conexão confirmada. A Routes API calculou a rota de teste. Agora você pode ativar.');
-        } catch (Throwable $erro) {
-            error_log('[Cardapim] Teste Google Routes falhou: ' . get_class($erro));
+        } catch (IntegracaoErro $erro) {
+            // Apenas mensagem traduzida + codigos de erro validados, sem corpo bruto do Google.
             return Resultado::falha('O teste falhou: ' . $erro->getMessage());
+        } catch (ErroHttp $erro) {
+            // Erro de transporte: nao confundir com recusas da chave ou quotas.
+            error_log('[Cardapim] Teste Google Routes: falha de rede (' . get_class($erro) . ').');
+            return Resultado::falha('Não conseguimos conectar à Routes API. Verifique a rede, o DNS e o firewall de saída da VPS e tente novamente.');
+        } catch (Throwable $erro) {
+            // Evita vazar chave, coordenadas, SQL ou detalhes internos em falhas inesperadas.
+            error_log('[Cardapim] Teste Google Routes: falha interna (' . get_class($erro) . ').');
+            return Resultado::falha('Não foi possível concluir o teste por uma falha interna. Consulte os logs do servidor.');
         }
     }
 
