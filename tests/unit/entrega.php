@@ -21,7 +21,8 @@ $ok = static function (bool $condicao, string $descricao) use (&$falhas): void {
     }
 };
 
-// Distancia em linha reta (Haversine): Praca da Se -> Av. Paulista (MASP) ~ 2,9 km.
+// Haversine continua sendo o motor padrao: nenhuma alteracao ao ativar o recurso opcional.
+ // Distancia em linha reta (Haversine): Praca da Se -> Av. Paulista (MASP) ~ 2,9 km.
 $d = Distancia::km(-23.5503, -46.6340, -23.5614, -46.6559);
 $ok($d > 2.4 && $d < 2.8, 'distancia Se -> MASP (' . round($d, 2) . ' km)');
 $ok(Distancia::km(-3.73, -38.52, -3.73, -38.52) === 0.0, 'mesmo ponto = 0 km');
