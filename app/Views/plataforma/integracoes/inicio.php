@@ -43,6 +43,20 @@ $cartoes = [
             </article>
         <?php endforeach; ?>
 
+        <article class="integracao-cartao is-google-maps">
+            <div class="integracao-topo">
+                <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('route') ?></span>
+                <span class="etiqueta <?= $google['ativo'] ? 'etiqueta-ok' : 'etiqueta-neutra' ?>">
+                    <?= Icon::svg($google['ativo'] ? 'circle-check' : 'power') ?><?= $google['ativo'] ? 'Ativo' : ($google['configurado'] ? 'Desligado' : 'Não configurado') ?>
+                </span>
+            </div>
+            <h2>Google Maps — Routes API</h2>
+            <p>Distância pelas ruas para calcular as taxas de entrega de todos os restaurantes. Uma chave da plataforma.</p>
+            <a class="btn <?= $google['configurado'] ? 'btn-outline' : 'btn-primary' ?> btn-sm btn-block" href="<?= $e($base . '/integracoes/google-maps') ?>">
+                <?= Icon::svg($google['configurado'] ? 'settings' : 'key-round', 'icon-sm') ?><?= $google['configurado'] ? 'Gerenciar' : 'Configurar' ?>
+            </a>
+        </article>
+
         <?php $smsConfigurado = $sms['origem'] !== ''; ?>
         <article class="integracao-cartao is-sms">
             <div class="integracao-topo">
