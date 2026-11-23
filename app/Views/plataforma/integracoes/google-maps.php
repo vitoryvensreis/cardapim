@@ -39,6 +39,7 @@ $url = $base . '/integracoes/google-maps';
                 <div class="resumo-linha"><span>Chave</span><strong><?= $e($google['chave_final']) ?></strong></div>
                 <div class="resumo-linha"><span>Último teste válido</span><strong><?= $e($google['testado_em'] !== '' ? date('d/m/Y H:i', strtotime($google['testado_em'])) : 'Ainda não testada') ?></strong></div>
             </div>
+            <p class="texto-suave">O teste informa o código HTTP, o motivo devolvido pelo Google (quando disponível) e como resolver, sem mostrar sua chave de API.</p>
             <div class="bloco-rodape">
                 <form method="post" action="<?= $e($url . '/testar') ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">

@@ -134,6 +134,74 @@ foreach ([
     }
     $ok($falhouRota, 'Google Routes: recusa ' . $caso['descricao']);
 }
+/* ---------- Diagnostico Google: codigos oficiais, mensagens seguras e sem segredo ---------- */
+$casosGoogle = [
+    [403, 'PERMISSION_DENIED', 'API_KEY_IP_ADDRESS_BLOCKED', 'IP de origem'],
+    [403, 'PERMISSION_DENIED', 'API_KEY_HTTP_REFERRER_BLOCKED', 'referenciadores HTTP'],
+    [403, 'PERMISSION_DENIED', 'API_KEY_SERVICE_BLOCKED', 'não tem permissão'],
+    [403, 'PERMISSION_DENIED', 'SERVICE_DISABLED', 'desativada'],
+    [403, 'PERMISSION_DENIED', 'BILLING_DISABLED', 'faturamento'],
+    [403, 'PERMISSION_DENIED', 'API_KEY_INVALID', 'inválida'],
+    [429, 'RESOURCE_EXHAUSTED', 'RATE_LIMIT_EXCEEDED', 'cota'],
+    [429, 'RESOURCE_EXHAUSTED', 'RESOURCE_QUOTA_EXCEEDED', 'cota'],
+    [403, 'PERMISSION_DENIED', 'CONSUMER_SUSPENDED', 'bloqueado'],
+];
+foreach ($casosGoogle as [$httpStatus, $googleStatus, $motivo, $esperado]) {
+    $corpoErro = json_encode(['error' => [
+        'code' => $httpStatus,
+        'status' => $googleStatus,
+        // Simula resposta de terceiro que inclui segredo: NUNCA exibir ou registrar.
+        'message' => 'Google provider response, key=AIzaTESTE_SECRETO_NUNCA_EXIBIR',
+        'details' => [['@type' => 'type.googleapis.com/google.rpc.ErrorInfo', 'reason' => $motivo]],
+    ]], JSON_THROW_ON_ERROR);
+    $diagnostico = null;
+    try {
+        (new GoogleRoutesApi('chave_teste', new ClienteFalso([new RespostaHttp($httpStatus, $corpoErro)])))
+            ->distanciaKm(-3.73, -38.52, 'Rua Teste 100, Fortaleza, CE, Brasil');
+    } catch (IntegracaoErro $ex) {
+        $diagnostico = $ex->getMessage();
+    }
+    $ok(is_string($diagnostico) && str_contains($diagnostico, $esperado)
+        && str_contains($diagnostico, $motivo) && str_contains($diagnostico, 'HTTP ' . $httpStatus),
+        'Google Routes: diagnostico seguro de ' . $motivo);
+    $ok(is_string($diagnostico) && !str_contains($diagnostico, 'AIzaTESTE_SECRETO_NUNCA_EXIBIR'),
+        'Google Routes: nao revela resposta crua de ' . $motivo);
+}
+$casosSemReason = [
+    [403, '{"error":{"code":403,"status":"PERMISSION_DENIED","message":"Permission denied"}}', 'motivo específico não foi informado'],
+    [400, '{"error":{"code":400,"status":"INVALID_ARGUMENT","message":"Origin and destination must be set."}}', 'parâmetros'],
+    [401, '{"error":{"code":401,"status":"UNAUTHENTICATED","message":"Not authenticated"}}', 'autenticação'],
+    [404, '{"error":{"code":404,"status":"NOT_FOUND","message":"Not found"}}', 'não encontrou'],
+    [429, '{"error":{"code":429,"status":"RESOURCE_EXHAUSTED","message":"Quota"}}', 'limite'],
+    [503, '{"error":{"code":503,"status":"UNAVAILABLE","message":"Temporarily unavailable"}}', 'indisponível'],
+    [504, '{"error":{"code":504,"status":"DEADLINE_EXCEEDED","message":"Deadline"}}', 'demorou'],
+    [403, '{"error":{"code":403,"status":"PERMISSION_DENIED","message":"API key not valid. Please pass a valid API key."}}', 'inválida'],
+    [403, '{"error":{"code":403,"status":"PERMISSION_DENIED","message":"Billing has not been enabled on the project."}}', 'faturamento'],
+    [403, '{"error":{"code":403,"status":"PERMISSION_DENIED","message":"Requests from IP address 192.0.2.1 are blocked."}}', 'IP de origem'],
+];
+foreach ($casosSemReason as [$httpStatus, $corpo, $esperado]) {
+    $diagnostico = null;
+    try {
+        (new GoogleRoutesApi('chave_teste', new ClienteFalso([new RespostaHttp($httpStatus, $corpo)])))
+            ->distanciaKm(-3.73, -38.52, 'Rua Teste 100, Fortaleza, CE, Brasil');
+    } catch (IntegracaoErro $ex) {
+        $diagnostico = $ex->getMessage();
+    }
+    $ok(is_string($diagnostico) && str_contains($diagnostico, $esperado),
+        'Google Routes: erro por status HTTP ' . $httpStatus . ' sem ErrorInfo');
+}
+// Nunca repetir valores arbitrarios ou codigo HTML vindo do provedor no painel.
+$injetado = '{"error":{"code":403,"status":"PERMISSION_DENIED","message":"<script>alert(1)</script> secretAIza123","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"<script>"}]}}';
+$msgSegura = '';
+try {
+    (new GoogleRoutesApi('chave_teste', new ClienteFalso([new RespostaHttp(403, $injetado)])))
+        ->distanciaKm(-3.73, -38.52, 'Rua Teste 100, Fortaleza, CE, Brasil');
+} catch (IntegracaoErro $ex) {
+    $msgSegura = $ex->getMessage();
+}
+$ok(!str_contains($msgSegura, '<script>') && !str_contains($msgSegura, 'secretAIza123')
+    && str_contains($msgSegura, 'HTTP 403'), 'Google Routes: protecao contra XSS e vazamento da resposta');
+
 // SQLite em memoria: configuracao unica, criptografada e desligada por padrao.
 if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     $dbGoogle = new PDO('sqlite::memory:');
