@@ -19,6 +19,13 @@ return static function (Router $router): void {
     $router->get('/painel', [PainelController::class, 'inicio']);
 
     $router->get('/painel/integracoes', [IntegracoesController::class, 'inicio']);
+    // Routes API global da plataforma: uma unica chave, apenas adm_master.
+    $router->get('/painel/integracoes/google-maps', [IntegracoesController::class, 'google']);
+    $router->post('/painel/integracoes/google-maps', [IntegracoesController::class, 'googleSalvar']);
+    $router->post('/painel/integracoes/google-maps/testar', [IntegracoesController::class, 'googleTestar']);
+    $router->post('/painel/integracoes/google-maps/ativar', [IntegracoesController::class, 'googleAtivar']);
+    $router->post('/painel/integracoes/google-maps/desativar', [IntegracoesController::class, 'googleDesativar']);
+    $router->post('/painel/integracoes/google-maps/remover', [IntegracoesController::class, 'googleRemover']);
     $router->get('/painel/integracoes/asaas', [IntegracoesController::class, 'asaas']);
     $router->post('/painel/integracoes/asaas', [IntegracoesController::class, 'asaasConectar']);
     $router->post('/painel/integracoes/asaas/webhook', [IntegracoesController::class, 'asaasWebhook']);
