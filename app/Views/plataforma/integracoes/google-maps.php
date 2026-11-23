@@ -24,7 +24,7 @@ $url = $base . '/integracoes/google-maps';
     <?php endif; ?>
 
     <section class="bloco">
-        <div class="bloco-cabecalho"><h2><?= Icon::svg('route') ?>Motor de distância ativo</h2></div>
+        <div class="bloco-cabecalho"><h2><?= Icon::svg('map-pin') ?>Motor de distância ativo</h2></div>
         <p><strong><?= $google['ativo'] ? 'Google Routes API (pelas ruas)' : 'Haversine (linha reta)' ?></strong></p>
         <p class="texto-suave">As taxas por bairro continuam funcionando sem consultar o Google. O GPS e o mapa de rastreamento dos entregadores não mudam.</p>
         <?php if ($google['ativo']): ?>
@@ -42,7 +42,7 @@ $url = $base . '/integracoes/google-maps';
             <div class="bloco-rodape">
                 <form method="post" action="<?= $e($url . '/testar') ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                    <button class="btn btn-outline" type="submit"><?= Icon::svg('check-circle', 'icon-sm') ?>Testar conexão</button>
+                    <button class="btn btn-outline" type="submit"><?= Icon::svg('circle-check', 'icon-sm') ?>Testar conexão</button>
                 </form>
                 <?php if ($google['ativo']): ?>
                     <form method="post" action="<?= $e($url . '/desativar') ?>">
