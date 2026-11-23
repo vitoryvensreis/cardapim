@@ -132,7 +132,7 @@ final class CriarPedido
             $endereco = $norm['dados'];
             $entrega = $this->verificador->verificar($idRest, $endereco);
             if (!$entrega['entrega']) {
-                return self::erro(422, $entrega['mensagem'], 'endereco');
+                return self::erro($entrega['motivo'] === 'erro_rota' ? 503 : 422, $entrega['mensagem'], 'endereco');
             }
             $taxa = Numero::centavos($entrega['taxa']);
             if ($entrega['pedido_minimo'] !== null && $subtotal < Numero::centavos($entrega['pedido_minimo'])) {
