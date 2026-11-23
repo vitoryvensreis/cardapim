@@ -102,3 +102,16 @@ duplo, `forms.js`): a trava só vale **depois** do "Confirmar". Antes, o primeir
 confirmado era cancelado, e "Fechar caixa" (e outros formulários com confirmação) não faziam nada. Campo inválido não
 abre a janela. O "Abrir caixa" do topo (caixa fechado) leva ao campo "Troco inicial" e, na própria tela, rola, foca e
 destaca o formulário em vez de recarregar. Teste: `tests/js/confirmar-trava.js` (roda no CI).
+
+
+## Produtos repetidos na comanda (agrupamento visual)
+
+O sistema continua gravando cada lancamento em `pedido_itens` (com ID, funcionario, horario, quantidade, preco e consumo de estoque proprios). `ComandaService::detalhes()` fornece tanto `itens` originais quanto `itens_agrupados`, calculados por `AgrupadorItensComanda` para a apresentacao. A regra e unica para caixa, garcom e conta impressa.
+
+- Produtos comuns com mesmo `id_produto`, nome historico, preco unitario, unidade, complementos e observacao sao mostrados numa linha com quantidade e total somados.
+- Produtos com preco/personalizacao diferentes, por peso/volume, sem ID ou cancelados permanecem individuais.
+- Componentes de combo sao reunidos exclusivamente pelo `combo_lote`, preservando lotes distintos e o cancelamento do combo inteiro.
+- No caixa e no garcom, `Ver N lancamentos` expande a lista de horarios, responsaveis, valores e a acao de cancelar **o lancamento original** (conforme a permissao do perfil). Um lancamento com 3 unidades continua sendo cancelado integralmente.
+- As operacoes de escrita, baixa e devolucao de estoque, pagamentos, auditoria, contagem de itens, impressao incremental e historico detalhado nao usam os grupos. Nao ha migration.
+
+Teste: `php tests/unit/agrupador-itens-comanda.php`.
