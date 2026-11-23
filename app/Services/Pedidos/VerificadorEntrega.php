@@ -6,11 +6,15 @@ namespace Cardapim\Services\Pedidos;
 
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Modules\Entrega\Distancia;
+use Cardapim\Modules\Integracoes\GoogleRoutesApi;
+use Cardapim\Core\RateLimiter;
+use Cardapim\Repositories\Plataforma\GoogleMapsRepository;
 use Cardapim\Modules\Entrega\TextoLocal;
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
 use Cardapim\Services\Geo\Geocodificador;
 use Cardapim\Shared\Numero;
 use PDO;
+use Throwable;
 
 /**
  * O restaurante entrega neste endereco? Quanto custa? Mesma regra no cardapio (ao digitar), na criacao do
@@ -45,14 +49,58 @@ final class VerificadorEntrega
         $areas = $repo->areas($idRestaurante);
         $escolha = AreaEntrega::escolher($areas, $e['bairro'] ?? '', $e['cidade'] ?? '', null);
         $resultado = $base;
+        $googleAtivo = false;
         if ($escolha['area'] === null && AreaEntrega::precisaDeLocalizacao($areas)) {
             $local = $repo->local($idRestaurante);
             if ($local['latitude'] !== null) {
-                $ponto = $this->coordenadas($e);
-                if ($ponto !== null) {
-                    $distancia = round(Distancia::km($local['latitude'], $local['longitude'], $ponto['latitude'], $ponto['longitude']), 2);
-                    $resultado = ['distancia_km' => $distancia, 'latitude' => $ponto['latitude'], 'longitude' => $ponto['longitude'], 'localizacao' => $ponto['como']] + $resultado;
+                // A configuracao e GLOBAL e somente o adm_master pode altera-la.
+                // Bairros continuam com prioridade e nao consomem chamadas pagas.
+                $google = (new GoogleMapsRepository($this->db))->buscar();
+                $googleAtivo = $google !== null && $google['ativo'];
+                if ($googleAtivo) {
+                    $destino = trim(implode(', ', array_filter([
+                        trim((string) ($e['logradouro'] ?? '') . ' ' . (string) ($e['numero'] ?? '')),
+                        (string) ($e['bairro'] ?? ''),
+                        (string) ($e['cidade'] ?? ''),
+                        (string) ($e['estado'] ?? ''),
+                        (string) ($e['cep'] ?? ''),
+                        'Brasil',
+                    ])));
+                    if (trim((string) ($e['logradouro'] ?? '')) === '' || trim((string) ($e['numero'] ?? '')) === ''
+                        || trim((string) ($e['cidade'] ?? '')) === '' || trim((string) ($e['estado'] ?? '')) === '') {
+                        return ['entrega' => false, 'motivo' => 'sem_localizacao',
+                            'mensagem' => 'Informe rua, número, cidade e estado para calcular a entrega pelas ruas.'] + $base;
+                    }
+                    if (!RateLimiter::padrao(300, 60)->permitir('google-routes-global')) {
+                        return ['entrega' => false, 'motivo' => 'erro_rota',
+                            'mensagem' => 'O cálculo de entrega está muito solicitado agora. Tente novamente em instantes.'] + $base;
+                    }
+                    try {
+                        $distancia = (new GoogleRoutesApi($google['chave']))->distanciaKm(
+                            (float) $local['latitude'], (float) $local['longitude'], $destino
+                        );
+                    } catch (Throwable $erro) {
+                        error_log('[Cardapim] Routes API indisponivel no restaurante ' . $idRestaurante . ': ' . get_class($erro));
+                        return ['entrega' => false, 'motivo' => 'erro_rota',
+                            'mensagem' => 'Não conseguimos calcular a entrega agora. Tente novamente em instantes.'] + $base;
+                    }
+                    // O resultado do Google e usado APENAS para selecionar a taxa; nao e salvo no pedido.
+                    // Coordenadas para o mapa do pedido seguem vindas do mecanismo independente do Deliveryzim.
+                    $ponto = $this->coordenadas($e);
+                    if ($ponto !== null) {
+                        $resultado = ['latitude' => $ponto['latitude'], 'longitude' => $ponto['longitude'],
+                            'localizacao' => $ponto['como']] + $resultado;
+                    }
                     $escolha = AreaEntrega::escolher($areas, $e['bairro'] ?? '', $e['cidade'] ?? '', $distancia);
+                } else {
+                    // Codigo original preservado integralmente quando o ADM desliga o Google.
+                    $ponto = $this->coordenadas($e);
+                    if ($ponto !== null) {
+                        $distancia = round(Distancia::km($local['latitude'], $local['longitude'], $ponto['latitude'], $ponto['longitude']), 2);
+                        $resultado = ['distancia_km' => $distancia, 'latitude' => $ponto['latitude'],
+                            'longitude' => $ponto['longitude'], 'localizacao' => $ponto['como']] + $resultado;
+                        $escolha = AreaEntrega::escolher($areas, $e['bairro'] ?? '', $e['cidade'] ?? '', $distancia);
+                    }
                 }
             }
         }
@@ -78,6 +126,7 @@ final class VerificadorEntrega
         $bairro = TextoLocal::limpo((string) ($e['bairro'] ?? ''), 100);
         $mensagem = match (true) {
             $escolha['motivo'] === 'sem_areas' => 'Este restaurante ainda não definiu onde entrega.' . $retirada,
+            $escolha['motivo'] === 'fora_raio' && $googleAtivo => 'Ainda não entregamos neste endereço pelas faixas de distância cadastradas.' . $retirada,
             $escolha['motivo'] === 'fora_raio' => sprintf('Ainda não entregamos aqui: o endereço fica a %s e entregamos até %s.', AreaEntrega::km((string) $resultado['distancia_km']), AreaEntrega::km((string) $maior)) . $retirada,
             $escolha['motivo'] === 'sem_localizacao' => 'Não conseguimos achar este endereço no mapa para calcular a distância. Confira a rua e o número ou toque em "Usar minha localização" se você estiver nele.',
             default => ($bairro !== '' ? 'Ainda não entregamos no bairro ' . $bairro . '.' : 'Ainda não entregamos neste endereço.') . $retirada,
