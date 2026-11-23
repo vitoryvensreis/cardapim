@@ -69,7 +69,7 @@ final class GoogleMapsService
         if ($dados === null) {
             return Resultado::falha('Cadastre a chave antes de testar.');
         }
-        if (!RateLimiter::padrao(5, 3600)->permitir('google-routes-teste|' . $this->usuario->id)) {
+        if (!RateLimiter::padrao(20, 3600)->permitir('google-routes-teste|' . $this->usuario->id)) {
             return Resultado::falha('Limite de testes por hora atingido.');
         }
         try {
