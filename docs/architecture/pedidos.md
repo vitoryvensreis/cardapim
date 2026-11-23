@@ -27,7 +27,9 @@ Verificacao: `php database/verify-pedidos.php --verify`.
   restaurante (`externalReference = pedido:{id}`), codigo copia e cola na tela do cliente, prazo de 60 min.
   CPF obrigatorio (exigencia do Asaas), guardado no cadastro do cliente. Pedido fica `aguardando_pagamento`
   e vira `recebido` pelo webhook do Asaas (`PAYMENT_RECEIVED`/`PAYMENT_CONFIRMED`) ou pela consulta que a tela
-  do cliente faz enquanto espera. Pix vencido: o processo agendado consulta a situação no Asaas;\n  quando ainda pendente, remove a cobrança no Asaas e só então cancela o pedido e devolve o estoque.\n  Se já estiver pago, confirma o pedido. Se o Asaas falhar, não cancela às cegas e tenta na próxima execução.
+  do cliente faz enquanto espera. Pix vencido: o processo agendado consulta a situação no Asaas;
+  quando ainda pendente, remove a cobrança no Asaas e só então cancela o pedido e devolve o estoque.
+  Se já estiver pago, confirma o pedido. Se o Asaas falhar, não cancela às cegas e tenta na próxima execução.
 - **Na entrega/retirada**: Pix, cartao de debito, cartao de credito, dinheiro (com "troco para").
   Pedido ja nasce `recebido`.
 
