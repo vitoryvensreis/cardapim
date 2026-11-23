@@ -43,60 +43,56 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
             <p>Toque aqui para lançar o primeiro pedido.</p>
         </a>
     <?php else: ?>
-        <?php
-        // Combo: linhas do mesmo lote juntas, com o nome e o total; remover tira o combo inteiro.
-        $lotes = [];
-        foreach ($itens as $i) {
-            if (($i['combo_lote'] ?? null) !== null) {
-                $lotes[$i['combo_lote']] ??= ['primeiro' => (int) $i['id'], 'centavos' => 0, 'nome' => (string) $i['combo_nome']];
-                $lotes[$i['combo_lote']]['centavos'] += Numero::centavos((string) $i['total']);
-            }
-        }
-        ?>
         <ul class="comanda-itens">
-            <?php foreach ($itens as $i): $lote = $i['combo_lote'] ?? null; ?>
-                <?php if ($lote !== null && $lotes[$lote]['primeiro'] === (int) $i['id']): ?>
+            <?php foreach ($c['itens_agrupados'] as $grupo): ?>
+                <?php if ($grupo['cancelado']): continue; endif; ?>
+                <?php
+                $i = $grupo['lancamentos'][0];
+                $multiplo = count($grupo['lancamentos']) > 1;
+                ?>
+                <?php if ($grupo['tipo'] === 'combo'): ?>
                     <li class="comanda-item comanda-combo">
                         <span class="comanda-item-qtd"><?= Icon::svg('boxes', 'icon-sm') ?></span>
-                        <div class="comanda-item-texto"><strong><?= $e($lotes[$lote]['nome']) ?></strong><small>Combo · <?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small></div>
-                        <span class="comanda-item-valor"><?= $e(GarcomController::reais($lotes[$lote]['centavos'])) ?></span>
+                        <div class="comanda-item-texto"><strong><?= $e((string) $grupo['nome']) ?></strong><small>Combo · <?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small></div>
+                        <span class="comanda-item-valor"><?= $e(GarcomController::reais($grupo['total_centavos'])) ?></span>
                         <?php if ($podeRemoverItens): ?>
-                        <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
-                        <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
-                        <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover o combo inteiro"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover o combo <?= $e($lotes[$lote]['nome']) ?></span></label>
-                        <form method="post" action="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" class="remover-form" id="<?= $e($idRemover) ?>-form">
-                            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
-                            <fieldset>
-                                <legend>O combo sai inteiro. Por quê?</legend>
-                                <label class="chip-opcao"><input type="radio" name="motivo" value="Lançado errado" checked><span>Lancei errado</span></label>
-                                <label class="chip-opcao"><input type="radio" name="motivo" value="Cliente desistiu"><span>Cliente desistiu</span></label>
-                                <label class="chip-opcao"><input type="radio" name="motivo" value="Demorou demais"><span>Demorou</span></label>
-                            </fieldset>
-                            <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover combo</button>
-                        </form>
+                            <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
+                            <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
+                            <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover o combo inteiro"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover o combo <?= $e((string) $grupo['nome']) ?></span></label>
+                            <form method="post" action="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" class="remover-form" id="<?= $e($idRemover) ?>-form">
+                                <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                                <fieldset>
+                                    <legend>O combo sai inteiro. Por quê?</legend>
+                                    <label class="chip-opcao"><input type="radio" name="motivo" value="Lançado errado" checked><span>Lancei errado</span></label>
+                                    <label class="chip-opcao"><input type="radio" name="motivo" value="Cliente desistiu"><span>Cliente desistiu</span></label>
+                                    <label class="chip-opcao"><input type="radio" name="motivo" value="Demorou demais"><span>Demorou</span></label>
+                                </fieldset>
+                                <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover combo</button>
+                            </form>
                         <?php endif; ?>
                     </li>
-                <?php endif; ?>
-                <?php if ($lote !== null): ?>
-                    <li class="comanda-item comanda-combo-item">
-                        <span class="comanda-item-qtd"><?= $e(QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?></span>
-                        <div class="comanda-item-texto"><strong><?= $e((string) $i['nome']) ?></strong><?php if ($i['observacao']): ?><span class="comanda-item-obs"><?= Icon::svg('sticky-note', 'icon-sm') ?><?= $e((string) $i['observacao']) ?></span><?php endif; ?></div>
-                    </li>
+                    <?php foreach ($grupo['lancamentos'] as $componente): ?>
+                        <li class="comanda-item comanda-combo-item">
+                            <span class="comanda-item-qtd"><?= $e(QuantidadeVenda::textoDoBanco($componente['quantidade'], (string) ($componente['unidade'] ?? 'un'))) ?></span>
+                            <div class="comanda-item-texto"><strong><?= $e((string) $componente['nome']) ?></strong><?php if ($componente['observacao']): ?><span class="comanda-item-obs"><?= Icon::svg('sticky-note', 'icon-sm') ?><?= $e((string) $componente['observacao']) ?></span><?php endif; ?></div>
+                        </li>
+                    <?php endforeach; ?>
                     <?php continue; ?>
                 <?php endif; ?>
+
                 <li class="comanda-item">
-                    <span class="comanda-item-qtd"><?= $e(QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?></span>
+                    <span class="comanda-item-qtd"><?= $e((string) $grupo['quantidade_texto']) ?></span>
                     <div class="comanda-item-texto">
-                        <strong><?= $e((string) $i['nome']) ?></strong>
+                        <strong><?= $e((string) $grupo['nome']) ?></strong>
                         <?php if (!empty($i['complementos_texto'])): ?><span class="comanda-item-obs item-complementos"><?= Icon::svg('square-plus', 'icon-sm') ?><?= $e((string) $i['complementos_texto']) ?></span><?php endif; ?>
                         <?php if ($i['observacao']): ?><span class="comanda-item-obs"><?= Icon::svg('sticky-note', 'icon-sm') ?><?= $e((string) $i['observacao']) ?></span><?php endif; ?>
-                        <small><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small>
+                        <?php if (!$multiplo): ?><small><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?></small><?php endif; ?>
                     </div>
-                    <span class="comanda-item-valor"><?= $e(Numero::reais((string) $i['total'])) ?></span>
-                    <?php if ($podeRemoverItens): ?>
-                    <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
-                    <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
-                    <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover item"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover <?= $e((string) $i['nome']) ?></span></label>
+                    <span class="comanda-item-valor"><?= $e(GarcomController::reais($grupo['total_centavos'])) ?></span>
+                    <?php if ($podeRemoverItens && !$multiplo): ?>
+                        <?php $idRemover = 'remover-item-' . (int) $i['id']; ?>
+                        <input type="checkbox" id="<?= $e($idRemover) ?>" class="comanda-item-alternar sr-only" aria-controls="<?= $e($idRemover) ?>-form">
+                        <label for="<?= $e($idRemover) ?>" class="comanda-item-remover" title="Remover item"><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover <?= $e((string) $i['nome']) ?></span></label>
                         <form method="post" action="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" class="remover-form" id="<?= $e($idRemover) ?>-form">
                             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                             <fieldset>
@@ -107,6 +103,34 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                             </fieldset>
                             <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover</button>
                         </form>
+                    <?php endif; ?>
+                    <?php if ($multiplo): ?>
+                        <details class="comanda-grupo-detalhes">
+                            <summary><?= Icon::svg('chevron-down', 'icon-sm') ?>Ver <?= count($grupo['lancamentos']) ?> lançamentos</summary>
+                            <div class="comanda-grupo-lancamentos">
+                                <?php foreach ($grupo['lancamentos'] as $lancamento): ?>
+                                    <div class="comanda-grupo-lancamento">
+                                        <div><strong><?= $e(QuantidadeVenda::textoDoBanco($lancamento['quantidade'], (string) ($lancamento['unidade'] ?? 'un'))) ?> · <?= $e(date('H:i', (int) strtotime((string) $lancamento['criado_em']))) ?></strong><small><?= $lancamento['autor'] ? 'Lançado por ' . $e((string) $lancamento['autor']) : 'Responsável não informado' ?></small></div>
+                                        <span class="comanda-item-valor"><?= $e(Numero::reais((string) $lancamento['total'])) ?></span>
+                                        <?php if ($podeRemoverItens): ?>
+                                            <details class="comanda-lancamento-cancelar">
+                                                <summary><?= Icon::svg('trash', 'icon-sm') ?><span class="sr-only">Remover lançamento de <?= $e((string) $lancamento['nome']) ?> das <?= $e(date('H:i', (int) strtotime((string) $lancamento['criado_em']))) ?></span></summary>
+                                                <form method="post" action="<?= $e($url . '/itens/' . (int) $lancamento['id'] . '/cancelar') ?>" class="remover-form">
+                                                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                                                    <fieldset>
+                                                        <legend>Por que remover este lançamento?</legend>
+                                                        <label class="chip-opcao"><input type="radio" name="motivo" value="Lançado errado" checked><span>Lancei errado</span></label>
+                                                        <label class="chip-opcao"><input type="radio" name="motivo" value="Cliente desistiu"><span>Cliente desistiu</span></label>
+                                                        <label class="chip-opcao"><input type="radio" name="motivo" value="Demorou demais"><span>Demorou</span></label>
+                                                    </fieldset>
+                                                    <button class="btn btn-sm btn-danger" type="submit"><?= Icon::svg('trash', 'icon-sm') ?>Remover lançamento</button>
+                                                </form>
+                                            </details>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </details>
                     <?php endif; ?>
                 </li>
             <?php endforeach; ?>
