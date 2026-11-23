@@ -59,6 +59,12 @@ usadas pelo adm_master em `/painel/integracoes` ([painel da plataforma](painel-p
 Endereços configuráveis (testes): `ASAAS_URL_PRODUCAO` (padrão `https://api.asaas.com/v3`) e `ASAAS_URL_SANDBOX` (padrão `https://api-sandbox.asaas.com/v3`).
 O processamento dos pagamentos (marcar pedido como pago) entra com o módulo de pedidos.
 
+### Cancelamento de cobranças Pix expiradas
+
+Em pedidos online, `PixPedido::PRAZO_MINUTOS` é 60. `bin/expirar-pix.php` roda a cada minuto, consulta a cobrança pelo ID e só a exclui via `DELETE /v3/payments/{id}` se estiver `PENDING` ou `OVERDUE`. O sistema só cancela o pedido depois de uma exclusão bem-sucedida (ou 404 idempotente). Se o Asaas estiver inacessível ou rejeitar a exclusão, o pedido permanece pendente para nova tentativa. Cobrança já paga é conciliada, nunca excluída. A exclusão NÃO é estorno de valores recebidos.
+
+A tarefa é instalada pelo deploy com `deploy/scripts/install-expirar-pix-cron.sh` quando o crontab do usuário do site permite. Verificar na VPS após publicar. Ver `docs/architecture/pedidos.md`.
+
 ## WhatsApp (Evolution API)
 
 - Servidor: Evolution API (canal Baileys) na VPS de mensageria, por HTTPS ([passo a passo](../deploy/evolution.md)).
