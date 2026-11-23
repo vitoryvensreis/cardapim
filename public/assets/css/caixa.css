@@ -532,3 +532,17 @@
   .caixa-abrir.is-destaque { animation: caixa-destaque 1.2s var(--ease-out) 1; }
 }
 @keyframes caixa-destaque { 0% { box-shadow: 0 0 0 0 rgb(255 88 37 / 55%); } 100% { box-shadow: 0 0 0 3px var(--c-orange), var(--sh-md); } }
+
+/* Comanda: produto consolidado com historico de cada lancamento (sem modal). */
+.conta-grupo-detalhes { grid-column: 1 / -1; min-width: 0; }
+.conta-grupo-detalhes > summary { display: flex; align-items: center; gap: .35rem; min-height: 2.75rem; width: fit-content; color: var(--c-wine); font-weight: 700; cursor: pointer; list-style: none; }
+.conta-grupo-detalhes > summary::-webkit-details-marker { display: none; }
+.conta-grupo-detalhes > summary:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 3px; }
+.conta-grupo-detalhes[open] > summary .icon { transform: rotate(180deg); }
+.conta-grupo-lancamentos { padding: .15rem .65rem .35rem; border-left: 2px solid var(--c-line); }
+.conta-grupo-lancamento { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .6rem; padding: .45rem 0; }
+.conta-grupo-lancamento + .conta-grupo-lancamento { border-top: 1px solid var(--c-line); }
+.conta-grupo-lancamento > span { min-width: 0; }
+.conta-grupo-lancamento small { display: block; color: var(--c-muted); font-size: .78rem; }
+.conta-grupo-lancamento > strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.conta-grupo-lancamento .conta-cancelar { width: 2.75rem; height: 2.75rem; margin: 0; }
