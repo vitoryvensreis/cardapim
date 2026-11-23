@@ -56,6 +56,7 @@ $legalLead = 'Quais dados o ' . marca() . ' usa, para quê, com quem compartilha
                 <li><strong>WhatsApp, via servidor próprio (Evolution API):</strong> envio do código de acesso e dos avisos do pedido (número e texto da mensagem).</li>
                 <li><strong>iFood:</strong> troca de status dos pedidos que vieram de lá, quando o restaurante conecta a integração.</li>
                 <li><strong>OpenStreetMap e Nominatim:</strong> exibem o mapa e convertem endereço em localização. <strong>BrasilAPI e ViaCEP:</strong> preenchem o endereço pelo CEP e os dados do CNPJ.</li>
+                <li><strong>Google Maps Platform (Routes API):</strong> quando habilitada pela administração da plataforma, recebe a localização do restaurante e o endereço de entrega informado pelo cliente para estimar a distância por ruas e definir a faixa de taxa. O serviço é operado pelo Google, sujeito às condições aplicáveis e à <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de Privacidade do Google</a>. O mapa de rastreamento permanece independente.</li>
                 <li><strong>Google Fonts:</strong> fontes do site, carregadas só com o seu consentimento.</li>
                 <li><strong>Hospedagem e e-mail:</strong> servidor contratado pela Escotilha Produtora, onde ficam o banco de dados e o serviço de e-mail do sistema.</li>
                 <li><strong>Autoridades:</strong> quando houver obrigação legal ou ordem judicial.</li>

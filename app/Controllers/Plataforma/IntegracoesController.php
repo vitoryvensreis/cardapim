@@ -16,6 +16,7 @@ use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Plataforma\AplicativosParceirosService;
 use Cardapim\Services\Plataforma\CobrancaAssinaturas;
 use Cardapim\Services\Plataforma\SmsGatewayService;
+use Cardapim\Services\Plataforma\GoogleMapsService;
 use Cardapim\Shared\Seguranca\Cripto;
 
 /**
@@ -39,6 +40,7 @@ final class IntegracoesController extends BasePlataforma
             'whatsapp' => $repo->buscar(null, 'whatsapp'),
             'whatsappDisponivel' => WhatsAppProvedores::algumDisponivel(),
             'sms' => $this->smsServico()->resumo(),
+            'google' => $this->googleServico()->estado(),
             'aplicativos' => array_map(
                 fn (string $provedor): array => $this->aplicativosServico()->resumo($provedor),
                 array_keys(AplicativosParceiros::PROVEDORES),
@@ -224,6 +226,63 @@ final class IntegracoesController extends BasePlataforma
     public function smsRemover(): Response
     {
         return $this->acao(fn (): Resultado => $this->smsServico()->remover(), '/painel/integracoes/sms');
+    }
+
+    /* ---------- Google Routes: chave unica para a plataforma ---------- */
+
+    public function google(): Response
+    {
+        if ($r = $this->entrar()) {
+            return $r;
+        }
+        return $this->telaGoogle([]);
+    }
+
+    public function googleSalvar(): Response
+    {
+        if ($r = $this->entrar(true)) {
+            return $r;
+        }
+        $resultado = $this->googleServico()->salvar($this->post('chave'));
+        if ($resultado->ok) {
+            return $this->voltar('/painel/integracoes/google-maps', 'sucesso', $resultado->mensagem);
+        }
+        return $this->telaGoogle($resultado->erros + ['_geral' => $resultado->mensagem], 422);
+    }
+
+    public function googleTestar(): Response
+    {
+        return $this->acao(fn (): Resultado => $this->googleServico()->testar(), '/painel/integracoes/google-maps');
+    }
+
+    public function googleAtivar(): Response
+    {
+        return $this->acao(fn (): Resultado => $this->googleServico()->ativar(true), '/painel/integracoes/google-maps');
+    }
+
+    public function googleDesativar(): Response
+    {
+        return $this->acao(fn (): Resultado => $this->googleServico()->ativar(false), '/painel/integracoes/google-maps');
+    }
+
+    public function googleRemover(): Response
+    {
+        return $this->acao(fn (): Resultado => $this->googleServico()->remover(), '/painel/integracoes/google-maps');
+    }
+
+    /** @param array<string,string> $erros */
+    private function telaGoogle(array $erros, int $status = 200): Response
+    {
+        return $this->tela('plataforma/integracoes/google-maps', 'integracoes', 'Google Maps', [
+            'google' => $this->googleServico()->estado(),
+            'erros' => $erros,
+            'pageScripts' => ['js/forms.js'],
+        ], $status);
+    }
+
+    private function googleServico(): GoogleMapsService
+    {
+        return new GoogleMapsService($this->db, $this->usuario);
     }
 
     /* ---------- Internos ---------- */

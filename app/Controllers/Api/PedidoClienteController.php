@@ -81,6 +81,9 @@ final class PedidoClienteController
                 return Response::json(['ok' => false, 'entrega' => false, 'mensagem' => 'Complete o endereço.', 'erros' => $norm['erros']], 422);
             }
             $r = (new VerificadorEntrega(Database::connect()))->verificar($restaurante['id'], $norm['dados']);
+            if ($r['motivo'] === 'erro_rota') {
+                return Response::json(['ok' => false, 'entrega' => false, 'mensagem' => $r['mensagem']], 503);
+            }
             return Response::json([
                 'ok' => true,
                 'entrega' => $r['entrega'],

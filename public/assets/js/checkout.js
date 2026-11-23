@@ -319,7 +319,7 @@
 
   let tempoConferir = null;
   let conferenciaAtual = 0;
-  const conferirDepois = (ms = 600) => {
+  const conferirDepois = (ms = 1100) => { // aguarda o endereco estabilizar antes da consulta possivelmente paga
     window.clearTimeout(tempoConferir);
     tempoConferir = window.setTimeout(conferir, ms);
   };

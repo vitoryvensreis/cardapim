@@ -165,7 +165,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | `Entregas/` | Entregador, destino e rastreio | Painel do entregador, acompanhar pedido |
 | `Gerencia/` | Um service por aba: Produto, Categoria, Complemento, ComboCadastro, Insumo, Equipe, Perfil, Financeiro, EntregaPagamento, Cupom, Fidelidade, Assinatura, VisaoGeral, ImportarCardapio; `Integracoes/` (Asaas, iFood, WhatsApp) | Painel do gerente |
 | `Ifood/` | Toda a integração iFood: rotina, eventos, importar pedido, ações, catálogo, publicação, estado da loja | `bin/ifood.php`, caixa, gerência |
-| `Plataforma/` | Restaurantes, usuários, planos, marca, cobrança das assinaturas (Asaas da plataforma), SMS | `/painel`, `bin/cobranca-diaria.php` |
+| `Plataforma/` | Restaurantes, usuários, planos, marca, cobrança das assinaturas (Asaas da plataforma), SMS, `GoogleMapsService` (chave única da Routes API, teste e alternância global Haversine/Google) | `/painel`, `/painel/integracoes/google-maps`, `bin/cobranca-diaria.php` |
 | `Cliente/` | Login do cliente final por código (WhatsApp da plataforma ou SMS) | Cardápio |
 | `WhatsApp/` | `EventoEvolution` (webhook → evento), `DiagnosticoSaudacao`, `SessoesAbandonadas` | Saudação, rotina de limpeza |
 | `Painel/Menu*` | **Fonte única dos menus** (gerência, caixa, plataforma) | Menu lateral/inferior |
@@ -185,12 +185,12 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | `Entrega/` | Área de entrega e taxa, distância, comparação de bairros | Checkout, verificador de entrega |
 | `Restaurante/` | Horário de funcionamento (puro), upload de logo | Aberto/fechado, perfil |
 | `Marca/MarcaUpload` | Logos da plataforma | `/painel/configuracoes` |
-| `Integracoes/` | Clientes HTTP: `IfoodApi`, `AsaasApi`, `EvolutionApi`, `SmsGateApi`, contrato `ProvedorWhatsApp` | Services de integração |
+| `Integracoes/` | Clientes HTTP: `IfoodApi`, `AsaasApi`, `EvolutionApi`, `SmsGateApi`, `GoogleRoutesApi` (somente distância pelas ruas), contrato `ProvedorWhatsApp` | Services de integração |
 
 ### 4.5 `app/Repositories/` — SQL
 
 Toda consulta recebe `id_restaurante` e filtra por ele. Pastas: `Caixa/`, `Desktop/` (impressões, impressoras, produto↔impressora, pesagens), `Estoque/` (produtos, categorias, complementos, combos, insumos), `Gerencia/`, `Plataforma/`, além de `PedidoRepository`, `OutboxRepository`, `UsuarioRepository`, `RestauranteRepository`, `ClienteRepository`, `PlanoRepository`, `SuporteRepository`, `LogUserRepository`, `ContaRepository`.
-Mudar uma consulta afeta todas as telas que usam o repositório. Procure os usos com `grep -rn "NomeRepository" app` antes de mudar.
+Mudar uma consulta afeta todas as telas que usam o repositório. Procure os usos com `grep -rn "NomeRepository" app` antes de mudar. A configuração global e criptografada do Google fica em `configuracoes` via `Repositories/Plataforma/GoogleMapsRepository` (não em `IntegracaoRepository`, que é por restaurante).
 
 ### 4.6 `app/Realtime/`
 

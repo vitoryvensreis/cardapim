@@ -18,8 +18,9 @@ $legalLead = 'As regras para usar o ' . marca() . ': o que oferecemos, o que esp
         </section>
         <section>
             <h2>2. O que o <?= marca_html() ?> oferece</h2>
-            <p>Um sistema online para restaurantes, bares e lanchonetes, com cardápio digital, pedidos online, mesas e comandas, caixa, tela da cozinha, controle de estoque, entregas, financeiro e integrações opcionais (pagamentos por Pix via Asaas, avisos por WhatsApp e pedidos do iFood). Os recursos disponíveis dependem do plano contratado.</p>
+            <p>Um sistema online para restaurantes, bares e lanchonetes, com cardápio digital, pedidos online, mesas e comandas, caixa, tela da cozinha, controle de estoque, entregas, financeiro e integrações opcionais (pagamentos por Pix via Asaas, avisos por WhatsApp, pedidos do iFood e cálculo de distância de entrega pela Routes API do Google, quando habilitado pela administração). Os recursos disponíveis dependem do plano contratado.</p>
             <p>O <?= marca_html() ?> é uma ferramenta de gestão. <strong>Não vendemos, não preparamos e não entregamos os produtos</strong> oferecidos pelos restaurantes.</p>
+            <p>Quando habilitado, o serviço Google Maps Platform é utilizado para calcular distâncias por ruas; seu uso também está sujeito aos <a href="https://maps.google.com/help/terms_maps/" target="_blank" rel="noopener noreferrer">Termos de Serviço do Google Maps</a> e à <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de Privacidade do Google</a>. O restaurante continua responsável pelos preços e áreas atendidas.</p>
         </section>
         <section>
             <h2>3. Conta e acessos</h2>
