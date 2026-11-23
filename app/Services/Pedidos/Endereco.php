@@ -28,10 +28,16 @@ final class Endereco
             'referencia' => $t('referencia', 150),
             'latitude' => null,
             'longitude' => null,
+            'gps_precisao_m' => null,
         ];
         if (Distancia::coordenadaValida($e['latitude'] ?? null, $e['longitude'] ?? null)) {
             $d['latitude'] = round((float) $e['latitude'], 7);
             $d['longitude'] = round((float) $e['longitude'], 7);
+            // Somente usado no filtro que evita consultas Google. Falta ou imprecisao => Google calcula normalmente.
+            if (is_numeric($e['gps_precisao_m'] ?? null)
+                && (float) $e['gps_precisao_m'] >= 1 && (float) $e['gps_precisao_m'] <= 50) {
+                $d['gps_precisao_m'] = round((float) $e['gps_precisao_m'], 1);
+            }
         }
         $erros = [];
         if ($cep !== '' && preg_match('/\A[0-9]{8}\z/', $cep) !== 1) {
