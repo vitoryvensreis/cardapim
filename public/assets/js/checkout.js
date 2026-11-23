@@ -442,7 +442,8 @@
     const minhaCep = ++versaoCep;
     invalidarGps();
     // Limpa o numero anterior se o CEP foi trocado, evitando cotacao de rua nova com numero antigo.
-    if (ultimoCep !== "" && d !== ultimoCep) campos.numero.value = "";
+    if (d !== ultimoCep && d.length === 8) campos.numero.value = "";
+    else if (ultimoCep !== "" && d !== ultimoCep) campos.numero.value = "";
     if (d.length !== 8) {
       ultimoCep = "";
       consultandoCep = false;
