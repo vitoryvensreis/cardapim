@@ -191,7 +191,10 @@ class AsaasApi
     /** Cancela (remove) a cobranca: usado quando o pedido expira ou e cancelado antes do pagamento. */
     public function cancelarCobranca(string $chave, string $ambiente, string $idCobranca): void
     {
-        $this->chamar('DELETE', '/payments/' . self::idSeguro($idCobranca), $chave, $ambiente);
+        $resposta = $this->chamar('DELETE', '/payments/' . self::idSeguro($idCobranca), $chave, $ambiente);
+        if ($resposta->status !== 404) {
+            $this->exigirOk($resposta);
+        }
     }
 
     /**

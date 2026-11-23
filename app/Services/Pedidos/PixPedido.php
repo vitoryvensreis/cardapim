@@ -22,7 +22,7 @@ use Throwable;
  */
 final class PixPedido
 {
-    public const PRAZO_MINUTOS = 30;
+    public const PRAZO_MINUTOS = 60;
 
     public function __construct(private readonly PDO $db, private readonly AsaasApi $api = new AsaasApi())
     {
@@ -113,35 +113,84 @@ final class PixPedido
     }
 
     /**
-     * Enquanto o cliente espera na tela do Pix: confere a cobranca (no maximo a cada 8 s) e cancela se passou do prazo.
-     * @param array<string,mixed> $pedido @return array<string,mixed> pedido atualizado
+     * Enquanto o cliente acompanha o pedido: confere o pagamento e tenta expirar quando devido.
+     * A rotina CLI faz a mesma verificacao mesmo sem nenhuma tela aberta.
+     * @param array<string,mixed> $pedido @return array<string,mixed>
      */
     public function acompanhar(array $pedido): array
     {
         if ($pedido['status'] !== 'aguardando_pagamento' || empty($pedido['pix_cobranca_id'])) {
             return $pedido;
         }
-        $idRest = (int) $pedido['id_restaurante'];
+        $idRestaurante = (int) $pedido['id_restaurante'];
         $idPedido = (int) $pedido['id'];
-        if (RateLimiter::padrao(1, 8)->permitir('pix-conferir|' . $idPedido)) {
-            try {
-                [$chave, $ambiente] = $this->acesso($idRest);
-                $c = $this->api->cobranca($chave, $ambiente, (string) $pedido['pix_cobranca_id']);
-                if (in_array($c['status'], ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true)) {
-                    $this->confirmar($idRest, (string) $pedido['pix_cobranca_id'], $c['valor'], 'consulta');
+        $expirou = !empty($pedido['pix_expira_em']) && strtotime((string) $pedido['pix_expira_em']) <= time();
+        if ($expirou) {
+            // Evita que varias abas do cliente consultem/cancelem a mesma cobranca em paralelo.
+            if (RateLimiter::padrao(1, 30)->permitir('pix-expirar|' . $idPedido)) {
+                try {
+                    $this->expirar($idRestaurante, $idPedido);
+                } catch (Throwable $erro) {
+                    error_log('[Cardapim] Pix expirado pendente de conciliacao: pedido ' . $idPedido . ' (' . get_class($erro) . ').');
                 }
-            } catch (IntegracaoErro|Throwable) {
-                // Sem resposta do Asaas agora: o aviso (webhook) ou a proxima consulta confirma.
+            }
+        } elseif (RateLimiter::padrao(1, 8)->permitir('pix-conferir|' . $idPedido)) {
+            try {
+                [$chave, $ambiente] = $this->acesso($idRestaurante);
+                $cobranca = $this->api->cobranca($chave, $ambiente, (string) $pedido['pix_cobranca_id']);
+                if (in_array($cobranca['status'], ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true)) {
+                    $this->confirmar($idRestaurante, (string) $pedido['pix_cobranca_id'], $cobranca['valor'], 'consulta');
+                }
+            } catch (Throwable $erro) {
+                // O webhook ou a proxima consulta podera confirmar. Nao cancela sem consultar o Asaas.
             }
         }
-        $atual = (new PedidoRepository($this->db))->buscar($idRest, $idPedido) ?? $pedido;
-        if ($atual['status'] === 'aguardando_pagamento' && !empty($atual['pix_expira_em']) && strtotime((string) $atual['pix_expira_em']) < time()) {
-            if ((new CancelarPedido($this->db))->cancelar($idRest, $idPedido, 'Pix não foi pago em ' . self::PRAZO_MINUTOS . ' minutos.')) {
-                $this->removerCobranca($idRest, (string) $atual['pix_cobranca_id']);
-            }
-            $atual = (new PedidoRepository($this->db))->buscar($idRest, $idPedido) ?? $atual;
+        return (new PedidoRepository($this->db))->buscar($idRestaurante, $idPedido) ?? $pedido;
+    }
+
+    /**
+     * Concilia e expira um Pix vencido. A exclusao no Asaas precisa ter sucesso ANTES
+     * do cancelamento local, para nao deixar um QR Code ativo para pedido cancelado.
+     * @return string cancelado | confirmado | ignorado
+     * @throws IntegracaoErro Quando o Asaas nao responde ou o estado e inconclusivo. Tentar novamente depois.
+     */
+    public function expirar(int $idRestaurante, int $idPedido): string
+    {
+        $pedido = (new PedidoRepository($this->db))->buscar($idRestaurante, $idPedido);
+        if ($pedido === null
+            || $pedido['status'] !== 'aguardando_pagamento'
+            || $pedido['pagamento_status'] !== 'pendente'
+            || $pedido['forma_pagamento'] !== 'pix_online'
+            || empty($pedido['pix_cobranca_id'])
+            || empty($pedido['pix_expira_em'])
+            || strtotime((string) $pedido['pix_expira_em']) > time()) {
+            return 'ignorado';
         }
-        return $atual;
+
+        [$chave, $ambiente] = $this->acesso($idRestaurante);
+        $idCobranca = (string) $pedido['pix_cobranca_id'];
+        $cobranca = $this->api->cobranca($chave, $ambiente, $idCobranca);
+        if (in_array($cobranca['status'], ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true)) {
+            $resultado = $this->confirmar($idRestaurante, $idCobranca, $cobranca['valor'], 'consulta');
+            if ($resultado === 'confirmado') {
+                return 'confirmado';
+            }
+            if ($resultado === 'repetido' || $resultado === 'pago_apos_cancelar') {
+                return 'ignorado';
+            }
+            throw new IntegracaoErro('Pix com pagamento confirmado, mas conciliacao do pedido pendente.');
+        }
+        if (!in_array($cobranca['status'], ['PENDING', 'OVERDUE'], true)) {
+            throw new IntegracaoErro('Situacao do Pix inconclusiva. Cancelamento adiado.');
+        }
+
+        // O DELETE do Asaas recusa cobrancas ja pagas. Nunca cancelar o pedido se falhar.
+        $this->api->cancelarCobranca($chave, $ambiente, $idCobranca);
+        // UPDATE condicionado em uma transacao: webhook concorrente pode ter confirmado o pedido.
+        return (new CancelarPedido($this->db))->cancelar(
+            $idRestaurante, $idPedido, 'Pix não foi pago em ' . self::PRAZO_MINUTOS . ' minutos.',
+            null, null, true
+        ) ? 'cancelado' : 'ignorado';
     }
 
     public function removerCobranca(int $idRestaurante, string $idCobranca): void

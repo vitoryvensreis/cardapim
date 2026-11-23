@@ -1,6 +1,6 @@
 # Mapa do projeto — Deliveryzim (Cardapim)
 
-Atualizado em 22/11/2026 (base `main` em `b93b205`).
+Atualizado em 23/11/2026 (expiração automática do Pix online em 60 minutos).
 Para quem vai mexer no código pela primeira vez. Responde três perguntas: **onde está cada coisa**, **o que ela faz** e **o que ela afeta**.
 
 > Nome: o produto se chama **Deliveryzim** (marca configurável em `configuracoes.nome_sistema`). O código interno continua com o nome **Cardapim** (namespace `Cardapim\`, logs `[Cardapim]`, banco `cardapim`). Os dois nomes são a mesma coisa.
@@ -306,7 +306,7 @@ Versão do Agent: `desktop-agent/agent/__init__.py`. Mudanças no cupom (PHP) ch
 | --- | --- | --- | --- | --- |
 | iFood | `Modules/Integracoes/IfoodApi.php` | `Services/Ifood/*`, `Services/Gerencia/Integracoes/Ifood*` | `bin/ifood.php` (cron, rodada a cada 30 s) | `docs/architecture/ifood.md` |
 | WhatsApp (Evolution API) | `EvolutionApi.php` (`ProvedorWhatsApp`) | `Services/Pedidos/AvisosWhatsApp`, `SaudacaoWhatsApp`, `Services/WhatsApp/*`, `Gerencia/Integracoes/WhatsAppService` | `/webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}` | `docs/deploy/evolution.md`, `docs/architecture/saudacao-whatsapp.md` |
-| Asaas (Pix do restaurante) | `AsaasApi.php` | `Pedidos/PixPedido`, `Garcom/ComandaPix`, `Gerencia/Integracoes/AsaasService` | `/webhooks/asaas/{id}` | `docs/architecture/integracoes.md` |
+| Asaas (Pix do restaurante) | `AsaasApi.php` | `Pedidos/PixPedido`, `Garcom/ComandaPix`, `Gerencia/Integracoes/AsaasService` | `/webhooks/asaas/{id}` + cron `bin/expirar-pix.php` (só pedidos online) | `docs/architecture/integracoes.md` |
 | Asaas (assinaturas da plataforma) | `AsaasApi.php` | `Plataforma/AssinaturaCobranca`, `CobrancaAssinaturas` | `bin/cobranca-diaria.php` | `docs/architecture/assinaturas.md` |
 | SMS (SMSGate) | `SmsGateApi.php` | `Cliente/SmsPlataforma`, `Plataforma/SmsGatewayService` | — | `docs/deploy/sms.md` |
 | E-mail | `Services/Email/SmtpCliente` | `Mailer` | — | `docs/deploy/email.md` |
@@ -333,6 +333,7 @@ Credenciais da plataforma ficam no `.env` ou no painel. As de cada restaurante f
 | `bin/tempo-real.php` | sempre (systemd `cardapim-tempo-real.service`) | Servidor WebSocket |
 | `bin/ifood.php` | cron a cada minuto | Duas rodadas de 30 s: pedidos, eventos e ações do iFood |
 | `bin/cobranca-diaria.php` | cron diário | Faturas das assinaturas; bloqueia inadimplentes depois da tolerância |
+| `bin/expirar-pix.php` | cron a cada minuto | Confere Pix online vencido (60 min) no Asaas, exclui a cobrança pendente e cancela o pedido, com estoque/eventos |
 | `bin/whatsapp-sessoes.php --limpar` | cron a cada 15 min | Fecha instâncias do Evolution sem restaurante |
 | `bin/limpar-saudacoes.php` | cron diário | Apaga registros antigos de saudação |
 
@@ -376,7 +377,7 @@ Fluxo de trabalho: branch → PR → CI verde → merge autorizado → deploy au
 | Ícone novo | `dev/icons/icons.txt` → `php dev/icons/build-sprite.php` | Usar `Icon` no PHP |
 | Nome/logos da plataforma | `/painel/configuracoes` (banco); código: `helpers.php`, `Services/Plataforma/MarcaService.php` | Nunca nome fixo |
 | Variável de ambiente nova | `.env.example` + `Config::get()` | Documentar em `docs/deploy/` |
-| Rotina agendada | `bin/<nome>.php` + linha de cron documentada | Logs em `storage/logs` |
+| Rotina agendada | `bin/<nome>.php` + linha de cron documentada | Logs em `storage/logs`; Pix usa instalador `deploy/scripts/install-expirar-pix-cron.sh` |
 | Desempenho | `docs/ANALISE-DESEMPENHO.md` | |
 
 ---

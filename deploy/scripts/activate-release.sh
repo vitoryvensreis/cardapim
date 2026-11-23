@@ -146,6 +146,11 @@ if ! check_health; then
   exit 1
 fi
 echo "Deploy validado: $site_url (release $release_id)"
+# Ativa o cancelamento de Pix vencido sem depender de navegador. O cron e instalado
+# na conta do site, sem sudo; se a VPS bloquear crontab, registrar pendencia operacional.
+if ! bash "$root/current/deploy/scripts/install-expirar-pix-cron.sh" "$root"; then
+  echo "ATENCAO: Cron Pix online nao confirmado. Configure a execucao a cada minuto no CloudPanel."
+fi
 # Google e redes sociais (so informa, nao reverte): robots.txt, sitemap.xml e a imagem automatica do link.
 for caminho in /robots.txt /sitemap.xml /midia/cartao; do
   echo "SEO $caminho: $(curl -sL -o /dev/null -w '%{http_code} %{content_type}' --max-time 20 "$site_url$caminho" || true)"
