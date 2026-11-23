@@ -439,6 +439,8 @@
   campos.cep.addEventListener("input", async () => {
     const d = campos.cep.value.replace(/\D/g, "").slice(0, 8);
     campos.cep.value = d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+    // Evento duplicado do mesmo CEP nao deve invalidar a busca que ja esta em andamento.
+    if (d === ultimoCep && consultandoCep) return;
     const minhaCep = ++versaoCep;
     invalidarGps();
     // Limpa o numero anterior se o CEP foi trocado, evitando cotacao de rua nova com numero antigo.
@@ -492,9 +494,15 @@
   const textoGps = $("[data-ck-gps-texto]");
   if (!("geolocation" in navigator)) botaoGps.hidden = true;
   botaoGps.addEventListener("click", () => {
+    const enderecoAoSolicitarGps = chaveEndereco(endereco());
     textoGps.textContent = "Pegando sua localização...";
     botaoGps.disabled = true;
     navigator.geolocation.getCurrentPosition((pos) => {
+      if (enderecoAoSolicitarGps !== chaveEndereco(endereco())) {
+        textoGps.textContent = "O endereço mudou. Toque novamente para usar sua localização.";
+        botaoGps.disabled = false;
+        return;
+      }
       estado.gps = {
         lat: Number(pos.coords.latitude.toFixed(7)),
         lon: Number(pos.coords.longitude.toFixed(7)),
