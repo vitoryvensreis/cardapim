@@ -6,6 +6,20 @@ Produção: https://deliveryzim.com.br · Código interno: `Cardapim` (namespace
 
 ---
 
+## Google Routes API — cálculo opcional de entrega
+
+A plataforma usa **uma única chave de API** (Google Cloud → Routes API, faturamento e restrição por IP da VPS), configurada pelo `adm_master` em **Painel → Integrações → Google Maps** (`/painel/integracoes/google-maps`). A chave fica criptografada na tabela `configuracoes`, usando `Cripto`; **nunca** incluir o segredo no Git ou no navegador.
+
+- **Padrão desligado:** Haversine continua calculando em linha reta, exatamente como antes.
+- **Ativação manual:** primeiro salvar a chave, depois executar o teste de rota e então ativar a integração. Ao ativar, substitui o motor de distância das faixas por quilômetros de **todos** os restaurantes; áreas por bairro continuam tendo prioridade.
+- **Google ativo:** `GoogleRoutesApi` chama `POST https://routes.googleapis.com/directions/v2:computeRoutes` com modo `DRIVE`, `TRAFFIC_UNAWARE` e máscara `routes.distanceMeters`. Não são necessários SDK ou mapa Google no frontend.
+- **Falha de API/cota:** não aprova pedido nem inventa taxa via Haversine. A entrega informa indisponibilidade e pode ser tentada de novo.
+- **Retorno imediato:** no mesmo painel, **Desligar** restaura Haversine sem migration nem deploy. Remover a chave também desativa.
+- **Custo e licença:** configure cotas no Google Cloud; distâncias retornadas pelo Google não são persistidas no pedido nem em cache. O valor financeiro cobrado e a faixa própria do restaurante são preservados.
+- **Rastreamento:** GPS do entregador, Leaflet/OpenStreetMap e WebSocket são independentes e não exibem conteúdo de rotas Google. O resultado da Routes API serve somente para escolher a taxa.
+
+Testes sem chamadas pagas: `php tests/unit/integracoes.php`, `php tests/unit/entrega.php`. Documentação: [Routes API](https://developers.google.com/maps/documentation/routes/compute_route_directions), [políticas](https://developers.google.com/maps/documentation/routes/policies).
+
 ## Comece pelo mapa
 
 **Antes de mexer em qualquer coisa, leia o [Mapa do projeto](docs/MAPA-DO-PROJETO.md).**
