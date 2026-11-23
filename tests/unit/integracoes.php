@@ -9,6 +9,9 @@ use Cardapim\Services\Plataforma\CobrancaAssinaturas as Cobranca;
 use Cardapim\Modules\Integracoes\AplicativosParceiros;
 use Cardapim\Modules\Integracoes\AsaasApi;
 use Cardapim\Modules\Integracoes\IfoodApi;
+use Cardapim\Modules\Integracoes\GoogleRoutesApi;
+use Cardapim\Repositories\Plataforma\GoogleMapsRepository;
+use Cardapim\Shared\Seguranca\Cripto;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Shared\Http\ClienteHttp;
 use Cardapim\Shared\Http\RespostaHttp;
@@ -102,6 +105,53 @@ try {
     $recusou = true;
 }
 $ok($recusou, 'provedor desconhecido recusado');
+
+/* ---------- Google Routes API: sem rede nem consumo ---------- */
+$http = new ClienteFalso([new RespostaHttp(200, '{"routes":[{"distanceMeters":3456}]}')]);
+$km = (new GoogleRoutesApi('chave_teste_nao_real', $http))->distanciaKm(-3.73, -38.52, 'Rua Teste 100, Fortaleza, CE, Brasil');
+$ok(abs($km - 3.456) < 0.00001, 'Google Routes: converte metros para quilometros sem arredondar a faixa');
+$requisicao = $http->pedidos[0];
+$ok($requisicao['metodo'] === 'POST' && $requisicao['url'] === 'https://routes.googleapis.com/directions/v2:computeRoutes',
+    'Google Routes: endpoint oficial e POST');
+$ok($requisicao['cabecalhos']['X-Goog-FieldMask'] === 'routes.distanceMeters'
+    && $requisicao['cabecalhos']['X-Goog-Api-Key'] === 'chave_teste_nao_real', 'Google Routes: mascara e chave so no backend');
+$ok($requisicao['corpo']['origin']['location']['latLng']['latitude'] === -3.73
+    && $requisicao['corpo']['destination']['address'] === 'Rua Teste 100, Fortaleza, CE, Brasil'
+    && $requisicao['corpo']['travelMode'] === 'DRIVE'
+    && $requisicao['corpo']['routingPreference'] === 'TRAFFIC_UNAWARE', 'Google Routes: origem, destino e modo basico');
+foreach ([
+    ['resposta' => new RespostaHttp(200, '{"routes":[]}'), 'descricao' => 'sem rota'],
+    ['resposta' => new RespostaHttp(200, '{"routes":[{"distanceMeters":-1}]}'), 'descricao' => 'distancia negativa'],
+    ['resposta' => new RespostaHttp(403, '{}'), 'descricao' => 'chave sem permissao'],
+    ['resposta' => new RespostaHttp(429, '{}'), 'descricao' => 'cota excedida'],
+    ['resposta' => new RespostaHttp(503, '{}'), 'descricao' => 'Google indisponivel'],
+] as $caso) {
+    $falhouRota = false;
+    try {
+        (new GoogleRoutesApi('chave_teste', new ClienteFalso([$caso['resposta']])))->distanciaKm(-3.73, -38.52, 'Rua Teste 100, Fortaleza, CE, Brasil');
+    } catch (RuntimeException) {
+        $falhouRota = true;
+    }
+    $ok($falhouRota, 'Google Routes: recusa ' . $caso['descricao']);
+}
+// SQLite em memoria: configuracao unica, criptografada e desligada por padrao.
+if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+    $dbGoogle = new PDO('sqlite::memory:');
+    $dbGoogle->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $dbGoogle->exec('CREATE TABLE configuracoes (chave TEXT PRIMARY KEY, valor TEXT, tipo TEXT, descricao TEXT)');
+    Cripto::usarChave(str_repeat('g', 32));
+    $repoGoogle = new GoogleMapsRepository($dbGoogle);
+    $ok($repoGoogle->buscar() === null, 'Google Routes: sem cadastro nao existe configuracao ativa');
+    $repoGoogle->salvar(['chave' => 'chave_sigilo_teste', 'ativo' => false, 'testado_em' => '', 'salvo_em' => '2026-11-22', 'salvo_por' => 'Admin']);
+    $cifrado = (string) $dbGoogle->query("SELECT valor FROM configuracoes WHERE chave = 'google_routes_global'")->fetchColumn();
+    $ok(!str_contains($cifrado, 'chave_sigilo_teste'), 'Google Routes: chave protegida no banco');
+    $ok($repoGoogle->buscar()['ativo'] === false, 'Google Routes: integracao desligada por padrao');
+    $repoGoogle->salvar(['chave' => 'chave_sigilo_teste', 'ativo' => true, 'testado_em' => '2026-11-22', 'salvo_em' => '2026-11-22', 'salvo_por' => 'Admin']);
+    $ok($repoGoogle->buscar()['ativo'] === true, 'Google Routes: ativacao global persistida');
+    $repoGoogle->remover();
+    $ok($repoGoogle->buscar() === null, 'Google Routes: remocao restaura configuracao ausente');
+    Cripto::usarChave(null);
+}
 
 /* ---------- Telefone ---------- */
 $ok(Documento::formatarTelefone('5585999990000') === '(85) 99999-0000', 'telefone com 55 formatado');
