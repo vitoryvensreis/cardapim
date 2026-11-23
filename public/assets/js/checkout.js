@@ -271,6 +271,13 @@
     escolhas.tipo = tipo;
     guardar(CHAVE_ESCOLHAS, escolhas);
     if (tipo === "entrega" && !silencioso) conferirDepois(0);
+    if (tipo !== "entrega") {
+      window.clearTimeout(tempoConferir);
+      ++conferenciaAtual;
+      estado.conferindo = false;
+      estado.entrega = null;
+      chaveExibida = null;
+    }
     desenharTotais();
   };
   $$("[data-ck-tipo]").forEach((r) => r.addEventListener("change", () => escolherTipo(r.value)));
@@ -290,7 +297,7 @@
     cidade: campos.cidade.value.trim(),
     estado: campos.estado.value,
     referencia: campos.referencia.value.trim(),
-    ...(estado.gps ? { latitude: estado.gps.lat, longitude: estado.gps.lon } : {}),
+    ...(estado.gps ? { latitude: estado.gps.lat, longitude: estado.gps.lon, gps_precisao_m: estado.gps.precisao, gps_em_ms: estado.gps.em } : {}),
   });
   const completo = (e) => e.logradouro.length >= 3 && e.numero !== "" && e.bairro.length >= 2 && e.cidade.length >= 2 && e.estado !== "";
   const faltando = (e) => {
@@ -319,27 +326,65 @@
 
   let tempoConferir = null;
   let conferenciaAtual = 0;
-  const conferirDepois = (ms = 1100) => { // aguarda o endereco estabilizar antes da consulta possivelmente paga
+  let consultaEmCurso = null; // { chave, promessa }: compartilha apenas chamada simultanea, nao guarda rota em cache
+  let chaveExibida = null;
+  let consultandoCep = false;
+  const chaveEndereco = (e) => JSON.stringify([
+    e.cep, e.logradouro.toLowerCase(), e.numero.toLowerCase(), e.bairro.toLowerCase(),
+    e.cidade.toLowerCase(), e.estado, e.latitude ?? null, e.longitude ?? null,
+    e.gps_precisao_m ?? null, e.gps_em_ms ?? null,
+  ]);
+  const conferirDepois = (ms = 1100) => {
     window.clearTimeout(tempoConferir);
-    tempoConferir = window.setTimeout(conferir, ms);
-  };
-  const conferir = async () => {
-    if (estado.tipo !== "entrega") return;
+    ++conferenciaAtual; // invalida imediatamente qualquer retorno do endereco anterior
+    if (estado.tipo !== "entrega") {
+      estado.conferindo = false;
+      estado.entrega = null;
+      chaveExibida = null;
+      return;
+    }
     const e = endereco();
+    const chave = chaveEndereco(e);
+    if (!consultandoCep && completo(e) && chave === chaveExibida && estado.entrega) return;
     estado.entrega = null;
-    if (!completo(e)) {
+    chaveExibida = null;
+    if (consultandoCep || !completo(e) || (e.cep !== "" && e.cep.length !== 8)) {
       status.hidden = true;
       estado.conferindo = false;
       desenharTotais();
       return;
     }
-    const minha = ++conferenciaAtual;
     estado.conferindo = true;
     desenharTotais();
     mostrarStatus("carregando", "Conferindo se entregamos aqui...", "");
-    const r = await Cliente.api(`/api/v1/restaurantes/${encodeURIComponent(slug)}/entrega`, { endereco: e });
-    if (minha !== conferenciaAtual) return;
+    const versao = conferenciaAtual;
+    tempoConferir = window.setTimeout(() => conferir(versao), ms);
+  };
+  const conferir = async (versao) => {
+    if (estado.tipo !== "entrega" || versao !== conferenciaAtual || consultandoCep) return;
+    const e = endereco();
+    if (!completo(e)) return;
+    const chave = chaveEndereco(e);
+    let consulta = consultaEmCurso;
+    if (!consulta || consulta.chave !== chave) {
+      consulta = {
+        chave,
+        promessa: Cliente.api(`/api/v1/restaurantes/${encodeURIComponent(slug)}/entrega`, { endereco: e }),
+      };
+      consultaEmCurso = consulta;
+    }
+    let r;
+    try {
+      r = await consulta.promessa;
+    } catch (_erro) {
+      r = { ok: false, mensagem: "Não conseguimos conferir a entrega. Tente novamente." };
+    } finally {
+      if (consultaEmCurso === consulta) consultaEmCurso = null;
+    }
+    // Nao exibe resultado antigo quando o cliente alterou numero, CEP, GPS ou modo de recebimento.
+    if (versao !== conferenciaAtual || estado.tipo !== "entrega" || chave !== chaveEndereco(endereco())) return;
     estado.conferindo = false;
+    if (r.ok) chaveExibida = chave;
     if (r.ok && r.entrega) {
       estado.entrega = r;
       const detalhe = [r.taxa_centavos === 0 ? "Entrega grátis" : `Taxa de entrega ${reais(r.taxa_centavos)}`, r.area].filter(Boolean).join(" · ");
@@ -383,28 +428,62 @@
   const cepMsg = $("[data-ck-cep-msg]");
   const cepCarregando = $("[data-ck-cep-carregando]");
   let ultimoCep = "";
+  let versaoCep = 0;
+  // Ao mudar o endereco, o GPS anterior deixa de representar necessariamente o destino.
+  const invalidarGps = () => {
+    if (!estado.gps) return;
+    estado.gps = null;
+    botaoGps.classList.remove("is-ok");
+    textoGps.textContent = "Localização anterior removida após alterar o endereço.";
+  };
   campos.cep.addEventListener("input", async () => {
     const d = campos.cep.value.replace(/\D/g, "").slice(0, 8);
     campos.cep.value = d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
-    if (d.length !== 8 || d === ultimoCep) return;
+    const minhaCep = ++versaoCep;
+    invalidarGps();
+    // Limpa o numero anterior se o CEP foi trocado, evitando cotacao de rua nova com numero antigo.
+    if (ultimoCep !== "" && d !== ultimoCep) campos.numero.value = "";
+    if (d.length !== 8) {
+      ultimoCep = "";
+      consultandoCep = false;
+      cepCarregando.hidden = true;
+      conferirDepois();
+      return;
+    }
+    if (d === ultimoCep) {
+      conferirDepois();
+      return;
+    }
     ultimoCep = d;
+    consultandoCep = true;
+    conferirDepois();
     cepCarregando.hidden = false;
     cepMsg.textContent = "Buscando o endereço...";
     cepMsg.classList.remove("is-erro");
-    const r = await Cliente.api(`/api/v1/cep/${d}`);
+    let r;
+    try {
+      r = await Cliente.api(`/api/v1/cep/${d}`);
+    } catch (_erro) {
+      r = { mensagem: "CEP indisponível. Digite o endereço manualmente." };
+    }
+    if (minhaCep !== versaoCep || campos.cep.value.replace(/\D/g, "") !== d) return;
+    consultandoCep = false;
     cepCarregando.hidden = true;
     if (r.cidade) {
       ["logradouro", "bairro", "cidade", "estado"].forEach((k) => { if (r[k]) campos[k].value = r[k]; });
       cepMsg.textContent = r.logradouro ? "Endereço encontrado. Agora digite o número." : "Cidade encontrada. Complete a rua e o bairro.";
       (r.logradouro ? campos.numero : campos.logradouro).focus();
-      conferirDepois();
     } else {
       cepMsg.textContent = r.mensagem || "CEP não encontrado. Digite o endereço abaixo.";
       cepMsg.classList.add("is-erro");
     }
+    conferirDepois();
   });
   ["logradouro", "numero", "bairro", "cidade", "estado"].forEach((k) => {
-    campos[k].addEventListener(k === "estado" ? "change" : "input", () => conferirDepois());
+    campos[k].addEventListener(k === "estado" ? "change" : "input", () => {
+      invalidarGps();
+      conferirDepois();
+    });
   });
 
   // "Estou neste endereco": localizacao do celular ajuda a calcular a distancia.
@@ -415,7 +494,12 @@
     textoGps.textContent = "Pegando sua localização...";
     botaoGps.disabled = true;
     navigator.geolocation.getCurrentPosition((pos) => {
-      estado.gps = { lat: Number(pos.coords.latitude.toFixed(7)), lon: Number(pos.coords.longitude.toFixed(7)) };
+      estado.gps = {
+        lat: Number(pos.coords.latitude.toFixed(7)),
+        lon: Number(pos.coords.longitude.toFixed(7)),
+        precisao: Number.isFinite(pos.coords.accuracy) ? Number(pos.coords.accuracy.toFixed(1)) : null,
+        em: Date.now(),
+      };
       textoGps.textContent = "Localização do celular adicionada";
       botaoGps.classList.add("is-ok");
       botaoGps.disabled = false;
