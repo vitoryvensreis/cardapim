@@ -139,6 +139,7 @@ if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     ]);
     $verificador = new VerificadorEntrega($dbEntrega);
     $enderecoDistante = Endereco::normalizar($gpsExemplo)['dados'];
+    $enderecoDistante['bairro'] = 'Outro'; // Sem a regra prioritária do bairro.
     $rFora = $verificador->verificar(1, $enderecoDistante);
     $ok($rFora['entrega'] === false && $rFora['motivo'] === 'fora_raio',
         'Google ativo: Haversine preciso fora retorna fora_raio sem acessar HTTP');
