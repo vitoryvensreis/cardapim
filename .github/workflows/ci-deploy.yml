@@ -112,6 +112,7 @@ jobs:
           php tests/unit/sms.php
           php tests/unit/impressao.php
           php tests/unit/combos.php
+          php tests/unit/agrupador-itens-comanda.php
           php tests/unit/cupom-imagem.php
           php tests/unit/aparencia-cupom.php
 
