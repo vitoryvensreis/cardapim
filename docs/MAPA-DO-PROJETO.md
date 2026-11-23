@@ -1,6 +1,6 @@
 # Mapa do projeto — Deliveryzim (Cardapim)
 
-Atualizado em 23/11/2026 (inclui a expiração automática do Pix online em 60 minutos; confirmar commit após merge).n` em `b93b205`).
+Atualizado em 23/11/2026 (expiração automática do Pix online em 60 minutos).
 Para quem vai mexer no código pela primeira vez. Responde três perguntas: **onde está cada coisa**, **o que ela faz** e **o que ela afeta**.
 
 > Nome: o produto se chama **Deliveryzim** (marca configurável em `configuracoes.nome_sistema`). O código interno continua com o nome **Cardapim** (namespace `Cardapim\`, logs `[Cardapim]`, banco `cardapim`). Os dois nomes são a mesma coisa.
@@ -332,7 +332,8 @@ Credenciais da plataforma ficam no `.env` ou no painel. As de cada restaurante f
 | --- | --- | --- |
 | `bin/tempo-real.php` | sempre (systemd `cardapim-tempo-real.service`) | Servidor WebSocket |
 | `bin/ifood.php` | cron a cada minuto | Duas rodadas de 30 s: pedidos, eventos e ações do iFood |
-| `bin/cobranca-diaria.php` | cron diário | Faturas das assinaturas; bloqueia inadimplentes depois da tolerância |\n| `bin/expirar-pix.php` | cron a cada minuto | Confere Pix online vencido (60 min) no Asaas, exclui a cobrança pendente e cancela o pedido, com estoque/eventos |
+| `bin/cobranca-diaria.php` | cron diário | Faturas das assinaturas; bloqueia inadimplentes depois da tolerância |
+| `bin/expirar-pix.php` | cron a cada minuto | Confere Pix online vencido (60 min) no Asaas, exclui a cobrança pendente e cancela o pedido, com estoque/eventos |
 | `bin/whatsapp-sessoes.php --limpar` | cron a cada 15 min | Fecha instâncias do Evolution sem restaurante |
 | `bin/limpar-saudacoes.php` | cron diário | Apaga registros antigos de saudação |
 
