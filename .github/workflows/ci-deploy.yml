@@ -68,6 +68,7 @@ jobs:
           set -euo pipefail
           find app bin bootstrap config database deploy dev public routes tests -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
           bash -n deploy/scripts/activate-release.sh
+          bash -n deploy/scripts/install-expirar-pix-cron.sh
 
       - name: Validar Composer
         run: composer validate --no-check-publish
@@ -94,6 +95,7 @@ jobs:
           php tests/unit/financeiro.php
           php tests/unit/gerencia.php
           php tests/unit/integracoes.php
+          php tests/unit/pix-expiracao.php
           php tests/unit/tempo-real.php
           php tests/unit/cliente.php
           php tests/unit/entrega.php
