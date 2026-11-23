@@ -42,7 +42,7 @@ $formArea = static function (string $tipo, ?array $area, array $valores, array $
                     'erro' => $errosForm['cidade'] ?? null, 'attrs' => ['maxlength' => 100, 'data-validate' => 'required']]) ?>
             <?php else: ?>
                 <?= Campo::texto(['nome' => 'raio_km', 'id' => $prefixo . '-raio', 'rotulo' => 'Entrega até', 'valor' => $v('raio_km', $area !== null ? Numero::decimalCampo((string) $area['raio_km']) : ''), 'icone' => 'map-pin',
-                    'sufixo' => 'km', 'erro' => $errosForm['raio_km'] ?? null, 'dica' => 'Distância em linha reta do restaurante.', 'attrs' => ['inputmode' => 'decimal', 'maxlength' => 6, 'data-validate' => 'required', 'placeholder' => '3']]) ?>
+                    'sufixo' => 'km', 'erro' => $errosForm['raio_km'] ?? null, 'dica' => 'Limite da faixa em quilômetros. O ADM Master define se o cálculo é em linha reta ou pelas ruas.', 'attrs' => ['inputmode' => 'decimal', 'maxlength' => 6, 'data-validate' => 'required', 'placeholder' => '3']]) ?>
             <?php endif; ?>
             <?= Campo::texto(['nome' => 'taxa', 'id' => $prefixo . '-taxa', 'rotulo' => 'Taxa de entrega', 'valor' => $v('taxa', $area !== null ? Numero::dinheiroCampo((string) $area['taxa']) : ''), 'icone' => 'banknote',
                 'opcional' => true, 'erro' => $errosForm['taxa'] ?? null, 'dica' => 'Vazio = entrega grátis.', 'attrs' => ['inputmode' => 'numeric', 'data-mask' => 'money', 'placeholder' => '0,00']]) ?>
