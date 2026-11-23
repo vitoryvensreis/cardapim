@@ -45,7 +45,7 @@ $cartoes = [
 
         <article class="integracao-cartao is-google-maps">
             <div class="integracao-topo">
-                <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('route') ?></span>
+                <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('map-pin') ?></span>
                 <span class="etiqueta <?= $google['ativo'] ? 'etiqueta-ok' : 'etiqueta-neutra' ?>">
                     <?= Icon::svg($google['ativo'] ? 'circle-check' : 'power') ?><?= $google['ativo'] ? 'Ativo' : ($google['configurado'] ? 'Desligado' : 'Não configurado') ?>
                 </span>
