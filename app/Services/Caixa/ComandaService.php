@@ -251,6 +251,7 @@ final class ComandaService
             'nome' => (string) ($p['tipo'] === 'mesa' ? ($p['comanda_nome'] ?? '') : ($p['cliente_nome'] ?? '')),
             'irmas' => $irmas,
             'itens' => $itens,
+            'itens_agrupados' => AgrupadorItensComanda::agrupar($itens),
             'pagamentos' => $pagamentos,
             'subtotal' => Numero::centavos((string) $p['subtotal']),
             'servico' => Numero::centavos((string) $p['taxa_servico']),

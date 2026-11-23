@@ -6,6 +6,7 @@ namespace Cardapim\Services\Impressao;
 
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Services\Caixa\CaixaService;
+use Cardapim\Services\Caixa\AgrupadorItensComanda;
 use Cardapim\Services\Pedidos\StatusPedido;
 use Cardapim\Shared\Numero;
 
@@ -361,29 +362,27 @@ final class CupomImpressao
     private static function itensAgrupados(array $itens): array
     {
         $blocos = [];
-        $lotes = [];
-        foreach ($itens as $i) {
-            $lote = $i['combo_lote'] ?? null;
-            if ($lote === null) {
-                $blocos[] = self::item($i);
+        foreach (AgrupadorItensComanda::agrupar($itens) as $grupo) {
+            if ($grupo['tipo'] === 'combo') {
+                $detalhes = [];
+                foreach ($grupo['lancamentos'] as $item) {
+                    $detalhes[] = QuantidadeVenda::textoDoBanco($item['quantidade'], (string) ($item['unidade'] ?? 'un')) . ' ' . $item['nome'];
+                }
+                $blocos[] = [
+                    't' => 'item',
+                    'qtd' => '',
+                    'nome' => $grupo['nome'],
+                    'valor' => self::reais($grupo['total_centavos']),
+                    'detalhes' => $detalhes,
+                ];
                 continue;
             }
-            if (!isset($lotes[$lote])) {
-                $lotes[$lote] = count($blocos);
-                $blocos[] = ['t' => 'item', 'qtd' => '', 'nome' => (string) $i['combo_nome'], 'valor' => '', 'detalhes' => [], 'centavos' => 0];
-            }
-            $b = &$blocos[$lotes[$lote]];
-            $b['centavos'] += Numero::centavos((string) $i['total']);
-            $b['detalhes'][] = QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un')) . ' ' . $i['nome'];
-            unset($b);
+
+            $bloco = self::item($grupo['lancamentos'][0]);
+            $bloco['qtd'] = $grupo['quantidade_texto'];
+            $bloco['valor'] = self::reais($grupo['total_centavos']);
+            $blocos[] = $bloco;
         }
-        foreach ($blocos as &$b) {
-            if (array_key_exists('centavos', $b)) {
-                $b['valor'] = self::reais($b['centavos']);
-                unset($b['centavos']);
-            }
-        }
-        unset($b);
         return $blocos;
     }
 

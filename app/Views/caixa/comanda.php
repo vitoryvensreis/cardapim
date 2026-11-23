@@ -124,42 +124,66 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
                         <p><strong>Nenhum item ainda</strong>Toque nos produtos do cardápio para lançar.</p>
                     </div>
                 <?php else: ?>
-                    <?php
-                    // Combo: as linhas do mesmo lote aparecem juntas, com o nome e o total do combo; cancelar tira o combo inteiro.
-                    $lotes = [];
-                    foreach ($c['itens'] as $i) {
-                        if (($i['combo_lote'] ?? null) !== null) {
-                            $lotes[$i['combo_lote']] ??= ['primeiro' => (int) $i['id'], 'centavos' => 0, 'nome' => (string) $i['combo_nome']];
-                            $lotes[$i['combo_lote']]['centavos'] += Numero::centavos((string) $i['total']);
-                        }
-                    }
-                    ?>
                     <ul class="conta-itens">
-                        <?php foreach ($c['itens'] as $i): $cancelado = $i['cancelado_em'] !== null; $lote = $i['combo_lote'] ?? null; ?>
-                            <?php if ($lote !== null && $lotes[$lote]['primeiro'] === (int) $i['id']): ?>
+                        <?php foreach ($c['itens_agrupados'] as $grupo): ?>
+                            <?php
+                            $i = $grupo['lancamentos'][0];
+                            $cancelado = $grupo['cancelado'];
+                            $multiplo = count($grupo['lancamentos']) > 1;
+                            ?>
+                            <?php if ($grupo['tipo'] === 'combo'): ?>
                                 <li class="<?= $cancelado ? 'is-cancelado' : '' ?>">
                                     <span class="conta-qtd"><?= Icon::svg('boxes', 'icon-sm') ?></span>
-                                    <span class="conta-nome conta-combo-titulo"><?= $e($lotes[$lote]['nome']) ?><small class="conta-meta">Combo<?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small></span>
-                                    <span class="conta-preco"><?= $e($r($lotes[$lote]['centavos'])) ?></span>
+                                    <span class="conta-nome conta-combo-titulo"><?= $e((string) $grupo['nome']) ?><small class="conta-meta">Combo · <?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?><?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small></span>
+                                    <span class="conta-preco"><?= $e($r($grupo['total_centavos'])) ?></span>
                                     <?php if ($c['aberta'] && !$cancelado): ?>
-                                        <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" data-item-nome="<?= $e('o ' . $lotes[$lote]['nome'] . ' (combo inteiro)') ?>" aria-label="Cancelar o combo <?= $e($lotes[$lote]['nome']) ?>">
+                                        <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" data-item-nome="<?= $e('o ' . $grupo['nome'] . ' (combo inteiro)') ?>" aria-label="Cancelar o combo <?= $e((string) $grupo['nome']) ?>">
                                             <?= Icon::svg('x', 'icon-sm') ?>
                                         </button>
                                     <?php endif; ?>
                                 </li>
+                                <?php foreach ($grupo['lancamentos'] as $componente): ?>
+                                    <li class="is-combo-item<?= $cancelado ? ' is-cancelado' : '' ?>">
+                                        <span class="conta-qtd"><?= $e($qtdTexto($componente)) ?></span>
+                                        <span class="conta-nome"><?= $e((string) $componente['nome']) ?><?php if ($componente['observacao']): ?><small><?= $e((string) $componente['observacao']) ?></small><?php endif; ?></span>
+                                        <span class="conta-preco"><?= $e(Numero::reais((string) $componente['total'])) ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                                <?php continue; ?>
                             <?php endif; ?>
-                            <li class="<?= $cancelado ? 'is-cancelado' : '' ?><?= $lote !== null ? ' is-combo-item' : '' ?>">
-                                <span class="conta-qtd"><?= $e($qtdTexto($i)) ?></span>
-                                <span class="conta-nome"><?= $e((string) $i['nome']) ?>
-                                    <?php if (!empty($i['complementos_texto']) && $lote === null): ?><small class="item-complementos"><?= $e((string) $i['complementos_texto']) ?></small><?php endif; ?>
+
+                            <li class="<?= $cancelado ? 'is-cancelado' : '' ?>">
+                                <span class="conta-qtd"><?= $e((string) $grupo['quantidade_texto']) ?></span>
+                                <span class="conta-nome"><?= $e((string) $grupo['nome']) ?>
+                                    <?php if (!empty($i['complementos_texto'])): ?><small class="item-complementos"><?= $e((string) $i['complementos_texto']) ?></small><?php endif; ?>
                                     <?php if ($i['observacao']): ?><small><?= $e((string) $i['observacao']) ?></small><?php endif; ?>
-                                    <small class="conta-meta"><?php if (QuantidadeVenda::porPeso((string) ($i['unidade'] ?? 'un'))): ?><?= $e(Numero::reais((string) $i['preco_unitario']) . QuantidadeVenda::sufixoPreco((string) $i['unidade'])) ?> · <?php endif; ?><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?><?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small>
+                                    <?php if (!$multiplo): ?>
+                                        <small class="conta-meta"><?php if (QuantidadeVenda::porPeso((string) ($i['unidade'] ?? 'un'))): ?><?= $e(Numero::reais((string) $i['preco_unitario']) . QuantidadeVenda::sufixoPreco((string) $i['unidade'])) ?> · <?php endif; ?><?= $e(date('H:i', (int) strtotime((string) $i['criado_em']))) ?><?= $i['autor'] ? ' · ' . $e((string) $i['autor']) : '' ?><?= $cancelado ? ' · Cancelado: ' . $e((string) $i['motivo_cancelamento']) : '' ?></small>
+                                    <?php endif; ?>
                                 </span>
-                                <span class="conta-preco"><?= $e(Numero::reais((string) $i['total'])) ?></span>
-                                <?php if ($c['aberta'] && !$cancelado && $lote === null): ?>
+                                <span class="conta-preco"><?= $e($r($grupo['total_centavos'])) ?></span>
+                                <?php if ($c['aberta'] && !$cancelado && !$multiplo): ?>
                                     <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $i['id'] . '/cancelar') ?>" data-item-nome="<?= $e($qtdTexto($i) . ' ' . $i['nome']) ?>" aria-label="Cancelar <?= $e((string) $i['nome']) ?>">
                                         <?= Icon::svg('x', 'icon-sm') ?>
                                     </button>
+                                <?php endif; ?>
+                                <?php if ($multiplo): ?>
+                                    <details class="conta-grupo-detalhes">
+                                        <summary><?= Icon::svg('chevron-down', 'icon-sm') ?>Ver <?= count($grupo['lancamentos']) ?> lançamentos</summary>
+                                        <div class="conta-grupo-lancamentos">
+                                            <?php foreach ($grupo['lancamentos'] as $lancamento): ?>
+                                                <div class="conta-grupo-lancamento">
+                                                    <span><strong><?= $e($qtdTexto($lancamento)) ?> · <?= $e(date('H:i', (int) strtotime((string) $lancamento['criado_em']))) ?></strong><small><?= $lancamento['autor'] ? 'Lançado por ' . $e((string) $lancamento['autor']) : 'Responsável não informado' ?></small></span>
+                                                    <strong><?= $e(Numero::reais((string) $lancamento['total'])) ?></strong>
+                                                    <?php if ($c['aberta'] && !$cancelado): ?>
+                                                        <button class="conta-cancelar" type="button" data-cancelar-item="<?= $e($url . '/itens/' . (int) $lancamento['id'] . '/cancelar') ?>" data-item-nome="<?= $e($qtdTexto($lancamento) . ' ' . $lancamento['nome']) ?>" aria-label="Cancelar lançamento de <?= $e((string) $lancamento['nome']) ?> das <?= $e(date('H:i', (int) strtotime((string) $lancamento['criado_em']))) ?>">
+                                                            <?= Icon::svg('x', 'icon-sm') ?>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </details>
                                 <?php endif; ?>
                             </li>
                         <?php endforeach; ?>

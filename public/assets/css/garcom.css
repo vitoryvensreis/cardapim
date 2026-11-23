@@ -380,3 +380,21 @@ output.passo-num { display: grid; place-items: center; }
 .comanda-combo-item { padding-top: .2rem; padding-bottom: .2rem; padding-left: 1.4rem; border-top: 0; }
 .comanda-combo-item .comanda-item-texto strong { color: var(--c-muted); font-weight: 400; }
 .garcom-aviso-conta { display: flex; align-items: center; gap: .45rem; margin: .75rem 0 0; padding: .65rem .85rem; border-radius: var(--r-md); background: var(--c-blush); color: var(--c-ink); font-size: .92rem; }
+
+/* Comanda do garcom: agrupamento expansivel e cancelamento de um lancamento individual. */
+.comanda-grupo-detalhes { grid-column: 1 / -1; min-width: 0; }
+.comanda-grupo-detalhes > summary { display: flex; align-items: center; gap: .35rem; min-height: 2.75rem; color: var(--c-wine); font-weight: 700; cursor: pointer; list-style: none; }
+.comanda-grupo-detalhes > summary::-webkit-details-marker, .comanda-lancamento-cancelar > summary::-webkit-details-marker { display: none; }
+.comanda-grupo-detalhes > summary:focus-visible, .comanda-lancamento-cancelar > summary:focus-visible { outline: 2px solid var(--c-orange); outline-offset: 2px; }
+.comanda-grupo-detalhes[open] > summary .icon { transform: rotate(180deg); }
+.comanda-grupo-lancamentos { padding-left: .65rem; border-left: 2px solid var(--c-line); }
+.comanda-grupo-lancamento { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .55rem; padding: .6rem 0; }
+.comanda-grupo-lancamento + .comanda-grupo-lancamento { border-top: 1px solid var(--c-line); }
+.comanda-grupo-lancamento > div { min-width: 0; }
+.comanda-grupo-lancamento strong { display: block; font-size: .9rem; }
+.comanda-grupo-lancamento small { display: block; color: var(--c-muted); font-size: .78rem; }
+.comanda-grupo-lancamento .comanda-item-valor { padding: 0; font-size: .9rem; }
+.comanda-lancamento-cancelar > summary { display: grid; place-items: center; min-width: 2.75rem; min-height: 2.75rem; color: var(--c-muted); cursor: pointer; }
+.comanda-lancamento-cancelar[open] { grid-column: 1 / -1; }
+.comanda-lancamento-cancelar[open] > summary { justify-content: start; }
+.comanda-lancamento-cancelar .remover-form { margin-top: .35rem; }
