@@ -17,15 +17,23 @@ final class CancelarPedido
     {
     }
 
-    public function cancelar(int $idRestaurante, int $idPedido, string $motivo, ?int $idUser = null, ?int $idCliente = null): bool
+    public function cancelar(int $idRestaurante, int $idPedido, string $motivo, ?int $idUser = null, ?int $idCliente = null, bool $somentePixExpirado = false): bool
     {
         $this->db->beginTransaction();
         try {
             $agora = date('Y-m-d H:i:s');
+            $filtroPix = $somentePixExpirado
+                ? " AND status = 'aguardando_pagamento' AND pagamento_status = 'pendente'
+                    AND forma_pagamento = 'pix_online' AND pix_expira_em <= ?"
+                : '';
             $q = $this->db->prepare("UPDATE pedidos SET status = 'cancelado', cancelado_em = ?, motivo_cancelamento = ?,
                 pagamento_status = CASE WHEN pagamento_status = 'pendente' THEN 'cancelado' ELSE pagamento_status END, atualizado_em = ?
-                WHERE id = ? AND id_restaurante = ? AND status NOT IN ('cancelado', 'concluido')");
-            $q->execute([$agora, mb_substr($motivo, 0, 200), $agora, $idPedido, $idRestaurante]);
+                WHERE id = ? AND id_restaurante = ? AND status NOT IN ('cancelado', 'concluido')" . $filtroPix);
+            $parametros = [$agora, mb_substr($motivo, 0, 200), $agora, $idPedido, $idRestaurante];
+            if ($somentePixExpirado) {
+                $parametros[] = $agora;
+            }
+            $q->execute($parametros);
             if ($q->rowCount() !== 1) {
                 $this->db->rollBack();
                 return false;
