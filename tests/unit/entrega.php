@@ -9,6 +9,7 @@ use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Modules\Entrega\Distancia;
 use Cardapim\Modules\Entrega\TextoLocal;
 use Cardapim\Services\Geo\MapaBase;
+use Cardapim\Services\Pedidos\Endereco;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\HistoricoCliente;
 use Cardapim\Services\Pedidos\StatusPedido;
@@ -30,6 +31,41 @@ $ok(Distancia::coordenadaValida('-3.7', '-38.5'), 'coordenada valida');
 $ok(!Distancia::coordenadaValida('abc', '1'), 'coordenada texto recusada');
 $ok(!Distancia::coordenadaValida(91, 0), 'latitude fora do globo recusada');
 $ok(!Distancia::coordenadaValida(null, null), 'sem coordenada');
+
+// Haversine so descarta endereco fora da cobertura com GPS recente, preciso e margem de seguranca.
+$ok(Distancia::foraDoRaioComGpsConfiavel(-3.73, -38.52, -3.90, -38.52, 10, 5),
+    'GPS preciso bem fora da cobertura dispensa Google');
+$ok(!Distancia::foraDoRaioComGpsConfiavel(-3.73, -38.52, -3.74, -38.52, 10, 5),
+    'GPS dentro da cobertura exige Google para definir a faixa');
+$ok(!Distancia::foraDoRaioComGpsConfiavel(-3.73, -38.52, -3.90, -38.52, null, 5),
+    'sem precisao do GPS nao descarta');
+$ok(!Distancia::foraDoRaioComGpsConfiavel(-3.73, -38.52, -3.90, -38.52, 100, 5),
+    'GPS impreciso nao descarta');
+$ok(!Distancia::foraDoRaioComGpsConfiavel(-3.73, -38.52, null, -38.52, 10, 5),
+    'sem coordenada do cliente nao descarta');
+$ok(!Distancia::foraDoRaioComGpsConfiavel(-3.73, -38.52, -3.90, -38.52, 10, 0),
+    'sem faixa maxima valida nao descarta');
+$ok(!Distancia::foraDoRaioComGpsConfiavel(-3.73, -38.52, -3.779, -38.52, 10, 5),
+    'dentro da margem de seguranca consulta Google');
+
+$gpsExemplo = ['logradouro' => 'Rua Teste', 'numero' => '12', 'bairro' => 'Centro',
+    'cidade' => 'Fortaleza', 'estado' => 'CE', 'latitude' => -3.9, 'longitude' => -38.52,
+    'gps_precisao_m' => 12.3, 'gps_em_ms' => (int) round(microtime(true) * 1000)];
+$normalizadoGps = Endereco::normalizar($gpsExemplo);
+$ok($normalizadoGps['erros'] === [] && $normalizadoGps['dados']['gps_precisao_m'] === 12.3,
+    'GPS recente e preciso passa pela normalizacao do endereco');
+$gpsAntigo = $gpsExemplo;
+$gpsAntigo['gps_em_ms'] -= 3600000;
+$ok(Endereco::normalizar($gpsAntigo)['dados']['gps_precisao_m'] === null,
+    'GPS antigo nao autoriza rejeicao antecipada');
+$gpsSemPrecisao = $gpsExemplo;
+unset($gpsSemPrecisao['gps_precisao_m']);
+$ok(Endereco::normalizar($gpsSemPrecisao)['dados']['gps_precisao_m'] === null,
+    'GPS sem precisao continua podendo usar o Google');
+$gpsAproximado = $gpsExemplo;
+$gpsAproximado['gps_precisao_m'] = 300;
+$ok(Endereco::normalizar($gpsAproximado)['dados']['gps_precisao_m'] === null,
+    'coordenadas aproximadas nao autorizam o filtro');
 
 // Nomes de bairro e cidade comparados sem acento, maiuscula ou espacos extras.
 $ok(TextoLocal::chave('  Cerqueira   César ') === TextoLocal::chave('cerqueira cesar'), 'bairro sem acento e espacos');
