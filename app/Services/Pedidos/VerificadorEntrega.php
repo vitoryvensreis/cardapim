@@ -71,27 +71,46 @@ final class VerificadorEntrega
                         return ['entrega' => false, 'motivo' => 'sem_localizacao',
                             'mensagem' => 'Informe rua, número, cidade e estado para calcular a entrega pelas ruas.'] + $base;
                     }
-                    if (!RateLimiter::padrao(300, 60)->permitir('google-routes-global')) {
-                        return ['entrega' => false, 'motivo' => 'erro_rota',
-                            'mensagem' => 'O cálculo de entrega está muito solicitado agora. Tente novamente em instantes.'] + $base;
+
+                    // Haversine so pode RECUSAR antecipadamente, nunca aprovar uma faixa.
+                    // Usa apenas GPS recente e preciso, obtido por acao explicita no checkout.
+                    // Sem GPS ou com precisao duvidosa, a Routes API continua sendo definitiva.
+                    $raioMaximo = 0.0;
+                    foreach ($areas as $area) {
+                        if ($area['tipo'] === 'raio' && (int) $area['ativo'] === 1) {
+                            $raioMaximo = max($raioMaximo, (float) $area['raio_km']);
+                        }
                     }
-                    try {
-                        $distancia = (new GoogleRoutesApi($google['chave']))->distanciaKm(
-                            (float) $local['latitude'], (float) $local['longitude'], $destino
-                        );
-                    } catch (Throwable $erro) {
-                        error_log('[Cardapim] Routes API indisponivel no restaurante ' . $idRestaurante . ': ' . get_class($erro));
-                        return ['entrega' => false, 'motivo' => 'erro_rota',
-                            'mensagem' => 'Não conseguimos calcular a entrega agora. Tente novamente em instantes.'] + $base;
+                    if (Distancia::foraDoRaioComGpsConfiavel(
+                        (float) $local['latitude'], (float) $local['longitude'],
+                        $e['latitude'] ?? null, $e['longitude'] ?? null, $e['gps_precisao_m'] ?? null, $raioMaximo
+                    )) {
+                        // Sem chamada paga: o percurso pelas ruas nunca e menor que a linha reta.
+                        // Nao expor a distancia Haversine como se fosse a distancia do Google.
+                        $escolha = ['area' => null, 'motivo' => 'fora_raio'];
+                    } else {
+                        if (!RateLimiter::padrao(300, 60)->permitir('google-routes-global')) {
+                            return ['entrega' => false, 'motivo' => 'erro_rota',
+                                'mensagem' => 'O cálculo de entrega está muito solicitado agora. Tente novamente em instantes.'] + $base;
+                        }
+                        try {
+                            $distancia = (new GoogleRoutesApi($google['chave']))->distanciaKm(
+                                (float) $local['latitude'], (float) $local['longitude'], $destino
+                            );
+                        } catch (Throwable $erro) {
+                            error_log('[Cardapim] Routes API indisponivel no restaurante ' . $idRestaurante . ': ' . get_class($erro));
+                            return ['entrega' => false, 'motivo' => 'erro_rota',
+                                'mensagem' => 'Não conseguimos calcular a entrega agora. Tente novamente em instantes.'] + $base;
+                        }
+                        // O resultado do Google e usado APENAS para selecionar a taxa; nao e salvo no pedido.
+                        // Coordenadas para o mapa do pedido seguem vindas do mecanismo independente do Deliveryzim.
+                        $ponto = $this->coordenadas($e);
+                        if ($ponto !== null) {
+                            $resultado = ['latitude' => $ponto['latitude'], 'longitude' => $ponto['longitude'],
+                                'localizacao' => $ponto['como']] + $resultado;
+                        }
+                        $escolha = AreaEntrega::escolher($areas, $e['bairro'] ?? '', $e['cidade'] ?? '', $distancia);
                     }
-                    // O resultado do Google e usado APENAS para selecionar a taxa; nao e salvo no pedido.
-                    // Coordenadas para o mapa do pedido seguem vindas do mecanismo independente do Deliveryzim.
-                    $ponto = $this->coordenadas($e);
-                    if ($ponto !== null) {
-                        $resultado = ['latitude' => $ponto['latitude'], 'longitude' => $ponto['longitude'],
-                            'localizacao' => $ponto['como']] + $resultado;
-                    }
-                    $escolha = AreaEntrega::escolher($areas, $e['bairro'] ?? '', $e['cidade'] ?? '', $distancia);
                 } else {
                     // Codigo original preservado integralmente quando o ADM desliga o Google.
                     $ponto = $this->coordenadas($e);
