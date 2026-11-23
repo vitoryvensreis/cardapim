@@ -179,3 +179,12 @@ Migration `20261120200000_create_impressoes.php` (tabela `impressoes` + `desktop
 
 `tests/unit/impressao.php` (cupom), `tests/http/impressao.sh` (fluxo completo, isolamento entre restaurantes,
 Agent antigo, falha da impressora) e `desktop-agent/tests/test_print_jobs.py`.
+
+
+## Agrupamento da comanda no cupom completo
+
+Os cupons `conta` (caixa) e `pre_conta` (garcom) usam `AgrupadorItensComanda`: produtos identicos podem aparecer como `3x Cerveja Skol` em vez de tres linhas; combos continuam exibidos por lote com a composicao detalhada. Isso modifica somente os blocos de apresentacao no servidor, sem exigir atualizacao do Deliveryzim Agent.
+
+As vias `itens_novos`, `producao` e `cancelamento` **continuam usando os lancamentos originais** e seus IDs. O agrupamento visual nao altera os marcadores de ultima impressao nem provoca reimpressao de lancamentos antigos.
+
+Regressoes: `php tests/unit/agrupador-itens-comanda.php`.
