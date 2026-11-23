@@ -24,10 +24,10 @@ Verificacao: `php database/verify-pedidos.php --verify`.
 ## Formas de pagamento
 
 - **Pix pelo app** (`pix_online`): so com o Asaas do restaurante conectado. Cobranca Pix na conta do
-  restaurante (`externalReference = pedido:{id}`), codigo copia e cola na tela do cliente, prazo de 30 min.
+  restaurante (`externalReference = pedido:{id}`), codigo copia e cola na tela do cliente, prazo de 60 min.
   CPF obrigatorio (exigencia do Asaas), guardado no cadastro do cliente. Pedido fica `aguardando_pagamento`
   e vira `recebido` pelo webhook do Asaas (`PAYMENT_RECEIVED`/`PAYMENT_CONFIRMED`) ou pela consulta que a tela
-  do cliente faz enquanto espera. Pix vencido: pedido cancelado e estoque devolvido.
+  do cliente faz enquanto espera. Pix vencido: o processo agendado consulta a situação no Asaas;\n  quando ainda pendente, remove a cobrança no Asaas e só então cancela o pedido e devolve o estoque.\n  Se já estiver pago, confirma o pedido. Se o Asaas falhar, não cancela às cegas e tenta na próxima execução.
 - **Na entrega/retirada**: Pix, cartao de debito, cartao de credito, dinheiro (com "troco para").
   Pedido ja nasce `recebido`.
 
@@ -90,5 +90,15 @@ Cliente final:
 ## Pendente
 
 - Tela da cozinha (KDS) e area do entregador.
-- Expirar Pix nao pago tambem sem a tela do cliente aberta (hoje expira quando o cliente ou o webhook consulta).
+- O agendamento do cron de Pix deve estar ativo na VPS (ver abaixo).
 - Avisar o cliente pelo WhatsApp a cada mudanca de status.
+
+## Expiração automática de Pix online (60 minutos)
+
+- Código: `Services/Pedidos/PixPedido::expirar()` (fonte única), `CancelarPedido::cancelar(..., somentePixExpirado: true)`, `bin/expirar-pix.php`.
+- Cron do usuário do site: `* * * * * php8.4 /home/<usuario>/apps/cardapim/current/bin/expirar-pix.php >> /home/<usuario>/apps/cardapim/shared/storage/logs/expirar-pix.log 2>&1`.
+- Instalador idempotente: `deploy/scripts/install-expirar-pix-cron.sh`, chamado após healthcheck do deploy. Confirmar com `crontab -l` na VPS; se o CloudPanel não permitir, o deploy informa para configurar manualmente.
+- A rotina roda sem navegador, usa `flock` para evitar sobreposição e processa até 100 pedidos vencidos por minuto. Restringe a `forma_pagamento='pix_online'`, `status='aguardando_pagamento'`, `pagamento_status='pendente'`, com `pix_cobranca_id` e `pix_expira_em`.
+- Segurança financeira: consulta o Asaas antes de remover o QR Code. `CONFIRMED`/`RECEIVED` são confirmados, `PENDING`/`OVERDUE` são excluídos pela API antes do cancelamento local; erro de rede/HTTP bloqueia o cancelamento, que será tentado novamente. O UPDATE local exige o status ainda pendente e prazo vencido, para não cancelar após um webhook concorrente. Eventos, estoque e avisos usam o cancelamento existente.
+- **Escopo:** somente Pix de pedidos no cardápio; não cancela comandas da mesa, pedidos do iFood nem faturas de assinatura da plataforma.
+- **Limite:** cron a cada minuto significa atraso normal de até cerca de 1 minuto após o vencimento. Monitorar erros no log e reprocessar falhas; nunca transformar falha do Asaas em cancelamento silencioso.
