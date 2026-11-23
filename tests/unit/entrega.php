@@ -10,6 +10,9 @@ use Cardapim\Modules\Entrega\Distancia;
 use Cardapim\Modules\Entrega\TextoLocal;
 use Cardapim\Services\Geo\MapaBase;
 use Cardapim\Services\Pedidos\Endereco;
+use Cardapim\Services\Pedidos\VerificadorEntrega;
+use Cardapim\Repositories\Plataforma\GoogleMapsRepository;
+use Cardapim\Shared\Seguranca\Cripto;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\HistoricoCliente;
 use Cardapim\Services\Pedidos\StatusPedido;
@@ -106,6 +109,46 @@ $ok(!AreaEntrega::precisaDeLocalizacao($soBairros) && AreaEntrega::precisaDeLoca
 $ok(AreaEntrega::descricao($areas[1]) === 'Até 3 km do restaurante', 'descricao da faixa');
 $ok(AreaEntrega::descricao($areas[2]) === 'Bairro Pinheiros (São Paulo)', 'descricao do bairro');
 $ok(AreaEntrega::km('2.50') === '2,5 km', 'km formatado');
+
+// Integracao local: com Google global ativo, GPS inequivocamente fora economiza a consulta HTTP.
+if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+    $dbEntrega = new PDO('sqlite::memory:');
+    $dbEntrega->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $dbEntrega->exec('CREATE TABLE configuracoes (chave TEXT PRIMARY KEY, valor TEXT, tipo TEXT, descricao TEXT)');
+    $dbEntrega->exec('CREATE TABLE restaurantes (
+        id INTEGER PRIMARY KEY, latitude REAL, longitude REAL,
+        logradouro TEXT, numero TEXT, bairro TEXT, cidade TEXT, estado TEXT, cep TEXT
+    )');
+    $dbEntrega->exec("INSERT INTO restaurantes VALUES (1, -3.73, -38.52, 'Rua Teste', '10', 'Centro', 'Fortaleza', 'CE', '60000000')");
+    $dbEntrega->exec('CREATE TABLE restaurante_entrega_pagamento (
+        id_restaurante INTEGER PRIMARY KEY, aceita_entrega INTEGER, aceita_retirada INTEGER,
+        entrega_minutos_min INTEGER, entrega_minutos_max INTEGER, retirada_minutos INTEGER,
+        pag_pix_online INTEGER, pag_pix_entrega INTEGER, pag_debito INTEGER, pag_credito INTEGER, pag_dinheiro INTEGER
+    )');
+    $dbEntrega->exec('INSERT INTO restaurante_entrega_pagamento (id_restaurante, aceita_entrega, aceita_retirada) VALUES (1, 1, 1)');
+    $dbEntrega->exec('CREATE TABLE restaurante_areas_entrega (
+        id INTEGER PRIMARY KEY, id_restaurante INTEGER, tipo TEXT, bairro TEXT, cidade TEXT,
+        raio_km TEXT, taxa TEXT, pedido_minimo TEXT, ativo INTEGER
+    )');
+    $dbEntrega->exec("INSERT INTO restaurante_areas_entrega VALUES (1, 1, 'raio', NULL, NULL, '5.00', '12.00', NULL, 1)");
+    $dbEntrega->exec("INSERT INTO restaurante_areas_entrega VALUES (2, 1, 'bairro', 'Centro', 'Fortaleza', NULL, '7.00', NULL, 1)");
+    Cripto::usarChave(str_repeat('g', 32));
+    (new GoogleMapsRepository($dbEntrega))->salvar([
+        'chave' => 'CHAVE_DUMMY_NUNCA_CHAMAR_HTTP', 'ativo' => true,
+        'testado_em' => '2026-11-22', 'salvo_em' => '2026-11-22', 'salvo_por' => 'Teste',
+    ]);
+    $verificador = new VerificadorEntrega($dbEntrega);
+    $enderecoDistante = Endereco::normalizar($gpsExemplo)['dados'];
+    $rFora = $verificador->verificar(1, $enderecoDistante);
+    $ok($rFora['entrega'] === false && $rFora['motivo'] === 'fora_raio',
+        'Google ativo: Haversine preciso fora retorna fora_raio sem acessar HTTP');
+    $enderecoBairro = $enderecoDistante;
+    $enderecoBairro['bairro'] = 'Centro';
+    $rBairro = $verificador->verificar(1, $enderecoBairro);
+    $ok($rBairro['entrega'] === true && $rBairro['motivo'] === 'bairro' && $rBairro['taxa'] === '7.00',
+        'Google ativo: bairro tem prioridade mesmo com GPS distante');
+    Cripto::usarChave(null);
+}
 
 // O cliente acompanha todas as etapas, inclusive "Pronto" antes de sair para entrega.
 $ok(StatusPedido::etapas('entrega') === ['recebido', 'em_preparo', 'pronto', 'saiu_entrega', 'concluido'], 'etapas da entrega com Pronto');
