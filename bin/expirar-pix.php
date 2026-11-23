@@ -25,15 +25,25 @@ $erros = 0;
 $contagem = ['cancelado' => 0, 'confirmado' => 0, 'ignorado' => 0];
 try {
     $db = Database::connect();
-    // Lote limitado: evita sobrecarregar o Asaas e o banco se houver acumulacao.
+    // Cursor por ID evita que cobrancas antigas com erro permanente monopolizem
+    // todos os lotes, impedindo o cancelamento das outras lojas.
+    $cursorArquivo = dirname(__DIR__) . '/storage/cache/expirar-pix-cursor.txt';
+    $cursor = is_file($cursorArquivo) ? max(0, (int) file_get_contents($cursorArquivo)) : 0;
     $q = $db->prepare("SELECT id, id_restaurante FROM pedidos
-        WHERE forma_pagamento = 'pix_online' AND status = 'aguardando_pagamento'
+        WHERE id > ? AND forma_pagamento = 'pix_online' AND status = 'aguardando_pagamento'
           AND pagamento_status = 'pendente' AND pix_cobranca_id IS NOT NULL
           AND pix_expira_em IS NOT NULL AND pix_expira_em <= ?
-        ORDER BY pix_expira_em ASC, id ASC LIMIT 100");
-    $q->execute([date('Y-m-d H:i:s')]);
+        ORDER BY id ASC LIMIT 100");
+    $q->execute([$cursor, date('Y-m-d H:i:s')]);
+    $pedidos = $q->fetchAll(PDO::FETCH_ASSOC);
+    if ($pedidos === [] && $cursor > 0) {
+        $cursor = 0;
+        $q->execute([0, date('Y-m-d H:i:s')]);
+        $pedidos = $q->fetchAll(PDO::FETCH_ASSOC);
+    }
     $pix = new PixPedido($db);
-    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $pedido) {
+    foreach ($pedidos as $pedido) {
+        $cursor = (int) $pedido['id'];
         $idRestaurante = (int) $pedido['id_restaurante'];
         $idPedido = (int) $pedido['id'];
         try {
@@ -44,6 +54,13 @@ try {
             error_log(sprintf('[Cardapim] Expiracao Pix falhou: restaurante %d pedido %d (%s).',
                 $idRestaurante, $idPedido, get_class($erro)));
         }
+    }
+    // A pasta storage/cache e compartilhada entre releases na VPS.
+    if (!is_dir(dirname($cursorArquivo))) {
+        mkdir(dirname($cursorArquivo), 0700, true);
+    }
+    if (file_put_contents($cursorArquivo, (string) $cursor, LOCK_EX) === false) {
+        error_log('[Cardapim] Nao foi possivel salvar cursor de expiracao Pix.');
     }
     if (array_sum($contagem) > 0 || $erros > 0) {
         echo date('Y-m-d H:i:s') . sprintf(
