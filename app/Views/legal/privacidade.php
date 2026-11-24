@@ -6,7 +6,7 @@ $legalLead = 'Quais dados o ' . marca() . ' usa, para quê, com quem compartilha
     <?php require __DIR__ . '/_header.php'; ?>
     <?php $legalResumo = [
         'Usamos só os dados necessários para o sistema funcionar: contas, pedidos, entregas, pagamentos e segurança.',
-        'Não vendemos dados. Usamos ferramentas opcionais de análise e marketing nas páginas institucionais somente com consentimento.',
+        'Não vendemos dados. Usamos ferramentas opcionais de análise e marketing nas páginas institucionais com consentimento. Se o modo avançado do Google estiver habilitado, pode haver dados técnicos e sinais sem cookies antes da escolha.',
         'Dados de pedidos são compartilhados apenas com quem precisa deles: o restaurante, o entregador e os serviços de pagamento e mensagens.',
         'Você pode pedir acesso, correção ou exclusão pelo e-mail ' . $emailPrivacidadeHtml . '.',
     ]; ?>
@@ -43,7 +43,7 @@ $legalLead = 'Quais dados o ' . marca() . ' usa, para quê, com quem compartilha
                 <li><strong>Cobrar a assinatura e emitir faturas:</strong> execução de contrato e obrigações legais e fiscais.</li>
                 <li><strong>Manter a segurança</strong> (login, verificação em duas etapas, registros de acesso, prevenção de fraudes e de acessos indevidos): legítimo interesse e cumprimento do Marco Civil da Internet, que exige guardar registros de acesso.</li>
                 <li><strong>Atendimento e suporte:</strong> execução de contrato e legítimo interesse.</li>
-                <li><strong>Fontes externas, análise de navegação e mensuração de campanhas do site:</strong> consentimento, dado no aviso de cookies.</li>
+                <li><strong>Fontes externas, análise de navegação e mensuração de campanhas do site:</strong> consentimento, dado no aviso de cookies. Qualquer processamento de sinais sem cookies antes da escolha no modo avançado do Google depende de avaliação e documentação prévia da base legal aplicável pela administração da plataforma.</li>
             </ul>
             <p>Não tomamos decisões automatizadas que afetem seus direitos. As ferramentas opcionais de marketing medem nossas campanhas nas páginas institucionais.</p>
         </section>
@@ -58,7 +58,7 @@ $legalLead = 'Quais dados o ' . marca() . ' usa, para quê, com quem compartilha
                 <li><strong>OpenStreetMap e Nominatim:</strong> exibem o mapa e convertem endereço em localização. <strong>BrasilAPI e ViaCEP:</strong> preenchem o endereço pelo CEP e os dados do CNPJ.</li>
                 <li><strong>Google Maps Platform (Routes API):</strong> quando habilitada pela administração da plataforma, recebe a localização do restaurante e o endereço de entrega informado pelo cliente para estimar a distância por ruas e definir a faixa de taxa. O serviço é operado pelo Google, sujeito às condições aplicáveis e à <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de Privacidade do Google</a>. O mapa de rastreamento permanece independente.</li>
                 <li><strong>Google Fonts:</strong> fontes do site, carregadas só com o seu consentimento.</li>
-                <li><strong>Google Analytics, Google Tag Manager e Meta Pixel:</strong> quando habilitados e autorizados, recebem dados técnicos de navegação, identificadores de cookies e informações de campanha para medir visitas e anúncios. Veja a <a href="/cookies">Política de Cookies</a>.</li>
+                <li><strong>Google Analytics, Google Tag Manager e Meta Pixel:</strong> quando habilitados e autorizados, recebem dados técnicos de navegação, identificadores de cookies e informações de campanha para medir visitas e anúncios. O modo avançado opcional do Google pode enviar sinais sem cookies antes da escolha; a recusa impede novos carregamentos. Veja a <a href="/cookies">Política de Cookies</a>.</li>
                 <li><strong>Hospedagem e e-mail:</strong> servidor contratado pela Escotilha Produtora, onde ficam o banco de dados e o serviço de e-mail do sistema.</li>
                 <li><strong>Autoridades:</strong> quando houver obrigação legal ou ordem judicial.</li>
             </ul>

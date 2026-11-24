@@ -39,6 +39,8 @@ curl -s "$base/" > "$tmp/h.html"
 contem "aviso aparece sem escolha" "$tmp/h.html" 'data-consentimento aria-labelledby="consentimento-titulo">'
 nao_contem "sem escolha nao carrega Google Fonts" "$tmp/h.html" 'fonts.googleapis.com'
 contem "script do aviso carregado" "$tmp/h.html" '/assets/js/consentimento.js'
+contem "aviso explica modo avancado" "$tmp/h.html" 'sinais sem cookies'
+nao_contem "tags desativadas nao carregam bootstrap" "$tmp/h.html" '/assets/js/rastreamento.js'
 curl -s "$base/assets/css/core.css" > "$tmp/core.css"
 contem "Google Sans Flex na fonte global de titulos" "$tmp/core.css" '--f-head: "Google Sans Flex"'
 contem "Google Sans Flex na fonte global de textos" "$tmp/core.css" '--f-body: "Google Sans Flex"'

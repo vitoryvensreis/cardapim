@@ -39,7 +39,16 @@ $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBS
                 <?php if (isset($erros[$chave])): ?><p class="tags-erro" role="alert"><?= $e($erros[$chave]) ?></p><?php endif; ?>
             </section>
         <?php endforeach; ?>
-        <p class="tags-aviso"><?= Icon::svg('shield-check') ?> As tags só carregam após o visitante aceitar todos os cookies. Cadastro, cardápios, checkout e áreas internas não recebem rastreadores. Use o Tag Manager ou as tags diretas em uma mesma página para evitar duplicidade. Publique apenas tags confiáveis no contêiner GTM.</p>
+        <section class="bloco tags-cartao" aria-labelledby="tags-consentimento">
+            <div class="bloco-cabecalho">
+                <h2 id="tags-consentimento"><?= Icon::svg('shield-check') ?> Carregamento do Google</h2>
+                <p>Por padrão, as integrações carregam somente após o aceite. A opção abaixo permite detectar o Google antes da escolha, sem liberar cookies opcionais.</p>
+            </div>
+            <label class="tags-opcao"><input type="checkbox" name="tags[google_advanced]" value="1"<?= $tags['google_advanced'] ? ' checked' : '' ?>> Carregar Google antes da escolha (modo avançado)</label>
+            <p>O Google poderá receber dados técnicos e sinais sem cookies antes do aceite. Ative somente após revisar a base legal e o contêiner GTM. O Meta Pixel continua bloqueado até o aceite. Se houver recusa, as integrações são interrompidas e a página é recarregada sem rastreadores externos.</p>
+            <?php if (isset($erros['google_advanced'])): ?><p class="tags-erro" role="alert"><?= $e($erros['google_advanced']) ?></p><?php endif; ?>
+        </section>
+        <p class="tags-aviso"><?= Icon::svg('shield-check') ?> Cadastro, cardápios, checkout e áreas internas não recebem rastreadores. Use o Tag Manager ou as tags diretas em uma mesma página para evitar duplicidade. Publique apenas tags confiáveis no contêiner GTM, com verificações de consentimento. <a href="https://tagassistant.google.com/" target="_blank" rel="noopener noreferrer">Testar no Google Tag Assistant</a></p>
         <div class="form-acoes">
             <button type="submit" class="btn btn-primary"><?= Icon::svg('check', 'icon-sm') ?> Salvar configurações</button>
         </div>

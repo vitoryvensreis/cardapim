@@ -26,7 +26,7 @@ final class TagsService
 
     public static function padrao(): array
     {
-        return array_fill_keys(array_keys(self::PROVEDORES), ['id' => '', 'ativo' => false, 'escopos' => []]);
+        return array_fill_keys(array_keys(self::PROVEDORES), ['id' => '', 'ativo' => false, 'escopos' => []]) + ['google_advanced' => false];
     }
 
     /** @return array{0:array,1:array} Configuracao normalizada e erros. */
@@ -34,6 +34,12 @@ final class TagsService
     {
         $dados = self::padrao();
         $erros = [];
+        $avancado = $entrada['google_advanced'] ?? false;
+        if (!in_array($avancado, [false, true, '0', '1'], true)) {
+            $erros['google_advanced'] = 'Modo de consentimento inválido.';
+        } else {
+            $dados['google_advanced'] = $avancado === true || $avancado === '1';
+        }
         foreach (self::PROVEDORES as $chave => [$nome, , $regex]) {
             $v = $entrada[$chave] ?? [];
             if (!is_array($v)) {
@@ -108,6 +114,9 @@ final class TagsService
             $de[$chave] = self::resumo($antes[$chave]);
             $para[$chave] = self::resumo($dados[$chave]);
         }
+        $rotulos['google_advanced'] = 'Google antes da escolha';
+        $de['google_advanced'] = $antes['google_advanced'];
+        $para['google_advanced'] = $dados['google_advanced'];
         Auditoria::registrar($this->autor, 'Tags de marketing: configurações alteradas', Auditoria::diferencas($de, $para, $rotulos));
         return Resultado::sucesso('Configurações de rastreamento salvas.');
     }
@@ -124,10 +133,15 @@ final class TagsService
             return [];
         }
         $tags = [];
-        foreach (self::atuais() as $chave => $v) {
+        $atuais = self::atuais();
+        foreach (self::PROVEDORES as $chave => $_) {
+            $v = $atuais[$chave];
             if ($v['ativo'] && in_array($escopo, $v['escopos'], true)) {
                 $tags[$chave] = $v['id'];
             }
+        }
+        if (($tags['ga4'] ?? null) !== null || ($tags['gtm'] ?? null) !== null) {
+            $tags['google_advanced'] = $atuais['google_advanced'];
         }
         return $tags;
     }
