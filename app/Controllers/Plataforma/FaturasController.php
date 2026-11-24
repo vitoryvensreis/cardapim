@@ -96,11 +96,12 @@ final class FaturasController extends BasePlataforma
                     if ($processadas >= 40 || microtime(true) - $inicio >= 15) {
                         break;
                     }
+                    $cursorAnterior = $estado['cursor'];
                     $estado['cursor'] = $recorrencias ? $item : (int) $item['id'];
                     $processadas++;
                     try {
                         if ($recorrencias) {
-                            $ok = $cobranca->sincronizar($item);
+                            $ok = $cobranca->sincronizar($item, true);
                         } else {
                             $antes = $repo->faturaPorAsaas($ambiente, $item['asaas_id']);
                             $ok = $cobranca->sincronizarFatura($ambiente, $item['asaas_id']);
@@ -114,6 +115,8 @@ final class FaturasController extends BasePlataforma
                         $estado['falhas']++;
                         error_log('[Cardapim] Conciliação manual: ' . $estado['fase'] . ' #' . $estado['cursor'] . ' ' . get_class($erro));
                         if ((int) $erro->getCode() === 429) {
+                            $estado['cursor'] = $cursorAnterior;
+                            $estado['falhas']--;
                             Session::set(self::CHAVE_CONCILIACAO, $estado);
                             return $this->voltar($destino, 'erro', 'Limite da API atingido. Clique em Atualizar agora mais tarde para continuar.');
                         }
