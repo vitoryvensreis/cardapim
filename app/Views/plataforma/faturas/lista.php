@@ -31,6 +31,7 @@ $nomeMes = static fn (string $am): string => ($meses[substr($am, 5, 2)] ?? '') .
         </div>
         <?php if ($asaasConectado): ?>
             <form class="painel-acoes" method="post" action="/painel/faturas/atualizar">
+                <input type="hidden" name="ambiente" value="<?= $e($ambiente) ?>">
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <button class="btn btn-outline btn-sm" type="submit" data-submit-label="Atualizando..."><?= Icon::svg('refresh-cw', 'icon-sm') ?>Atualizar agora</button>
             </form>
