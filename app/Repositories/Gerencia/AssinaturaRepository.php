@@ -158,6 +158,37 @@ final class AssinaturaRepository
         return $row === false ? null : $row;
     }
 
+    /** Lote por chave primária; inclui faturas históricas, sem depender do contrato vigente. */
+    public function loteFaturasConciliacao(string $ambiente, int $cursor, ?string $desde = null): array
+    {
+        $sql = 'SELECT id, asaas_id FROM assinatura_faturas WHERE ambiente = ? AND id > ?';
+        $args = [$ambiente, $cursor];
+        if ($desde !== null) {
+            $sql .= " AND (vencimento >= ? OR pago_em >= ?) AND vencimento <= ?";
+            array_push($args, $desde, $desde, date('Y-m-d', strtotime('+7 days')));
+        }
+        $q = $this->db->prepare($sql . ' ORDER BY id LIMIT 25');
+        $q->execute($args);
+        return $q->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /** Descobre novas faturas das recorrências vigentes. No cron, apenas períodos próximos ou recém-criados. */
+    public function loteRecorrenciasConciliacao(string $ambiente, int $cursor, ?string $desde = null): array
+    {
+        $sql = "SELECT a.id FROM assinaturas a WHERE a.id > ? AND a.ambiente = ?
+            AND a.asaas_assinatura_id IS NOT NULL AND a.status IN ('ativa', 'aguardando')
+            AND a.id = (SELECT MAX(b.id) FROM assinaturas b WHERE b.id_restaurante = a.id_restaurante
+                AND b.status IN ('ativa', 'aguardando', 'cancelada'))";
+        $args = [$cursor, $ambiente];
+        if ($desde !== null) {
+            $sql .= " AND (a.vence_em BETWEEN ? AND ? OR a.criado_em >= ? OR a.status = 'aguardando')";
+            array_push($args, $desde, date('Y-m-d', strtotime('+7 days')), $desde);
+        }
+        $q = $this->db->prepare($sql . ' ORDER BY a.id LIMIT 25');
+        $q->execute($args);
+        return array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     /** Faturas pagas da recorrência, inclusive dos planos anteriores que a reutilizaram. */
     public function faturasPagasRecorrencia(int $idRestaurante, string $ambiente, string $asaasId): array
     {
