@@ -42,7 +42,7 @@ try {
                     $cursor = $fase === 'recorrencias' ? $item : (int) $item['id'];
                     try {
                         $resultado = $fase === 'recorrencias'
-                            ? $cobranca->sincronizar($item)
+                            ? $cobranca->sincronizar($item, true)
                             : $cobranca->sincronizarFatura($conta['ambiente'], $item['asaas_id']);
                         $resultado ? $ok++ : $falhas++;
                     } catch (Throwable $erro) {
