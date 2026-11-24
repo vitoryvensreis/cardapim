@@ -54,8 +54,7 @@ final class AssinaturaCobranca
         $base = rtrim($base, '/');
         $partes = parse_url($base);
         if (!is_array($partes) || ($partes['scheme'] ?? '') !== 'https'
-            || empty($partes['host']) || isset($partes['user'], $partes['pass'])
-            || isset($partes['user']) || isset($partes['query']) || isset($partes['fragment'])
+            || empty($partes['host']) || isset($partes['user']) || isset($partes['pass']) || isset($partes['query']) || isset($partes['fragment'])
             || ($partes['path'] ?? '') !== ''
             || preg_match('/\A[a-z0-9][a-z0-9-]{0,189}\z/', $slug) !== 1
             || filter_var($base, FILTER_VALIDATE_URL) === false) {
@@ -193,6 +192,9 @@ final class AssinaturaCobranca
         }
         if (!in_array($status, ['ativo', 'pendente'], true)) {
             return false;
+        }
+        if ($this->assinaturas->bloquearCanceladaVencida($idRestaurante, $this->hoje()->format('Y-m-d'))) {
+            return true;
         }
         $tolerancia = (new CobrancaAssinaturas($this->db))->regras()['tolerancia_dias'];
         $limite = $this->hoje()->modify('-' . (int) $tolerancia . ' days')->format('Y-m-d');
