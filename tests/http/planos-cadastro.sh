@@ -216,6 +216,35 @@ contem "cobrança original recuperada" "$tmp/pagina.html" 'Pagar agora'
 curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs-rec.json"
 esperar "somente uma recorrência criada após resposta perdida" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); $n=0; foreach ($d as $s) { if (str_contains((string)($s["description"]??""),$argv[2])) $n++; } echo $n;' "$tmp/subs-rec.json" "Recuperacao CI $id")" "1"
 
+echo "Estorno, disputa e aviso antigo"
+subrec="$(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach ($d as $s) { if (str_contains((string)($s["description"]??""),$argv[2])) echo $s["id"]; }' "$tmp/subs-rec.json" "Recuperacao CI $id")"
+curl -s "$fake/_teste/asaas-assinatura-pagar/$subrec" > "$tmp/rec-paga.json"
+payrec="$(json "$tmp/rec-paga.json" id)"
+aviso_rec() {
+  local evento="$1" arquivo="$2" sufixo="$3" corpo
+  corpo="$(php -r '$p=json_decode(file_get_contents($argv[1]),true); echo json_encode(["id"=>"evt_ci_".$p["id"]."_".$argv[3],"event"=>$argv[2],"payment"=>$p]);' "$arquivo" "$evento" "$sufixo")"
+  curl -s -o /dev/null -w '%{http_code}' -H "asaas-access-token: $tk" -H 'Content-Type: application/json' --data "$corpo" "$base$wh"
+}
+esperar "pagamento original confirmado" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-paga.json" pago)" "200"
+esperar "assinatura recuperada libera loja" "$(publico "$slugrec")" "200"
+esperar "estorno parcial não suspende período" "$(aviso_rec PAYMENT_PARTIALLY_REFUNDED "$tmp/rec-paga.json" parcial)" "200"
+esperar "acesso preservado no estorno parcial" "$(publico "$slugrec")" "200"
+curl -s "$fake/_teste/asaas-estado/CHARGEBACK_REQUESTED/$payrec" > "$tmp/rec-disputa.json"
+esperar "aviso de chargeback" "$(aviso_rec PAYMENT_CHARGEBACK_REQUESTED "$tmp/rec-disputa.json" disputa)" "200"
+esperar "chargeback suspende período sem outra cobertura" "$(publico "$slugrec")" "404"
+esperar "aviso pago antigo recebido" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-paga.json" antigo)" "200"
+esperar "aviso antigo não reativa loja em disputa" "$(publico "$slugrec")" "404"
+curl -s "$fake/_teste/asaas-estado/RECEIVED/$payrec" > "$tmp/rec-restaurada.json"
+esperar "pagamento restaurado no Asaas" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-restaurada.json" restaurado)" "200"
+esperar "disputa revertida restaura acesso" "$(publico "$slugrec")" "200"
+curl -s "$fake/_teste/asaas-estado/REFUNDED/$payrec" > "$tmp/rec-estorno.json"
+esperar "estorno integral confirmado" "$(aviso_rec PAYMENT_REFUNDED "$tmp/rec-estorno.json" estorno)" "200"
+esperar "estorno integral retira acesso" "$(publico "$slugrec")" "404"
+pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
+contem "fatura estornada registrada" "$tmp/pagina.html" '>Estornada<'
+esperar "aviso antigo após estorno" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-paga.json" antigo_estorno)" "200"
+esperar "estorno não é desfeito por aviso antigo" "$(publico "$slugrec")" "404"
+
 if (( falhas > 0 )); then
   echo "FALHOU: $falhas verificacao(oes) de planos, marca e cadastro."
   exit 1
