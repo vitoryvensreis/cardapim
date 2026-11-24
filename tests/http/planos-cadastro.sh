@@ -218,6 +218,24 @@ esperar "somente uma recorrência criada após resposta perdida" "$(php -r '$d=j
 
 echo "Estorno, disputa e aviso antigo"
 subrec="$(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach ($d as $s) { if (str_contains((string)($s["description"]??""),$argv[2])) echo $s["id"]; }' "$tmp/subs-rec.json" "Recuperacao CI $id")"
+echo "Atualização retroativa do retorno, sem mudar preço"
+ridrec="$(php -r 'require "bootstrap/app.php"; $q=\Cardapim\Core\Database::connect()->prepare("SELECT id FROM restaurantes WHERE slug=?"); $q->execute([$argv[1]]); echo $q->fetchColumn();' "$slugrec")"
+curl -s "$fake/_teste/asaas-cobrancas" > "$tmp/rec-antes.json"
+if APP_URL=https://cardapim.test ASAAS_URL_SANDBOX="$fake/asaas/v3" php bin/atualizar-retorno-asaas.php --restaurante="$ridrec" --ambiente=sandbox > "$tmp/retorno.log"; then
+  contem "simulação sem alteração" "$tmp/retorno.log" 'Nenhuma alteração feita'
+else
+  falha "simulação de callback"
+fi
+curl -s "$fake/_teste/asaas-cobrancas" > "$tmp/rec-simulacao.json"
+esperar "simulação preserva cobranças" "$(cmp -s "$tmp/rec-antes.json" "$tmp/rec-simulacao.json" && echo igual || echo diferente)" igual
+if APP_URL=https://cardapim.test ASAAS_URL_SANDBOX="$fake/asaas/v3" php bin/atualizar-retorno-asaas.php --restaurante="$ridrec" --ambiente=sandbox --apply > "$tmp/retorno.log"; then
+  contem "callback retroativo aplicado no provedor falso" "$tmp/retorno.log" 'atualizado'
+else
+  falha "aplicação retroativa de callback"
+fi
+curl -s "$fake/_teste/asaas-cobrancas" > "$tmp/rec-depois.json"
+esperar "callback alterado sem mexer em valor ou vencimento" "$(php -r '$a=json_decode(file_get_contents($argv[1]),true);$b=json_decode(file_get_contents($argv[2]),true);foreach($a as $id=>$f){if(($f["subscription"]??"")===$argv[3]){ $g=$b[$id];$ok=$f["value"]===$g["value"]&&$f["dueDate"]===$g["dueDate"]&&($g["callback"]["successUrl"]??"")==="https://cardapim.test/".$argv[4]."/gerencia/assinatura?retorno=asaas"&&($g["callback"]["autoRedirect"]??false)===true;echo $ok?"ok":"falha";break;}}' "$tmp/rec-antes.json" "$tmp/rec-depois.json" "$subrec" "$slugrec")" ok
+
 curl -s "$fake/_teste/asaas-assinatura-pagar/$subrec" > "$tmp/rec-paga.json"
 payrec="$(json "$tmp/rec-paga.json" id)"
 aviso_rec() {
