@@ -245,14 +245,23 @@ class AsaasApi
      */
     public function faturasDaAssinatura(string $chave, string $ambiente, string $id): array
     {
-        $dados = $this->exigirOk($this->chamar('GET', '/subscriptions/' . self::idSeguro($id) . '/payments?limit=50', $chave, $ambiente));
         $lista = [];
-        foreach (is_array($dados['data'] ?? null) ? $dados['data'] : [] as $p) {
-            if (is_array($p) && ($f = self::fatura($p)) !== null) {
-                $lista[] = $f;
+        $caminho = '/subscriptions/' . self::idSeguro($id) . '/payments?limit=50';
+        for ($offset = 0; ; $offset += 50) {
+            $dados = $this->exigirOk($this->chamar('GET', $caminho . '&offset=' . $offset, $chave, $ambiente));
+            $pagina = is_array($dados['data'] ?? null) ? $dados['data'] : [];
+            foreach ($pagina as $p) {
+                if (is_array($p) && ($f = self::fatura($p)) !== null) {
+                    $lista[] = $f;
+                }
+            }
+            if (empty($dados['hasMore'])) {
+                return $lista;
+            }
+            if ($pagina === [] || $offset >= 4950) {
+                throw new IntegracaoErro('Não foi possível concluir a paginação das faturas.');
             }
         }
-        return $lista;
     }
 
     /**
