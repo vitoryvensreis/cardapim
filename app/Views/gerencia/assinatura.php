@@ -36,6 +36,16 @@ $semCobranca = $pago && $vigente['asaas_assinatura_id'] === null && $vigente['st
         </div>
     </header>
 
+    <?php if (!empty($retornoAsaas)): ?>
+        <div class="notice notice-info bloco-aviso" role="status">
+            <?= Icon::svg('info') ?>
+            <div>
+                <strong>Você voltou do Asaas.</strong>
+                <p>Confira abaixo a situação da sua assinatura e das faturas. Se o pagamento ainda estiver em processamento, aguarde a confirmação ou use Atualizar faturas.</p>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if ($bloqueado): ?>
         <div class="notice notice-warning bloco-aviso" role="alert">
             <?= Icon::svg('lock') ?>
