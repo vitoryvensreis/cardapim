@@ -406,3 +406,10 @@ Fluxo de trabalho: branch → PR → CI verde → merge autorizado → deploy au
 - `docs/brand/identidade-visual.md`: marca
 - `docs/PRODUTO-E-HISTORICO.md`: visão do produto, roadmap e o README antigo completo
 - `desktop-agent/README.md`, `virtual-scale/README.md`
+
+### Tags de marketing da plataforma
+
+- `/painel/tags` (somente adm_master): Google Analytics 4, Meta Pixel e Google Tag Manager, com ID, ativação e escopos independentes. Dados JSON na chave `marketing_tags` de `configuracoes`; sem migration.
+- `TagsService` valida e audita; os controllers Home e Catalogo informam explicitamente o escopo ao head compartilhado. O JS externo `rastreamento.js` carrega os provedores só após consentimento v2. O aceite antigo não autoriza rastreamento.
+- Cadastro, login, cardápios, checkout e áreas privadas são excluídos. GTM não pode coexistir com tags diretas no mesmo escopo; publique somente contêineres confiáveis, sem coleta de dados pessoais. O GTM executa código de terceiros no contexto da origem; restrições de escopo não são sandbox. Revise as regras do contêiner e a CSP real da VPS antes de ativar. Buscas e parâmetros não relacionados a campanha bloqueiam o carregamento. Não há envio de conversões server-side nesta versão.
+- Testes: `php tests/unit/tags.php`, `node tests/js/rastreamento.js` e smoke de cookies. As tags vêm desativadas até configuração pelo master.

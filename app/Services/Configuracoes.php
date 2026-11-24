@@ -26,6 +26,7 @@ final class Configuracoes
         'frase_compartilhamento',
         'imagem_compartilhamento',
         'google_verificacao',
+        'marketing_tags',
     ];
 
     public const LOGO_KEYS = ['logo_colorida', 'logo_branca', 'logo_preta', 'icone', 'icone_app'];

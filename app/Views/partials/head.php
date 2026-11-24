@@ -81,3 +81,11 @@ $seoIconeApp = \Cardapim\Controllers\PwaController::icones()[0]['src'];
 <?php foreach ($scripts ?? [] as $script): ?>
 <script src="<?= AssetUrl::asset($script) ?>" defer></script>
 <?php endforeach; ?>
+
+<?php
+$tagsMarketing = \Cardapim\Services\Plataforma\TagsService::publicas($escopoRastreamento ?? null);
+if ($tagsMarketing !== []):
+    $tagsJson = json_encode($tagsMarketing, JSON_THROW_ON_ERROR);
+?>
+<script src="<?= AssetUrl::asset('js/rastreamento.js') ?>" data-rastreamento="<?= $seoE($tagsJson) ?>" defer></script>
+<?php endif; ?>

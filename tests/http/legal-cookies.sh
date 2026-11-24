@@ -71,15 +71,18 @@ if php -r '
 else
   falha "preferencias de cookies fora da coluna Legal ou duplicadas"
 fi
-curl -s -b 'cardapim_consentimento=todos.20261112' "$base/" > "$tmp/h2.html"
+curl -s -b 'cardapim_consentimento=todos.v2.20261112' "$base/" > "$tmp/h2.html"
 contem "aceitou: carrega Google Fonts" "$tmp/h2.html" 'fonts.googleapis.com'
 contem "aceitou: Google Sans Flex variável com os pesos disponíveis" "$tmp/h2.html" 'family=Google+Sans+Flex:wght@100..900'
 nao_contem "fontes antigas nao sao carregadas" "$tmp/h2.html" 'family=DM+Sans'
 contem "fonte principal definida para todos os layouts" "$tmp/h.html" '/assets/css/core.css'
 contem "aceitou: aviso escondido" "$tmp/h2.html" 'aria-labelledby="consentimento-titulo" hidden'
-curl -s -b 'cardapim_consentimento=necessarios.20261112' "$base/" > "$tmp/h3.html"
+curl -s -b 'cardapim_consentimento=necessarios.v2.20261112' "$base/" > "$tmp/h3.html"
 nao_contem "so necessarios: sem Google Fonts" "$tmp/h3.html" 'fonts.googleapis.com'
 contem "so necessarios: aviso escondido" "$tmp/h3.html" 'aria-labelledby="consentimento-titulo" hidden'
+curl -s -b 'cardapim_consentimento=todos.20261112' "$base/" > "$tmp/h-antigo.html"
+nao_contem "consentimento anterior nao libera opcionais" "$tmp/h-antigo.html" 'fonts.googleapis.com'
+contem "consentimento anterior pede novo aceite" "$tmp/h-antigo.html" 'data-consentimento aria-labelledby="consentimento-titulo">'
 curl -s -b 'cardapim_consentimento=<script>' "$base/" > "$tmp/h4.html"
 nao_contem "cookie invalido nao libera fontes" "$tmp/h4.html" 'fonts.googleapis.com'
 curl -s "$base/$slug" > "$tmp/cd.html"

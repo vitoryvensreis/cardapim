@@ -28,6 +28,7 @@ final class CatalogoController
         }
 
         return Response::html(View::render('catalogo/index', [
+            'escopoRastreamento' => 'catalogo',
             'pageTitle' => 'Restaurantes | ' . marca(),
             'pageDescription' => 'Conheça os restaurantes, bares e lanchonetes que usam o ' . marca() . '.',
             'pageStyles' => ['css/catalogo.css'],

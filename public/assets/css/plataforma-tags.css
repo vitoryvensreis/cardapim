@@ -1,0 +1,14 @@
+.tags-form { display: grid; gap: 1rem; max-width: 58rem; }
+.tags-cartao { display: grid; gap: 1rem; }
+.tags-cabecalho { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.tags-campo { display: grid; gap: .4rem; font-weight: 600; max-width: 34rem; }
+.tags-campo input { width: 100%; min-height: 2.75rem; padding: .6rem .8rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white); color: var(--c-ink); font: inherit; font-size: 1rem; }
+.tags-escopos { display: grid; gap: .5rem; margin: 0; padding: 0; border: 0; }
+.tags-escopos legend { font-weight: 600; margin-bottom: .25rem; }
+.tags-opcao { display: flex; align-items: center; gap: .55rem; min-height: 2.75rem; cursor: pointer; }
+.tags-opcao input { width: 1.2rem; height: 1.2rem; accent-color: var(--c-wine); }
+.tags-form input:focus-visible { outline: 2px solid var(--c-wine); outline-offset: 3px; }
+.tags-aviso { display: flex; gap: .6rem; align-items: flex-start; color: var(--c-muted); }
+.tags-aviso .icon { flex-shrink: 0; }
+.tags-erro { color: var(--c-danger); }
+@media (min-width: 40rem) { .tags-escopos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

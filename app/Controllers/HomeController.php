@@ -27,6 +27,7 @@ final class HomeController
 
         return Response::html(View::render('marketing/home', [
             // Titulo e descricao editaveis em Configuracoes > Google e redes sociais (painel do adm_master).
+            'escopoRastreamento' => 'inicio',
             'pageTitle' => Seo::tituloInicio(),
             'pageDescription' => Seo::descricaoInicio(),
             'seo' => ['jsonLd' => Seo::jsonLdInicio(), 'palavrasChave' => Seo::palavrasChaveInicio()],

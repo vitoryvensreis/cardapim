@@ -11,7 +11,7 @@ $jaEscolheu = Consentimento::escolha() !== null;
 <section class="consentimento" data-consentimento aria-labelledby="consentimento-titulo"<?= $jaEscolheu ? ' hidden' : '' ?>>
     <div class="consentimento-texto">
         <h2 id="consentimento-titulo"><?= Icon::svg('cookie') ?>Sua privacidade</h2>
-        <p>Usamos cookies necessários para o site funcionar (login, sacola e segurança). Com a sua permissão, também carregamos as fontes do Google, que recebem dados técnicos do seu navegador. Não usamos cookies de propaganda. <a href="/cookies">Saiba mais</a></p>
+        <p>Usamos cookies necessários para o site funcionar (login, sacola e segurança). Com a sua permissão, também carregamos fontes externas e ferramentas de análise e marketing (Google Analytics, Google Tag Manager e Meta Pixel) quando habilitadas no site. <a href="/cookies">Saiba mais</a></p>
     </div>
     <div class="consentimento-acoes">
         <button class="btn btn-ghost btn-sm" type="button" data-consentimento-escolha="necessarios">Só os necessários</button>
