@@ -210,6 +210,16 @@ if (preg_match('~\A/_teste/asaas-assinatura-(pagar|vencer)/([A-Za-z0-9_-]+)\z~',
     }
     $responder(404, []);
 }
+// Mudança de estado financeiro exclusivamente no provedor falso.
+if (preg_match('~\A/_teste/asaas-estado/(REFUNDED|CHARGEBACK_REQUESTED|CHARGEBACK_DISPUTE|AWAITING_CHARGEBACK_REVERSAL|RECEIVED)/([A-Za-z0-9_-]+)\z~', $caminho, $m)) {
+    $cobrancas = $ler('asaas-cobrancas.json') ?? [];
+    if (!isset($cobrancas[$m[2]])) {
+        $responder(404, []);
+    }
+    $cobrancas[$m[2]]['status'] = $m[1];
+    $guardar('asaas-cobrancas.json', $cobrancas);
+    $responder(200, $cobrancas[$m[2]]);
+}
 if ($caminho === '/_teste/asaas-assinaturas') {
     $responder(200, $ler('asaas-assinaturas.json') ?? []);
 }
