@@ -371,7 +371,7 @@ final class AssinaturaCobranca
             // Confirma transições conflitantes no estado atual do Asaas. Evita que um
             // PAYMENT_RECEIVED atrasado desfaça um estorno ou uma disputa legítima.
             $conflito = ($antes !== null && $antes !== $status && in_array($antes, ['paga', 'estornada', 'cancelada'], true))
-                || $status === 'estornada' || $evento === 'PAYMENT_RECEIVED_IN_CASH_UNDONE';
+                || ($status === 'estornada' && $antes !== 'estornada') || $evento === 'PAYMENT_RECEIVED_IN_CASH_UNDONE';
             if ($conflito) {
                 $conta = $this->conta();
                 if ($conta === null || $conta['ambiente'] !== $ambiente) {
