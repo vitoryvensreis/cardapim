@@ -180,8 +180,8 @@ final class AssinaturaService
     public function cancelar(): Resultado
     {
         $atual = $this->vigente();
-        if ($atual === null || $atual['status'] !== 'ativa' || (float) $atual['valor'] <= 0) {
-            return Resultado::falha('Não há assinatura paga ativa para cancelar.');
+        if ($atual === null || !in_array($atual['status'], ['ativa', 'aguardando'], true) || (float) $atual['valor'] <= 0) {
+            return Resultado::falha('Não há assinatura paga ativa ou aguardando pagamento para cancelar.');
         }
         if (($erro = $this->cobranca->remover($atual)) !== null) {
             return Resultado::falha('Não foi possível cancelar agora. ' . $erro);
