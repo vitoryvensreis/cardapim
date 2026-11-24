@@ -86,6 +86,35 @@ final class AssinaturaCobranca
     public function gerar(int $idAssinatura, ?string $primeiroVencimento = null): array
     {
         $a = $this->assinaturas->buscar($idAssinatura);
+        if ($a === null) {
+            return ['ok' => false, 'mensagem' => 'Assinatura não encontrada.'];
+        }
+        $chave = 'cardapim:assinatura:' . $a['id_restaurante'];
+        $mysql = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql';
+        if ($mysql) {
+            $q = $this->db->prepare('SELECT GET_LOCK(?, 3)');
+            $q->execute([$chave]);
+            if ((int) $q->fetchColumn() !== 1) {
+                return ['ok' => false, 'mensagem' => 'Uma cobrança está sendo processada. Aguarde e atualize as faturas.'];
+            }
+        }
+        try {
+            return $this->gerarComTrava($idAssinatura, $primeiroVencimento);
+        } finally {
+            if ($mysql) {
+                $q = $this->db->prepare('SELECT RELEASE_LOCK(?)');
+                $q->execute([$chave]);
+            }
+        }
+    }
+
+    private function gerarComTrava(int $idAssinatura, ?string $primeiroVencimento): array
+    {
+        $a = $this->assinaturas->buscar($idAssinatura);
+        if ($a === null || !in_array($a['status'], ['ativa', 'aguardando'], true)
+            || (int) ($this->assinaturas->vigente((int) $a['id_restaurante'])['id'] ?? 0) !== $idAssinatura) {
+            return ['ok' => false, 'mensagem' => 'Esta assinatura não está vigente.'];
+        }
         if ($a === null || (float) $a['valor'] <= 0 || !isset(CobrancaAssinaturas::CICLOS[$a['periodo']])) {
             return ['ok' => true, 'mensagem' => 'Plano sem cobrança.'];
         }
@@ -95,35 +124,77 @@ final class AssinaturaCobranca
         }
         $conta = $this->conta();
         if ($conta === null) {
-            $this->assinaturas->salvarAsaas($idAssinatura, null, null, null, 'O Asaas da plataforma não está conectado.');
+            // Preserva ambiente, cliente e marcador de tentativa incerta.
+            if ($a['cobranca_erro'] === null) {
+                $this->assinaturas->salvarAsaas($idAssinatura, $a['ambiente'], $a['asaas_cliente_id'], null, 'O Asaas da plataforma não está conectado.');
+            }
             return ['ok' => false, 'mensagem' => 'A cobrança ainda não pôde ser gerada: o pagamento online está indisponível no momento.'];
+        }
+        if ($a['ambiente'] !== null && $a['ambiente'] !== $conta['ambiente']) {
+            return ['ok' => false, 'mensagem' => 'A assinatura pertence a outro ambiente do Asaas. Fale com o suporte.'];
         }
         $restaurante = $this->restaurante((int) $a['id_restaurante']);
         $regras = (new CobrancaAssinaturas($this->db))->regras();
         $cliente = $a['asaas_cliente_id'] ?? $this->assinaturas->clienteAsaas((int) $a['id_restaurante'], $conta['ambiente']);
+        $pendencia = (string) ($a['cobranca_erro'] ?? '');
+        $etapa = str_starts_with($pendencia, 'CONFIRMAR_CLIENTE:') ? 'CLIENTE'
+            : (str_starts_with($pendencia, 'CONFIRMAR_ASSINATURA:') ? 'ASSINATURA' : null);
+        $postEmCurso = false;
         try {
             if ($cliente === null) {
                 if ($restaurante === null || $restaurante['cnpj'] === null) {
                     throw new IntegracaoErro('O restaurante não tem CNPJ cadastrado.');
                 }
-                $cliente = $this->api->criarClienteAssinante($conta['chave'], $conta['ambiente'], $restaurante['nome'], $restaurante['cnpj'],
-                    $restaurante['email'], $restaurante['celular'], 'restaurante:' . (int) $a['id_restaurante'], (bool) $regras['avisos_asaas']);
+                $refCliente = 'restaurante:' . (int) $a['id_restaurante'];
+                $cliente = $this->api->localizarClienteAssinante($conta['chave'], $conta['ambiente'], $refCliente, $restaurante['cnpj']);
+                if ($cliente === null) {
+                    if ($etapa === 'CLIENTE' || $etapa === 'ASSINATURA') {
+                        throw new IntegracaoErro('Cadastro anterior ainda não conciliado. Fale com o suporte.');
+                    }
+                    $etapa = 'CLIENTE';
+                    $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], null, null, 'CONFIRMAR_CLIENTE: solicitação enviada.');
+                    $postEmCurso = true;
+                    $cliente = $this->api->criarClienteAssinante($conta['chave'], $conta['ambiente'], $restaurante['nome'], $restaurante['cnpj'],
+                        $restaurante['email'], $restaurante['celular'], $refCliente, (bool) $regras['avisos_asaas']);
+                    $postEmCurso = false;
+                }
+                if ($etapa === 'CLIENTE') {
+                    $etapa = null;
+                }
+                $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], $cliente, null,
+                    $etapa === 'ASSINATURA' ? 'CONFIRMAR_ASSINATURA: solicitação anterior.' : null);
             }
-            $vencimento = $primeiroVencimento ?? $this->hoje()->modify('+' . max(1, $regras['vencimento_dias']) . ' days')->format('Y-m-d');
-            $idAsaas = $this->api->criarAssinatura($conta['chave'], $conta['ambiente'], [
-                'customer' => $cliente,
-                'billingType' => CobrancaAssinaturas::tipoAsaas($regras['formas']),
-                'value' => (float) $a['valor'],
-                'nextDueDate' => $vencimento,
-                'cycle' => CobrancaAssinaturas::CICLOS[$a['periodo']],
-                'description' => mb_substr(marca() . ' - plano ' . $a['plano_nome'] . ' (' . ($restaurante['nome'] ?? '') . ')', 0, 500),
-                'externalReference' => 'assinatura:' . $idAssinatura,
-                ...CobrancaAssinaturas::encargosAsaas($regras),
-                ...self::callbackRetorno(Config::get('APP_URL'), (string) ($restaurante['slug'] ?? '')),
-            ]);
+            $referencia = 'assinatura:' . $idAssinatura;
+            $idAsaas = $this->api->localizarAssinatura($conta['chave'], $conta['ambiente'], $cliente, $referencia);
+            if ($idAsaas === null) {
+                if ($etapa === 'ASSINATURA') {
+                    throw new IntegracaoErro('Cobrança anterior ainda não conciliada. Fale com o suporte antes de emitir outra.');
+                }
+                $vencimento = $primeiroVencimento ?? $a['vence_em'] ?? $this->hoje()->modify('+' . max(1, $regras['vencimento_dias']) . ' days')->format('Y-m-d');
+                $etapa = 'ASSINATURA';
+                $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], $cliente, null, 'CONFIRMAR_ASSINATURA: solicitação enviada.');
+                $postEmCurso = true;
+                $idAsaas = $this->api->criarAssinatura($conta['chave'], $conta['ambiente'], [
+                    'customer' => $cliente,
+                    'billingType' => CobrancaAssinaturas::tipoAsaas($regras['formas']),
+                    'value' => (float) $a['valor'],
+                    'nextDueDate' => $vencimento,
+                    'cycle' => CobrancaAssinaturas::CICLOS[$a['periodo']],
+                    'description' => mb_substr(marca() . ' - plano ' . $a['plano_nome'] . ' (' . ($restaurante['nome'] ?? '') . ')', 0, 500),
+                    'externalReference' => $referencia,
+                    ...CobrancaAssinaturas::encargosAsaas($regras),
+                    ...self::callbackRetorno(Config::get('APP_URL'), (string) ($restaurante['slug'] ?? '')),
+                ]);
+                $postEmCurso = false;
+            }
         } catch (IntegracaoErro $erro) {
-            $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], $cliente, null, $erro->getMessage());
-            return ['ok' => false, 'mensagem' => 'A cobrança não pôde ser gerada agora. ' . $erro->getMessage()];
+            // Rejeicao explicita da API permite nova tentativa; timeout/5xx nao.
+            if ($postEmCurso && in_array($erro->getCode(), [400, 401, 403, 404, 422], true)) {
+                $etapa = null;
+            }
+            $mensagem = ($etapa !== null ? 'CONFIRMAR_' . $etapa . ': ' : '') . $erro->getMessage();
+            $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], $cliente, null, $mensagem);
+            return ['ok' => false, 'mensagem' => 'A cobrança não pôde ser confirmada agora. ' . $erro->getMessage()];
         }
         $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], $cliente, $idAsaas, null);
         $this->sincronizar($idAssinatura);
@@ -208,7 +279,9 @@ final class AssinaturaCobranca
     public function remover(array $a): ?string
     {
         if ($a['asaas_assinatura_id'] === null) {
-            return null;
+            return str_starts_with((string) ($a['cobranca_erro'] ?? ''), 'CONFIRMAR_')
+                ? 'Há uma tentativa de cobrança não conciliada. Atualize as faturas ou fale com o suporte antes de cancelar.'
+                : null;
         }
         $conta = $this->conta();
         if ($conta === null || $conta['ambiente'] !== $a['ambiente']) {
