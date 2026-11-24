@@ -171,8 +171,11 @@ final class AssinaturaRepository
 
     public function ajustarVencimento(int $id, int $idRestaurante, string $venceEm): void
     {
-        $this->db->prepare("UPDATE assinaturas SET vence_em = ? WHERE id = ? AND id_restaurante = ? AND status IN ('ativa', 'aguardando')")
-            ->execute([$venceEm, $id, $idRestaurante]);
+        // O schema exige vence_em > inicio_em. NULL representa ausência de cobertura
+        // quando o pagamento inicial é integralmente revertido.
+        $this->db->prepare("UPDATE assinaturas SET vence_em = CASE WHEN ? > inicio_em THEN ? ELSE NULL END
+            WHERE id = ? AND id_restaurante = ? AND status IN ('ativa', 'aguardando')")
+            ->execute([$venceEm, $venceEm, $id, $idRestaurante]);
     }
 
     /** Muda o acesso do restaurante so a partir dos status esperados (suspenso/inativo pela administracao nunca mudam aqui). */
