@@ -160,6 +160,8 @@ pagina "$rj" "$base/$slugr/gerencia/assinatura" >/dev/null
 contem "fatura com botao Pagar agora" "$tmp/pagina.html" 'Pagar agora'
 contem "link da fatura do Asaas" "$tmp/pagina.html" 'https://sandbox.asaas.com/i/'
 contem "aguardando o primeiro pagamento" "$tmp/pagina.html" 'Aguardando pagamento'
+esperar "retorno sem pagamento abre a assinatura" "$(pagina "$rj" "$base/$slugr/gerencia/assinatura?retorno=asaas")" "200"
+contem "retorno explica a confirmacao" "$tmp/pagina.html" 'Você voltou do Asaas'
 esperar "cardapio fora do ar antes de pagar" "$(publico "$slugr")" "404"
 esperar "mas o gerente ja monta o restaurante" "$(pagina "$rj" "$base/$slugr/gerencia/estoque")" "200"
 curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs.json"
@@ -174,6 +176,8 @@ esperar "pagou: cardapio no ar" "$(publico "$slugr")" "200"
 pagina "$rj" "$base/$slugr/gerencia/assinatura" >/dev/null
 contem "fatura paga na lista" "$tmp/pagina.html" '>Paga<'
 contem "assinatura ativa" "$tmp/pagina.html" '>Ativa<'
+esperar "retorno apos pagar abre a assinatura" "$(pagina "$rj" "$base/$slugr/gerencia/assinatura?retorno=asaas")" "200"
+contem "retorno preserva pagamento confirmado" "$tmp/pagina.html" '>Paga<'
 
 echo "Fatura atrasada bloqueia e pagamento libera"
 atrasada="$(php -r '$p = json_decode(file_get_contents($argv[1]), true); $p["id"] = "pay_ci_atraso_" . $argv[2]; $p["status"] = "OVERDUE"; $p["dueDate"] = "2020-01-10"; unset($p["paymentDate"]); echo json_encode(["id" => "evt_ci_atraso_" . $argv[2], "event" => "PAYMENT_OVERDUE", "payment" => $p]);' "$tmp/pay.json" "$id")"
