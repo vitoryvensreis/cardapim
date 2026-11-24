@@ -60,6 +60,22 @@ $ok(AssinaturaService::preco('0.00', 'vitalicio') === 'Grátis', 'vitalicio e gr
 $ok(str_contains(AssinaturaService::preco('59.90', 'mensal'), 'por mês'), 'preco mensal');
 $ok(preg_match('/\A[a-f0-9]{24}\z/', PlanoService::novoConvite()) === 1 && PlanoService::novoConvite() !== PlanoService::novoConvite(), 'convite aleatorio de 24 caracteres');
 
+/* Validade sem fatura: a expiração independe da chegada do webhook. */
+$db = new PDO('sqlite::memory:');
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$db->exec("CREATE TABLE restaurantes (id INTEGER PRIMARY KEY, status_rest TEXT);
+    CREATE TABLE assinaturas (id INTEGER PRIMARY KEY, id_restaurante INTEGER, status TEXT, valor NUMERIC, vence_em TEXT);
+    INSERT INTO restaurantes VALUES (1,'ativo'),(2,'ativo'),(3,'ativo'),(4,'suspenso'),(5,'ativo');
+    INSERT INTO assinaturas VALUES (1,1,'ativa',59.90,'2026-11-01'),(2,2,'ativa',0,NULL),
+        (3,3,'ativa',59.90,'2026-11-25'),(4,4,'ativa',59.90,'2026-11-01'),
+        (5,5,'ativa',59.90,'2026-11-01'),(6,5,'ativa',0,NULL)");
+$repo = new \Cardapim\Repositories\Gerencia\AssinaturaRepository($db);
+$ok($repo->bloquearPeriodoVencido(1, '2026-11-17') && $repo->statusRestaurante(1) === 'inadimplente', 'período pago expirado sem fatura bloqueia');
+$ok(!$repo->bloquearPeriodoVencido(2, '2026-11-17') && $repo->statusRestaurante(2) === 'ativo', 'plano gratuito não expira');
+$ok(!$repo->bloquearPeriodoVencido(3, '2026-11-17'), 'validade futura preservada');
+$ok(!$repo->bloquearPeriodoVencido(4, '2026-11-17') && $repo->statusRestaurante(4) === 'suspenso', 'suspensão administrativa preservada');
+$ok(!$repo->bloquearPeriodoVencido(5, '2026-11-17'), 'contrato antigo não bloqueia plano gratuito atual');
+
 if ($falhas > 0) {
     exit(1);
 }
