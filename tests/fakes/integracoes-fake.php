@@ -73,6 +73,12 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
         $responder(200, ['object' => 'list', 'hasMore' => false, 'totalCount' => $pendente ? 0 : 1, 'data' => $pendente ? [] : [['id' => 'key_ci', 'status' => 'ACTIVE', 'type' => 'EVP']]]);
     }
     // Clientes e cobrancas Pix (pedidos do cardapio online).
+    $clientes = $ler('asaas-clientes.json') ?? [];
+    if ($metodo === 'GET' && $m[1] === '/customers') {
+        $lista = array_values(array_filter($clientes, static fn (array $c): bool =>
+            ($c['externalReference'] ?? '') === ($_GET['externalReference'] ?? '') && ($c['cpfCnpj'] ?? '') === ($_GET['cpfCnpj'] ?? '')));
+        $responder(200, ['object' => 'list', 'hasMore' => false, 'data' => $lista]);
+    }
     if ($metodo === 'POST' && $m[1] === '/customers') {
         if (trim((string) ($json['name'] ?? '')) === '' || preg_match('/\A(\d{11}|\d{14})\z/', (string) ($json['cpfCnpj'] ?? '')) !== 1) {
             $responder(400, ['errors' => [['description' => 'Nome e CPF/CNPJ obrigatorios']]]);
@@ -80,7 +86,10 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
         if (str_contains((string) $json['name'], 'Falha Pix')) {
             $responder(400, ['errors' => [['description' => 'Cliente recusado (teste)']]]);
         }
-        $responder(200, ['id' => 'cus_ci_' . substr(md5((string) $json['cpfCnpj'] . $json['name']), 0, 10)] + $json);
+        $id = 'cus_ci_' . substr(md5((string) $json['cpfCnpj'] . $json['name']), 0, 10);
+        $clientes[$id] = ['id' => $id] + $json;
+        $guardar('asaas-clientes.json', $clientes);
+        $responder(200, $clientes[$id]);
     }
     $cobrancas = $ler('asaas-cobrancas.json') ?? [];
     if ($metodo === 'POST' && $m[1] === '/payments') {
@@ -95,6 +104,12 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
     }
     // Assinaturas recorrentes (plataforma): a primeira fatura nasce junto, como no Asaas.
     $assinaturas = $ler('asaas-assinaturas.json') ?? [];
+    if ($metodo === 'GET' && $m[1] === '/subscriptions') {
+        $lista = array_values(array_filter($assinaturas, static fn (array $s): bool =>
+            ($s['externalReference'] ?? '') === ($_GET['externalReference'] ?? '')
+            && ($s['customer'] ?? '') === ($_GET['customer'] ?? '') && $s['status'] === 'ACTIVE'));
+        $responder(200, ['object' => 'list', 'hasMore' => false, 'data' => $lista]);
+    }
     if ($metodo === 'POST' && $m[1] === '/subscriptions') {
         if (!str_starts_with((string) ($json['customer'] ?? ''), 'cus_') || !in_array($json['billingType'] ?? '', ['PIX', 'BOLETO', 'CREDIT_CARD', 'UNDEFINED'], true)
             || (float) ($json['value'] ?? 0) <= 0 || !in_array($json['cycle'] ?? '', ['MONTHLY', 'SEMIANNUALLY', 'YEARLY'], true)
@@ -109,6 +124,10 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
             'subscription' => $id, 'customer' => $json['customer'], 'externalReference' => (string) ($json['externalReference'] ?? ''),
             'invoiceUrl' => 'https://sandbox.asaas.com/i/' . $pid, 'bankSlipUrl' => 'https://sandbox.asaas.com/b/pdf/' . $pid];
         $guardar('asaas-cobrancas.json', $cobrancas);
+        if (str_contains((string) ($json['description'] ?? ''), 'Recuperacao CI')) {
+            // Provedor gravou a assinatura, mas a resposta da criacao falhou.
+            $responder(503, ['errors' => [['description' => 'Resposta perdida (teste)']]]);
+        }
         $responder(200, $assinaturas[$id]);
     }
     if (preg_match('~\A/subscriptions/([A-Za-z0-9_-]+)(/payments)?\z~', $m[1], $sm)) {
