@@ -262,6 +262,22 @@ class AsaasApi
         return self::idDevolvido($dados, 'O Asaas não devolveu a assinatura.');
     }
 
+    /** Recupera a assinatura para validar a conta e o cliente antes de uma alteração pontual. */
+    public function consultarAssinatura(string $chave, string $ambiente, string $id): array
+    {
+        $dados = $this->exigirOk($this->chamar('GET', '/subscriptions/' . self::idSeguro($id), $chave, $ambiente));
+        if (($dados['id'] ?? null) !== $id) {
+            throw new IntegracaoErro('O Asaas não devolveu a assinatura solicitada.');
+        }
+        return $dados;
+    }
+
+    /** Atualiza exclusivamente o retorno de uma cobrança já emitida. */
+    public function atualizarCallbackFatura(string $chave, string $ambiente, string $id, array $callback): void
+    {
+        $this->exigirOk($this->chamar('PUT', '/payments/' . self::idSeguro($id), $chave, $ambiente, ['callback' => $callback]));
+    }
+
     /** Muda valor/ciclo (vale para as proximas faturas e para as pendentes). */
     public function atualizarAssinatura(string $chave, string $ambiente, string $id, array $corpo): void
     {
