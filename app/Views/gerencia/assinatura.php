@@ -36,12 +36,22 @@ $semCobranca = $pago && $vigente['asaas_assinatura_id'] === null && $vigente['st
         </div>
     </header>
 
+    <?php if (!empty($retornoAsaas)): ?>
+        <div class="notice notice-info bloco-aviso" role="status">
+            <?= Icon::svg('info') ?>
+            <div>
+                <strong>Você voltou do Asaas.</strong>
+                <p>Confira abaixo a situação da sua assinatura e das faturas. Se o pagamento ainda estiver em processamento, aguarde a confirmação ou use Atualizar faturas.</p>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if ($bloqueado): ?>
         <div class="notice notice-warning bloco-aviso" role="alert">
             <?= Icon::svg('lock') ?>
             <div>
                 <strong>Acesso pausado por pagamento pendente.</strong>
-                <p><?= $aberta !== null ? 'Pague a fatura em aberto. Assim que o pagamento for confirmado, tudo volta a funcionar sozinho.' : 'Escolha um plano abaixo para voltar a usar o sistema.' ?></p>
+                <p><?= $aberta !== null ? 'Pague a fatura em aberto. Assim que o pagamento for confirmado, tudo volta a funcionar sozinho.' : ($vigente !== null ? 'Atualize as faturas abaixo para conferir seu pagamento. Se não houver uma cobrança disponível, fale com o suporte.' : 'Escolha um plano abaixo para voltar a usar o sistema.') ?></p>
             </div>
         </div>
     <?php elseif ($pendente && $vigente !== null && $vigente['status'] === 'aguardando'): ?>
@@ -125,7 +135,7 @@ $semCobranca = $pago && $vigente['asaas_assinatura_id'] === null && $vigente['st
                                 <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('refresh-cw', 'icon-sm') ?><?= $semCobranca ? 'Gerar cobrança' : 'Atualizar faturas' ?></button>
                             </form>
                         <?php endif; ?>
-                        <?php if ($pago && $vigente['status'] === 'ativa'): ?>
+                        <?php if ($pago && in_array($vigente['status'], ['ativa', 'aguardando'], true)): ?>
                             <form method="post" action="<?= $e($base . '/assinatura/cancelar') ?>"
                                   data-confirm="<?= $e('Não haverá novas cobranças. Você continua usando tudo até ' . ($vigente['vence_em'] !== null ? $data((string) $vigente['vence_em']) : 'hoje') . '; depois, o acesso fica pausado até escolher um plano. Dá para desfazer até lá.') ?>"
                                   data-confirm-titulo="Cancelar a assinatura?" data-confirm-acao="Sim, cancelar" data-confirm-perigo="1">

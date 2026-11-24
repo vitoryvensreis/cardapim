@@ -17,7 +17,11 @@ use Cardapim\Services\Plataforma\AssinaturaCobranca;
 try {
     $db = Database::connect();
     $ids = $db->query("SELECT DISTINCT f.id_restaurante FROM assinatura_faturas f JOIN restaurantes r ON r.id = f.id_restaurante
-        WHERE f.status IN ('pendente', 'vencida') AND r.status_rest IN ('ativo', 'pendente')")->fetchAll(PDO::FETCH_COLUMN);
+        WHERE f.status IN ('pendente', 'vencida') AND r.status_rest IN ('ativo', 'pendente')
+        UNION SELECT a.id_restaurante FROM assinaturas a JOIN restaurantes r ON r.id = a.id_restaurante
+        WHERE ((a.status = 'cancelada' AND (a.vence_em IS NULL OR a.vence_em < CURRENT_DATE))
+            OR (a.status = 'ativa' AND a.valor > 0 AND a.vence_em IS NOT NULL AND a.vence_em < CURRENT_DATE))
+        AND r.status_rest IN ('ativo', 'pendente')")->fetchAll(PDO::FETCH_COLUMN);
     $cobranca = new AssinaturaCobranca($db);
     $bloqueados = 0;
     foreach ($ids as $id) {
@@ -25,7 +29,7 @@ try {
             $bloqueados++;
         }
     }
-    echo date('Y-m-d H:i:s') . " Cobranca diaria: " . count($ids) . " com fatura em aberto, {$bloqueados} bloqueado(s).\n";
+    echo date('Y-m-d H:i:s') . " Cobranca diaria: " . count($ids) . " candidato(s) à verificação, {$bloqueados} bloqueado(s).\n";
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Cobranca diaria falhou: ' . get_class($exception) . ': ' . $exception->getMessage() . "\n");
     exit(1);

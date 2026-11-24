@@ -160,6 +160,8 @@ pagina "$rj" "$base/$slugr/gerencia/assinatura" >/dev/null
 contem "fatura com botao Pagar agora" "$tmp/pagina.html" 'Pagar agora'
 contem "link da fatura do Asaas" "$tmp/pagina.html" 'https://sandbox.asaas.com/i/'
 contem "aguardando o primeiro pagamento" "$tmp/pagina.html" 'Aguardando pagamento'
+esperar "retorno sem pagamento abre a assinatura" "$(pagina "$rj" "$base/$slugr/gerencia/assinatura?retorno=asaas")" "200"
+contem "retorno explica a confirmacao" "$tmp/pagina.html" 'Você voltou do Asaas'
 esperar "cardapio fora do ar antes de pagar" "$(publico "$slugr")" "404"
 esperar "mas o gerente ja monta o restaurante" "$(pagina "$rj" "$base/$slugr/gerencia/estoque")" "200"
 curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs.json"
@@ -174,6 +176,8 @@ esperar "pagou: cardapio no ar" "$(publico "$slugr")" "200"
 pagina "$rj" "$base/$slugr/gerencia/assinatura" >/dev/null
 contem "fatura paga na lista" "$tmp/pagina.html" '>Paga<'
 contem "assinatura ativa" "$tmp/pagina.html" '>Ativa<'
+esperar "retorno apos pagar abre a assinatura" "$(pagina "$rj" "$base/$slugr/gerencia/assinatura?retorno=asaas")" "200"
+contem "retorno preserva pagamento confirmado" "$tmp/pagina.html" '>Paga<'
 
 echo "Fatura atrasada bloqueia e pagamento libera"
 atrasada="$(php -r '$p = json_decode(file_get_contents($argv[1]), true); $p["id"] = "pay_ci_atraso_" . $argv[2]; $p["status"] = "OVERDUE"; $p["dueDate"] = "2020-01-10"; unset($p["paymentDate"]); echo json_encode(["id" => "evt_ci_atraso_" . $argv[2], "event" => "PAYMENT_OVERDUE", "payment" => $p]);' "$tmp/pay.json" "$id")"
@@ -198,6 +202,66 @@ contem "mostra cancelada" "$tmp/pagina.html" 'Desfazer cancelamento'
 esperar "desfazer cancelamento" "$(enviar "$rj" "$base/$slugr/gerencia/assinatura/reativar" "$base/$slugr/gerencia/assinatura")" "303 $base/$slugr/gerencia/assinatura"
 curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs.json"
 esperar "nova assinatura no Asaas ao desfazer" "$(php -r '$d = json_decode(file_get_contents($argv[1]), true); $n = 0; foreach ($d as $s) { if (str_contains((string) ($s["description"] ?? ""), $argv[2]) && $s["status"] === "ACTIVE") { $n++; } } echo $n;' "$tmp/subs.json" "Pago CI $id")" "1"
+
+echo "Recuperar criação com resposta perdida sem duplicar"
+recj="$tmp/recuperacao"
+rr="$(cadastrar "$recj" "Recuperacao CI $id" "recup$id" "$pub")"
+slugrec="$(echo "${rr#* }" | sed 's~.*/\([a-z0-9-]*\)/gerencia.*~\1~')"
+esperar "cadastro com falha externa continua recuperável" "${rr%% *} ${rr#* }" "303 $base/$slugrec/gerencia/assinatura"
+pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
+contem "mostra botão de gerar cobrança" "$tmp/pagina.html" 'Gerar cobrança'
+esperar "recuperação da recorrência" "$(enviar "$recj" "$base/$slugrec/gerencia/assinatura/cobranca" "$base/$slugrec/gerencia/assinatura")" "303 $base/$slugrec/gerencia/assinatura"
+pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
+contem "cobrança original recuperada" "$tmp/pagina.html" 'Pagar agora'
+curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs-rec.json"
+esperar "somente uma recorrência criada após resposta perdida" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); $n=0; foreach ($d as $s) { if (str_contains((string)($s["description"]??""),$argv[2])) $n++; } echo $n;' "$tmp/subs-rec.json" "Recuperacao CI $id")" "1"
+
+echo "Estorno, disputa e aviso antigo"
+subrec="$(php -r '$d=json_decode(file_get_contents($argv[1]),true); foreach ($d as $s) { if (str_contains((string)($s["description"]??""),$argv[2])) echo $s["id"]; }' "$tmp/subs-rec.json" "Recuperacao CI $id")"
+echo "Atualização retroativa do retorno, sem mudar preço"
+ridrec="$(php -r 'require "bootstrap/app.php"; $q=\Cardapim\Core\Database::connect()->prepare("SELECT id FROM restaurantes WHERE slug=?"); $q->execute([$argv[1]]); echo $q->fetchColumn();' "$slugrec")"
+curl -s "$fake/_teste/asaas-cobrancas" > "$tmp/rec-antes.json"
+if APP_URL=https://cardapim.test ASAAS_URL_SANDBOX="$fake/asaas/v3" php bin/atualizar-retorno-asaas.php --restaurante="$ridrec" --ambiente=sandbox > "$tmp/retorno.log"; then
+  contem "simulação sem alteração" "$tmp/retorno.log" 'Nenhuma alteração feita'
+else
+  falha "simulação de callback"
+fi
+curl -s "$fake/_teste/asaas-cobrancas" > "$tmp/rec-simulacao.json"
+esperar "simulação preserva cobranças" "$(cmp -s "$tmp/rec-antes.json" "$tmp/rec-simulacao.json" && echo igual || echo diferente)" igual
+if APP_URL=https://cardapim.test ASAAS_URL_SANDBOX="$fake/asaas/v3" php bin/atualizar-retorno-asaas.php --restaurante="$ridrec" --ambiente=sandbox --apply > "$tmp/retorno.log"; then
+  contem "callback retroativo aplicado no provedor falso" "$tmp/retorno.log" 'atualizado'
+else
+  falha "aplicação retroativa de callback"
+fi
+curl -s "$fake/_teste/asaas-cobrancas" > "$tmp/rec-depois.json"
+esperar "callback alterado sem mexer em valor ou vencimento" "$(php -r '$a=json_decode(file_get_contents($argv[1]),true);$b=json_decode(file_get_contents($argv[2]),true);foreach($a as $id=>$f){if(($f["subscription"]??"")===$argv[3]){ $g=$b[$id];$ok=$f["value"]===$g["value"]&&$f["dueDate"]===$g["dueDate"]&&($g["callback"]["successUrl"]??"")==="https://cardapim.test/".$argv[4]."/gerencia/assinatura?retorno=asaas"&&($g["callback"]["autoRedirect"]??false)===true;echo $ok?"ok":"falha";break;}}' "$tmp/rec-antes.json" "$tmp/rec-depois.json" "$subrec" "$slugrec")" ok
+
+curl -s "$fake/_teste/asaas-assinatura-pagar/$subrec" > "$tmp/rec-paga.json"
+payrec="$(json "$tmp/rec-paga.json" id)"
+aviso_rec() {
+  local evento="$1" arquivo="$2" sufixo="$3" corpo
+  corpo="$(php -r '$p=json_decode(file_get_contents($argv[1]),true); echo json_encode(["id"=>"evt_ci_".$p["id"]."_".$argv[3],"event"=>$argv[2],"payment"=>$p]);' "$arquivo" "$evento" "$sufixo")"
+  curl -s -o /dev/null -w '%{http_code}' -H "asaas-access-token: $tk" -H 'Content-Type: application/json' --data "$corpo" "$base$wh"
+}
+esperar "pagamento original confirmado" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-paga.json" pago)" "200"
+esperar "assinatura recuperada libera loja" "$(publico "$slugrec")" "200"
+esperar "estorno parcial não suspende período" "$(aviso_rec PAYMENT_PARTIALLY_REFUNDED "$tmp/rec-paga.json" parcial)" "200"
+esperar "acesso preservado no estorno parcial" "$(publico "$slugrec")" "200"
+curl -s "$fake/_teste/asaas-estado/CHARGEBACK_REQUESTED/$payrec" > "$tmp/rec-disputa.json"
+esperar "aviso de chargeback" "$(aviso_rec PAYMENT_CHARGEBACK_REQUESTED "$tmp/rec-disputa.json" disputa)" "200"
+esperar "chargeback suspende período sem outra cobertura" "$(publico "$slugrec")" "404"
+esperar "aviso pago antigo recebido" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-paga.json" antigo)" "200"
+esperar "aviso antigo não reativa loja em disputa" "$(publico "$slugrec")" "404"
+curl -s "$fake/_teste/asaas-estado/RECEIVED/$payrec" > "$tmp/rec-restaurada.json"
+esperar "pagamento restaurado no Asaas" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-restaurada.json" restaurado)" "200"
+esperar "disputa revertida restaura acesso" "$(publico "$slugrec")" "200"
+curl -s "$fake/_teste/asaas-estado/REFUNDED/$payrec" > "$tmp/rec-estorno.json"
+esperar "estorno integral confirmado" "$(aviso_rec PAYMENT_REFUNDED "$tmp/rec-estorno.json" estorno)" "200"
+esperar "estorno integral retira acesso" "$(publico "$slugrec")" "404"
+pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
+contem "fatura estornada registrada" "$tmp/pagina.html" '>Estornada<'
+esperar "aviso antigo após estorno" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-paga.json" antigo_estorno)" "200"
+esperar "estorno não é desfeito por aviso antigo" "$(publico "$slugrec")" "404"
 
 if (( falhas > 0 )); then
   echo "FALHOU: $falhas verificacao(oes) de planos, marca e cadastro."

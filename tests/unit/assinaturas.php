@@ -9,6 +9,7 @@ use Cardapim\Modules\Integracoes\AsaasApi;
 use Cardapim\Modules\Marca\MarcaUpload;
 use Cardapim\Services\Gerencia\AssinaturaService;
 use Cardapim\Services\Plataforma\PlanoService;
+use Cardapim\Services\Plataforma\AssinaturaCobranca;
 
 $falhas = 0;
 $ok = static function (bool $cond, string $nome) use (&$falhas): void {
@@ -46,10 +47,40 @@ $ok($recusa('<html><body>oi</body></html>'), 'nao-SVG recusado');
 $ok(MarcaUpload::arquivoDe('/midia/marca/' . str_repeat('a', 32) . '-512.png') !== null, 'caminho do icone 512 aceito');
 $ok(MarcaUpload::arquivoDe('/midia/marca/../../.env') === null && MarcaUpload::arquivoDe('/midia/logos/' . str_repeat('a', 32) . '.png') === null, 'caminhos estranhos recusados');
 
+/* Callback para faturas hospedadas: apenas HTTPS e slug local. */
+$ok(AssinaturaCobranca::callbackRetorno('https://deliveryzim.com.br/', 'loja-teste') === [
+    'callback' => ['successUrl' => 'https://deliveryzim.com.br/loja-teste/gerencia/assinatura?retorno=asaas', 'autoRedirect' => true],
+], 'retorno do Asaas para a assinatura da loja');
+$ok(AssinaturaCobranca::callbackRetorno('http://localhost:8000', 'loja-teste') === [], 'sem retorno em HTTP local');
+$ok(AssinaturaCobranca::callbackRetorno('https://deliveryzim.com.br', '../outra-loja') === [], 'slug inseguro recusado');
+$ok(AssinaturaCobranca::callbackRetorno('https://user@deliveryzim.com.br', 'loja-teste') === [], 'URL com credenciais recusada');
+
 /* Planos e precos */
 $ok(AssinaturaService::preco('0.00', 'vitalicio') === 'Grátis', 'vitalicio e gratis');
 $ok(str_contains(AssinaturaService::preco('59.90', 'mensal'), 'por mês'), 'preco mensal');
 $ok(preg_match('/\A[a-f0-9]{24}\z/', PlanoService::novoConvite()) === 1 && PlanoService::novoConvite() !== PlanoService::novoConvite(), 'convite aleatorio de 24 caracteres');
+
+/* Validade sem fatura: a expiração independe da chegada do webhook. */
+$db = new PDO('sqlite::memory:');
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$db->exec("CREATE TABLE restaurantes (id INTEGER PRIMARY KEY, status_rest TEXT);
+    CREATE TABLE assinaturas (id INTEGER PRIMARY KEY, id_restaurante INTEGER, status TEXT, valor NUMERIC, vence_em TEXT,
+        inicio_em TEXT NOT NULL DEFAULT '2026-10-01', CHECK (vence_em > inicio_em));
+    INSERT INTO restaurantes VALUES (1,'ativo'),(2,'ativo'),(3,'ativo'),(4,'suspenso'),(5,'ativo');
+    INSERT INTO assinaturas (id,id_restaurante,status,valor,vence_em) VALUES (1,1,'ativa',59.90,'2026-11-01'),(2,2,'ativa',0,NULL),
+        (3,3,'ativa',59.90,'2026-11-25'),(4,4,'ativa',59.90,'2026-11-01'),
+        (5,5,'ativa',59.90,'2026-11-01'),(6,5,'ativa',0,NULL)");
+$repo = new \Cardapim\Repositories\Gerencia\AssinaturaRepository($db);
+$ok($repo->bloquearPeriodoVencido(1, '2026-11-17') && $repo->statusRestaurante(1) === 'inadimplente', 'período pago expirado sem fatura bloqueia');
+$ok(!$repo->bloquearPeriodoVencido(2, '2026-11-17') && $repo->statusRestaurante(2) === 'ativo', 'plano gratuito não expira');
+$ok(!$repo->bloquearPeriodoVencido(3, '2026-11-17'), 'validade futura preservada');
+$ok(!$repo->bloquearPeriodoVencido(4, '2026-11-17') && $repo->statusRestaurante(4) === 'suspenso', 'suspensão administrativa preservada');
+$ok(!$repo->bloquearPeriodoVencido(5, '2026-11-17'), 'contrato antigo não bloqueia plano gratuito atual');
+
+$repo->ajustarVencimento(1, 1, '2026-09-30');
+$ok($db->query('SELECT vence_em FROM assinaturas WHERE id = 1')->fetchColumn() === null, 'estorno inicial remove cobertura sem violar CHECK de datas');
+$repo->ajustarVencimento(3, 3, '2026-10-31');
+$ok($db->query('SELECT vence_em FROM assinaturas WHERE id = 3')->fetchColumn() === '2026-10-31', 'estorno preserva cobertura anterior válida');
 
 if ($falhas > 0) {
     exit(1);

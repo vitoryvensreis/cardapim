@@ -94,7 +94,7 @@ final class FaturaAdminRepository
     public function assinaturasParaAtualizar(string $ambiente, int $limite): array
     {
         $q = $this->db->prepare("SELECT a.id FROM assinaturas a
-            WHERE a.ambiente = ? AND a.asaas_assinatura_id IS NOT NULL AND a.status = 'ativa'
+            WHERE a.ambiente = ? AND a.asaas_assinatura_id IS NOT NULL AND a.status IN ('ativa', 'aguardando')
             ORDER BY EXISTS (SELECT 1 FROM assinatura_faturas fa WHERE fa.id_assinatura = a.id AND fa.status IN ('pendente', 'vencida')) DESC, a.id DESC
             LIMIT " . max(1, $limite));
         $q->execute([$ambiente]);
