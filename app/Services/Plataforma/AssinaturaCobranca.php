@@ -30,7 +30,8 @@ final class AssinaturaCobranca
         'PENDING' => 'pendente', 'AWAITING_RISK_ANALYSIS' => 'pendente', 'AUTHORIZED' => 'pendente',
         'RECEIVED' => 'paga', 'CONFIRMED' => 'paga', 'RECEIVED_IN_CASH' => 'paga', 'DUNNING_RECEIVED' => 'paga',
         'OVERDUE' => 'vencida', 'DUNNING_REQUESTED' => 'vencida',
-        'REFUNDED' => 'estornada', 'REFUND_REQUESTED' => 'estornada', 'CHARGEBACK_REQUESTED' => 'estornada', 'CHARGEBACK_DISPUTE' => 'estornada',
+        'REFUNDED' => 'estornada', 'CHARGEBACK_REQUESTED' => 'estornada', 'CHARGEBACK_DISPUTE' => 'estornada',
+        'AWAITING_CHARGEBACK_REVERSAL' => 'estornada',
         'DELETED' => 'cancelada',
     ];
 
@@ -263,7 +264,11 @@ final class AssinaturaCobranca
         if ($evento === 'PAYMENT_DELETED') {
             $f['status'] = 'DELETED';
         }
-        $this->aplicarFatura($a, $conta['ambiente'], $f);
+        // Estorno parcial não revoga o período pago; o valor líquido exige conciliação própria.
+        if ($evento === 'PAYMENT_PARTIALLY_REFUNDED' || $evento === 'PAYMENT_REFUND_IN_PROGRESS') {
+            return;
+        }
+        $this->aplicarFatura($a, $conta['ambiente'], $f, $evento);
     }
 
     /**
@@ -284,6 +289,9 @@ final class AssinaturaCobranca
         }
         $tolerancia = (new CobrancaAssinaturas($this->db))->regras()['tolerancia_dias'];
         $limite = $this->hoje()->modify('-' . (int) $tolerancia . ' days')->format('Y-m-d');
+        if ($this->assinaturas->bloquearPeriodoVencido($idRestaurante, $limite)) {
+            return true;
+        }
         if ($this->assinaturas->faturaAtrasada($idRestaurante, $limite) === null) {
             return false;
         }
@@ -337,29 +345,90 @@ final class AssinaturaCobranca
      * @param array<string,mixed> $a assinatura
      * @param array{id:string,status:string,valor:string,vencimento:string,forma:string,link_fatura:?string,link_boleto:?string,pago_em:?string,assinatura:?string} $f
      */
-    private function aplicarFatura(array $a, string $ambiente, array $f): void
+    private function aplicarFatura(array $a, string $ambiente, array $f, ?string $evento = null): void
     {
+        $idRestaurante = (int) $a['id_restaurante'];
+        if ($f['cliente'] !== null && $a['asaas_cliente_id'] !== null && $f['cliente'] !== $a['asaas_cliente_id']) {
+            return;
+        }
         $status = self::STATUS_FATURA[$f['status']] ?? null;
         if ($status === null) {
-            return; // estado desconhecido não altera a fatura local
+            return; // inclui estorno solicitado, ainda não concluído
         }
-        $idRestaurante = (int) $a['id_restaurante'];
         $this->db->beginTransaction();
         try {
             $this->assinaturas->travarRestaurante($idRestaurante, \Cardapim\Services\Gerencia\InsumoService::paraAtualizar($this->db));
-            $salvo = $this->assinaturas->salvarFatura($idRestaurante, (int) $a['id'], $ambiente, $f, $status);
+            $anterior = $this->assinaturas->faturaPorAsaas($ambiente, $f['id']);
+            if ($anterior !== null && (int) $anterior['id_restaurante'] !== $idRestaurante) {
+                throw new \RuntimeException('Fatura já vinculada a outro restaurante.');
+            }
+            $antes = $anterior['status'] ?? null;
+            // Uma fatura paga não é estornada apenas por um evento de exclusão.
+            if ($antes === 'paga' && $status === 'cancelada') {
+                $this->db->commit();
+                return;
+            }
+            // Confirma transições conflitantes no estado atual do Asaas. Evita que um
+            // PAYMENT_RECEIVED atrasado desfaça um estorno ou uma disputa legítima.
+            $conflito = ($antes !== null && $antes !== $status && in_array($antes, ['paga', 'estornada', 'cancelada'], true))
+                || $status === 'estornada' || $evento === 'PAYMENT_RECEIVED_IN_CASH_UNDONE';
+            if ($conflito) {
+                $conta = $this->conta();
+                if ($conta === null || $conta['ambiente'] !== $ambiente) {
+                    throw new IntegracaoErro('Não foi possível reconciliar a cobrança.');
+                }
+                $f = $this->api->consultarFaturaAssinatura($conta['chave'], $ambiente, $f['id']);
+                if ($f['assinatura'] === null || $f['assinatura'] !== ($a['asaas_assinatura_id'] ?? null)
+                    || ($a['asaas_cliente_id'] !== null && $f['cliente'] !== $a['asaas_cliente_id'])) {
+                    throw new IntegracaoErro('Vínculo da cobrança divergente na conciliação.');
+                }
+                $status = self::STATUS_FATURA[$f['status']] ?? null;
+                if ($status === null || ($antes === 'paga' && $status === 'cancelada')) {
+                    $this->db->commit();
+                    return;
+                }
+            }
+            if ($status === 'paga' && (float) $f['valor'] <= 0) {
+                $this->db->commit();
+                return;
+            }
+            $origem = $anterior !== null && $anterior['id_assinatura'] !== null
+                ? $this->assinaturas->buscar((int) $anterior['id_assinatura']) : $a;
+            if ($origem === null || (int) $origem['id_restaurante'] !== $idRestaurante) {
+                throw new \RuntimeException('Contrato original da fatura não encontrado.');
+            }
+            $this->assinaturas->salvarFatura($idRestaurante, (int) $origem['id'], $ambiente, $f, $status);
             $vigente = $this->assinaturas->vigente($idRestaurante);
-            if ($status === 'paga' && $salvo['status_antes'] !== 'paga' && $vigente !== null
-                && (int) $vigente['id'] === (int) $a['id']
+            $meses = AssinaturaService::MESES[$origem['periodo']] ?? 1;
+            $vencimento = DateTimeImmutable::createFromFormat('!Y-m-d', $f['vencimento']) ?: $this->hoje();
+            $cobertura = AssinaturaService::somarMeses($vencimento, $meses)->format('Y-m-d');
+            if ($vigente !== null && (int) $vigente['id'] === (int) $a['id']
                 && in_array($vigente['status'], ['ativa', 'aguardando'], true)) {
-                $meses = AssinaturaService::MESES[$a['periodo']] ?? 1;
-                $vencimento = DateTimeImmutable::createFromFormat('!Y-m-d', $f['vencimento']) ?: $this->hoje();
-                $this->assinaturas->marcarPaga((int) $a['id'], AssinaturaService::somarMeses($vencimento, $meses)->format('Y-m-d'));
-                $this->assinaturas->registrarPagamentoRestaurante($idRestaurante);
-                $tolerancia = (new CobrancaAssinaturas($this->db))->regras()['tolerancia_dias'];
-                $limite = $this->hoje()->modify('-' . (int) $tolerancia . ' days')->format('Y-m-d');
-                if ($this->assinaturas->faturaAtrasada($idRestaurante, $limite) === null) {
-                    $this->assinaturas->mudarRestaurante($idRestaurante, 'ativo', ['pendente', 'inadimplente']);
+                if ($status === 'paga' && $antes !== 'paga') {
+                    $this->assinaturas->marcarPaga((int) $vigente['id'], $cobertura);
+                    $this->assinaturas->registrarPagamentoRestaurante($idRestaurante);
+                    $atualizado = $this->assinaturas->buscar((int) $vigente['id']);
+                    $tolerancia = (new CobrancaAssinaturas($this->db))->regras()['tolerancia_dias'];
+                    $limite = $this->hoje()->modify('-' . (int) $tolerancia . ' days')->format('Y-m-d');
+                    if ($atualizado !== null && $atualizado['vence_em'] !== null && $atualizado['vence_em'] >= $limite
+                        && $this->assinaturas->faturaAtrasada($idRestaurante, $limite) === null) {
+                        $this->assinaturas->mudarRestaurante($idRestaurante, 'ativo', ['pendente', 'inadimplente']);
+                    }
+                } elseif ($antes === 'paga' && in_array($status, ['estornada', 'pendente', 'vencida'], true)
+                    && $vigente['vence_em'] !== null && $vigente['vence_em'] <= $cobertura
+                    && $vigente['asaas_assinatura_id'] !== null) {
+                    // Retira somente a cobertura perdida, preservando ciclos pagos posteriores.
+                    $ate = $vencimento->modify('-1 day')->format('Y-m-d');
+                    foreach ($this->assinaturas->faturasPagasRecorrencia($idRestaurante, $ambiente, $vigente['asaas_assinatura_id']) as $paga) {
+                        $data = DateTimeImmutable::createFromFormat('!Y-m-d', $paga['vencimento']);
+                        if ($data !== false) {
+                            $ate = max($ate, AssinaturaService::somarMeses($data, AssinaturaService::MESES[$paga['periodo']] ?? 1)->format('Y-m-d'));
+                        }
+                    }
+                    $this->assinaturas->ajustarVencimento((int) $vigente['id'], $idRestaurante, $ate);
+                    if ($ate < $this->hoje()->format('Y-m-d')) {
+                        $this->assinaturas->mudarRestaurante($idRestaurante, 'inadimplente', ['ativo', 'pendente']);
+                    }
                 }
             }
             $this->db->commit();
