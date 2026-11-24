@@ -136,6 +136,45 @@ final class AssinaturaRepository
         return $q->rowCount() > 0;
     }
 
+    /** Expiração do período contratado, independente da existência de faturas locais. */
+    public function bloquearPeriodoVencido(int $idRestaurante, string $limite): bool
+    {
+        $q = $this->db->prepare("UPDATE restaurantes SET status_rest = 'inadimplente'
+            WHERE id = ? AND status_rest IN ('ativo', 'pendente')
+            AND EXISTS (SELECT 1 FROM assinaturas a WHERE a.id_restaurante = ?
+                AND a.status = 'ativa' AND a.valor > 0 AND a.vence_em IS NOT NULL AND a.vence_em < ?
+                AND a.id = (SELECT MAX(b.id) FROM assinaturas b WHERE b.id_restaurante = a.id_restaurante
+                    AND b.status IN ('ativa', 'aguardando', 'cancelada')))");
+        $q->execute([$idRestaurante, $idRestaurante, $limite]);
+        return $q->rowCount() > 0;
+    }
+
+    /** Fatura existente: preserva o contrato que originou a cobrança. */
+    public function faturaPorAsaas(string $ambiente, string $id): ?array
+    {
+        $q = $this->db->prepare('SELECT id, id_restaurante, id_assinatura, status, valor, vencimento FROM assinatura_faturas WHERE ambiente = ? AND asaas_id = ?');
+        $q->execute([$ambiente, $id]);
+        $row = $q->fetch(PDO::FETCH_ASSOC);
+        return $row === false ? null : $row;
+    }
+
+    /** Faturas pagas da recorrência, inclusive dos planos anteriores que a reutilizaram. */
+    public function faturasPagasRecorrencia(int $idRestaurante, string $ambiente, string $asaasId): array
+    {
+        $q = $this->db->prepare("SELECT f.vencimento, a.periodo FROM assinatura_faturas f
+            JOIN assinaturas a ON a.id = f.id_assinatura
+            WHERE f.id_restaurante = ? AND a.id_restaurante = ? AND f.ambiente = ?
+            AND a.ambiente = ? AND a.asaas_assinatura_id = ? AND f.status = 'paga'");
+        $q->execute([$idRestaurante, $idRestaurante, $ambiente, $ambiente, $asaasId]);
+        return $q->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function ajustarVencimento(int $id, int $idRestaurante, string $venceEm): void
+    {
+        $this->db->prepare("UPDATE assinaturas SET vence_em = ? WHERE id = ? AND id_restaurante = ? AND status IN ('ativa', 'aguardando')")
+            ->execute([$venceEm, $id, $idRestaurante]);
+    }
+
     /** Muda o acesso do restaurante so a partir dos status esperados (suspenso/inativo pela administracao nunca mudam aqui). */
     public function mudarRestaurante(int $idRestaurante, string $novo, array $deStatus, bool $registrarPagamento = false): bool
     {
@@ -173,9 +212,9 @@ final class AssinaturaRepository
                 ->execute([$idRestaurante, $idAssinatura, $ambiente, $f['id'], $f['valor'], $f['vencimento'], $status, $f['forma'] ?: null, $f['link_fatura'], $f['link_boleto'], $pagoEm]);
             return ['id' => (int) $this->db->lastInsertId(), 'status_antes' => null];
         }
-        // Fatura paga nao volta a ficar pendente por um aviso atrasado (o Asaas pode entregar fora de ordem).
-        $novo = in_array($atual['status'], ['paga', 'estornada'], true) && in_array($status, ['pendente', 'vencida'], true) ? $atual['status'] : $status;
-        $this->db->prepare('UPDATE assinatura_faturas SET id_assinatura = COALESCE(?, id_assinatura), valor = ?, vencimento = ?, status = ?, forma = COALESCE(?, forma),
+        // O serviço reconcilia transições financeiras conflitantes diretamente com o Asaas.
+        $novo = $status;
+        $this->db->prepare('UPDATE assinatura_faturas SET id_assinatura = COALESCE(id_assinatura, ?), valor = ?, vencimento = ?, status = ?, forma = COALESCE(?, forma),
             link_fatura = COALESCE(?, link_fatura), link_boleto = COALESCE(?, link_boleto), pago_em = COALESCE(pago_em, ?) WHERE id = ?')
             ->execute([$idAssinatura, $f['valor'], $f['vencimento'], $novo, $f['forma'] ?: null, $f['link_fatura'], $f['link_boleto'], $novo === 'paga' ? $pagoEm : null, $atual['id']]);
         return ['id' => (int) $atual['id'], 'status_antes' => (string) $atual['status']];
