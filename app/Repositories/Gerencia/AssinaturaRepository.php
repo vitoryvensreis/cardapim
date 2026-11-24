@@ -160,9 +160,12 @@ final class AssinaturaRepository
      */
     public function salvarFatura(int $idRestaurante, ?int $idAssinatura, string $ambiente, array $f, string $status): array
     {
-        $q = $this->db->prepare('SELECT id, status FROM assinatura_faturas WHERE ambiente = ? AND asaas_id = ?');
+        $q = $this->db->prepare('SELECT id, status, id_restaurante FROM assinatura_faturas WHERE ambiente = ? AND asaas_id = ?');
         $q->execute([$ambiente, $f['id']]);
         $atual = $q->fetch(PDO::FETCH_ASSOC);
+        if ($atual !== false && (int) $atual['id_restaurante'] !== $idRestaurante) {
+            throw new \RuntimeException('Fatura já vinculada a outro restaurante.');
+        }
         $pagoEm = $f['pago_em'] !== null ? $f['pago_em'] . ' 00:00:00' : ($status === 'paga' ? date('Y-m-d H:i:s') : null);
         if ($atual === false) {
             $this->db->prepare('INSERT INTO assinatura_faturas (id_restaurante, id_assinatura, ambiente, asaas_id, valor, vencimento, status, forma, link_fatura, link_boleto, pago_em)
