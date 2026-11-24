@@ -214,6 +214,41 @@ class AsaasApi
         return self::idDevolvido($dados, 'O Asaas não devolveu o cadastro do restaurante.');
     }
 
+    /** Recuperacao pontual: referencia interna e CNPJ precisam coincidir. */
+    public function localizarClienteAssinante(string $chave, string $ambiente, string $referencia, string $cnpj): ?string
+    {
+        return $this->localizarUnico($chave, $ambiente, '/customers', ['externalReference' => $referencia, 'cpfCnpj' => $cnpj],
+            static fn (array $item): bool => ($item['externalReference'] ?? null) === $referencia && ($item['cpfCnpj'] ?? null) === $cnpj && empty($item['deleted']));
+    }
+
+    /** Recuperacao pontual de recorrencia cujo POST teve resultado incerto. */
+    public function localizarAssinatura(string $chave, string $ambiente, string $cliente, string $referencia): ?string
+    {
+        return $this->localizarUnico($chave, $ambiente, '/subscriptions', ['customer' => $cliente, 'externalReference' => $referencia, 'status' => 'ACTIVE'],
+            static fn (array $item): bool => ($item['externalReference'] ?? null) === $referencia && ($item['customer'] ?? null) === $cliente
+                && ($item['status'] ?? null) === 'ACTIVE' && empty($item['deleted']));
+    }
+
+    /** Uma referencia ambigua nunca autoriza a criacao de outro registro. */
+    private function localizarUnico(string $chave, string $ambiente, string $caminho, array $filtros, callable $aceitar): ?string
+    {
+        $dados = $this->exigirOk($this->chamar('GET', $caminho . '?' . http_build_query($filtros + ['limit' => 100]), $chave, $ambiente));
+        if (!is_array($dados['data'] ?? null) || !empty($dados['hasMore'])) {
+            throw new IntegracaoErro('Não foi possível concluir a consulta de recuperação no Asaas.');
+        }
+        $ids = [];
+        foreach ($dados['data'] as $item) {
+            if (is_array($item) && $aceitar($item)) {
+                $ids[] = self::idDevolvido($item, 'Identificador inválido na recuperação.');
+            }
+        }
+        $ids = array_unique($ids);
+        if (count($ids) > 1) {
+            throw new IntegracaoErro('Mais de um registro encontrado no Asaas. Solicite a conferência do suporte.');
+        }
+        return $ids === [] ? null : reset($ids);
+    }
+
     /**
      * Assinatura recorrente (POST /v3/subscriptions). $corpo ja no formato do Asaas: customer, billingType, value,
      * nextDueDate, cycle, description, externalReference, fine/interest/discount. @return string id (sub_...)
@@ -338,11 +373,11 @@ class AsaasApi
             return $r->json();
         }
         if ($r->status === 401) {
-            throw new IntegracaoErro('O Asaas recusou a chave de API. Confira se copiou a chave inteira e se ela é do ambiente escolhido (Sandbox ou Produção).');
+            throw new IntegracaoErro('O Asaas recusou a chave de API. Confira se copiou a chave inteira e se ela é do ambiente escolhido (Sandbox ou Produção).', 401);
         }
         $erro = $r->json()['errors'][0]['description'] ?? null;
         throw new IntegracaoErro(is_string($erro) && $erro !== ''
             ? 'O Asaas respondeu: ' . mb_substr($erro, 0, 180)
-            : 'O Asaas não aceitou o pedido (código ' . $r->status . '). Tente de novo em instantes.');
+            : 'O Asaas não aceitou o pedido (código ' . $r->status . '). Tente de novo em instantes.', $r->status);
     }
 }
