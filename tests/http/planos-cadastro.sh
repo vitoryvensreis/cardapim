@@ -203,6 +203,19 @@ esperar "desfazer cancelamento" "$(enviar "$rj" "$base/$slugr/gerencia/assinatur
 curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs.json"
 esperar "nova assinatura no Asaas ao desfazer" "$(php -r '$d = json_decode(file_get_contents($argv[1]), true); $n = 0; foreach ($d as $s) { if (str_contains((string) ($s["description"] ?? ""), $argv[2]) && $s["status"] === "ACTIVE") { $n++; } } echo $n;' "$tmp/subs.json" "Pago CI $id")" "1"
 
+echo "Recuperar criação com resposta perdida sem duplicar"
+recj="$tmp/recuperacao"
+rr="$(cadastrar "$recj" "Recuperacao CI $id" "recup$id" "$pub")"
+slugrec="$(echo "${rr#* }" | sed 's~.*/\([a-z0-9-]*\)/gerencia.*~\1~')"
+esperar "cadastro com falha externa continua recuperável" "${rr%% *} ${rr#* }" "303 $base/$slugrec/gerencia/assinatura"
+pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
+contem "mostra botão de gerar cobrança" "$tmp/pagina.html" 'Gerar cobrança'
+esperar "recuperação da recorrência" "$(enviar "$recj" "$base/$slugrec/gerencia/assinatura/cobranca" "$base/$slugrec/gerencia/assinatura")" "303 $base/$slugrec/gerencia/assinatura"
+pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
+contem "cobrança original recuperada" "$tmp/pagina.html" 'Pagar agora'
+curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs-rec.json"
+esperar "somente uma recorrência criada após resposta perdida" "$(php -r '$d=json_decode(file_get_contents($argv[1]),true); $n=0; foreach ($d as $s) { if (str_contains((string)($s["description"]??""),$argv[2])) $n++; } echo $n;' "$tmp/subs-rec.json" "Recuperacao CI $id")" "1"
+
 if (( falhas > 0 )); then
   echo "FALHOU: $falhas verificacao(oes) de planos, marca e cadastro."
   exit 1
