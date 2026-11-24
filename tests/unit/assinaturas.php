@@ -64,9 +64,10 @@ $ok(preg_match('/\A[a-f0-9]{24}\z/', PlanoService::novoConvite()) === 1 && Plano
 $db = new PDO('sqlite::memory:');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $db->exec("CREATE TABLE restaurantes (id INTEGER PRIMARY KEY, status_rest TEXT);
-    CREATE TABLE assinaturas (id INTEGER PRIMARY KEY, id_restaurante INTEGER, status TEXT, valor NUMERIC, vence_em TEXT);
+    CREATE TABLE assinaturas (id INTEGER PRIMARY KEY, id_restaurante INTEGER, status TEXT, valor NUMERIC, vence_em TEXT,
+        inicio_em TEXT NOT NULL DEFAULT '2026-10-01', CHECK (vence_em > inicio_em));
     INSERT INTO restaurantes VALUES (1,'ativo'),(2,'ativo'),(3,'ativo'),(4,'suspenso'),(5,'ativo');
-    INSERT INTO assinaturas VALUES (1,1,'ativa',59.90,'2026-11-01'),(2,2,'ativa',0,NULL),
+    INSERT INTO assinaturas (id,id_restaurante,status,valor,vence_em) VALUES (1,1,'ativa',59.90,'2026-11-01'),(2,2,'ativa',0,NULL),
         (3,3,'ativa',59.90,'2026-11-25'),(4,4,'ativa',59.90,'2026-11-01'),
         (5,5,'ativa',59.90,'2026-11-01'),(6,5,'ativa',0,NULL)");
 $repo = new \Cardapim\Repositories\Gerencia\AssinaturaRepository($db);
@@ -75,6 +76,11 @@ $ok(!$repo->bloquearPeriodoVencido(2, '2026-11-17') && $repo->statusRestaurante(
 $ok(!$repo->bloquearPeriodoVencido(3, '2026-11-17'), 'validade futura preservada');
 $ok(!$repo->bloquearPeriodoVencido(4, '2026-11-17') && $repo->statusRestaurante(4) === 'suspenso', 'suspensão administrativa preservada');
 $ok(!$repo->bloquearPeriodoVencido(5, '2026-11-17'), 'contrato antigo não bloqueia plano gratuito atual');
+
+$repo->ajustarVencimento(1, 1, '2026-09-30');
+$ok($db->query('SELECT vence_em FROM assinaturas WHERE id = 1')->fetchColumn() === null, 'estorno inicial remove cobertura sem violar CHECK de datas');
+$repo->ajustarVencimento(3, 3, '2026-10-31');
+$ok($db->query('SELECT vence_em FROM assinaturas WHERE id = 3')->fetchColumn() === '2026-10-31', 'estorno preserva cobertura anterior válida');
 
 if ($falhas > 0) {
     exit(1);
