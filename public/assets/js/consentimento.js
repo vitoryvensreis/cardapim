@@ -24,7 +24,7 @@
 
   const gravar = (escolha) => {
     const seguro = window.location.protocol === 'https:' ? '; Secure' : '';
-    document.cookie = `${COOKIE}=${escolha}.${hoje()}; Max-Age=${UM_ANO}; Path=/; SameSite=Lax${seguro}`;
+    document.cookie = `${COOKIE}=${escolha}.v2.${hoje()}; Max-Age=${UM_ANO}; Path=/; SameSite=Lax${seguro}`;
   };
 
   const carregarFontes = () => {
@@ -53,6 +53,8 @@
     }
     const escolha = botao.dataset.consentimentoEscolha === 'todos' ? 'todos' : 'necessarios';
     gravar(escolha);
+    try { localStorage.setItem('cardapim:consentimento', String(Date.now())); } catch { /* armazenamento indisponivel */ }
+    document.dispatchEvent(new CustomEvent('cardapim:consentimento', { detail: escolha }));
     if (escolha === 'todos') {
       carregarFontes();
     } else if (document.querySelector('link[data-fontes-externas]')) {

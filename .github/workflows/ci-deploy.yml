@@ -80,6 +80,7 @@ jobs:
           for file in public/assets/js/*.js; do node --check "$file"; done
           # Comportamento sem navegador: confirmacao ("Tem certeza?") + trava contra clique duplo.
           node tests/js/confirmar-trava.js
+          node tests/js/rastreamento.js
 
       - name: Testes unitarios sem banco
         shell: bash
@@ -91,6 +92,7 @@ jobs:
           php tests/unit/navegador.php
           php tests/unit/dominio.php
           php tests/unit/marca.php
+          php tests/unit/tags.php
           php tests/unit/assinaturas.php
           php tests/unit/financeiro.php
           php tests/unit/gerencia.php

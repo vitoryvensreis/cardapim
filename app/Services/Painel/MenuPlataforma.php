@@ -71,6 +71,14 @@ final class MenuPlataforma
             'planejado' => [],
             'pronto' => true,
         ],
+        'tags' => [
+            'titulo' => 'Tags e rastreamento',
+            'rotulo' => 'Tags e rastreamento',
+            'icone' => 'tags',
+            'descricao' => 'Ferramentas de análise e marketing do site.',
+            'planejado' => [],
+            'pronto' => true,
+        ],
         'configuracoes' => [
             'titulo' => 'Configurações',
             'rotulo' => 'Configurações',
@@ -101,7 +109,7 @@ final class MenuPlataforma
     public const GRUPOS = [
         '' => ['dashboard'],
         'Gestão' => ['restaurantes', 'planos', 'faturas', 'usuarios'],
-        'Plataforma' => ['integracoes', 'logs', 'configuracoes', 'suporte'],
+        'Plataforma' => ['integracoes', 'tags', 'logs', 'configuracoes', 'suporte'],
         'Conta' => ['minha-conta'],
     ];
 

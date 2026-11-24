@@ -12,6 +12,7 @@ use Cardapim\Controllers\Plataforma\FaturasController;
 use Cardapim\Controllers\Plataforma\LogsController;
 use Cardapim\Controllers\Plataforma\MinhaContaController;
 use Cardapim\Controllers\Plataforma\UsuariosController;
+use Cardapim\Controllers\Plataforma\TagsController;
 use Cardapim\Core\Router;
 
 // Painel da PLATAFORMA (adm_master). Registrado antes das rotas /{slug}. Acesso conferido em BasePlataforma.
@@ -77,6 +78,9 @@ return static function (Router $router): void {
     $router->post('/painel/usuarios/{id}/acesso', [UsuariosController::class, 'acesso']);
     $router->post('/painel/usuarios/{id}/dois-fatores', [UsuariosController::class, 'doisFatores']);
     $router->post('/painel/usuarios/{id}/excluir', [UsuariosController::class, 'excluir']);
+
+    $router->get('/painel/tags', [TagsController::class, 'inicio']);
+    $router->post('/painel/tags', [TagsController::class, 'salvar']);
 
     // Configuracoes: nome da marca, textos e logos.
     $router->get('/painel/configuracoes', [ConfiguracoesController::class, 'inicio']);

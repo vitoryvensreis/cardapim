@@ -6,7 +6,7 @@ namespace Cardapim\Shared;
 
 /**
  * Escolha de cookies do visitante (LGPD), gravada pelo navegador no cookie "cardapim_consentimento"
- * (valor "todos.AAAAMMDD" ou "necessarios.AAAAMMDD", validade de 12 meses; ver public/assets/js/consentimento.js).
+ * (valor "todos.v2.AAAAMMDD" ou "necessarios.v2.AAAAMMDD", validade de 12 meses; ver public/assets/js/consentimento.js).
  * Sem escolha valida, nada opcional e carregado: as fontes do Google so entram com "todos".
  */
 final class Consentimento
@@ -17,7 +17,7 @@ final class Consentimento
     public static function escolha(): ?string
     {
         $valor = $_COOKIE[self::COOKIE] ?? null;
-        if (!is_string($valor) || preg_match('/\A(todos|necessarios)\.\d{8}\z/', $valor, $m) !== 1) {
+        if (!is_string($valor) || preg_match('/\A(todos|necessarios)\.v2\.\d{8}\z/', $valor, $m) !== 1) {
             return null;
         }
         return $m[1];

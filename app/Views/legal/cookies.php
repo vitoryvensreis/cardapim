@@ -5,9 +5,9 @@ $legalLead = 'Quais cookies e registros no navegador o ' . marca() . ' usa, para
 <div class="legal-document shell">
     <?php require __DIR__ . '/_header.php'; ?>
     <?php $legalResumo = [
-        'Usamos apenas cookies necessários para login, sacola e segurança.',
-        'O único item opcional são as fontes do Google, que só carregam se você aceitar.',
-        'Não usamos cookies de propaganda nem ferramentas de análise de comportamento.',
+        'Usamos cookies necessários para login, sacola e segurança.',
+        'Fontes externas e ferramentas de análise e marketing só carregam se você aceitar.',
+        'Google Analytics, Meta Pixel e Google Tag Manager podem ser usados nas páginas institucionais quando habilitados.',
         'Você pode mudar a sua escolha a qualquer momento nesta página.',
     ]; ?>
     <article class="legal-article" aria-label="Conteúdo da política de cookies">
@@ -50,6 +50,10 @@ $legalLead = 'Quais cookies e registros no navegador o ' . marca() . ' usa, para
                     <p>Carrega as fontes do visual do <?= marca_html() ?> a partir dos servidores do Google, que recebem dados técnicos da conexão, como endereço IP e navegador. Se você escolher "Só os necessários", o site usa as fontes do seu próprio aparelho e continua funcionando normalmente.</p>
                 </div>
             </div>
+        </section>
+        <section>
+            <h2>Ferramentas opcionais de análise e marketing</h2>
+            <p>Na página inicial e no catálogo, quando habilitados e após o aceite, Google Analytics 4 mede visitas e interações, Meta Pixel mede campanhas e Google Tag Manager carrega tags configuradas pela plataforma. Esses serviços podem receber endereço IP, navegador, identificadores de cookies, página visitada e informações de campanha. Não instalamos essas tags nos painéis, login, cadastro, cardápios ou checkout. Cookies como _ga e _fbp podem ser criados; a duração depende da configuração do fornecedor. Consulte as políticas do <a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google</a> e da <a href="https://www.facebook.com/privacy/policy/" rel="noopener noreferrer">Meta</a>. Você pode revogar o consentimento a qualquer momento; a revogação impede novos carregamentos, mas não apaga dados já enviados.</p>
         </section>
         <section>
             <h2>4. Serviços usados só quando você precisa deles</h2>
