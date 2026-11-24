@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Services\Plataforma;
 
+use Cardapim\Core\Config;
 use Cardapim\Modules\Integracoes\AsaasApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Repositories\Gerencia\AssinaturaRepository;
@@ -41,6 +42,29 @@ final class AssinaturaCobranca
         private readonly ?DateTimeImmutable $hoje = null,
     ) {
         $this->assinaturas = new AssinaturaRepository($db);
+    }
+
+    /**
+     * Retorno da fatura hospedada pelo Asaas. A origem vem da configuracao confiavel,
+     * nunca do Host da requisicao. Em desenvolvimento HTTP, omite o callback.
+     * @return array<string, mixed>
+     */
+    public static function callbackRetorno(string $base, string $slug): array
+    {
+        $base = rtrim($base, '/');
+        $partes = parse_url($base);
+        if (!is_array($partes) || ($partes['scheme'] ?? '') !== 'https'
+            || empty($partes['host']) || isset($partes['user'], $partes['pass'])
+            || isset($partes['user']) || isset($partes['query']) || isset($partes['fragment'])
+            || ($partes['path'] ?? '') !== ''
+            || preg_match('/\A[a-z0-9][a-z0-9-]{0,189}\z/', $slug) !== 1
+            || filter_var($base, FILTER_VALIDATE_URL) === false) {
+            return [];
+        }
+        return ['callback' => [
+            'successUrl' => $base . '/' . $slug . '/gerencia/assinatura?retorno=asaas',
+            'autoRedirect' => true,
+        ]];
     }
 
     /** Conta Asaas da plataforma conectada? @return array{chave:string, ambiente:string}|null */
@@ -96,6 +120,7 @@ final class AssinaturaCobranca
                 'description' => mb_substr(marca() . ' - plano ' . $a['plano_nome'] . ' (' . ($restaurante['nome'] ?? '') . ')', 0, 500),
                 'externalReference' => 'assinatura:' . $idAssinatura,
                 ...CobrancaAssinaturas::encargosAsaas($regras),
+                ...self::callbackRetorno(Config::get('APP_URL'), (string) ($restaurante['slug'] ?? '')),
             ]);
         } catch (IntegracaoErro $erro) {
             $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], $cliente, null, $erro->getMessage());
@@ -208,7 +233,8 @@ final class AssinaturaCobranca
                 'value' => (float) $valor,
                 'cycle' => CobrancaAssinaturas::CICLOS[$periodo],
                 'description' => mb_substr(marca() . ' - plano ' . $planoNome, 0, 500),
-                'updatePendingPayments' => true,
+                'updatePendingPayments' => false,
+                ...self::callbackRetorno(Config::get('APP_URL'), (string) ($this->restaurante((int) $a['id_restaurante'])['slug'] ?? '')),
             ]);
         } catch (IntegracaoErro $erro) {
             return $erro->getMessage();
@@ -246,10 +272,10 @@ final class AssinaturaCobranca
         }
     }
 
-    /** @return array{nome:string, cnpj:?string, email:string, celular:string}|null */
+    /** @return array{nome:string, slug:string, cnpj:?string, email:string, celular:string}|null */
     private function restaurante(int $id): ?array
     {
-        $q = $this->db->prepare('SELECT r.nome, r.cnpj, r.email, r.telefone,
+        $q = $this->db->prepare('SELECT r.nome, r.slug, r.cnpj, r.email, r.telefone,
             (SELECT u.email FROM `user` u WHERE u.id_restaurante = r.id AND u.cargo = \'gerente\' AND u.ativo = 1 ORDER BY u.id LIMIT 1) AS email_gerente
             FROM restaurantes r WHERE r.id = ?');
         $q->execute([$id]);
@@ -261,6 +287,7 @@ final class AssinaturaCobranca
         $celular = Documento::normalizarTelefone((string) ($r['telefone'] ?? '')) ?? '';
         return [
             'nome' => (string) $r['nome'],
+            'slug' => (string) $r['slug'],
             'cnpj' => $r['cnpj'] !== null && Documento::cnpjValido((string) $r['cnpj']) ? (string) $r['cnpj'] : null,
             'email' => filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : '',
             'celular' => strlen($celular) === 11 ? $celular : '',
