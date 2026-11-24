@@ -123,6 +123,19 @@ final class AssinaturaRepository
         return is_string($s) ? $s : null;
     }
 
+    /** Bloqueia somente se a assinatura vigente continua cancelada e o direito de uso terminou. */
+    public function bloquearCanceladaVencida(int $idRestaurante, string $hoje): bool
+    {
+        $q = $this->db->prepare("UPDATE restaurantes SET status_rest = 'inadimplente'
+            WHERE id = ? AND status_rest IN ('ativo', 'pendente')
+            AND EXISTS (SELECT 1 FROM assinaturas a WHERE a.id_restaurante = ?
+                AND a.status = 'cancelada' AND (a.vence_em IS NULL OR a.vence_em < ?)
+                AND a.id = (SELECT MAX(b.id) FROM assinaturas b WHERE b.id_restaurante = a.id_restaurante
+                    AND b.status IN ('ativa', 'aguardando', 'cancelada')))");
+        $q->execute([$idRestaurante, $idRestaurante, $hoje]);
+        return $q->rowCount() > 0;
+    }
+
     /** Muda o acesso do restaurante so a partir dos status esperados (suspenso/inativo pela administracao nunca mudam aqui). */
     public function mudarRestaurante(int $idRestaurante, string $novo, array $deStatus, bool $registrarPagamento = false): bool
     {
