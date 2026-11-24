@@ -41,6 +41,15 @@ plataforma conectado.
   assinatura no Asaas. Cancelar: `DELETE /subscriptions/{id}`, usa ate `vence_em`; depois o restaurante fica
   `inadimplente` ate escolher um plano. Desfazer: nova assinatura a partir de `vence_em`.
 
+## Retorno do pagamento hospedado
+
+- Novas assinaturas enviam `callback.successUrl` (APP_URL HTTPS + /{slug}/gerencia/assinatura?retorno=asaas) e `autoRedirect: true`.
+- A URL deve usar o domínio cadastrado na conta comercial Asaas. Pix e cartão podem retornar automaticamente; boleto pode confirmar depois. O retorno nunca prova pagamento.
+- A tela autenticada consulta a recorrência da própria loja com limite de tentativas e mantém o webhook como confirmação principal.
+- Assinaturas existentes precisam de atualização do callback via PUT /subscriptions/{id}; faturas já emitidas podem exigir PUT /payments/{id}, somente se elegíveis. Não recriar cobranças para alterar o retorno.
+- Troca de plano não altera os valores das cobranças pendentes já geradas (`updatePendingPayments: false`).
+- Documentação oficial: https://docs.asaas.com/docs/redirecionamento-apos-o-pagamento e https://docs.asaas.com/reference/atualizar-assinatura-existente.
+
 ## Tabelas (migration `20261112100000_planos_assinaturas_cobranca.php`)
 
 - `planos`: `periodo` + `vitalicio`, `codigo_convite CHAR(24) UNIQUE`, `CHECK (periodo <> 'vitalicio' OR valor = 0)`.
