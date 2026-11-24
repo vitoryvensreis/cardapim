@@ -51,7 +51,7 @@ $semCobranca = $pago && $vigente['asaas_assinatura_id'] === null && $vigente['st
             <?= Icon::svg('lock') ?>
             <div>
                 <strong>Acesso pausado por pagamento pendente.</strong>
-                <p><?= $aberta !== null ? 'Pague a fatura em aberto. Assim que o pagamento for confirmado, tudo volta a funcionar sozinho.' : 'Escolha um plano abaixo para voltar a usar o sistema.' ?></p>
+                <p><?= $aberta !== null ? 'Pague a fatura em aberto. Assim que o pagamento for confirmado, tudo volta a funcionar sozinho.' : ($vigente !== null ? 'Atualize as faturas abaixo para conferir seu pagamento. Se não houver uma cobrança disponível, fale com o suporte.' : 'Escolha um plano abaixo para voltar a usar o sistema.') ?></p>
             </div>
         </div>
     <?php elseif ($pendente && $vigente !== null && $vigente['status'] === 'aguardando'): ?>
