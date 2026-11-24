@@ -205,7 +205,7 @@ final class AssinaturaCobranca
     }
 
     /** Traz as faturas da assinatura do Asaas (o aviso tambem traz; aqui e para a tela nao depender dele). */
-    public function sincronizar(int $idAssinatura): bool
+    public function sincronizar(int $idAssinatura, bool $propagarLimite = false): bool
     {
         $a = $this->assinaturas->buscar($idAssinatura);
         $conta = $this->conta();
@@ -215,6 +215,9 @@ final class AssinaturaCobranca
         try {
             $faturas = $this->api->faturasDaAssinatura($conta['chave'], $conta['ambiente'], (string) $a['asaas_assinatura_id']);
         } catch (IntegracaoErro $erro) {
+            if ($propagarLimite && (int) $erro->getCode() === 429) {
+                throw $erro;
+            }
             error_log('[Cardapim] Faturas da assinatura nao sincronizadas: ' . $erro->getMessage());
             return false;
         }
@@ -270,12 +273,18 @@ final class AssinaturaCobranca
             return;
         }
         $conta = $this->conta();
-        $f = AsaasApi::fatura($dados['payment']);
-        if ($conta === null || $f === null) {
+        if ($conta === null || in_array($evento, ['PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_REFUND_IN_PROGRESS'], true)) {
             return;
         }
-        // Estorno parcial/em andamento não altera cobertura nem o status pago.
-        if (in_array($evento, ['PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_REFUND_IN_PROGRESS'], true)) {
+        $f = AsaasApi::fatura($dados['payment']);
+        if ($f === null) {
+            // Um aviso pode conter somente o ID; nunca adivinhar valor, data ou vínculo.
+            $id = $dados['payment']['id'] ?? null;
+            if (is_string($id) && $this->assinaturas->faturaPorAsaas($conta['ambiente'], $id) !== null) {
+                if (!$this->sincronizarFatura($conta['ambiente'], $id)) {
+                    error_log('[Cardapim] Aviso reduzido não conciliado: ' . $id);
+                }
+            }
             return;
         }
         $a = null;
@@ -448,6 +457,7 @@ final class AssinaturaCobranca
             $vencimento = DateTimeImmutable::createFromFormat('!Y-m-d', $f['vencimento']) ?: $this->hoje();
             $cobertura = AssinaturaService::somarMeses($vencimento, $meses)->format('Y-m-d');
             if (!$historica && $vigente !== null && (int) $vigente['id'] === (int) $a['id']
+                && $vigente['asaas_assinatura_id'] === $a['asaas_assinatura_id']
                 && in_array($vigente['status'], ['ativa', 'aguardando'], true)) {
                 if ($status === 'paga' && $antes !== 'paga') {
                     $this->assinaturas->marcarPaga((int) $vigente['id'], $cobertura);
