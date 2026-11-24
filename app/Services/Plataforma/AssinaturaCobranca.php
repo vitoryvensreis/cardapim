@@ -119,8 +119,9 @@ final class AssinaturaCobranca
             return ['ok' => true, 'mensagem' => 'Plano sem cobrança.'];
         }
         if ($a['asaas_assinatura_id'] !== null) {
-            $this->sincronizar($idAssinatura);
-            return ['ok' => true, 'mensagem' => 'A cobrança já existe.'];
+            return $this->sincronizar($idAssinatura)
+                ? ['ok' => true, 'mensagem' => 'A cobrança já existe.']
+                : ['ok' => false, 'mensagem' => 'Não foi possível consultar as faturas agora. A cobrança já existe; nenhuma nova foi emitida.'];
         }
         $conta = $this->conta();
         if ($conta === null) {
@@ -197,27 +198,31 @@ final class AssinaturaCobranca
             return ['ok' => false, 'mensagem' => 'A cobrança não pôde ser confirmada agora. ' . $erro->getMessage()];
         }
         $this->assinaturas->salvarAsaas($idAssinatura, $conta['ambiente'], $cliente, $idAsaas, null);
-        $this->sincronizar($idAssinatura);
-        return ['ok' => true, 'mensagem' => 'Cobrança gerada.'];
+        return $this->sincronizar($idAssinatura)
+            ? ['ok' => true, 'mensagem' => 'Cobrança gerada.']
+            : ['ok' => false, 'mensagem' => 'Cobrança registrada no Asaas. Atualize as faturas em instantes; não será criada outra.'];
     }
 
     /** Traz as faturas da assinatura do Asaas (o aviso tambem traz; aqui e para a tela nao depender dele). */
-    public function sincronizar(int $idAssinatura): void
+    public function sincronizar(int $idAssinatura): bool
     {
         $a = $this->assinaturas->buscar($idAssinatura);
         $conta = $this->conta();
         if ($a === null || $a['asaas_assinatura_id'] === null || $conta === null || $conta['ambiente'] !== $a['ambiente']) {
-            return;
+            return false;
         }
         try {
             $faturas = $this->api->faturasDaAssinatura($conta['chave'], $conta['ambiente'], (string) $a['asaas_assinatura_id']);
         } catch (IntegracaoErro $erro) {
             error_log('[Cardapim] Faturas da assinatura nao sincronizadas: ' . $erro->getMessage());
-            return;
+            return false;
         }
         foreach ($faturas as $f) {
-            $this->aplicarFatura($a, (string) $a['ambiente'], $f);
+            if ($f['assinatura'] === $a['asaas_assinatura_id']) {
+                $this->aplicarFatura($a, (string) $a['ambiente'], $f);
+            }
         }
+        return true;
     }
 
     /**
