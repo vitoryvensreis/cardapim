@@ -23,6 +23,9 @@ class AsaasApi
     /** Plataforma (assinaturas dos restaurantes): pagamentos + ciclo de vida das assinaturas. */
     public const EVENTOS_WEBHOOK_PLATAFORMA = [
         ...self::EVENTOS_WEBHOOK,
+        'PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_REFUND_IN_PROGRESS', 'PAYMENT_REFUND_DENIED',
+        'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE', 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL',
+        'PAYMENT_RESTORED', 'PAYMENT_RECEIVED_IN_CASH_UNDONE', 'PAYMENT_DUNNING_RECEIVED',
         'SUBSCRIPTION_CREATED', 'SUBSCRIPTION_UPDATED', 'SUBSCRIPTION_INACTIVATED', 'SUBSCRIPTION_DELETED',
     ];
 
@@ -299,6 +302,20 @@ class AsaasApi
         }
     }
 
+    /** Consulta pontual, utilizada somente para reconciliar transições conflitantes. */
+    public function consultarFaturaAssinatura(string $chave, string $ambiente, string $id): array
+    {
+        $dados = $this->exigirOk($this->chamar('GET', '/payments/' . self::idSeguro($id), $chave, $ambiente));
+        $f = self::fatura($dados);
+        if ($f === null || $f['id'] !== $id) {
+            throw new IntegracaoErro('O Asaas não devolveu a cobrança solicitada.');
+        }
+        if (!empty($dados['deleted'])) {
+            $f['status'] = 'DELETED';
+        }
+        return $f;
+    }
+
     /**
      * Normaliza uma cobranca do Asaas (lista ou "payment" do webhook). null se faltar o essencial.
      * @param array<string,mixed> $p
@@ -332,6 +349,7 @@ class AsaasApi
             'link_boleto' => $url($p['bankSlipUrl'] ?? null),
             'pago_em' => $pago,
             'assinatura' => $assinatura,
+            'cliente' => is_string($p['customer'] ?? null) ? $p['customer'] : null,
         ];
     }
 
