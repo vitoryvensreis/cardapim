@@ -138,8 +138,11 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
             $lista = array_values(array_filter($cobrancas, static fn (array $c): bool => ($c['subscription'] ?? '') === $sm[1] && $c['status'] !== 'DELETED'));
             $responder(200, ['object' => 'list', 'hasMore' => false, 'totalCount' => count($lista), 'data' => $lista]);
         }
+        if ($metodo === 'GET') {
+            $responder(200, $assinaturas[$sm[1]]);
+        }
         if ($metodo === 'PUT') {
-            foreach (['value', 'cycle', 'description'] as $campo) {
+            foreach (['value', 'cycle', 'description', 'callback'] as $campo) {
                 if (isset($json[$campo])) {
                     $assinaturas[$sm[1]][$campo] = $json[$campo];
                 }
@@ -177,6 +180,14 @@ if (preg_match('~\A/asaas/v3(/.*)\z~', $caminho, $m)) {
         }
         if ($metodo === 'GET') {
             $responder(200, $c);
+        }
+        if ($metodo === 'PUT' && in_array($c['status'], ['PENDING', 'OVERDUE'], true) && isset($json['callback'])) {
+            if (array_keys($json) !== ['callback']) {
+                $responder(400, ['errors' => [['description' => 'Teste de callback não pode alterar outros campos']]]);
+            }
+            $cobrancas[$pm[1]]['callback'] = $json['callback'];
+            $guardar('asaas-cobrancas.json', $cobrancas);
+            $responder(200, $cobrancas[$pm[1]]);
         }
         if ($metodo === 'DELETE') {
             $cobrancas[$pm[1]]['status'] = 'DELETED';
