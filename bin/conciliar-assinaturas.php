@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Conciliação das assinaturas já vinculadas. Nunca cria clientes ou cobranças.
+// Conciliação seletiva das assinaturas e faturas recentes. Nunca cria clientes ou cobranças.
 if (PHP_SAPI !== 'cli') {
     exit(1);
 }
@@ -10,6 +10,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/bootstrap/app.php';
 
 use Cardapim\Core\Database;
+use Cardapim\Repositories\Gerencia\AssinaturaRepository;
 use Cardapim\Services\Plataforma\AssinaturaCobranca;
 
 try {
@@ -26,35 +27,36 @@ try {
             fwrite(STDERR, "Asaas da plataforma indisponível. Nenhuma alteração executada.\n");
             exit(1);
         }
-        $cursor = 0;
+        $repo = new AssinaturaRepository($db);
+        $desde = date('Y-m-d', strtotime('-7 days'));
         $ok = 0;
         $falhas = 0;
-        do {
-            $q = $db->prepare("SELECT a.id FROM assinaturas a
-                WHERE a.id > ? AND a.ambiente = ? AND a.asaas_assinatura_id IS NOT NULL
-                AND a.status IN ('ativa', 'aguardando')
-                AND a.id = (SELECT MAX(b.id) FROM assinaturas b
-                    WHERE b.id_restaurante = a.id_restaurante AND b.status IN ('ativa', 'aguardando', 'cancelada'))
-                ORDER BY a.id LIMIT 50");
-            $q->execute([$cursor, $conta['ambiente']]);
-            $ids = $q->fetchAll(PDO::FETCH_COLUMN);
-            foreach ($ids as $id) {
-                $cursor = (int) $id;
-                try {
-                    if ($cobranca->sincronizar($cursor)) {
-                        $ok++;
-                    } else {
+        // Apenas períodos próximos e faturas recentes. Histórico completo é manual.
+        foreach (['recorrencias', 'faturas'] as $fase) {
+            $cursor = 0;
+            do {
+                $lote = $fase === 'recorrencias'
+                    ? $repo->loteRecorrenciasConciliacao($conta['ambiente'], $cursor, $desde)
+                    : $repo->loteFaturasConciliacao($conta['ambiente'], $cursor, $desde);
+                foreach ($lote as $item) {
+                    $cursor = $fase === 'recorrencias' ? $item : (int) $item['id'];
+                    try {
+                        $resultado = $fase === 'recorrencias'
+                            ? $cobranca->sincronizar($item)
+                            : $cobranca->sincronizarFatura($conta['ambiente'], $item['asaas_id']);
+                        $resultado ? $ok++ : $falhas++;
+                    } catch (Throwable $erro) {
                         $falhas++;
+                        error_log('[Cardapim] Conciliação ' . $fase . ' #' . $cursor . ': ' . get_class($erro));
+                        if ((int) $erro->getCode() === 429) {
+                            throw $erro;
+                        }
                     }
-                } catch (Throwable $erro) {
-                    $falhas++;
-                    error_log('[Cardapim] Conciliação assinatura ' . $cursor . ': ' . get_class($erro));
+                    usleep(250000);
                 }
-                // Evita rajada de consultas à API. Webhooks continuam sendo o fluxo principal.
-                usleep(250000);
-            }
-        } while (count($ids) === 50);
-        echo date('Y-m-d H:i:s') . " Conciliação: {$ok} consultadas, {$falhas} falhas.\n";
+            } while (count($lote) === 25);
+        }
+        echo date('Y-m-d H:i:s') . " Conciliação seletiva: {$ok} consultadas, {$falhas} falhas.\n";
     } finally {
         $db->query("SELECT RELEASE_LOCK('cardapim:conciliacao-assinaturas')");
     }
