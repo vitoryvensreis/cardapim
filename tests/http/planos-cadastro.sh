@@ -263,6 +263,24 @@ contem "fatura estornada registrada" "$tmp/pagina.html" '>Estornada<'
 esperar "aviso antigo após estorno" "$(aviso_rec PAYMENT_RECEIVED "$tmp/rec-paga.json" antigo_estorno)" "200"
 esperar "estorno não é desfeito por aviso antigo" "$(publico "$slugrec")" "404"
 
+echo "Conciliação individual de fatura antiga"
+payold="$(json "$tmp/pay.json" id)"
+curl -s "$fake/_teste/asaas-estado/REFUNDED/$payold" > "$tmp/old-estorno.json"
+estado_fatura() {
+  php -r 'require "bootstrap/app.php"; $q=\Cardapim\Core\Database::connect()->prepare("SELECT status FROM assinatura_faturas WHERE ambiente=? AND asaas_id=?"); $q->execute(["sandbox",$argv[1]]); echo $q->fetchColumn();' "$1"
+}
+esperar "sem webhook a fatura antiga continua paga" "$(estado_fatura "$payold")" "paga"
+esperar "atualizar agora consulta histórico" "$(enviar "$aj" "$p/faturas/atualizar" "$p/faturas" ambiente=sandbox)" "303 $p/faturas?ambiente=sandbox"
+esperar "conciliação manual recupera estorno antigo" "$(estado_fatura "$payold")" "estornada"
+esperar "conciliação não bloqueia nova recorrência" "$(publico "$slugr")" "200"
+curl -s "$fake/_teste/asaas-estado/RECEIVED/$payold" > "$tmp/old-paga.json"
+esperar "webhook restaura status histórico" "$(aviso_rec PAYMENT_RECEIVED "$tmp/old-paga.json" historico_restaurado)" "200"
+esperar "histórico restaurado" "$(estado_fatura "$payold")" "paga"
+curl -s "$fake/_teste/asaas-estado/REFUNDED/$payold" > "$tmp/old-estorno.json"
+esperar "webhook de estorno sem recorrência original vinculada" "$(aviso_rec PAYMENT_REFUNDED "$tmp/old-estorno.json" historico_estornado)" "200"
+esperar "histórico estornado pelo webhook" "$(estado_fatura "$payold")" "estornada"
+esperar "estorno antigo preserva acesso da nova recorrência" "$(publico "$slugr")" "200"
+
 if (( falhas > 0 )); then
   echo "FALHOU: $falhas verificacao(oes) de planos, marca e cadastro."
   exit 1
