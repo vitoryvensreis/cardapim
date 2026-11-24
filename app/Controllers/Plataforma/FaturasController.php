@@ -63,13 +63,27 @@ final class FaturasController extends BasePlataforma
             return $this->voltar('/painel/faturas', 'erro', 'Conecte o Asaas da plataforma em Integrações para buscar as faturas.');
         }
         $ids = (new FaturaAdminRepository($this->db))->assinaturasParaAtualizar($conta['ambiente'], self::LIMITE_ATUALIZAR);
+        $ok = 0;
+        $falhas = 0;
         foreach ($ids as $id) {
-            $cobranca->sincronizar($id);
+            try {
+                if ($cobranca->sincronizar($id)) {
+                    $ok++;
+                } else {
+                    $falhas++;
+                }
+            } catch (\Throwable $erro) {
+                $falhas++;
+                error_log('[Cardapim] Atualização de fatura: ' . get_class($erro));
+            }
         }
-        $msg = match (count($ids)) {
+        if ($falhas > 0) {
+            return $this->voltar('/painel/faturas', 'erro', "Assinaturas conferidas: {$ok}. Falhas: {$falhas}. Tente atualizar novamente.");
+        }
+        $msg = match ($ok) {
             0 => 'Nenhuma assinatura cobrada pelo Asaas ainda.',
             1 => 'Faturas atualizadas: 1 assinatura conferida no Asaas.',
-            default => 'Faturas atualizadas: ' . count($ids) . ' assinaturas conferidas no Asaas.',
+            default => 'Faturas atualizadas: ' . $ok . ' assinaturas conferidas no Asaas.',
         };
         return $this->voltar('/painel/faturas', 'sucesso', $msg);
     }
