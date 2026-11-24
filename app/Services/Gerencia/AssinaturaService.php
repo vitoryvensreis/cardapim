@@ -64,7 +64,7 @@ final class AssinaturaService
             $a['status'] === 'aguardando' => 'aguardando',
             (float) $a['valor'] <= 0 => 'gratis',
             $aberta !== null && $aberta['vencimento'] < $hoje => 'atrasada',
-            $a['vence_em'] !== null && $a['vence_em'] < $hoje && $a['asaas_assinatura_id'] === null => 'vencida',
+            $a['vence_em'] !== null && $a['vence_em'] < $hoje => 'vencida',
             default => 'ativa',
         };
         return $a;
