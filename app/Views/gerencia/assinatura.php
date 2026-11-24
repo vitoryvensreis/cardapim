@@ -135,7 +135,7 @@ $semCobranca = $pago && $vigente['asaas_assinatura_id'] === null && $vigente['st
                                 <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('refresh-cw', 'icon-sm') ?><?= $semCobranca ? 'Gerar cobrança' : 'Atualizar faturas' ?></button>
                             </form>
                         <?php endif; ?>
-                        <?php if ($pago && $vigente['status'] === 'ativa'): ?>
+                        <?php if ($pago && in_array($vigente['status'], ['ativa', 'aguardando'], true)): ?>
                             <form method="post" action="<?= $e($base . '/assinatura/cancelar') ?>"
                                   data-confirm="<?= $e('Não haverá novas cobranças. Você continua usando tudo até ' . ($vigente['vence_em'] !== null ? $data((string) $vigente['vence_em']) : 'hoje') . '; depois, o acesso fica pausado até escolher um plano. Dá para desfazer até lá.') ?>"
                                   data-confirm-titulo="Cancelar a assinatura?" data-confirm-acao="Sim, cancelar" data-confirm-perigo="1">
