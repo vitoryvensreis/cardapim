@@ -205,7 +205,7 @@ final class AssinaturaCobranca
     }
 
     /** Traz as faturas da assinatura do Asaas (o aviso tambem traz; aqui e para a tela nao depender dele). */
-    public function sincronizar(int $idAssinatura): bool
+    public function sincronizar(int $idAssinatura, bool $propagarLimite = false): bool
     {
         $a = $this->assinaturas->buscar($idAssinatura);
         $conta = $this->conta();
@@ -215,6 +215,9 @@ final class AssinaturaCobranca
         try {
             $faturas = $this->api->faturasDaAssinatura($conta['chave'], $conta['ambiente'], (string) $a['asaas_assinatura_id']);
         } catch (IntegracaoErro $erro) {
+            if ($propagarLimite && (int) $erro->getCode() === 429) {
+                throw $erro;
+            }
             error_log('[Cardapim] Faturas da assinatura nao sincronizadas: ' . $erro->getMessage());
             return false;
         }
@@ -223,6 +226,40 @@ final class AssinaturaCobranca
                 $this->aplicarFatura($a, (string) $a['ambiente'], $f);
             }
         }
+        return true;
+    }
+
+    /** Consulta individual de uma fatura já registrada, inclusive de contrato encerrado.
+     * Retorna false quando não há vínculo seguro ou o estado não é reconhecido.
+     */
+    public function sincronizarFatura(string $ambiente, string $idAsaas): bool
+    {
+        $conta = $this->conta();
+        $local = $this->assinaturas->faturaPorAsaas($ambiente, $idAsaas);
+        if ($conta === null || $conta['ambiente'] !== $ambiente || $local === null || $local['id_assinatura'] === null) {
+            return false;
+        }
+        $origem = $this->assinaturas->buscar((int) $local['id_assinatura']);
+        if ($origem === null || (int) $origem['id_restaurante'] !== (int) $local['id_restaurante']
+            || $origem['ambiente'] !== $ambiente) {
+            return false;
+        }
+        $f = $this->api->consultarFaturaAssinatura($conta['chave'], $ambiente, $idAsaas);
+        $a = $f['assinatura'] !== null ? $this->assinaturas->porAsaas($ambiente, $f['assinatura']) : null;
+        if ($a !== null && (int) $a['id_restaurante'] !== (int) $origem['id_restaurante']) {
+            throw new IntegracaoErro('Vínculo da cobrança divergente na conciliação individual.');
+        }
+        // Sem recorrência correspondente, só atualizar o histórico da fatura conhecida.
+        // Exigir o cliente original: nunca atribuir um pagamento avulso ou de outra loja.
+        if ($a === null && ($origem['asaas_cliente_id'] === null || $f['cliente'] !== $origem['asaas_cliente_id'])) {
+            throw new IntegracaoErro('Cliente da fatura histórica divergente na conciliação.');
+        }
+        $contrato = $a ?? $origem;
+        if (($contrato['asaas_cliente_id'] !== null && $f['cliente'] !== $contrato['asaas_cliente_id'])
+            || !isset(self::STATUS_FATURA[$f['status']])) {
+            return false;
+        }
+        $this->aplicarFatura($contrato, $ambiente, $f, null, $a === null);
         return true;
     }
 
@@ -236,13 +273,30 @@ final class AssinaturaCobranca
             return;
         }
         $conta = $this->conta();
+        if ($conta === null || in_array($evento, ['PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_REFUND_IN_PROGRESS'], true)) {
+            return;
+        }
         $f = AsaasApi::fatura($dados['payment']);
-        if ($conta === null || $f === null) {
+        if ($f === null) {
+            // Um aviso pode conter somente o ID; nunca adivinhar valor, data ou vínculo.
+            $id = $dados['payment']['id'] ?? null;
+            if (is_string($id) && $this->assinaturas->faturaPorAsaas($conta['ambiente'], $id) !== null) {
+                if (!$this->sincronizarFatura($conta['ambiente'], $id)) {
+                    error_log('[Cardapim] Aviso reduzido não conciliado: ' . $id);
+                }
+            }
             return;
         }
         $a = null;
         if ($f['assinatura'] !== null) {
             $a = $this->assinaturas->porAsaas($conta['ambiente'], $f['assinatura']);
+        }
+        if ($a === null && $this->assinaturas->faturaPorAsaas($conta['ambiente'], $f['id']) !== null) {
+            // O cancelamento pode apagar o vínculo com a recorrência, mas não com a fatura.
+            if (!$this->sincronizarFatura($conta['ambiente'], $f['id'])) {
+                error_log('[Cardapim] Fatura histórica não conciliada: ' . $f['id']);
+            }
+            return;
         }
         $ref = (string) ($dados['payment']['externalReference'] ?? '');
         if ($a === null && $f['assinatura'] !== null && preg_match('/\Aassinatura:(\d{1,18})\z/', $ref, $m) === 1) {
@@ -263,10 +317,6 @@ final class AssinaturaCobranca
         }
         if ($evento === 'PAYMENT_DELETED') {
             $f['status'] = 'DELETED';
-        }
-        // Estorno parcial não revoga o período pago; o valor líquido exige conciliação própria.
-        if ($evento === 'PAYMENT_PARTIALLY_REFUNDED' || $evento === 'PAYMENT_REFUND_IN_PROGRESS') {
-            return;
         }
         $this->aplicarFatura($a, $conta['ambiente'], $f, $evento);
     }
@@ -345,7 +395,7 @@ final class AssinaturaCobranca
      * @param array<string,mixed> $a assinatura
      * @param array{id:string,status:string,valor:string,vencimento:string,forma:string,link_fatura:?string,link_boleto:?string,pago_em:?string,assinatura:?string} $f
      */
-    private function aplicarFatura(array $a, string $ambiente, array $f, ?string $evento = null): void
+    private function aplicarFatura(array $a, string $ambiente, array $f, ?string $evento = null, bool $historica = false): void
     {
         $idRestaurante = (int) $a['id_restaurante'];
         if ($f['cliente'] !== null && $a['asaas_cliente_id'] !== null && $f['cliente'] !== $a['asaas_cliente_id']) {
@@ -361,6 +411,10 @@ final class AssinaturaCobranca
             $anterior = $this->assinaturas->faturaPorAsaas($ambiente, $f['id']);
             if ($anterior !== null && (int) $anterior['id_restaurante'] !== $idRestaurante) {
                 throw new \RuntimeException('Fatura já vinculada a outro restaurante.');
+            }
+            if ($historica && ($anterior === null || (int) $anterior['id_assinatura'] !== (int) $a['id']
+                || $a['asaas_cliente_id'] === null || $f['cliente'] !== $a['asaas_cliente_id'])) {
+                throw new IntegracaoErro('Fatura histórica sem vínculo local seguro.');
             }
             $antes = $anterior['status'] ?? null;
             // Uma fatura paga não é estornada apenas por um evento de exclusão.
@@ -378,7 +432,7 @@ final class AssinaturaCobranca
                     throw new IntegracaoErro('Não foi possível reconciliar a cobrança.');
                 }
                 $f = $this->api->consultarFaturaAssinatura($conta['chave'], $ambiente, $f['id']);
-                if ($f['assinatura'] === null || $f['assinatura'] !== ($a['asaas_assinatura_id'] ?? null)
+                if ((!$historica && ($f['assinatura'] === null || $f['assinatura'] !== ($a['asaas_assinatura_id'] ?? null)))
                     || ($a['asaas_cliente_id'] !== null && $f['cliente'] !== $a['asaas_cliente_id'])) {
                     throw new IntegracaoErro('Vínculo da cobrança divergente na conciliação.');
                 }
@@ -402,7 +456,8 @@ final class AssinaturaCobranca
             $meses = AssinaturaService::MESES[$origem['periodo']] ?? 1;
             $vencimento = DateTimeImmutable::createFromFormat('!Y-m-d', $f['vencimento']) ?: $this->hoje();
             $cobertura = AssinaturaService::somarMeses($vencimento, $meses)->format('Y-m-d');
-            if ($vigente !== null && (int) $vigente['id'] === (int) $a['id']
+            if (!$historica && $vigente !== null && (int) $vigente['id'] === (int) $a['id']
+                && $vigente['asaas_assinatura_id'] === $a['asaas_assinatura_id']
                 && in_array($vigente['status'], ['ativa', 'aguardando'], true)) {
                 if ($status === 'paga' && $antes !== 'paga') {
                     $this->assinaturas->marcarPaga((int) $vigente['id'], $cobertura);

@@ -151,6 +151,10 @@ echo "Deploy validado: $site_url (release $release_id)"
 if ! bash "$root/current/deploy/scripts/install-expirar-pix-cron.sh" "$root"; then
   echo "ATENCAO: Cron Pix online nao confirmado. Configure a execucao a cada minuto no CloudPanel."
 fi
+# Conciliação seletiva da plataforma, independente do cron de Pix dos restaurantes.
+if ! bash "$root/current/deploy/scripts/install-conciliar-assinaturas-cron.sh" "$root"; then
+  echo "ATENCAO: Cron de conciliacao nao confirmado. Configure a execucao a cada 15 minutos no CloudPanel."
+fi
 # Google e redes sociais (so informa, nao reverte): robots.txt, sitemap.xml e a imagem automatica do link.
 for caminho in /robots.txt /sitemap.xml /midia/cartao; do
   echo "SEO $caminho: $(curl -sL -o /dev/null -w '%{http_code} %{content_type}' --max-time 20 "$site_url$caminho" || true)"
