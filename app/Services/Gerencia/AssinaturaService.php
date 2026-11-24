@@ -85,6 +85,11 @@ final class AssinaturaService
     /** $incluirPrivados: a administracao da plataforma pode colocar o restaurante em qualquer plano ativo (ex.: parceiro). */
     public function assinar(int $planoId, bool $incluirPrivados = false): Resultado
     {
+        return $this->comTravaCobranca(fn (): Resultado => $this->assinarComTrava($planoId, $incluirPrivados));
+    }
+
+    private function assinarComTrava(int $planoId, bool $incluirPrivados = false): Resultado
+    {
         $plano = $incluirPrivados ? (new PlanoRepository($this->db))->buscar($planoId) : (new PlanoRepository($this->db))->buscarPublicoPorId($planoId);
         if ($plano !== null && (int) $plano['ativo'] !== 1) {
             $plano = null;
@@ -97,6 +102,9 @@ final class AssinaturaService
             return $atual['status'] === 'cancelada'
                 ? $this->reativar()
                 : Resultado::falha('Você já está no plano ' . $plano['nome'] . '.');
+        }
+        if ($atual !== null && str_starts_with((string) ($atual['cobranca_erro'] ?? ''), 'CONFIRMAR_')) {
+            return Resultado::falha('Há uma tentativa de cobrança não conciliada. Atualize as faturas ou fale com o suporte antes de trocar de plano.');
         }
         $gratis = (float) $plano['valor'] <= 0;
         $regras = (new CobrancaAssinaturas($this->db))->regras();
@@ -179,6 +187,11 @@ final class AssinaturaService
 
     public function cancelar(): Resultado
     {
+        return $this->comTravaCobranca(fn (): Resultado => $this->cancelarComTrava());
+    }
+
+    private function cancelarComTrava(): Resultado
+    {
         $atual = $this->vigente();
         if ($atual === null || !in_array($atual['status'], ['ativa', 'aguardando'], true) || (float) $atual['valor'] <= 0) {
             return Resultado::falha('Não há assinatura paga ativa ou aguardando pagamento para cancelar.');
@@ -194,6 +207,11 @@ final class AssinaturaService
     }
 
     public function reativar(): Resultado
+    {
+        return $this->comTravaCobranca(fn (): Resultado => $this->reativarComTrava());
+    }
+
+    private function reativarComTrava(): Resultado
     {
         $atual = $this->vigente();
         if ($atual === null || $atual['status'] !== 'cancelada') {
@@ -216,6 +234,26 @@ final class AssinaturaService
         }
         $r = $this->cobranca->gerar((int) $atual['id']);
         return $r['ok'] ? Resultado::sucesso('Faturas atualizadas.') : Resultado::falha($r['mensagem']);
+    }
+
+    /** Serializa mudanças de plano, cancelamento e emissão para o mesmo restaurante no MySQL. */
+    private function comTravaCobranca(callable $acao): Resultado
+    {
+        if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'mysql') {
+            return $acao();
+        }
+        $chave = 'cardapim:assinatura:' . $this->idRestaurante;
+        $q = $this->db->prepare('SELECT GET_LOCK(?, 3)');
+        $q->execute([$chave]);
+        if ((int) $q->fetchColumn() !== 1) {
+            return Resultado::falha('Uma operação da assinatura está em andamento. Tente novamente em instantes.');
+        }
+        try {
+            return $acao();
+        } finally {
+            $q = $this->db->prepare('SELECT RELEASE_LOCK(?)');
+            $q->execute([$chave]);
+        }
     }
 
     public static function preco(string $valor, string $periodo): string
