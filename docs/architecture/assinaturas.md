@@ -50,6 +50,16 @@ plataforma conectado.
 - Troca de plano não altera os valores das cobranças pendentes já geradas (`updatePendingPayments: false`).
 - Documentação oficial: https://docs.asaas.com/docs/redirecionamento-apos-o-pagamento e https://docs.asaas.com/reference/atualizar-assinatura-existente.
 
+## Proteção contra duplicidade e conciliação
+
+- Emissão, troca de plano, cancelamento e reativação usam a mesma trava nomeada do MySQL por restaurante. Operações simultâneas retornam mensagem de tentativa em andamento.
+- Antes de emitir, a API consulta clientes e assinaturas pela referência externa (e CNPJ/cliente). Uma correspondência única é recuperada; resultados ambíguos impedem emissão.
+- Antes de um POST financeiro, registra-se em `cobranca_erro` a etapa `CONFIRMAR_CLIENTE:` ou `CONFIRMAR_ASSINATURA:`. Resposta perdida, timeout ou erro indeterminado preserva o marcador. Uma nova tentativa busca o registro original; se não for encontrado, o suporte deve conferir no Asaas antes de autorizar nova emissão. Não apagar o marcador sem confirmar que a solicitação anterior não foi efetivada. Rejeições HTTP explícitas de validação/autorização permitem nova tentativa.
+- Uma assinatura já vinculada não gera outra recorrência se a consulta das faturas falhar. Webhooks de assinatura antiga não liberam a assinatura vigente; o fallback por referência exige tentativa registrada, ambiente e cliente correspondentes.
+- `bin/conciliar-assinaturas.php` é a rotina CLI de consulta das recorrências vigentes já vinculadas, inclusive aguardando pagamento. Não cria cobranças nem altera preços; registra falhas e retorna código de saída não-zero. Após homologação, configurar cron (ex.: a cada hora) no usuário do site, com log e monitoramento. Webhooks continuam o mecanismo principal. A rotina de atraso existente permanece separada.
+- Documentação oficial: https://docs.asaas.com/reference/listar-clientes e https://docs.asaas.com/reference/listar-assinaturas.
+- Ainda pendente: conciliação de tentativas incertas sem vínculo local pelo operador, expiração quando não há fatura, estornos/chargebacks e histórico de ciclos em troca de plano, além da atualização retroativa dos callbacks.
+
 ## Tabelas (migration `20261112100000_planos_assinaturas_cobranca.php`)
 
 - `planos`: `periodo` + `vitalicio`, `codigo_convite CHAR(24) UNIQUE`, `CHECK (periodo <> 'vitalicio' OR valor = 0)`.
