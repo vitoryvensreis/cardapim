@@ -78,10 +78,6 @@ $seoIconeApp = \Cardapim\Controllers\PwaController::icones()[0]['src'];
 <?php endforeach; ?>
 <script src="<?= AssetUrl::asset('js/core.js') ?>" defer></script>
 <script src="<?= AssetUrl::asset('js/consentimento.js') ?>" defer></script>
-<?php foreach ($scripts ?? [] as $script): ?>
-<script src="<?= AssetUrl::asset($script) ?>" defer></script>
-<?php endforeach; ?>
-
 <?php
 $tagsMarketing = \Cardapim\Services\Plataforma\TagsService::publicas($escopoRastreamento ?? null);
 if ($tagsMarketing !== []):
@@ -89,3 +85,6 @@ if ($tagsMarketing !== []):
 ?>
 <script src="<?= AssetUrl::asset('js/rastreamento.js') ?>" data-rastreamento="<?= $seoE($tagsJson) ?>" defer></script>
 <?php endif; ?>
+<?php foreach ($scripts ?? [] as $script): ?>
+<script src="<?= AssetUrl::asset($script) ?>" defer></script>
+<?php endforeach; ?>

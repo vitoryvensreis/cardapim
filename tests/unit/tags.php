@@ -15,6 +15,11 @@ function conferir(bool $ok, string $mensagem): void {
 $ga = ['id' => 'G-ABC123', 'ativo' => '1', 'escopos' => ['inicio', 'inicio']];
 [$v, $erros] = TagsService::validar(['ga4' => $ga]);
 conferir($erros === [] && $v['ga4']['escopos'] === ['inicio'] && $v['ga4']['ativo'], 'GA4 valido');
+conferir($v['google_advanced'] === false, 'Configuracao anterior continua no modo basico');
+[$v, $erros] = TagsService::validar(['ga4' => $ga, 'google_advanced' => '1']);
+conferir($erros === [] && $v['google_advanced'] === true, 'Modo avancado explicito');
+[, $erros] = TagsService::validar(['google_advanced' => ['1']]);
+conferir($erros !== [], 'Modo avancado invalido rejeitado');
 foreach ([
     ['ga4' => [...$ga, 'id' => '<script>alert(1)</script>']],
     ['ga4' => [...$ga, 'escopos' => ['checkout']]],
