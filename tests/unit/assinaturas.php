@@ -9,6 +9,7 @@ use Cardapim\Modules\Integracoes\AsaasApi;
 use Cardapim\Modules\Marca\MarcaUpload;
 use Cardapim\Services\Gerencia\AssinaturaService;
 use Cardapim\Services\Plataforma\PlanoService;
+use Cardapim\Services\Plataforma\AssinaturaCobranca;
 
 $falhas = 0;
 $ok = static function (bool $cond, string $nome) use (&$falhas): void {
@@ -45,6 +46,14 @@ $ok($recusa('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://evil.t
 $ok($recusa('<html><body>oi</body></html>'), 'nao-SVG recusado');
 $ok(MarcaUpload::arquivoDe('/midia/marca/' . str_repeat('a', 32) . '-512.png') !== null, 'caminho do icone 512 aceito');
 $ok(MarcaUpload::arquivoDe('/midia/marca/../../.env') === null && MarcaUpload::arquivoDe('/midia/logos/' . str_repeat('a', 32) . '.png') === null, 'caminhos estranhos recusados');
+
+/* Callback para faturas hospedadas: apenas HTTPS e slug local. */
+$ok(AssinaturaCobranca::callbackRetorno('https://deliveryzim.com.br/', 'loja-teste') === [
+    'callback' => ['successUrl' => 'https://deliveryzim.com.br/loja-teste/gerencia/assinatura?retorno=asaas', 'autoRedirect' => true],
+], 'retorno do Asaas para a assinatura da loja');
+$ok(AssinaturaCobranca::callbackRetorno('http://localhost:8000', 'loja-teste') === [], 'sem retorno em HTTP local');
+$ok(AssinaturaCobranca::callbackRetorno('https://deliveryzim.com.br', '../outra-loja') === [], 'slug inseguro recusado');
+$ok(AssinaturaCobranca::callbackRetorno('https://user@deliveryzim.com.br', 'loja-teste') === [], 'URL com credenciais recusada');
 
 /* Planos e precos */
 $ok(AssinaturaService::preco('0.00', 'vitalicio') === 'Grátis', 'vitalicio e gratis');
