@@ -58,7 +58,29 @@ plataforma conectado.
 - Uma assinatura já vinculada não gera outra recorrência se a consulta das faturas falhar. Webhooks de assinatura antiga não liberam a assinatura vigente; o fallback por referência exige tentativa registrada, ambiente e cliente correspondentes.
 - `bin/conciliar-assinaturas.php` é a rotina CLI de consulta das recorrências vigentes já vinculadas, inclusive aguardando pagamento. Não cria cobranças nem altera preços; registra falhas e retorna código de saída não-zero. Após homologação, configurar cron (ex.: a cada hora) no usuário do site, com log e monitoramento. Webhooks continuam o mecanismo principal. A rotina de atraso existente permanece separada.
 - Documentação oficial: https://docs.asaas.com/reference/listar-clientes e https://docs.asaas.com/reference/listar-assinaturas.
-- Ainda pendente: conciliação de tentativas incertas sem vínculo local pelo operador, expiração quando não há fatura, estornos/chargebacks e histórico de ciclos em troca de plano, além da atualização retroativa dos callbacks.
+- Ainda pendente: recuperação agendada das tentativas incertas sem vínculo local, reconstrução histórica de contratos já reatribuídos, identificação de recorrências antigas removidas, valor líquido e homologação de todos os casos no Sandbox.
+
+## Validade, estornos e consistência financeira
+
+- Assinatura paga ativa com `vence_em` anterior à data limite (hoje menos tolerância) bloqueia mesmo sem fatura local. Plano gratuito e suspensão administrativa são preservados.
+- Transições conflitantes de fatura são verificadas pontualmente via GET /payments/{id}. Eventos antigos não restabelecem pagamentos estornados. Uma exclusão isolada não revoga fatura paga.
+- Estorno integral ou chargeback retiram a cobertura perdida se não houver outro ciclo pago válido; a disputa revertida pode restaurar o acesso após confirmação atual do Asaas. Estorno em processamento e estorno parcial não revogam o acesso; contabilização líquida parcial não implementada.
+- Faturas já gravadas preservam o vínculo com o plano original; a extensão considera o ciclo desse contrato. Não há reconstrução retroativa de vínculos já alterados antes desta versão.
+- Novos eventos de estorno/chargeback são inscritos somente no webhook da plataforma. Após deploy, reconfigurar/verificar os eventos do webhook Asaas já existente; o código não muda a inscrição remota automaticamente.
+- A cobertura de teste gratuito não tem snapshot separado nesta versão: estorno integral de pagamento antecipado pode suspender acesso antes do fim do teste. Homologar e definir política antes de habilitar em produção.
+- Referência: https://docs.asaas.com/docs/webhook-para-cobrancas e https://docs.asaas.com/reference/recuperar-uma-unica-cobranca.
+
+## Atualização retroativa de callbacks
+
+Com o APP_URL HTTPS correto e o ambiente Asaas explicitamente selecionado, executar como usuário do site:
+
+```bash
+php8.4 bin/atualizar-retorno-asaas.php --restaurante=ID --ambiente=sandbox
+# Após conferir a simulação e homologar:
+php8.4 bin/atualizar-retorno-asaas.php --restaurante=ID --ambiente=sandbox --apply
+```
+
+O comando valida recorrência vigente, cliente e ambiente. Por padrão não altera o Asaas; com --apply, envia somente callback e updatePendingPayments=false na recorrência, e somente callback nas cobranças pendentes/vencidas elegíveis. Não recria faturas, nem altera valores ou vencimentos. A execução em produção exige homologação e autorização, com `--ambiente=producao`. Não executar em lote indiscriminadamente. Referência: https://docs.asaas.com/reference/atualizar-cobranca-existente.
 
 ## Tabelas (migration `20261112100000_planos_assinaturas_cobranca.php`)
 
