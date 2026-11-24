@@ -115,7 +115,7 @@ final class AssinaturaCobranca
             || (int) ($this->assinaturas->vigente((int) $a['id_restaurante'])['id'] ?? 0) !== $idAssinatura) {
             return ['ok' => false, 'mensagem' => 'Esta assinatura não está vigente.'];
         }
-        if ($a === null || (float) $a['valor'] <= 0 || !isset(CobrancaAssinaturas::CICLOS[$a['periodo']])) {
+        if ((float) $a['valor'] <= 0 || !isset(CobrancaAssinaturas::CICLOS[$a['periodo']])) {
             return ['ok' => true, 'mensagem' => 'Plano sem cobrança.'];
         }
         if ($a['asaas_assinatura_id'] !== null) {
@@ -239,10 +239,20 @@ final class AssinaturaCobranca
             $a = $this->assinaturas->porAsaas($conta['ambiente'], $f['assinatura']);
         }
         $ref = (string) ($dados['payment']['externalReference'] ?? '');
-        if ($a === null && preg_match('/\Aassinatura:(\d{1,18})\z/', $ref, $m) === 1) {
-            $a = $this->assinaturas->buscar((int) $m[1]);
+        if ($a === null && $f['assinatura'] !== null && preg_match('/\Aassinatura:(\d{1,18})\z/', $ref, $m) === 1) {
+            // O webhook pode chegar antes da resposta do POST; somente uma tentativa registrada
+            // no mesmo ambiente, cliente e assinatura vigente pode usar a referencia como fallback.
+            $candidato = $this->assinaturas->buscar((int) $m[1]);
+            if ($candidato !== null && $candidato['ambiente'] === $conta['ambiente']
+                && $candidato['asaas_assinatura_id'] === null && $candidato['asaas_cliente_id'] !== null
+                && ($dados['payment']['customer'] ?? null) === $candidato['asaas_cliente_id']
+                && in_array($candidato['status'], ['ativa', 'aguardando'], true)
+                && str_starts_with((string) ($candidato['cobranca_erro'] ?? ''), 'CONFIRMAR_ASSINATURA:')) {
+                $a = $candidato;
+            }
         }
-        if ($a === null) {
+        if ($a === null || ($a['asaas_cliente_id'] !== null && isset($dados['payment']['customer'])
+            && $dados['payment']['customer'] !== $a['asaas_cliente_id'])) {
             return; // cobranca avulsa da conta da plataforma: so fica registrada no historico de avisos
         }
         if ($evento === 'PAYMENT_DELETED') {
@@ -324,12 +334,19 @@ final class AssinaturaCobranca
      */
     private function aplicarFatura(array $a, string $ambiente, array $f): void
     {
-        $status = self::STATUS_FATURA[$f['status']] ?? 'pendente';
+        $status = self::STATUS_FATURA[$f['status']] ?? null;
+        if ($status === null) {
+            return; // estado desconhecido não altera a fatura local
+        }
         $idRestaurante = (int) $a['id_restaurante'];
         $this->db->beginTransaction();
         try {
+            $this->assinaturas->travarRestaurante($idRestaurante, \Cardapim\Services\Gerencia\InsumoService::paraAtualizar($this->db));
             $salvo = $this->assinaturas->salvarFatura($idRestaurante, (int) $a['id'], $ambiente, $f, $status);
-            if ($status === 'paga' && $salvo['status_antes'] !== 'paga') {
+            $vigente = $this->assinaturas->vigente($idRestaurante);
+            if ($status === 'paga' && $salvo['status_antes'] !== 'paga' && $vigente !== null
+                && (int) $vigente['id'] === (int) $a['id']
+                && in_array($vigente['status'], ['ativa', 'aguardando'], true)) {
                 $meses = AssinaturaService::MESES[$a['periodo']] ?? 1;
                 $vencimento = DateTimeImmutable::createFromFormat('!Y-m-d', $f['vencimento']) ?: $this->hoje();
                 $this->assinaturas->marcarPaga((int) $a['id'], AssinaturaService::somarMeses($vencimento, $meses)->format('Y-m-d'));
