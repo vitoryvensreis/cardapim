@@ -193,7 +193,7 @@
 .indicador { display: flex; flex-direction: column; gap: .35rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); }
 .indicador-topo { display: flex; align-items: center; gap: .5rem; color: var(--c-muted); font-size: .82rem; font-weight: 700; }
 .indicador-topo .icon { width: 2rem; height: 2rem; padding: .45rem; border-radius: .12rem; background: var(--c-blush); color: var(--c-wine); }
-.indicador strong { color: var(--c-ink); font: 700 1.6rem/1.1 var(--f-head); font-variant-numeric: tabular-nums; }
+.indicador strong { color: var(--c-ink); font: 700 1.6rem/1.1 var(--f-head); font-variant-numeric: tabular-nums; letter-spacing: -.025em; }
 .indicador small { color: var(--c-muted); font-size: .8rem; }
 .indicador.is-alerta .indicador-topo .icon { background: var(--c-danger-bg); color: var(--c-danger); }
 .indicador.is-atencao .indicador-topo .icon { background: #fff1d6; color: #8a5300; }
