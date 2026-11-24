@@ -418,7 +418,7 @@ final class AssinaturaCobranca
                     && $vigente['vence_em'] !== null && $vigente['vence_em'] <= $cobertura
                     && $vigente['asaas_assinatura_id'] !== null) {
                     // Retira somente a cobertura perdida, preservando ciclos pagos posteriores.
-                    $ate = $vencimento->modify('-1 day')->format('Y-m-d');
+                    $ate = min($vencimento->modify('-1 day')->format('Y-m-d'), $this->hoje()->modify('-1 day')->format('Y-m-d'));
                     foreach ($this->assinaturas->faturasPagasRecorrencia($idRestaurante, $ambiente, $vigente['asaas_assinatura_id']) as $paga) {
                         $data = DateTimeImmutable::createFromFormat('!Y-m-d', $paga['vencimento']);
                         if ($data !== false) {
