@@ -31,6 +31,18 @@ grep -q 'data-fiscal-inicial="1"' "$tmp/empresa"
 grep -q 'Buscar endereço pelo CEP' "$tmp/empresa"
 grep -q 'Não possuo ou não sei informar' "$tmp/empresa"
 ! grep -q 'name="ibge"' "$tmp/empresa"
+grep -q 'Configuração automática' "$tmp/empresa"
+! grep -q 'name="serie"' "$tmp/empresa"
+! grep -q 'name="csc"' "$tmp/empresa"
+! grep -q 'name="certificado"' "$tmp/empresa"
+test "$(post "$g/fiscal/ambiente" 'ambiente=2')" = 303
+curl -s -b "$tmp/g" "$g/fiscal" > "$tmp/hom"
+grep -q 'name="serie"' "$tmp/hom"
+grep -q 'name="certificado"' "$tmp/hom"
+test "$(post "$g/fiscal/ambiente" 'ambiente=3')" = 303
+curl -s -b "$tmp/g" "$g/fiscal" > "$tmp/sim"
+grep -q 'Configuração automática' "$tmp/sim"
+! grep -q 'name="serie"' "$tmp/sim"
 # Sem CSRF não chega à consulta externa; CI não depende da disponibilidade de APIs públicas.
 test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' -d 'atualizar=1' "$g/fiscal/consultar-empresa")" = 303
 test "$(curl -s -o /dev/null -w '%{http_code}' -d 'atualizar=1' "$g/fiscal/consultar-empresa")" = 302 || test "$(curl -s -o /dev/null -w '%{http_code}' -d 'atualizar=1' "$g/fiscal/consultar-empresa")" = 303

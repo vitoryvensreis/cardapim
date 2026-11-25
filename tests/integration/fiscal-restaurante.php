@@ -35,5 +35,26 @@ try {
     if (!$res->ok || $dados['empresa']['ie'] !== '' || $dados['empresa']['ibge'] !== '2304400' || $dados['empresa']['nome'] !== 'Nome editado' || $dados['token'] !== 'segredo-fiscal-teste' || $servico->estado()['empresa_pronta']) {
         throw new RuntimeException('Cadastro pendente editável, município ou preservação do token falhou.');
     }
+    if (!$servico->ambiente('2')->ok || !$servico->configurar(['serie'=>'7','numero'=>'85','id_csc'=>'12','csc'=>'teste-homologacao'])->ok) {
+        throw new RuntimeException('Configuração de homologação falhou.');
+    }
+    $hom = $r->buscar($id)['dados']['config'][2];
+    $r->serializar($id,function () use ($r,$id): void {
+        $atual = $r->buscar($id);
+        $atual['dados']['config'][3] = ['serie'=>1,'numero'=>42,'id_csc'=>'99','csc'=>'antigo'];
+        $r->salvar($id,$atual);
+    });
+    if (!$servico->ambiente('3')->ok || $servico->configurar(['serie'=>'8','numero'=>'1','id_csc'=>'1','csc'=>'nao-aceitar'])->ok || $servico->ambiente('1')->ok) {
+        throw new RuntimeException('Simulação editável ou produção liberada.');
+    }
+    $amb = $r->buscar($id)['dados']['config'];
+    if ($amb[2] !== $hom || $amb[3] !== ['serie'=>999,'numero'=>42,'id_csc'=>'','csc'=>''] || $servico->estado()['tem_csc']) {
+        throw new RuntimeException('Separação dos ambientes ou numeração de teste falhou.');
+    }
+    $servico->ambiente('2');
+    $servico->ambiente('3');
+    if ($r->buscar($id)['dados']['config'] !== $amb) {
+        throw new RuntimeException('Troca de ambiente alterou parâmetros.');
+    }
 } finally { $db->rollBack(); Cripto::usarChave(null); }
 echo "Persistência e projeção fiscal confirmadas.\n";

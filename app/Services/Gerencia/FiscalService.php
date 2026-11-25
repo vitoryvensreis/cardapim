@@ -44,7 +44,7 @@ final class FiscalService
             $dados[$c] ??= (string) ($perfil[$c] ?? '');
         }
         $amb = (int) ($d['ambiente'] ?? 3);
-        $config = $d['config'][$amb] ?? [];
+        $config = $amb === 3 ? self::configSimulacao($d['config'][3] ?? []) : ($d['config'][$amb] ?? []);
         return [
             'cnpj' => $r['cnpj'] ?? (string) ($perfil['cnpj'] ?? ''),
             'habilitado' => ($r['habilitado'] ?? false) && $this->cnpjConfere($r, $perfil),
@@ -105,6 +105,7 @@ final class FiscalService
             }
             $r ??= ['cnpj' => $cnpj, 'habilitado' => false, 'aprovado' => false, 'id_impressora' => null, 'dados' => ['ambiente' => 3]];
             $r['habilitado'] = $ativo;
+            if ($ativo) { self::prepararSimulacao($r['dados']); }
             $this->repo->salvar($this->id, $r);
             Auditoria::registrar($this->usuario, 'Módulo fiscal', $ativo ? 'Habilitado para configuração.' : 'Desativado; configuração preservada.');
             return Resultado::sucesso($ativo ? 'Módulo habilitado para configuração. Emissão real permanece bloqueada.' : 'Módulo fiscal desativado.');
@@ -277,6 +278,20 @@ final class FiscalService
         return [$g['cnpj'], $r['cnpj'], $r['dados']['token']];
     }
 
+    /** Convenção interna da simulação; sem credenciais SEFAZ fictícias.
+     * A reserva/incremento transacional da numeração pertence ao motor de emissão (etapa 04).
+     */
+    public static function configSimulacao(array $anterior): array
+    {
+        $numero = filter_var($anterior['numero'] ?? 1, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1,'max_range'=>999999999]]);
+        return ['serie'=>999, 'numero'=>$numero === false ? 1 : $numero, 'id_csc'=>'', 'csc'=>''];
+    }
+
+    private static function prepararSimulacao(array &$dados): void
+    {
+        $dados['config'][3] = self::configSimulacao($dados['config'][3] ?? []);
+    }
+
     public function ambiente(string $amb): Resultado
     {
         if (!in_array($amb, ['2','3'], true)) {
@@ -284,6 +299,7 @@ final class FiscalService
         }
         return $this->operacao(function (array &$r) use ($amb): Resultado {
             $r['dados']['ambiente'] = (int) $amb;
+            if ($amb === '3') { self::prepararSimulacao($r['dados']); }
             return Resultado::sucesso('Ambiente selecionado.');
         });
     }
@@ -299,6 +315,9 @@ final class FiscalService
         }
         return $this->operacao(function (array &$r) use ($serie, $numero, $id, $csc): Resultado {
             $amb = $r['dados']['ambiente'] ?? 3;
+            if ($amb !== 2) {
+                return Resultado::falha('Os parâmetros da simulação são automáticos. Selecione homologação para editar parâmetros fiscais.');
+            }
             $old = $r['dados']['config'][$amb] ?? [];
             $r['dados']['config'][$amb] = ['serie'=>$serie, 'numero'=>$numero, 'id_csc'=>$id, 'csc'=>$csc !== '' ? $csc : ($id === ($old['id_csc'] ?? '') ? ($old['csc'] ?? '') : '')];
             if ($amb === 2) {
@@ -337,7 +356,7 @@ final class FiscalService
             $r['dados']['certificado'] = $meta;
             $r['dados']['config_enviada'] = false;
             unset($r['dados']['status'][2]);
-            return Resultado::sucesso('Certificado enviado à NeXT em homologação. Envie a configuração e teste a SEFAZ.');
+            return Resultado::sucesso('Certificado enviado à NeXT em homologação. Envie a configuração e teste a conexão fiscal pela NeXT.');
         });
     }
 
@@ -369,8 +388,9 @@ final class FiscalService
             if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-teste|' . $this->id)) {
                 return Resultado::falha('Limite de testes atingido.');
             }
+            if ($amb === 3) { self::prepararSimulacao($r['dados']); }
             $cod = $this->api->statusCliente($sh, $cnpj, $token, $amb);
-            $r['dados']['status'][$amb] = ($cod === 107 ? 'Serviço em operação' : 'Status SEFAZ ' . $cod) . ($amb === 3 ? ' (simulação)' : ' (homologação)');
+            $r['dados']['status'][$amb] = ($cod === 107 ? 'Serviço em operação' : 'Status fiscal via NeXT ' . $cod) . ($amb === 3 ? ' (simulação)' : ' (homologação)');
             return Resultado::sucesso('Consulta concluída: ' . $r['dados']['status'][$amb] . '. Nenhuma nota emitida.');
         });
     }

@@ -138,3 +138,6 @@ Licença a definir. Até a inclusão de um arquivo `LICENSE`, não presuma direi
 
 ### Cadastro fiscal automático (etapa 02.1)
 Consulta pontual à BrasilAPI pelo CNPJ vinculado, preenchimento inicial editável e botão Repreencher. CEP usa a API interna; código IBGE identificado no servidor. IE pendente ou isenção declarada não libera homologação; nenhum dado consultado é salvo sem confirmação. Sem migration ou alteração no Agent.
+
+### Simulação fiscal automática (etapa 02.2)
+Ambiente 3 sem preenchimento manual de série, numeração, CSC ou A1. Série interna 999 e sequência preservada. Emitente conectado não precisa repetir cadastro. Consultas fiscais exclusivamente via NeXT.
