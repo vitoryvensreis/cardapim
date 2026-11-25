@@ -84,7 +84,16 @@ final class CatalogoNcm
         $cache=self::cache();
         if (isset($cache[$key])) {
             $res=$cache[$key]['dados'];
-            if (is_array($res) && !array_filter($res,static fn($i)=>!self::fonteValida($i['codigo'],$i['fonte']))) { return $res; }
+            if (is_array($res) && !array_filter($res,static fn($i)=>!self::fonteValida($i['codigo'],$i['fonte']))) {
+                $expira=$cache[$key]['expira'];
+                foreach ($res as $item) {
+                    unset($cache['c:'.$item['codigo']]);
+                    $cache['c:'.$item['codigo']]=['expira'=>$expira,'dados'=>$item];
+                }
+                if ($exato && $res===[]) { $cache['c:'.$codigo]=['expira'=>$expira,'dados'=>[]]; }
+                Session::set(self::CHAVE,array_slice($cache,-200,null,true));
+                return $res;
+            }
         }
         $url=self::URL.($exato?'/'.$codigo:'?search='.rawurlencode($termo));
         $r=$this->http->enviar('GET',$url);
