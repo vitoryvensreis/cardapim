@@ -24,6 +24,12 @@ $op=static function(string $k) use($opcoes,$v):array {
 };
 $avancados=array_filter(array_intersect_key($v,array_flip(['produto','categoria','pedido','comanda','mesa','origem','funcionario','hora_de','hora_ate'])))!==[] || $v['data_por']!=='lancamento';
 $detalhe=$v['visao']==='pedido';
+$nomePesquisa=$v['busca'];
+if ($v['produto']!=='') {
+    foreach ($opcoes['produto'] as $produtoOpcao) {
+        if ((string)$produtoOpcao['id']===$v['produto']) { $nomePesquisa=$produtoOpcao['nome']; break; }
+    }
+}
 ?>
 <div class="painel-page relatorios-page">
     <header class="painel-cabecalho">
@@ -40,7 +46,15 @@ $detalhe=$v['visao']==='pedido';
             <?php if ($v['nome_historico']!==''): ?><input type="hidden" name="nome_historico" value="<?= $e($v['nome_historico']) ?>"><input type="hidden" name="unidade" value="<?= $e($v['unidade']) ?>"><?php endif; ?>
             <div class="rel-grade">
                 <label>Período <?php $select('periodo',PeriodoFinanceiro::ATALHOS+['personalizado'=>'Personalizado'],$periodo->chave); ?></label>
-                <label>Pesquisar produto <input type="search" name="busca" value="<?= $e($v['busca']) ?>" maxlength="120" placeholder="Ex.: Heineken"></label>
+                <div class="rel-autocomplete" data-produtos-url="<?= $e($url.'/produtos') ?>">
+                    <label for="rel-busca-produto">Pesquisar produto</label>
+                    <input id="rel-busca-produto" type="search" name="busca" value="<?= $e($nomePesquisa) ?>" maxlength="120" placeholder="Ex.: Heineken" autocomplete="off" aria-describedby="rel-busca-ajuda">
+                    <small id="rel-busca-ajuda" class="rel-busca-ajuda">Digite o nome ou escolha uma sugestão.</small>
+                    <div class="rel-sugestoes" hidden>
+                        <ul id="rel-produtos-lista" role="listbox" aria-label="Sugestões de produtos"></ul>
+                        <p class="rel-sugestoes-msg" role="status" aria-live="polite"></p>
+                    </div>
+                </div>
                 <label>Situação <?php $select('situacao',F::SITUACOES,$v['situacao']); ?></label>
             </div>
             <div class="rel-grade rel-datas">
@@ -54,7 +68,7 @@ $detalhe=$v['visao']==='pedido';
                     <label>Considerar data de <?php $select('data_por',F::DATAS,$v['data_por']); ?></label>
                     <label>Hora inicial <input type="time" name="hora_de" value="<?= $e($v['hora_de']) ?>"></label>
                     <label>Hora final <input type="time" name="hora_ate" value="<?= $e($v['hora_ate']) ?>"></label>
-                    <label>Produto específico <?php $select('produto',$op('produto'),$v['produto']); ?></label>
+                    <label class="rel-produto-alternativo">Produto específico <?php $select('produto',$op('produto'),$v['produto']); ?></label>
                     <label>Categoria atual <?php $select('categoria',$op('categoria'),$v['categoria']); ?></label>
                     <label>Número do pedido <input name="pedido" inputmode="numeric" maxlength="18" value="<?= $e($v['pedido']) ?>"></label>
                     <label>Nome ou número da comanda <input name="comanda" maxlength="60" value="<?= $e($v['comanda']) ?>"></label>

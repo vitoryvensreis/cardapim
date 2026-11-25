@@ -11,6 +11,14 @@ use Cardapim\Services\Gerencia\RelatoriosService;
 
 final class RelatoriosController extends BaseGerencia
 {
+    public function produtos(string $slug): Response
+    {
+        if ($r=$this->entrar($slug)) { return $r; }
+        $busca=is_string($_GET['q']??null)?mb_substr(trim($_GET['q']),0,120):'';
+        $s=new RelatoriosService($this->db,$this->restaurante['id']);
+        return Guard::semCache(Response::json(['produtos'=>$s->sugestoes($busca)]));
+    }
+
     public function index(string $slug): Response
     {
         if ($r=$this->entrar($slug)) { return $r; }

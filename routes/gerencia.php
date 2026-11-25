@@ -83,6 +83,7 @@ return static function (Router $router): void {
     $router->get($g . '/financeiro/fechamentos', [FinanceiroController::class, 'fechamentos']);
     $router->get($g . '/financeiro/relatorio', [FinanceiroController::class, 'planilha']);
     $router->get($g . '/financeiro/relatorios', [RelatoriosController::class, 'index']);
+    $router->get($g . '/financeiro/relatorios/produtos', [RelatoriosController::class, 'produtos']);
     $router->get($g . '/financeiro/contas', [FinanceiroController::class, 'contas']);
     $router->get($g . '/financeiro/contas/nova', [FinanceiroController::class, 'novaConta']);
     $router->post($g . '/financeiro/contas', [FinanceiroController::class, 'criarConta']);

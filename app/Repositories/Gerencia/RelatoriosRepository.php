@@ -32,7 +32,8 @@ final class RelatoriosRepository
             };
         }
         $like=static fn(string $s):string=>'%'.str_replace(['!','%','_'],['!!','!%','!_'],$s).'%';
-        if ($v['busca']!=='') {
+        // A seleção por ID é exata, inclusive quando o nome histórico mudou.
+        if ($v['busca']!=='' && $v['produto']==='') {
             $sql.=" AND (i.nome LIKE ? ESCAPE '!' OR pr.nome LIKE ? ESCAPE '!')";
             $params[]=$like($v['busca']); $params[]=$like($v['busca']);
         }
@@ -102,11 +103,28 @@ final class RelatoriosRepository
         return ['linhas'=>array_slice($linhas,0,$limite),'mais'=>count($linhas)>$limite];
     }
 
-    public function opcoes(): array
+    /** Catálogo do próprio restaurante, inclusive produtos inativos com histórico de vendas. */
+    public function sugestoes(string $busca): array
+    {
+        $busca=mb_substr(trim($busca),0,120);
+        if (mb_strlen($busca)<2) { return []; }
+        $termo=str_replace(['!','%','_'],['!!','!%','!_'],$busca);
+        return $this->consultar("SELECT pr.id,pr.nome,pr.ativo,c.nome AS categoria
+            FROM produtos pr LEFT JOIN categorias c ON c.id=pr.id_categoria AND c.id_restaurante=pr.id_restaurante
+            WHERE pr.id_restaurante=? AND pr.nome LIKE ? ESCAPE '!'
+            ORDER BY (pr.nome LIKE ? ESCAPE '!') DESC,pr.ativo DESC,pr.nome,pr.id LIMIT 20",
+            [$this->idRestaurante,'%'.$termo.'%',$termo.'%']);
+    }
+
+    public function opcoes(string $produto=''): array
     {
         $r=[$this->idRestaurante];
+        $produtos=$this->consultar('SELECT id,nome FROM produtos WHERE id_restaurante=? ORDER BY nome,id LIMIT 500',$r);
+        if ($produto!=='' && !in_array($produto,array_map('strval',array_column($produtos,'id')),true)) {
+            $produtos=array_merge($produtos,$this->consultar('SELECT id,nome FROM produtos WHERE id_restaurante=? AND id=?',[$this->idRestaurante,$produto]));
+        }
         return [
-            'produto'=>$this->consultar('SELECT id,nome FROM produtos WHERE id_restaurante=? ORDER BY nome,id LIMIT 500',$r),
+            'produto'=>$produtos,
             'categoria'=>$this->consultar('SELECT id,nome FROM categorias WHERE id_restaurante=? ORDER BY nome,id LIMIT 500',$r),
             'mesa'=>$this->consultar("SELECT id,CONCAT(numero,IF(COALESCE(apelido,'')='', '', CONCAT(' - ',apelido))) AS nome FROM mesas WHERE id_restaurante=? ORDER BY numero,id LIMIT 500",$r),
             'funcionario'=>$this->consultar('SELECT id,nome FROM '.chr(96).'user'.chr(96).' WHERE id_restaurante=? ORDER BY nome,id LIMIT 500',$r),

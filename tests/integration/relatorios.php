@@ -39,6 +39,21 @@ try {
             $db->prepare("UPDATE pedido_itens SET cancelado_em=?,id_user_cancelou=?,motivo_cancelamento='CI' WHERE id=? AND id_restaurante=?")->execute([$hora,$usuarios[$j],$item,$id]);
         }
     }
+    $catalogo=[];
+    foreach($ids as $j=>$id) {
+        $db->prepare('INSERT INTO produtos(id_restaurante,nome,preco,controla_estoque,disponivel) VALUES (?,?,?,0,1)')
+            ->execute([$id,$nome.' catálogo '.$j,'10.00']);
+        $catalogo[]=(int)$db->lastInsertId();
+    }
+    $svc=new RelatoriosService($db,(int)$ids[0]);
+    $sugestoes=$svc->sugestoes($nome);
+    relCheck(count($sugestoes)===1 && $sugestoes[0]['id']===(string)$catalogo[0]);
+    relCheck($svc->sugestoes('a')===[] && $svc->sugestoes('%')===[]);
+    relCheck(count((new RelatoriosService($db,(int)$ids[1]))->sugestoes($nome))===1);
+    $db->prepare('UPDATE pedido_itens SET id_produto=? WHERE id_pedido=? AND id_restaurante=?')
+        ->execute([$catalogo[0],$pedidos[0],$ids[0]]);
+    $exato=F::daRequisicao(['periodo'=>'personalizado','de'=>$dia,'ate'=>$dia,'produto'=>(string)$catalogo[0],'busca'=>'Nome atual diferente']);
+    relCheck(count((new RelatoriosRepository($db,(int)$ids[0]))->linhas($exato)['linhas'])===2);
     $f=F::daRequisicao(['periodo'=>'personalizado','de'=>$dia,'ate'=>$dia,'busca'=>$nome]);
     $r=new RelatoriosRepository($db,(int)$ids[0]);
     $linhas=$r->linhas($f)['linhas'];

@@ -82,6 +82,7 @@ jobs:
           node tests/js/confirmar-trava.js
           node tests/js/rastreamento.js
           node tests/js/gerencia-fiscal.js
+          node tests/js/relatorios.js
 
       - name: Testes unitarios sem banco
         shell: bash
