@@ -419,3 +419,5 @@ Fluxo de trabalho: branch → PR → CI verde → merge autorizado → deploy au
 
 ### Cadastro fiscal de produtos (etapa 03 — base)
 `FiscalProdutosController` / `FiscalProdutosService` / `FiscalProdutosRepository`, `Modules/Fiscal/CadastroProdutoFiscal.php` e `CatalogoNcm.php`, `Views/gerencia/fiscal/produtos/`. Migration `20261125100000_fiscal_produtos.php`, marcador `[cardapim-fiscal-produtos]` para backup/migration dedicado. Não altera serviços de venda ou repositórios comerciais. Acesso condicionado a schema + fiscal habilitado + CNPJ correspondente.
+
+Liberação fiscal: `FiscalAcesso` verifica controle global e por restaurante. Migration `20261125110000_fiscal_liberacoes.php` (marcador `[cardapim-fiscal-liberacoes]`). Superadmin administra via `/painel/fiscal`; não modifica assinaturas, permissões comerciais ou vendas.

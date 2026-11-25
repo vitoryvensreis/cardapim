@@ -125,6 +125,7 @@ jobs:
           php tests/unit/fiscal-produtos.php
           bash -n deploy/scripts/apply-fiscal-restaurante.sh
           bash -n deploy/scripts/apply-fiscal-produtos.sh
+          bash -n deploy/scripts/apply-fiscal-liberacoes.sh
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -183,6 +184,7 @@ jobs:
           php database/verify-aparencia-cupom.php --verify
           php database/verify-fiscal-restaurante.php --verify
           php database/verify-fiscal-produtos.php --verify
+          php database/verify-fiscal-liberacoes.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -663,6 +665,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-fiscal-produtos.sh'"
+
+      - name: Aplicar liberação fiscal com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-fiscal-liberacoes]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-fiscal-liberacoes.sh'"
 
       - name: Aplicar permissoes do garcom com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-garcom-permissoes]') }}

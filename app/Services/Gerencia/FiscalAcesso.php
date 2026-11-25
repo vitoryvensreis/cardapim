@@ -34,7 +34,7 @@ final class FiscalAcesso
         if (!self::disponivel($db)) { return null; }
         $global=(int)$db->query('SELECT visivel FROM fiscal_visibilidade WHERE id=1')->fetchColumn()===1;
         $busca=mb_substr(trim($busca),0,120);
-        $q=$db->prepare('SELECT r.id,r.nome,r.slug,COALESCE(l.permitido,0) AS permitido FROM restaurantes r LEFT JOIN fiscal_liberacoes l ON l.id_restaurante=r.id WHERE (?="" OR LOCATE(?,r.nome)>0 OR LOCATE(?,r.slug)>0) ORDER BY r.nome,r.id LIMIT 101');
+        $q=$db->prepare('SELECT r.id,r.nome,r.slug,COALESCE(l.permitido,0) AS permitido FROM restaurantes r LEFT JOIN fiscal_liberacoes l ON l.id_restaurante=r.id WHERE (LENGTH(?)=0 OR LOCATE(?,r.nome)>0 OR LOCATE(?,r.slug)>0) ORDER BY r.nome,r.id LIMIT 101');
         $q->execute([$busca,$busca,$busca]);
         $rows=$q->fetchAll(PDO::FETCH_ASSOC);
         return ['global'=>$global,'restaurantes'=>array_slice($rows,0,100),'mais'=>count($rows)>100,'busca'=>$busca];

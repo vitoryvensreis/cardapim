@@ -12,6 +12,23 @@ login() {
 }
 login "$tmp/g" ci_gerente
 login "$tmp/a" ci_master
+# Nenhum restaurante é autorizado por padrão.
+test "$(curl -s -b "$tmp/g" -o "$tmp/negado" -w '%{http_code}' "$g/fiscal")" = 403
+curl -s -b "$tmp/g" "$g" > "$tmp/sem-menu"
+! grep -q "href=\"/$slug/gerencia/fiscal\"" "$tmp/sem-menu"
+test "$(curl -s -b "$tmp/a" -G --data-urlencode "busca_restaurante=$slug" -o "$tmp/lib" -w '%{http_code}' "$base/painel/fiscal")" = 200
+ac="$(grep -o 'name="_csrf" value="[a-f0-9]*"' "$tmp/lib" | head -1 | cut -d'"' -f4)"
+rid="$(grep -o 'name="id_restaurante" value="[0-9]*"' "$tmp/lib" | head -1 | cut -d'"' -f4)"
+test -n "$rid"
+test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' -d "id_restaurante=$rid&permitido=1" "$base/painel/fiscal/liberar-restaurante")" = 403
+adminpost() { curl -s -b "$tmp/a" -c "$tmp/a" -o /dev/null -w '%{http_code}' --data-urlencode "_csrf=$ac" "$@" ; }
+test "$(adminpost -d "id_restaurante=$rid&permitido=1" "$base/painel/fiscal/liberar-restaurante")" = 303
+test "$(curl -s -b "$tmp/g" -o "$tmp/f" -w '%{http_code}' "$g/fiscal")" = 200
+curl -s -b "$tmp/g" "$g" > "$tmp/com-menu"
+grep -q "href=\"/$slug/gerencia/fiscal\"" "$tmp/com-menu"
+test "$(adminpost -d 'visivel=0' "$base/painel/fiscal/visibilidade")" = 303
+test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$g/fiscal")" = 403
+test "$(adminpost -d 'visivel=1' "$base/painel/fiscal/visibilidade")" = 303
 test "$(curl -s -b "$tmp/g" -o "$tmp/f" -w '%{http_code}' "$g/fiscal")" = 200
 grep -q 'Central fiscal' "$tmp/f"
 test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$base/painel/fiscal")" = 403

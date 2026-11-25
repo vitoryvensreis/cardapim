@@ -14,6 +14,7 @@ $qcnpj->execute([$id]);
 $cnpj = (string) $qcnpj->fetchColumn();
 $db->beginTransaction();
 try {
+    $db->prepare('INSERT INTO fiscal_liberacoes (id_restaurante,permitido,autor) VALUES (?,1,1)')->execute([$id]);
     $r->serializar($id, function () use ($r,$id,$cnpj): void {
         $r->salvar($id,['cnpj'=>$cnpj,'habilitado'=>true,'aprovado'=>false,'id_impressora'=>null,'dados'=>['token'=>'segredo-fiscal-teste','empresa'=>['cidade'=>'Fortaleza','estado'=>'CE','ibge'=>'2304400','ibge_verificado'=>true]]]);
     });
