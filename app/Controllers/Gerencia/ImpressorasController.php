@@ -42,6 +42,7 @@ final class ImpressorasController extends BaseGerencia
         $pontos = $ativo ? $repo->pontos($this->restaurante['id']) : [];
         return $this->tela('gerencia/integracoes/impressoras', 'integracoes', 'Impressoras', [
             'ativo' => $ativo,
+            'fiscalImpressora' => $this->fiscalImpressora(),
             'porProduto' => $porProduto,
             'impressoras' => $ativo ? $repo->listar($this->restaurante['id']) : [],
             'produtosPorImpressora' => $porProduto ? $repo->produtosPorImpressora($this->restaurante['id']) : [],
@@ -62,6 +63,32 @@ final class ImpressorasController extends BaseGerencia
             'aparenciaOpcoes' => AparenciaCupom::opcoes(),
             'aparenciaPadrao' => AparenciaCupom::PADRAO,
         ]);
+    }
+
+    private function fiscalImpressora(): array
+    {
+        try {
+            return (new \Cardapim\Services\Gerencia\FiscalService($this->db, $this->usuario, $this->restaurante['id']))->impressora();
+        } catch (\Throwable $e) {
+            error_log('[Cardapim] Card fiscal indisponível (' . get_class($e) . ').');
+            return ['habilitado' => false];
+        }
+    }
+
+    public function fiscal(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) { return $r; }
+        $url = $this->url('integracoes/impressoras') . '#cupom-fiscal';
+        if (!Esquema::tem($this->db, 'fiscal_restaurante')) {
+            return $this->voltar($url, 'erro', 'Módulo fiscal indisponível.');
+        }
+        try {
+            $s = new \Cardapim\Services\Gerencia\FiscalService($this->db, $this->usuario, $this->restaurante['id']);
+            return $this->responder($s->salvarImpressora($this->post('impressora_fiscal')), $url);
+        } catch (\Throwable $e) {
+            error_log('[Cardapim] Falha no card fiscal (' . get_class($e) . ').');
+            return $this->voltar($url, 'erro', 'Não foi possível salvar a impressora fiscal.');
+        }
     }
 
     /** @return array<int,array{chave:string,id_dispositivo:int,papel:int,logo:bool,margem:int,informado:bool}> */

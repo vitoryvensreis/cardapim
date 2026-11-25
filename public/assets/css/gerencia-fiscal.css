@@ -1,0 +1,6 @@
+/* Somente a nova tela fiscal. */
+.fiscal-restaurante .fiscal-form { display:grid; gap:.5rem; max-width:640px; }
+.fiscal-restaurante .fiscal-form label { margin-top:.5rem; font-weight:600; }
+.fiscal-restaurante .fiscal-form input:not([type=hidden]), .fiscal-restaurante .fiscal-form select { min-height:44px; min-width:0; width:100%; padding:.625rem .75rem; border:1px solid var(--border,#d6d6d6); border-radius:.5rem; background:var(--surface,#fff); color:inherit; font:inherit; }
+.fiscal-restaurante .fiscal-form button { justify-self:start; margin-top:.75rem; }
+.fiscal-restaurante .fiscal-separado { margin-top:1rem; }

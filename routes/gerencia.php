@@ -12,6 +12,7 @@ use Cardapim\Controllers\Gerencia\EstoqueController;
 use Cardapim\Controllers\Gerencia\FinanceiroController;
 use Cardapim\Controllers\Gerencia\ImportarCardapioController;
 use Cardapim\Controllers\Gerencia\ImpressorasController;
+use Cardapim\Controllers\Gerencia\FiscalController;
 use Cardapim\Controllers\Gerencia\IntegracoesController;
 use Cardapim\Controllers\Gerencia\SuporteController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
@@ -143,6 +144,16 @@ return static function (Router $router): void {
 
     // Integracoes (iFood, WhatsApp, Asaas)
     $router->get($g . '/integracoes', [IntegracoesController::class, 'inicio']);
+    $router->get($g . '/fiscal', [FiscalController::class, 'inicio']);
+    $router->post($g . '/fiscal/habilitar', [FiscalController::class, 'habilitar']);
+    $router->post($g . '/fiscal/empresa', [FiscalController::class, 'empresa']);
+    $router->post($g . '/fiscal/conectar', [FiscalController::class, 'conectar']);
+    $router->post($g . '/fiscal/ambiente', [FiscalController::class, 'ambiente']);
+    $router->post($g . '/fiscal/configurar', [FiscalController::class, 'configurar']);
+    $router->post($g . '/fiscal/certificado', [FiscalController::class, 'certificado']);
+    $router->post($g . '/fiscal/enviar-config', [FiscalController::class, 'enviarConfig']);
+    $router->post($g . '/fiscal/testar', [FiscalController::class, 'testar']);
+    $router->post($g . '/integracoes/impressoras/fiscal', [ImpressorasController::class, 'fiscal']);
     $router->get($g . '/integracoes/impressoras', [ImpressorasController::class, 'inicio']);
     $router->post($g . '/integracoes/impressoras', [ImpressorasController::class, 'salvar']);
     $router->post($g . '/integracoes/impressoras/teste', [ImpressorasController::class, 'teste']);

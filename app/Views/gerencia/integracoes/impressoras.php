@@ -266,4 +266,5 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
             <div class="impressao-teste-resultado" data-teste-resultado aria-live="polite"></div>
         </section>
     <?php endif; ?>
+    <?php require dirname(__DIR__) . '/fiscal/_impressora.php'; ?>
 </div>

@@ -23,8 +23,24 @@ final class FiscalController extends BasePlataforma
             $fiscal = null;
         }
         return $this->tela('plataforma/fiscal/inicio', 'fiscal', 'Central fiscal', [
-            'fiscal' => $fiscal, 'pageStyles' => ['css/plataforma-fiscal.css'],
+            'fiscal' => $fiscal, 'restaurantesFiscais' => $this->servico()->restaurantes(), 'pageStyles' => ['css/plataforma-fiscal.css'],
         ]);
+    }
+
+    public function aprovarRestaurante(): Response
+    {
+        if ($r = $this->entrar(true)) { return $r; }
+        $id = filter_var($this->post('id_restaurante'), FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if ($id === false || $this->post('confirmacao') !== '1' || !\Cardapim\Shared\Esquema::tem($this->db, 'fiscal_restaurante')) {
+            return $this->voltar('/painel/fiscal', 'erro', 'Confirme o vínculo e o CNPJ do restaurante.');
+        }
+        try {
+            $s = new \Cardapim\Services\Gerencia\FiscalService($this->db, $this->usuario, $id);
+            return $this->responder($s->aprovar($this->post('cnpj')), '/painel/fiscal');
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Aprovação fiscal indisponível (' . get_class($e) . ').');
+            return $this->voltar('/painel/fiscal', 'erro', 'Não foi possível aprovar o vínculo.');
+        }
     }
 
     public function salvar(): Response

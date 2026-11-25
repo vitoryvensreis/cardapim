@@ -119,6 +119,8 @@ jobs:
           php tests/unit/agrupador-itens-comanda.php
           php tests/unit/cupom-imagem.php
           php tests/unit/aparencia-cupom.php
+          php tests/unit/fiscal-restaurante.php
+          bash -n deploy/scripts/apply-fiscal-restaurante.sh
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -175,6 +177,7 @@ jobs:
           php database/verify-garcom-permissoes.php --verify
           php database/verify-impressora-papel.php --verify
           php database/verify-aparencia-cupom.php --verify
+          php database/verify-fiscal-restaurante.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -207,6 +210,7 @@ jobs:
           grep -q 'Criados agora: 0 categorias, 0 insumos, 0 produtos, 0 linhas' /tmp/cardapim-cardapio-2.txt
           php database/seed-cardapio-exemplo.php --verify
           php tests/integration/gerencia.php
+          php tests/integration/fiscal-restaurante.php
           php tests/integration/peso.php
           php tests/integration/estoque-produto.php
           php -r '$d=new PDO("mysql:host=127.0.0.1;port=3306;dbname=cardapim_ci;charset=utf8mb4", "cardapim_ci", "cardapim_ci_only"); $n=$d->query("SELECT COUNT(*) FROM planos WHERE nome LIKE \"Demonstração %\"")->fetchColumn(); exit((int)$n===3 ? 0 : 1);'
@@ -346,6 +350,7 @@ jobs:
           bash tests/http/desktop-balanca.sh http://127.0.0.1:18080
           bash tests/http/desktop-pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/impressao.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          bash tests/http/fiscal-restaurante.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/impressoras.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/impressao-produto.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           bash tests/http/combos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
@@ -625,6 +630,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-aparencia-cupom.sh'"
+
+      - name: Aplicar fiscal por restaurante com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-fiscal-restaurante]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-fiscal-restaurante.sh'"
 
       - name: Aplicar permissoes do garcom com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-garcom-permissoes]') }}

@@ -23,6 +23,7 @@ return static function (Router $router): void {
     $router->get('/painel/integracoes', [IntegracoesController::class, 'inicio']);
     $router->get('/painel/fiscal', [FiscalController::class, 'inicio']);
     $router->post('/painel/fiscal', [FiscalController::class, 'salvar']);
+    $router->post('/painel/fiscal/aprovar-restaurante', [FiscalController::class, 'aprovarRestaurante']);
     $router->post('/painel/fiscal/testar', [FiscalController::class, 'testar']);
     $router->post('/painel/fiscal/ativar', [FiscalController::class, 'ativar']);
     $router->post('/painel/fiscal/desativar', [FiscalController::class, 'desativar']);

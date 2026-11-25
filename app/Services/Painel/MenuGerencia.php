@@ -58,6 +58,10 @@ final class MenuGerencia
             'descricao' => 'Dinheiro que entra e que sai, sempre claro.',
             'planejado' => ['Entradas e saídas', 'Fechamentos de caixa', 'Contas a pagar e a receber', 'Relatórios por período'],
         ],
+        'fiscal' => [
+            'titulo' => 'Central fiscal', 'rotulo' => 'Fiscal', 'icone' => 'receipt',
+            'descricao' => 'Configuração fiscal do restaurante.', 'planejado' => [],
+        ],
         'cupons' => [
             'titulo' => 'Cupons',
             'rotulo' => 'Cupons',
@@ -120,7 +124,7 @@ final class MenuGerencia
     public const GRUPOS = [
         '' => ['visao-geral'],
         'Operação' => ['@caixa', 'cozinha'],
-        'Gestão' => ['estoque', 'equipe', 'financeiro'],
+        'Gestão' => ['estoque', 'equipe', 'financeiro', 'fiscal'],
         'Clientes' => ['cupons', 'fidelidade'],
         'Restaurante' => ['perfil', 'entrega-pagamento', 'integracoes', 'assinatura'],
         'Conta' => ['minha-conta', 'suporte'],
