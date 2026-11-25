@@ -39,6 +39,7 @@ final class Esquema
         // Aparencia do cupom por restaurante e papel informado pelo Agent (tabela criada no fim da migracao).
         'cupom_aparencia' => ['restaurante_cupom_aparencia', 'tamanho'],
         'fiscal_restaurante' => ['restaurante_fiscal', 'dados'],
+        'fiscal_produtos' => ['fiscal_produtos', 'dados'],
     ];
 
     /** @var array<string,bool> */

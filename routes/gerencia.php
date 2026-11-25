@@ -13,6 +13,7 @@ use Cardapim\Controllers\Gerencia\FinanceiroController;
 use Cardapim\Controllers\Gerencia\ImportarCardapioController;
 use Cardapim\Controllers\Gerencia\ImpressorasController;
 use Cardapim\Controllers\Gerencia\FiscalController;
+use Cardapim\Controllers\Gerencia\FiscalProdutosController;
 use Cardapim\Controllers\Gerencia\IntegracoesController;
 use Cardapim\Controllers\Gerencia\SuporteController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
@@ -145,6 +146,17 @@ return static function (Router $router): void {
     // Integracoes (iFood, WhatsApp, Asaas)
     $router->get($g . '/integracoes', [IntegracoesController::class, 'inicio']);
     $router->get($g . '/fiscal', [FiscalController::class, 'inicio']);
+    $router->get($g . '/fiscal/produtos', [FiscalProdutosController::class, 'inicio']);
+    $router->get($g . '/fiscal/perfis', [FiscalProdutosController::class, 'perfis']);
+    $router->get($g . '/fiscal/perfis/novo', [FiscalProdutosController::class, 'editarPerfil']);
+    $router->post($g . '/fiscal/perfis/salvar', [FiscalProdutosController::class, 'salvarPerfil']);
+    $router->post($g . '/fiscal/perfis/categoria', [FiscalProdutosController::class, 'categoria']);
+    $router->get($g . '/fiscal/perfis/{id}', [FiscalProdutosController::class, 'editarPerfil']);
+    $router->get($g . '/fiscal/classificacoes/ncm', [FiscalProdutosController::class, 'ncm']);
+    $router->post($g . '/fiscal/produtos/previa', [FiscalProdutosController::class, 'previa']);
+    $router->post($g . '/fiscal/produtos/aplicar', [FiscalProdutosController::class, 'aplicar']);
+    $router->get($g . '/fiscal/produtos/{id}', [FiscalProdutosController::class, 'editarProduto']);
+    $router->post($g . '/fiscal/produtos/{id}', [FiscalProdutosController::class, 'salvarProduto']);
     $router->post($g . '/fiscal/habilitar', [FiscalController::class, 'habilitar']);
     $router->post($g . '/fiscal/consultar-empresa', [FiscalController::class, 'consultarEmpresa']);
     $router->post($g . '/fiscal/empresa', [FiscalController::class, 'empresa']);

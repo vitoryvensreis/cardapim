@@ -567,6 +567,7 @@ final class EstoqueController extends BaseGerencia
         $idRest = $this->restaurante['id'];
         return $this->tela('gerencia/estoque/produto-form', 'estoque', $produto === null ? 'Novo produto' : 'Editar produto', [
             'produto' => $produto,
+            'fiscalProdutosDisponivel' => \Cardapim\Services\Gerencia\FiscalProdutosService::disponivel($this->db,$idRest),
             'valores' => $valores,
             'erros' => $erros,
             'categorias' => (new CategoriaRepository($this->db))->listar($idRest),

@@ -141,3 +141,6 @@ Consulta pontual à BrasilAPI pelo CNPJ vinculado, preenchimento inicial editáv
 
 ### Simulação fiscal automática (etapa 02.2)
 Ambiente 3 sem preenchimento manual de série, numeração, CSC ou A1. Série interna 999 e sequência preservada. Emitente conectado não precisa repetir cadastro. Consultas fiscais exclusivamente via NeXT.
+
+### Cadastro fiscal dos produtos (etapa 03 — base)
+Com módulo fiscal habilitado: Central Fiscal → Produtos fiscais / Perfis tributários, modelos de nomes sem impostos predefinidos, perfis versionados, revisão declarada, vínculos em massa com prévia, sugestões por categoria, classificação individual e consulta NCM oficial. Dados fiscais separados do CRUD comercial. Sem emissão. CEST e demais códigos avançados têm cadastro manual e validação estrutural; importação XML/CSV, catálogos CEST/CFOP/cClassTrib, regras de complementos e validação completa do motor ainda pendentes.

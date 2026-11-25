@@ -33,7 +33,7 @@ final class FiscalController extends BaseGerencia
             $fiscal['auto_consulta'] = !$fiscal['empresa_salva'] && !is_array($rascunho);
             if (is_array($rascunho)) { $fiscal['empresa'] = array_replace($fiscal['empresa'],$rascunho); }
         }
-        return $this->tela('gerencia/fiscal/inicio', 'fiscal', 'Fiscal', ['fiscal' => $fiscal, 'pageStyles' => ['css/gerencia-fiscal.css'], 'pageScripts' => ['js/gerencia-fiscal.js']]);
+        return $this->tela('gerencia/fiscal/inicio', 'fiscal', 'Fiscal', ['fiscal' => $fiscal, 'fiscalProdutosDisponivel' => \Cardapim\Services\Gerencia\FiscalProdutosService::disponivel($this->db,$this->restaurante['id']), 'pageStyles' => ['css/gerencia-fiscal.css'], 'pageScripts' => ['js/gerencia-fiscal.js']]);
     }
 
     private function acao(string $slug, callable $fn): Response

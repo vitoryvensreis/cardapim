@@ -374,6 +374,12 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
         </div>
     </form>
 
+    <?php if (!empty($fiscalProdutosDisponivel)): ?>
+        <section class="bloco" aria-labelledby="titulo-dados-fiscais">
+            <div class="bloco-cabecalho"><h2 id="titulo-dados-fiscais"><?= Icon::svg('receipt-text') ?> Dados fiscais</h2><p><?= $novo?'Cadastre o produto normalmente. Depois, configure os dados fiscais sem alterar o cadastro comercial.':'Configure a classificação e o perfil tributário separadamente do cadastro comercial.' ?></p></div>
+            <?php if (!$novo): ?><a class="btn btn-outline" href="<?= $e($base.'/fiscal/produtos/'.(int)$produto['id']) ?>">Configurar dados fiscais</a><?php endif; ?>
+        </section>
+    <?php endif; ?>
     <?php if (!$novo): ?>
         <section class="bloco bloco-perigo" aria-labelledby="titulo-excluir">
             <div class="bloco-cabecalho">

@@ -416,3 +416,6 @@ Fluxo de trabalho: branch → PR → CI verde → merge autorizado → deploy au
 
 ### Fiscal por restaurante (etapa 02)
 `/{slug}/gerencia/fiscal` prepara o emitente com aprovação administrativa, credencial cifrada, certificado e configuração em homologação. A tabela `restaurante_fiscal` guarda a escolha de impressora separada de `impressao_pontos`; o card novo é independente. Agent, renderizadores e PDV permanecem inalterados.
+
+### Cadastro fiscal de produtos (etapa 03 — base)
+`FiscalProdutosController` / `FiscalProdutosService` / `FiscalProdutosRepository`, `Modules/Fiscal/CadastroProdutoFiscal.php` e `CatalogoNcm.php`, `Views/gerencia/fiscal/produtos/`. Migration `20261125100000_fiscal_produtos.php`, marcador `[cardapim-fiscal-produtos]` para backup/migration dedicado. Não altera serviços de venda ou repositórios comerciais. Acesso condicionado a schema + fiscal habilitado + CNPJ correspondente.
