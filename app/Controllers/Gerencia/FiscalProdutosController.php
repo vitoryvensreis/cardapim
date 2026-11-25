@@ -125,8 +125,8 @@ final class FiscalProdutosController extends BaseGerencia
         if ($r=$this->acesso($slug,true)) { return $r; }
         try {
             $perfil=self::id($this->post('id_perfil'));
-            if ($perfil===null) { throw new InvalidArgumentException('Selecione um perfil.'); }
-            $p=$this->servico()->previa(is_array($_POST['produtos'] ?? null)?$_POST['produtos']:[],$perfil);
+            if ($perfil===null && $this->post('id_perfil')!=='') { throw new InvalidArgumentException('Perfil inválido.'); }
+            $p=$this->servico()->previa(is_array($_POST['produtos'] ?? null)?$_POST['produtos']:[],$perfil,$_POST);
             $token=bin2hex(random_bytes(24));
             Session::set('fiscal_lote_'.$this->restaurante['id'],['token'=>$token,'autor'=>$this->usuario->id,'expira'=>time()+300,'previa'=>$p]);
             return $this->pagina('previa','Revisar aplicação em massa',['previa'=>$p,'lote'=>$token]);
@@ -141,7 +141,7 @@ final class FiscalProdutosController extends BaseGerencia
             $p=Session::flash('fiscal_lote_'.$this->restaurante['id']);
             if (!is_array($p) || ($p['autor'] ?? null)!==$this->usuario->id || ($p['expira'] ?? 0)<time() || !hash_equals((string)$p['token'],$this->post('lote'))) { throw new InvalidArgumentException('Prévia expirada. Selecione os produtos novamente.'); }
             $n=$this->servico()->aplicar($p['previa']);
-            return $this->voltar($url,'sucesso',$n.' produtos vinculados ao perfil. Confira as classificações individuais.');
+            return $this->voltar($url,'sucesso',$n.' produtos processados. Confira as classificações individuais e pendências.');
         } catch (Throwable $e) { return $this->falha($e,$url); }
     }
 

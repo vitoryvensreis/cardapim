@@ -17,9 +17,9 @@ $revisados=count(array_filter($produtos,static fn($p)=>$p['pendencias']===[]));
         <p class="texto-suave">Revisão cadastral não significa autorização fiscal. A emissão real permanece bloqueada.</p>
     </section>
     <section class="bloco">
-        <div class="bloco-cabecalho"><h2>Aplicar perfil em massa</h2><p>Selecione até 200 produtos e confira a prévia. Os dados individuais serão preservados.</p></div>
+        <div class="bloco-cabecalho"><h2>Aplicar perfil em massa</h2><p>Selecione até 200 produtos, escolha o que deseja alterar e confira a prévia.</p></div>
         <?php if ($perfis===[]): ?><p>Crie e revise seu primeiro perfil tributário para começar.</p><a class="btn btn-primary" href="<?= $e($url.'/perfis') ?>">Configurar perfis</a><?php endif; ?>
-        <form method="post" action="<?= $e($url.'/produtos/previa') ?>" data-fiscal-lote><?php $token(); ?>
+        <form method="post" action="<?= $e($url.'/produtos/previa') ?>" data-fiscal-lote data-fiscal-classificacao data-ncm-url="<?= $e($url.'/classificacoes/ncm') ?>"><?php $token(); ?>
             <div class="fiscal-filtros">
                 <label>Buscar produto<input type="search" data-fiscal-busca placeholder="Nome do produto"></label>
                 <label>Categoria<select data-fiscal-filtro><option value="">Todas</option><?php foreach ($categorias as $c): ?><option value="<?= $e($c['id']) ?>"><?= $e($c['nome']) ?></option><?php endforeach; ?></select></label>
@@ -36,7 +36,22 @@ $revisados=count(array_filter($produtos,static fn($p)=>$p['pendencias']===[]));
                 <?php if ($produtos===[]): ?><p>Nenhum produto cadastrado. Cadastre no estoque normalmente.</p><?php endif; ?>
             </div>
             <div class="fiscal-filtros">
-                <label>Perfil tributário<select name="id_perfil" required><option value="">Selecione um perfil revisado</option><?php foreach ($perfis as $p): if (!Validar::perfilVigente($p,$empresa)) { continue; } ?><option value="<?= $e($p['id']) ?>"><?= $e($p['nome']) ?> · v<?= $e($p['versao']) ?></option><?php endforeach; ?></select></label>
+                <label>Perfil tributário<select name="id_perfil"><option value="">Manter perfil atual</option><?php foreach ($perfis as $p): if (!Validar::perfilVigente($p,$empresa)) { continue; } ?><option value="<?= $e($p['id']) ?>"><?= $e($p['nome']) ?> · v<?= $e($p['versao']) ?></option><?php endforeach; ?></select></label>
+            </div>
+            <details><summary>Classificação individual em massa (opcional)</summary>
+                <p>Marque apenas os campos comuns aos produtos compatíveis. GTIN não será replicado. A revisão individual será solicitada após alterações.</p>
+                <div class="fiscal-form">
+                    <label for="lote-ncm-busca">Pesquisar NCM oficial</label><input id="lote-ncm-busca" data-ncm-busca type="search" maxlength="100" placeholder="Nome ou código">
+                    <button class="btn btn-outline" type="button" data-ncm-pesquisar><?= Icon::svg('search','icon-sm') ?> Pesquisar classificação</button>
+                    <p role="status" aria-live="polite" data-ncm-status></p><div data-ncm-resultados class="fiscal-lista"></div>
+                    <?php foreach (['ncm'=>'NCM (8 dígitos)','cest'=>'CEST (7 dígitos, quando aplicável)','origem'=>'Origem (0 a 8)','unidade_comercial'=>'Unidade comercial','unidade_tributavel'=>'Unidade tributável','fator'=>'Fator de conversão'] as $k=>$rot): ?>
+                        <label class="fiscal-check"><input type="checkbox" name="campos[]" value="<?= $e($k) ?>"> Aplicar <?= $e($rot) ?></label>
+                        <label for="lote-<?= $e($k) ?>"><?= $e($rot) ?></label><input id="lote-<?= $e($k) ?>" name="<?= $e($k) ?>" maxlength="18">
+                    <?php endforeach; ?>
+                    <label class="fiscal-check"><input type="checkbox" name="sobrescrever" value="1"> Substituir dados individuais já preenchidos (por padrão, serão preservados).</label>
+                </div>
+            </details>
+            <div class="fiscal-filtros">
                 <p data-fiscal-contagem role="status">Nenhum produto selecionado</p>
                 <button class="btn btn-primary" type="submit" <?= $produtos===[]?'disabled':'' ?>>Revisar aplicação</button>
             </div>

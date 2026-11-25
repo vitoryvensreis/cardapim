@@ -42,7 +42,7 @@
             status.textContent=d.resultados.length?d.fonte+' — escolha somente a classificação compatível.':'Nenhum resultado. Tente outro termo ou código.';
             for (const item of d.resultados) {
                 const b=document.createElement('button'); b.type='button'; b.className='btn btn-outline'; b.textContent=item.codigo+' — '+item.descricao;
-                b.addEventListener('click',()=>{ncm.value=item.codigo; status.textContent='NCM selecionado. Confira antes de salvar.'; resultados.replaceChildren();});
+                b.addEventListener('click',()=>{ncm.value=item.codigo; const marcar=form.querySelector('input[name="campos[]"][value="ncm"]'); if (marcar) marcar.checked=true; status.textContent='NCM selecionado. Confira antes de salvar.'; resultados.replaceChildren();});
                 resultados.append(b);
             }
         } catch(e) { status.textContent=e.message||'Consulta indisponível. Você pode salvar como pendente.'; }
