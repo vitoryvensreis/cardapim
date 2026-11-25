@@ -160,6 +160,13 @@ final class AuthController
             Session::set('flash', ['tipo' => 'erro', 'mensagem' => 'Conta criada! ' . $cobranca['mensagem'] . ' Toque em "Gerar cobrança" daqui a pouco.']);
             return Response::redirect($base . '/assinatura', 303);
         }
+        // Sinalização de uso único, somente após cadastro pago com cobrança criada.
+        if (empty($r['teste'])) {
+            Session::set('checkout_primeira_assinatura', [
+                'restaurante' => (int) $r['id_restaurante'],
+                'usuario' => (int) $r['id_user'],
+            ]);
+        }
         Session::set('flash', ['tipo' => 'sucesso', 'mensagem' => !empty($r['teste'])
             ? 'Conta criada! Aproveite os dias grátis. A primeira fatura já está aqui embaixo, com vencimento no fim do teste.'
             : 'Conta criada! Pague a primeira fatura para o seu cardápio aparecer para os clientes. Enquanto isso, já dá para montar tudo.']);
