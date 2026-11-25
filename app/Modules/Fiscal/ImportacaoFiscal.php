@@ -120,7 +120,7 @@ final class ImportacaoFiscal
             if (!array_key_exists($k,$dados) || $v[$k]==='') { continue; }
             $antes=(string)($atual[$k] ?? '');
             if ($antes===$v[$k] || (!$substituir && $antes!=='')) { continue; }
-            if ($k==='ncm' && $catalogo!==null && !isset($catalogo['itens'][$v[$k]])) { throw new RuntimeException('NCM importado não consta do catálogo vigente. Confira antes de importar.'); }
+            if ($k==='ncm' && $catalogo!==null && !isset($catalogo['itens'][$v[$k]])) { throw new RuntimeException('NCM importado não localizado como vigente na BrasilAPI. Confira antes de importar.'); }
             $mudancas[$k]=['de'=>$antes,'para'=>$v[$k]];
             $atual[$k]=$v[$k];
             if ($k==='ncm') { $atual['ncm_fonte']=isset($catalogo['itens'][$v[$k]])?$catalogo['versao']:''; }

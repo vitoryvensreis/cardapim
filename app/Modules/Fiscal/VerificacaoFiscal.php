@@ -46,16 +46,11 @@ final class VerificacaoFiscal
         return array_values(array_unique($r));
     }
 
-    public static function produto(array $produto,?array $perfil,array $empresa,array $catalogos,?array $ncm): array
+    public static function produto(array $produto,?array $perfil,array $empresa,array $catalogos): array
     {
         $r=CadastroProdutoFiscal::pendencias($produto,$perfil,$empresa);$d=$produto['dados'];
         if ($perfil) { $r=array_merge($r,self::perfil($perfil['dados'],$catalogos)); }
         $codigo=(string)($d['ncm'] ?? '');
-        if ($codigo!=='') {
-            if ($ncm===null) { $r[]='Catálogo NCM vigente indisponível; consulte novamente.'; }
-            elseif (!isset($ncm['itens'][$codigo])) { $r[]='NCM ausente no catálogo vigente.'; }
-            elseif (($d['ncm_fonte'] ?? '')!==$ncm['versao']) { $r[]='NCM precisa de revisão na versão atual.'; }
-        }
         if (($d['cest'] ?? '')!=='') {
             if (empty($catalogos['cest'])) { $r[]='Tabela CEST não disponibilizada.'; }
             elseif ($codigo==='' || !CatalogosFiscais::contem($catalogos['cest'],$d['cest'],$codigo)) { $r[]='CEST não localizado para o NCM; revise o segmento e descrição.'; }

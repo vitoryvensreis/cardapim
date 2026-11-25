@@ -20,7 +20,7 @@ grep -q 'Aplicar perfil em massa' "$tmp/on"
 pid="$(grep -o 'name="produtos\[\]" value="[0-9]*"' "$tmp/on" | head -1 | cut -d'"' -f4)"
 test -n "$pid"
 test "$(curl -s -b "$tmp/g" -o "$tmp/prod" -w '%{http_code}' "$g/fiscal/produtos/$pid")" = 200
-grep -q 'Pesquisar NCM oficial' "$tmp/prod"
+grep -q 'Pesquisar NCM pela BrasilAPI' "$tmp/prod"
 grep -q 'Reaproveitar classificação' "$tmp/prod"
 grep -q 'Consultar código de barras pela NeXT' "$tmp/prod"
 grep -q 'Classificação individual em massa' "$tmp/on"

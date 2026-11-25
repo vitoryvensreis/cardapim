@@ -282,9 +282,13 @@ final class FiscalProdutosController extends BaseGerencia
         $headers=['Cache-Control'=>'no-store'];
         if (mb_strlen($q)<2 || mb_strlen($q)>100) { return Response::json(['ok'=>false,'mensagem'=>'Digite de 2 a 100 caracteres.'],422,$headers); }
         if (!RateLimiter::padrao(30,60)->permitir('fiscal-ncm|'.$this->restaurante['id'])) { return Response::json(['ok'=>false,'mensagem'=>'Limite de consultas. Tente novamente.'],429,$headers); }
-        $d=(new CatalogoNcm())->ler();
-        if ($d===null && RateLimiter::padrao(3,60)->permitir('fiscal-ncm-download-global')) { $d=(new CatalogoNcm())->ler(true); }
-        if ($d===null) { return Response::json(['ok'=>false,'mensagem'=>'Catálogo oficial indisponível. Salve como pendente ou tente novamente.'],503,$headers); }
-        return Response::json(['ok'=>true,'fonte'=>$d['versao'],'resultados'=>CatalogoNcm::pesquisar($d,$q)],200,$headers);
+        if (!RateLimiter::padrao(30,60)->permitir('fiscal-ncm-brasilapi-global')) { return Response::json(['ok'=>false,'mensagem'=>'Limite de consultas. Tente novamente.'],429,$headers); }
+        try {
+            $resultados=(new CatalogoNcm())->consultar($q);
+            return Response::json(['ok'=>true,'fonte'=>'BrasilAPI','resultados'=>$resultados],200,$headers);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] NCM BrasilAPI indisponível: '.get_class($e));
+            return Response::json(['ok'=>false,'mensagem'=>'Consulta NCM indisponível. Informe o código manualmente e salve como pendente, ou tente novamente.'],503,$headers);
+        }
     }
 }
