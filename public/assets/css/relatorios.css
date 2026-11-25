@@ -46,3 +46,9 @@
 .rel-sugestoes li small { display:block; color:var(--c-muted); font-size:.75rem; }
 .rel-sugestoes-msg { margin:0; color:var(--c-muted); font-size:.8rem; }
 .rel-sugestoes-msg:not(:empty) { padding:.65rem .75rem; }
+
+/* Os três filtros principais compartilham a linha de rótulos e campos.
+   O texto de ajuda da pesquisa não desloca os demais controles. */
+.rel-grade-principal { align-items:start; }
+.rel-grade-principal .rel-autocomplete { font-size:.9rem; font-weight:600; }
+.rel-grade-principal input,.rel-grade-principal select { box-sizing:border-box; height:2.9rem; font-size:.9rem; font-weight:600; line-height:1.25; }

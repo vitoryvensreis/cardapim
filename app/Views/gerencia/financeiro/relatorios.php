@@ -44,7 +44,7 @@ if ($v['produto']!=='') {
         <form class="rel-filtros" method="get" action="<?= $e($url) ?>">
             <input type="hidden" name="visao" value="<?= $e($v['visao']) ?>">
             <?php if ($v['nome_historico']!==''): ?><input type="hidden" name="nome_historico" value="<?= $e($v['nome_historico']) ?>"><input type="hidden" name="unidade" value="<?= $e($v['unidade']) ?>"><?php endif; ?>
-            <div class="rel-grade">
+            <div class="rel-grade rel-grade-principal">
                 <label>Período <?php $select('periodo',PeriodoFinanceiro::ATALHOS+['personalizado'=>'Personalizado'],$periodo->chave); ?></label>
                 <div class="rel-autocomplete" data-produtos-url="<?= $e($url.'/produtos') ?>">
                     <label for="rel-busca-produto">Pesquisar produto</label>
