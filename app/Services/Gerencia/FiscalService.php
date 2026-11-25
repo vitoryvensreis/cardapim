@@ -177,6 +177,18 @@ final class FiscalService
             throw new RuntimeException('Limite de consultas.');
         }
         $dados = (new ConsultaCadastroFiscal())->consultar($r['cnpj']);
+        // CEP complementa campos ausentes, sem trocar o município/UF cadastral por outro.
+        if (isset($dados['cep']) && (!isset($dados['logradouro']) || !isset($dados['bairro']) || !isset($dados['cidade']) || !isset($dados['estado']))) {
+            $endereco = (new \Cardapim\Services\Geo\Geocodificador())->cep($dados['cep']);
+            if ($endereco !== null && (!isset($dados['estado']) || $dados['estado'] === $endereco['estado'])
+                && (!isset($dados['cidade']) || TextoLocal::chave($dados['cidade']) === TextoLocal::chave($endereco['cidade']))) {
+                foreach (['logradouro'=>120,'bairro'=>80,'cidade'=>80,'estado'=>2] as $k=>$max) {
+                    if (!isset($dados[$k]) && is_string($endereco[$k] ?? null) && $endereco[$k] !== '') {
+                        $dados[$k] = mb_substr($endereco[$k],0,$max);
+                    }
+                }
+            }
+        }
         Session::set($chave,['id'=>$this->id,'cnpj'=>$r['cnpj'],'expira'=>time()+86400,'dados'=>$dados]);
         return $dados;
     }
@@ -212,12 +224,15 @@ final class FiscalService
         }
         $d['ie_situacao'] = $situacao;
         $d['ie'] = $situacao === 'possui' ? $ie : '';
-        if ($d['nome'] === '') { $d['nome'] = $d['razao']; }
+        if ($d['nome'] === '') { $d['nome'] = mb_substr($d['razao'],0,120); }
         return $this->operacao(function (array &$r) use ($d): Resultado {
             $anterior = $r['dados']['empresa'] ?? [];
             $mesmo = ($anterior['ibge_verificado'] ?? false) === true && ($anterior['estado'] ?? '') === $d['estado']
                 && TextoLocal::chave($anterior['cidade'] ?? '') === TextoLocal::chave($d['cidade']);
-            $ibge = $mesmo ? ($anterior['ibge'] ?? null) : (new MunicipioIbge())->resolver($d['cidade'],$d['estado'],$d['cep']);
+            $ibge = $mesmo ? ($anterior['ibge'] ?? null) : null;
+            if (!$mesmo && RateLimiter::padrao(20,3600)->permitir('fiscal-ibge|' . $this->id)) {
+                $ibge = (new MunicipioIbge())->resolver($d['cidade'],$d['estado'],$d['cep']);
+            }
             $d['ibge'] = $ibge ?? '';
             $d['ibge_verificado'] = $ibge !== null && $ibge !== '';
             $r['dados']['empresa'] = $d;

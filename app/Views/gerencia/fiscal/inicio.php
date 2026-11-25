@@ -22,12 +22,12 @@ $tokenCsrf = static function () use ($e, $csrf): void { ?><input type="hidden" n
             <section class="bloco">
                 <div class="bloco-cabecalho"><h2><?= Icon::svg('store') ?>Dados fiscais da empresa</h2><p>Confira com o contador. O CNPJ vem do cadastro do restaurante.</p></div>
                 <p><strong>CNPJ: <?= $e(Documento::formatarCnpj($fiscal['cnpj'])) ?></strong></p>
-                <form method="post" action="<?= $e($url . '/empresa') ?>" class="fiscal-form" data-fiscal-empresa data-fiscal-consulta="<?= $e($url . '/consultar-empresa') ?>" data-fiscal-inicial="<?= $fiscal['empresa_salva'] ? '0' : '1' ?>"><?php $tokenCsrf(); ?>
+                <form method="post" action="<?= $e($url . '/empresa') ?>" class="fiscal-form" data-fiscal-empresa data-fiscal-consulta="<?= $e($url . '/consultar-empresa') ?>" data-fiscal-inicial="<?= $fiscal['auto_consulta'] ? '1' : '0' ?>"><?php $tokenCsrf(); ?>
                     <button type="button" class="btn btn-outline" data-fiscal-repreencher><?= Icon::svg('refresh-cw','icon-sm') ?>Repreencher pelo CNPJ</button>
                     <p class="texto-suave fiscal-consulta" role="status" aria-live="polite" data-fiscal-mensagem>Os dados consultados são sugestões. Você pode editar tudo antes de salvar.</p>
                     <?php foreach (['razao'=>['Razão social',160],'nome'=>['Nome fantasia',120],'email'=>['E-mail fiscal',160],'cep'=>['CEP',9],'logradouro'=>['Logradouro',120],'numero'=>['Número',20],'complemento'=>['Complemento',100],'bairro'=>['Bairro',80],'cidade'=>['Município',80],'estado'=>['UF',2]] as $campo => [$rotulo,$max]): ?>
                         <label for="f-<?= $e($campo) ?>"><?= $e($rotulo) ?></label>
-                        <input id="f-<?= $e($campo) ?>" name="<?= $e($campo) ?>" maxlength="<?= $max ?>" <?= !in_array($campo,['complemento','nome','email','bairro'],true) ? 'required' : '' ?> value="<?= $e($d[$campo] ?? '') ?>" <?= $campo === 'cep' ? 'inputmode="numeric" autocomplete="postal-code"' : '' ?>>
+                        <input id="f-<?= $e($campo) ?>" name="<?= $e($campo) ?>" maxlength="<?= $max ?>" <?= !in_array($campo,['complemento','nome','email','bairro'],true) ? 'required' : '' ?> value="<?= $e($d[$campo] ?? '') ?>" <?= $campo === 'cep' ? 'inputmode="numeric" autocomplete="postal-code"' : ($campo === 'email' ? 'type="email"' : '') ?>>
                         <?php if ($campo === 'cep'): ?><button type="button" class="btn btn-outline" data-fiscal-cep><?= Icon::svg('search','icon-sm') ?>Buscar endereço pelo CEP</button><?php endif; ?>
                     <?php endforeach; ?>
                     <p class="texto-suave">Código IBGE: <?= !empty($d['ibge_verificado']) ? $e($d['ibge']) . ' — identificado automaticamente' : 'identificado pelo sistema ao salvar' ?>.</p>
@@ -45,7 +45,7 @@ $tokenCsrf = static function () use ($e, $csrf): void { ?><input type="hidden" n
                             <option value="<?= $e($v) ?>" <?= $ieSituacao === $v ? 'selected' : '' ?>><?= $e($rotulo) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <div data-fiscal-ie><label for="f-ie">Inscrição estadual (dígitos)</label><input id="f-ie" name="ie" inputmode="numeric" maxlength="20" value="<?= $e($d['ie'] ?? '') ?>"></div>
+                    <div data-fiscal-ie><label for="f-ie">Inscrição estadual (dígitos)</label><input id="f-ie" name="ie" inputmode="numeric" pattern="[0-9]{2,20}" maxlength="20" value="<?= $e($d['ie'] ?? '') ?>"></div>
                     <p class="texto-suave">A ausência de inscrição estadual não significa isenção. Consulte o contador; cadastros pendentes podem ser salvos, mas não liberam homologação.</p>
                     <?php if ($fiscal['empresa_salva'] && !$fiscal['empresa_pronta']): ?><p class="fiscal-consulta-erro" role="status">Cadastro salvo com pendência fiscal. Confira a inscrição estadual e o município.</p><?php endif; ?>
                     <button class="btn btn-primary" type="submit"><?= Icon::svg('save','icon-sm') ?>Salvar dados fiscais</button>

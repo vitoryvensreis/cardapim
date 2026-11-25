@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Cardapim\Controllers\Gerencia;
 
 use Cardapim\Core\Response;
+use Cardapim\Core\Session;
 use Cardapim\Services\Gerencia\FiscalService;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Shared\Esquema;
@@ -26,6 +27,11 @@ final class FiscalController extends BaseGerencia
             } catch (Throwable $e) {
                 error_log('[Cardapim] Fiscal restaurante: falha de leitura (' . get_class($e) . ').');
             }
+        }
+        if ($fiscal !== null) {
+            $rascunho = Session::flash('fiscal_rascunho_' . $this->restaurante['id']);
+            $fiscal['auto_consulta'] = !$fiscal['empresa_salva'] && !is_array($rascunho);
+            if (is_array($rascunho)) { $fiscal['empresa'] = array_replace($fiscal['empresa'],$rascunho); }
         }
         return $this->tela('gerencia/fiscal/inicio', 'fiscal', 'Fiscal', ['fiscal' => $fiscal, 'pageStyles' => ['css/gerencia-fiscal.css'], 'pageScripts' => ['js/gerencia-fiscal.js']]);
     }
@@ -61,7 +67,20 @@ final class FiscalController extends BaseGerencia
     }
 
     public function habilitar(string $slug): Response { return $this->acao($slug, fn ($s) => $s->habilitar($this->marcado('habilitado'))); }
-    public function empresa(string $slug): Response { return $this->acao($slug, fn ($s) => $s->empresa($_POST)); }
+    public function empresa(string $slug): Response
+    {
+        return $this->acao($slug, function ($s) {
+            $res = $s->empresa($_POST);
+            if (!$res->ok) {
+                $rascunho = [];
+                foreach (['razao','nome','email','cep','logradouro','numero','complemento','bairro','cidade','estado','crt','ie','ie_situacao'] as $c) {
+                    if (is_string($_POST[$c] ?? null)) { $rascunho[$c] = mb_substr($_POST[$c],0,160); }
+                }
+                Session::set('fiscal_rascunho_' . $this->restaurante['id'],$rascunho);
+            }
+            return $res;
+        });
+    }
     public function conectar(string $slug): Response { return $this->acao($slug, fn ($s) => $s->conectar()); }
     public function ambiente(string $slug): Response { return $this->acao($slug, fn ($s) => $s->ambiente($this->post('ambiente'))); }
     public function configurar(string $slug): Response { return $this->acao($slug, fn ($s) => $s->configurar($_POST)); }

@@ -24,4 +24,8 @@ $lista=[['id'=>2304400,'nome'=>'Fortaleza'],['id'=>2303709,'nome'=>'Caucaia'],['
 cadastroFiscalOk(MunicipioIbge::identificar($lista,'FORTALEZA','CE') === '2304400');
 cadastroFiscalOk(MunicipioIbge::identificar($lista,'Fortaleza','RN') === null);
 cadastroFiscalOk(MunicipioIbge::identificar($lista,'Outro','CE') === null);
+$pronto=['ie_situacao'=>'possui','ie'=>'123456789','ibge'=>'2304400','ibge_verificado'=>true];
+cadastroFiscalOk(\Cardapim\Services\Gerencia\FiscalService::empresaPronta($pronto));
+cadastroFiscalOk(!\Cardapim\Services\Gerencia\FiscalService::empresaPronta(array_replace($pronto,['ie_situacao'=>'isento','ie'=>''])));
+cadastroFiscalOk(!\Cardapim\Services\Gerencia\FiscalService::empresaPronta(array_replace($pronto,['ibge_verificado'=>false])));
 echo "Consulta fiscal, projeção e município aprovados.\n";
