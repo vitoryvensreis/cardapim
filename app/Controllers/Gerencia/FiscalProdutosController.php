@@ -92,7 +92,18 @@ final class FiscalProdutosController extends BaseGerencia
         try {
             $e=$this->servico()->estado(); $id=self::id($idTexto);
             if ($id===null || !isset($e['produtos'][$id])) { return $this->naoEncontrado('Produto',$this->url('fiscal/produtos')); }
-            return $this->pagina('produto-form','Dados fiscais do produto',$e+['produto'=>$e['produtos'][$id]]);
+            $produto=$e['produtos'][$id];
+            $copiar=self::id(is_string($_GET['copiar'] ?? null)?$_GET['copiar']:'');
+            $copiaNome=null;
+            if ($copiar!==null && $copiar!==$id && isset($e['produtos'][$copiar])) {
+                $origem=$e['produtos'][$copiar];
+                $produto['dados']=array_intersect_key($origem['dados'],array_flip(['ncm','cest','origem','unidade_comercial','unidade_tributavel','fator']));
+                // GTIN é específico da mercadoria: não copiar. Confirmação individual obrigatória.
+                $produto['dados']['gtin']=$produto['dados']['gtin_tributavel']='';
+                $produto['id_perfil']=$origem['id_perfil'];
+                $copiaNome=$origem['nome'];
+            }
+            return $this->pagina('produto-form','Dados fiscais do produto',$e+['produto'=>$produto,'copiaNome'=>$copiaNome]);
         } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }
     }
 

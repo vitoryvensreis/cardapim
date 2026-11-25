@@ -17,6 +17,13 @@ curl -s -b "$tmp/g" "$g/estoque/produtos/novo" > "$tmp/novo"
 test "$(post "$g/fiscal/habilitar" 'habilitado=1')" = 303
 test "$(curl -s -b "$tmp/g" -o "$tmp/on" -w '%{http_code}' "$g/fiscal/produtos")" = 200
 grep -q 'Aplicar perfil em massa' "$tmp/on"
+pid="$(grep -o 'name="produtos\[\]" value="[0-9]*"' "$tmp/on" | head -1 | cut -d'"' -f4)"
+test -n "$pid"
+test "$(curl -s -b "$tmp/g" -o "$tmp/prod" -w '%{http_code}' "$g/fiscal/produtos/$pid")" = 200
+grep -q 'Pesquisar NCM oficial' "$tmp/prod"
+grep -q 'Reaproveitar classificação' "$tmp/prod"
+curl -s -b "$tmp/g" "$g/estoque/produtos/$pid" > "$tmp/ed"
+grep -q 'Configurar dados fiscais' "$tmp/ed"
 test "$(curl -s -b "$tmp/g" -o "$tmp/perfis" -w '%{http_code}' "$g/fiscal/perfis")" = 200
 grep -q 'Modelos para começar' "$tmp/perfis"
 test "$(curl -s -b "$tmp/g" -o "$tmp/form" -w '%{http_code}' "$g/fiscal/perfis/novo")" = 200

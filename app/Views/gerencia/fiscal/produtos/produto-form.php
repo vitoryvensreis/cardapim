@@ -11,12 +11,16 @@ $v=static fn(string $k,string $padrao=''):string=>$e($d[$k] ?? $padrao);
 <div class="painel-page fiscal-restaurante fiscal-produtos">
     <header class="painel-cabecalho"><div><h1>Dados fiscais: <?= $e($produto['nome']) ?></h1><p>Esta configuração é independente do cadastro comercial.</p></div></header>
     <p><a href="<?= $e($url.'/produtos') ?>">Voltar aos produtos fiscais</a> · <a href="<?= $e($base.'/estoque/produtos/'.$produto['id']) ?>">Editar cadastro comercial</a></p>
+    <section class="bloco"><div class="bloco-cabecalho"><h2>Reaproveitar classificação</h2><p>Use um produto semelhante como ponto de partida. Os códigos de barras não serão copiados.</p></div>
+        <form method="get" action="<?= $e($url.'/produtos/'.$produto['id']) ?>" class="fiscal-form"><label for="pf-copiar">Produto de referência</label><select id="pf-copiar" name="copiar" required><option value="">Selecione</option><?php foreach ($produtos as $pr): if ((int)$pr['id']===(int)$produto['id'] || empty($pr['dados']['ncm'])) { continue; } ?><option value="<?= $e($pr['id']) ?>"><?= $e($pr['nome']) ?></option><?php endforeach; ?></select><button class="btn btn-outline" type="submit">Carregar para revisão</button></form>
+        <?php if ($copiaNome!==null): ?><p role="status">Dados de <?= $e($copiaNome) ?> carregados como sugestão. Nenhuma alteração foi salva.</p><?php endif; ?>
+    </section>
     <section class="bloco"><h2><?= $produto['pendencias']===[]?'Cadastro revisado':'Pendências do cadastro' ?></h2><?php foreach ($produto['pendencias'] as $p): ?><p class="texto-suave"><?= $e($p) ?></p><?php endforeach; ?></section>
     <section class="bloco">
         <form method="post" action="<?= $e($url.'/produtos/'.$produto['id']) ?>" class="fiscal-form" data-fiscal-classificacao data-ncm-url="<?= $e($url.'/classificacoes/ncm') ?>"><?php $token(); ?>
             <label for="pf-perfil">Perfil tributário</label><select id="pf-perfil" name="id_perfil"><option value="">Sem perfil (pendente)</option><?php foreach ($perfis as $p): if (!Validar::perfilVigente($p,$empresa)) { continue; } ?><option value="<?= $e($p['id']) ?>" <?= (int)$sugerido===(int)$p['id']?'selected':'' ?>><?= $e($p['nome']) ?> · v<?= $e($p['versao']) ?></option><?php endforeach; ?></select>
             <?php if ($produto['id_perfil']===null && $produto['sugestao']!==null): ?><p class="texto-suave">Sugestão da categoria. Confira antes de salvar.</p><?php endif; ?>
-            <label for="pf-pesquisa">Pesquisar NCM oficial</label><input id="pf-pesquisa" data-ncm-busca type="search" maxlength="100" placeholder="Ex.: refrigerante, 2202"><button class="btn btn-outline" type="button" data-ncm-pesquisar><?= Icon::svg('search','icon-sm') ?> Pesquisar classificação</button>
+            <label for="pf-pesquisa">Pesquisar NCM oficial</label><input id="pf-pesquisa" data-ncm-busca type="search" maxlength="100" placeholder="Ex.: refrigerante, 2202" value="<?= $e(mb_substr((string)$produto['nome'],0,100)) ?>"><button class="btn btn-outline" type="button" data-ncm-pesquisar><?= Icon::svg('search','icon-sm') ?> Pesquisar classificação</button>
             <p role="status" aria-live="polite" data-ncm-status></p><div data-ncm-resultados class="fiscal-lista"></div>
             <label for="pf-ncm">NCM (8 dígitos)</label><input id="pf-ncm" name="ncm" inputmode="numeric" maxlength="8" value="<?= $v('ncm') ?>">
             <label for="pf-cest">CEST (quando aplicável)</label><input id="pf-cest" name="cest" inputmode="numeric" maxlength="7" value="<?= $v('cest') ?>">

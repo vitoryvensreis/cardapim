@@ -7,7 +7,9 @@ use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Shared\Seguranca\Cripto;
 $db=\Cardapim\Core\Database::connect();
 Cripto::usarChave(str_repeat('f',32));
-$rest=$db->query('SELECT id,cnpj FROM restaurantes WHERE cnpj IS NOT NULL ORDER BY id LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+if ($db->query('SELECT DATABASE()')->fetchColumn()!=='cardapim_ci') { throw new RuntimeException('Este teste exige o banco descartável cardapim_ci.'); }
+$rest=$db->query("SELECT r.id,r.cnpj FROM restaurantes r WHERE r.slug='restaurante-modelo-cardapim' AND r.cnpj IS NOT NULL AND EXISTS (SELECT 1 FROM produtos p WHERE p.id_restaurante=r.id AND p.ativo=1) LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+if (!$rest) { throw new RuntimeException('Restaurante modelo não preparado.'); }
 $id=(int)$rest['id'];
 $f=new FiscalRepository($db);
 $old=$f->buscar($id);
@@ -26,6 +28,9 @@ try {
     $p=['nome'=>'Perfil CI '.bin2hex(random_bytes(4)),'operacao'=>'producao','cfop'=>'5101','situacao_icms'=>'102','inicio'=>'2026-01-01','referencia'=>'Teste CI','revisado'=>'1'];
     $perfil=$s->perfil($p);
     $ids=array_map(static fn($p)=>(string)$p['id'],$originais);
+    $outro=$db->prepare('SELECT p.id FROM produtos p WHERE p.id_restaurante<>? AND p.ativo=1 LIMIT 1');
+    $outro->execute([$id]); $estranho=$outro->fetchColumn();
+    try { $s->previa([$estranho===false?'999999999999999999':(string)$estranho],$perfil); throw new LogicException('Produto de outro restaurante aceito.'); } catch (RuntimeException) {}
     $prev=$s->previa($ids,$perfil);
     fpCheck(count($prev['itens'])===count($ids));
     fpCheck($s->aplicar($prev)===count($ids));
@@ -39,6 +44,12 @@ try {
     try { $s->aplicar($oldPreview); throw new LogicException('Prévia antiga aceita.'); } catch (RuntimeException) {}
     fpCheck((int)$s->estado()['produtos'][$pid]['versao']===1);
     $s->aplicar($s->previa($ids,$perfil));
+    $cat=$s->estado()['categorias'][0]['id'] ?? null;
+    if ($cat!==null) {
+        $s->categoria((int)$cat,$perfil);
+        $cats=array_column($s->estado()['categorias'],'id_perfil','id');
+        fpCheck((int)$cats[$cat]===$perfil);
+    }
     fpCheck((int)$s->estado()['produtos'][$pid]['versao']===2);
     $r['habilitado']=false; $f->serializar($id,fn()=> $f->salvar($id,$r));
     fpCheck(!S::disponivel($db,$id));
