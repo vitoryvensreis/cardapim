@@ -224,3 +224,47 @@ $semCobranca = $pago && $vigente['asaas_assinatura_id'] === null && $vigente['st
         </section>
     <?php endif; ?>
 </div>
+
+<?php if (!empty($mostrarCheckout) && $aberta !== null): ?>
+    <dialog class="checkout-assinatura" data-checkout-assinatura aria-labelledby="checkout-assinatura-titulo" aria-describedby="checkout-assinatura-descricao">
+        <div class="checkout-assinatura-conteudo">
+            <button type="button" class="checkout-assinatura-fechar" data-checkout-fechar aria-label="Fechar confirmação da assinatura"><?= Icon::svg('x') ?></button>
+            <header class="checkout-assinatura-cabecalho">
+                <span class="checkout-assinatura-selo"><?= Icon::svg('circle-check') ?> Conta criada com sucesso</span>
+                <span class="checkout-assinatura-icone" aria-hidden="true"><?= Icon::svg('credit-card', 'icon-lg') ?></span>
+                <h2 id="checkout-assinatura-titulo">Finalize sua assinatura</h2>
+                <p id="checkout-assinatura-descricao">Confira o plano que você escolheu. Seu cardápio fica disponível para os clientes após a confirmação do pagamento.</p>
+            </header>
+            <section class="checkout-assinatura-plano" aria-label="Plano contratado">
+                <div class="checkout-assinatura-plano-topo">
+                    <span class="checkout-assinatura-plano-icone" aria-hidden="true"><?= Icon::svg('crown') ?></span>
+                    <div>
+                        <span class="checkout-assinatura-legenda">Seu plano</span>
+                        <h3><?= $e((string) $vigente['plano_nome']) ?></h3>
+                    </div>
+                    <div class="checkout-assinatura-preco">
+                        <strong><?= $e(Numero::reais((string) $vigente['valor'])) ?></strong>
+                        <span><?= $e(AssinaturaService::ROTULO_PERIODO[$vigente['periodo']] ?? '') ?></span>
+                    </div>
+                </div>
+                <?php if (!empty($vigente['plano_descricao'])): ?>
+                    <p><?= $e((string) $vigente['plano_descricao']) ?></p>
+                <?php endif; ?>
+                <span class="checkout-assinatura-sem-fidelidade"><?= Icon::svg('check', 'icon-sm') ?> Sem fidelidade. Cancele pelo painel.</span>
+            </section>
+            <dl class="checkout-assinatura-resumo">
+                <div><dt>Restaurante</dt><dd><?= $e((string) $restaurante['nome']) ?></dd></div>
+                <div><dt>Primeira fatura vence em</dt><dd><?= $e($data((string) $aberta['vencimento'])) ?></dd></div>
+                <div class="checkout-assinatura-total">
+                    <dt>Valor da primeira fatura</dt>
+                    <dd><?= $e(Numero::reais((string) $aberta['valor'])) ?></dd>
+                </div>
+            </dl>
+            <a class="btn checkout-assinatura-pagar" data-checkout-pagar href="<?= $e((string) $aberta['link_fatura']) ?>" target="_blank" rel="noopener">
+                <?= Icon::svg('lock', 'icon-sm') ?><span>Pagar e ativar minha assinatura</span><?= Icon::svg('arrow-right', 'icon-sm') ?>
+            </a>
+            <p class="checkout-assinatura-seguranca"><?= Icon::svg('shield-check', 'icon-sm') ?> Pagamento seguro pelo Asaas. As formas disponíveis aparecem na próxima tela.</p>
+            <button type="button" class="checkout-assinatura-depois" data-checkout-fechar>Finalizar pagamento depois</button>
+        </div>
+    </dialog>
+<?php endif; ?>
