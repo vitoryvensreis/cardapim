@@ -145,6 +145,109 @@ final class FiscalProdutosController extends BaseGerencia
         } catch (Throwable $e) { return $this->falha($e,$url); }
     }
 
+    public function validacao(string $slug): Response
+    {
+        if ($r=$this->acesso($slug)) { return $r; }
+        try { return $this->pagina('validacao','Conferência fiscal',$this->servico()->conferencia()); }
+        catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }
+    }
+
+    public function composicao(string $slug,string $idTexto): Response
+    {
+        if ($r=$this->acesso($slug)) { return $r; }
+        try {
+            $id=self::id($idTexto);
+            if ($id===null) { throw new InvalidArgumentException('Produto inválido.'); }
+            return $this->pagina('composicao','Composição fiscal',$this->servico()->composicao($id));
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/validacao')); }
+    }
+
+    public function salvarComposicao(string $slug,string $idTexto): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        try {
+            $id=self::id($idTexto);
+            if ($id===null) { throw new InvalidArgumentException('Produto inválido.'); }
+            $this->servico()->salvarComposicao($id,$_POST);
+            return $this->voltar($this->url('fiscal/produtos/validacao'),'sucesso','Composição fiscal registrada. Venda e estoque preservados.');
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/validacao')); }
+    }
+
+    public function catalogos(string $slug): Response
+    {
+        if ($r=$this->acesso($slug)) { return $r; }
+        try {
+            $t=\Cardapim\Modules\Fiscal\CatalogosFiscais::TIPOS;
+            $tipo=is_string($_GET['tipo'] ?? null)&&isset($t[$_GET['tipo']])?$_GET['tipo']:'cest';
+            $q=is_string($_GET['q'] ?? null)?mb_substr(trim($_GET['q']),0,100):'';
+            $ncm=is_string($_GET['ncm'] ?? null)&&preg_match('/\A[0-9]{8}\z/',$_GET['ncm'])?$_GET['ncm']:'';
+            $cst=is_string($_GET['cst'] ?? null)&&preg_match('/\A[0-9]{3}\z/',$_GET['cst'])?$_GET['cst']:'';
+            $d=(new \Cardapim\Modules\Fiscal\CatalogosFiscais($this->db))->vigente($tipo);
+            $resultados=$d?\Cardapim\Modules\Fiscal\CatalogosFiscais::pesquisar($d,$q,$ncm,$cst):[];
+            return $this->pagina('catalogos','Pesquisar tabelas fiscais',['tipo'=>$tipo,'q'=>$q,'ncm'=>$ncm,'cst'=>$cst,'catalogo'=>$d,'resultados'=>$resultados]);
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }
+    }
+
+    public function importar(string $slug): Response
+    {
+        if ($r=$this->acesso($slug)) { return $r; }
+        return $this->pagina('importar','Importar classificação fiscal');
+    }
+
+    private function chaveImportacao(): string { return 'fiscal_importacao_'.$this->restaurante['id']; }
+
+    private function sessaoImportacao(string $fase): array
+    {
+        $s=Session::flash($this->chaveImportacao());
+        if (!is_array($s) || ($s['autor'] ?? null)!==$this->usuario->id || ($s['expira'] ?? 0)<time() ||
+            ($s['fase'] ?? '')!==$fase || !hash_equals((string)($s['token'] ?? ''),$this->post('importacao'))) {
+            throw new InvalidArgumentException('Importação expirada. Comece novamente.');
+        }
+        return $s;
+    }
+
+    public function lerImportacao(string $slug): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        try {
+            $f=$_FILES['arquivo'] ?? [];
+            if (!is_array($f) || ($f['error'] ?? null)!==UPLOAD_ERR_OK || !is_string($f['tmp_name'] ?? null) || !is_uploaded_file($f['tmp_name']) || ($f['size'] ?? 0)>\Cardapim\Modules\Fiscal\ImportacaoFiscal::BYTES) {
+                throw new InvalidArgumentException('Envie um arquivo de até 2 MB.');
+            }
+            $bytes=file_get_contents($f['tmp_name'],false,null,0,\Cardapim\Modules\Fiscal\ImportacaoFiscal::BYTES+1);
+            if ($bytes===false) { throw new InvalidArgumentException('Não foi possível ler o arquivo.'); }
+            $itens=$this->servico()->lerImportacao($this->post('tipo'),$bytes);
+            $e=$this->servico()->estado();
+            $token=bin2hex(random_bytes(24));
+            Session::set($this->chaveImportacao(),['autor'=>$this->usuario->id,'expira'=>time()+900,'token'=>$token,'fase'=>'vincular','itens'=>$itens]);
+            return $this->pagina('importar-vincular','Relacionar mercadorias',['itens'=>$itens,'produtos'=>$e['produtos'],'importacao'=>$token]);
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/importar')); }
+    }
+
+    public function previaImportacao(string $slug): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        try {
+            $s=$this->sessaoImportacao('vincular');
+            $destinos=is_array($_POST['destinos'] ?? null)?$_POST['destinos']:[];
+            $substituir=$this->post('sobrescrever')==='1';
+            $previa=$this->servico()->previaImportacao($s['itens'],$destinos,$substituir);
+            $token=bin2hex(random_bytes(24));
+            Session::set($this->chaveImportacao(),array_replace($s,['token'=>$token,'fase'=>'aplicar','destinos'=>$destinos,'substituir'=>$substituir,'previa'=>$previa,'expira'=>time()+600]));
+            return $this->pagina('importar-previa','Confirmar importação',['previa'=>$previa,'importacao'=>$token]);
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/importar')); }
+    }
+
+    public function aplicarImportacao(string $slug): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        try {
+            $s=$this->sessaoImportacao('aplicar');
+            $n=$this->servico()->aplicarImportacao($s['itens'],$s['destinos'],$s['substituir'],$s['previa']);
+            return $this->voltar($this->url('fiscal/produtos'),'sucesso',$n.' produtos atualizados. Revise as classificações importadas.');
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/importar')); }
+    }
+
     public function categoria(string $slug): Response
     {
         if ($r=$this->acesso($slug,true)) { return $r; }

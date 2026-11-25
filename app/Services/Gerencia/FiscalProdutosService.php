@@ -177,6 +177,100 @@ final class FiscalProdutosService
         return $n;
     }
 
+    /** Apenas projeção; não mantém XML nem dados de fornecedor. */
+    public function lerImportacao(string $tipo,string $bytes): array
+    {
+        $this->empresa();
+        $r=(new FiscalRepository($this->db))->buscar($this->id);
+        $itens=match($tipo) {
+            'xml'=>\Cardapim\Modules\Fiscal\ImportacaoFiscal::xml($bytes,$r['cnpj']),
+            'csv'=>\Cardapim\Modules\Fiscal\ImportacaoFiscal::csv($bytes),
+            default=>throw new RuntimeException('Tipo de arquivo não suportado.'),
+        };
+        $produtos=$this->repo->produtos();
+        foreach ($itens as &$i) { $i['sugestao']=\Cardapim\Modules\Fiscal\ImportacaoFiscal::sugerir($i,$produtos); }
+        unset($i);
+        return $itens;
+    }
+
+    public function previaImportacao(array $itens,array $destinos,bool $substituir): array
+    {
+        $e=$this->estado();
+        if (count($destinos)>200) { throw new RuntimeException('Limite de 200 itens.'); }
+        $catalogo=(new CatalogoNcm())->ler();
+        $out=[]; $vistos=[];
+        foreach ($destinos as $i=>$idTexto) {
+            if ($idTexto==='') { continue; }
+            $id=self::identificador($idTexto);
+            if ($id===null || !isset($itens[$i],$e['produtos'][$id]) || isset($vistos[$id])) { throw new RuntimeException('Selecione produtos válidos e não repita o mesmo destino.'); }
+            $vistos[$id]=true;
+            $p=$e['produtos'][$id];
+            $m=\Cardapim\Modules\Fiscal\ImportacaoFiscal::mesclar($p['dados'],$itens[$i]['dados'],$substituir,$catalogo);
+            if ($m['mudancas']===[]) { continue; }
+            $out[]=['id'=>$id,'nome'=>$p['nome'],'origem_nome'=>$itens[$i]['nome'],
+                'assinatura'=>hash('sha256',json_encode($p,JSON_THROW_ON_ERROR)),
+                'id_perfil'=>$p['id_perfil']===null?null:(int)$p['id_perfil'],
+                'versao'=>$p['versao']===null?null:(int)$p['versao'],
+                'dados'=>$m['dados'],'mudancas'=>$m['mudancas']];
+        }
+        if ($out===[]) { throw new RuntimeException('Nenhuma alteração selecionada. Confira os vínculos e os campos existentes.'); }
+        return $out;
+    }
+
+    public function aplicarImportacao(array $itens,array $destinos,bool $substituir,array $previa): int
+    {
+        $n=$this->escrever(function () use ($itens,$destinos,$substituir,$previa) {
+            $agora=$this->previaImportacao($itens,$destinos,$substituir);
+            if ($agora!==$previa) { throw new RuntimeException('Os dados mudaram desde a prévia. Importe novamente.'); }
+            foreach ($agora as $p) { $this->repo->salvarProduto($p['id'],$p['id_perfil'],$p['versao'],$p['dados'],$this->usuario->id); }
+            return count($agora);
+        });
+        Auditoria::registrar($this->usuario,'Fiscal: importação de classificação',$n.' produtos; dados comerciais preservados.');
+        return $n;
+    }
+
+    public function conferencia(): array
+    {
+        $e=$this->estado();
+        $c=new \Cardapim\Modules\Fiscal\ComposicaoFiscal($this->db,$this->id);
+        $estruturas=$c->estruturas();$config=$c->configuracoes();
+        $cat=new \Cardapim\Modules\Fiscal\CatalogosFiscais($this->db);
+        $catalogos=[];
+        foreach (\Cardapim\Modules\Fiscal\CatalogosFiscais::TIPOS as $k=>$v) { $catalogos[$k]=$cat->vigente($k); }
+        $ncm=(new CatalogoNcm())->ler();
+        $base=[];
+        foreach ($e['produtos'] as $id=>$p) {
+            $base[$id]=\Cardapim\Modules\Fiscal\VerificacaoFiscal::produto($p,$e['perfis'][(int)$p['id_perfil']] ?? null,$e['empresa'],$catalogos,$ncm);
+        }
+        $verificacao=$base;
+        foreach ($estruturas as $id=>$s) {
+            if (!isset($e['produtos'][$id])) { continue; }
+            // Combo pai não é linha fiscal adicional; componentes usam a classificação individual.
+            $r=\Cardapim\Modules\Fiscal\ComposicaoFiscal::pendencias($id,$s,$config[$id] ?? null,$base,$estruturas);
+            $verificacao[$id]=array_values(array_unique(array_merge($s['combo']?[]:$base[$id],$r)));
+        }
+        return $e+['estruturas'=>$estruturas,'configuracoes'=>$config,'verificacao'=>$verificacao];
+    }
+
+    public function composicao(int $id): array
+    {
+        $e=$this->estado();$c=new \Cardapim\Modules\Fiscal\ComposicaoFiscal($this->db,$this->id);
+        $estruturas=$c->estruturas();
+        if (!isset($e['produtos'][$id],$estruturas[$id])) { throw new RuntimeException('Produto sem composição fiscal configurável.'); }
+        return $e+['estruturas'=>$estruturas,'estrutura'=>$estruturas[$id],'produto'=>$e['produtos'][$id],
+            'config'=>$c->configuracoes()[$id] ?? null,'assinatura'=>\Cardapim\Modules\Fiscal\ComposicaoFiscal::assinatura($estruturas[$id])];
+    }
+
+    public function salvarComposicao(int $id,array $p): void
+    {
+        $this->escrever(function () use($id,$p) {
+            $e=$this->composicao($id);
+            $d=\Cardapim\Modules\Fiscal\ComposicaoFiscal::normalizar($id,$e['estrutura'],$e['produtos'],$e['estruturas'],$p);
+            (new \Cardapim\Modules\Fiscal\ComposicaoFiscal($this->db,$this->id))->salvar($id,$e['estrutura'],$d,$this->usuario->id);
+        });
+        Auditoria::registrar($this->usuario,'Fiscal: composição revisada','Produto '.$id.'; sem alteração comercial.');
+    }
+
     public function categoria(int $categoria,?int $perfil): void
     {
         $this->escrever(function ($empresa) use ($categoria,$perfil) {

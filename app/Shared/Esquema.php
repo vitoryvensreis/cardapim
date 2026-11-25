@@ -42,6 +42,8 @@ final class Esquema
         'fiscal_produtos' => ['fiscal_produtos', 'dados'],
         'fiscal_visibilidade' => ['fiscal_visibilidade', 'visivel'],
         'fiscal_liberacoes' => ['fiscal_liberacoes', 'permitido'],
+        'fiscal_catalogos' => ['fiscal_catalogos', 'dados'],
+        'fiscal_composicoes' => ['fiscal_composicoes', 'dados'],
     ];
 
     /** @var array<string,bool> */
