@@ -78,15 +78,24 @@ final class FiscalProdutosService
 
     public function produto(int $id,array $p): void
     {
-        $this->escrever(function ($empresa) use ($id,$p) {
-            $d=Validar::produto($p);
+        $this->empresa();
+        $d=Validar::produto($p);
+        $catalogo=CatalogoNcm::evidencia($d['ncm']);
+        // Uma consulta exata no salvamento fiscal individual, nunca sob lock/transação ou no cadastro comercial.
+        if ($d['ncm']!=='' && $catalogo===null && PHP_SAPI!=='cli'
+            && \Cardapim\Core\RateLimiter::padrao(30,60)->permitir('fiscal-ncm|'.$this->id)
+            && \Cardapim\Core\RateLimiter::padrao(30,60)->permitir('fiscal-ncm-brasilapi-global')) {
+            try { (new CatalogoNcm())->consultar($d['ncm']); $catalogo=CatalogoNcm::evidencia($d['ncm']); }
+            catch (Throwable $e) { error_log('[Cardapim] NCM BrasilAPI indisponível: '.get_class($e)); }
+        }
+        $this->escrever(function ($empresa) use ($id,$p,$d,$catalogo) {
             $perfil=self::identificador($p['id_perfil'] ?? '');
             if ($perfil===null && ($p['id_perfil'] ?? '')!=='') { throw new RuntimeException('Perfil inválido.'); }
             $perfis=$this->repo->perfis();
             if ($perfil!==null && (!isset($perfis[$perfil]) || !Validar::perfilVigente($perfis[$perfil],$empresa))) { throw new RuntimeException('Selecione um perfil revisado compatível.'); }
-            $catalogo=(new CatalogoNcm())->ler();
             $d['ncm_fonte']=isset($catalogo['itens'][$d['ncm']])?$catalogo['versao']:'';
-            if ($d['ncm']!=='' && $catalogo!==null && $d['ncm_fonte']==='') { throw new RuntimeException('NCM não encontrado no catálogo vigente. Confira a classificação.'); }
+            if ($d['ncm']!=='' && $catalogo!==null && $d['ncm_fonte']==='') { throw new RuntimeException('NCM não localizado como vigente na BrasilAPI. Confira a classificação.'); }
+            if ($d['ncm_fonte']==='') { $d['confirmado']=false; }
             $this->repo->salvarProduto($id,$perfil,$perfil===null?null:(int)$perfis[$perfil]['versao'],$d,$this->usuario->id);
         });
         Auditoria::registrar($this->usuario,'Fiscal: produto salvo','Produto '.$id.'; cadastro fiscal independente.');
@@ -127,7 +136,7 @@ final class FiscalProdutosService
             if (!in_array($k,self::CAMPOS_LOTE,true)) { throw new RuntimeException('Campo não permitido.'); }
             $antes=(string)($atual[$k] ?? '');
             if ($antes===$v || (!$sobrescrever && $antes!=='')) { continue; }
-            if ($k==='ncm' && $catalogo!==null && !isset($catalogo['itens'][$v])) { throw new RuntimeException('NCM não consta do catálogo oficial vigente.'); }
+            if ($k==='ncm' && $catalogo!==null && !isset($catalogo['itens'][$v])) { throw new RuntimeException('NCM não localizado como vigente na BrasilAPI.'); }
             $mudancas[$k]=['de'=>$antes,'para'=>$v];
             $atual[$k]=$v;
             if ($k==='ncm') { $atual['ncm_fonte']=isset($catalogo['itens'][$v])?$catalogo['versao']:''; }
@@ -144,7 +153,7 @@ final class FiscalProdutosService
         if ($perfil!==null && (!$p || !Validar::perfilVigente($p,$e['empresa']))) { throw new RuntimeException('Escolha um perfil revisado e vigente.'); }
         if ($perfil===null && $campos===[]) { throw new RuntimeException('Selecione um perfil ou campos de classificação.'); }
         if ($ids===[] || count($ids)>200) { throw new RuntimeException('Selecione de 1 a 200 produtos.'); }
-        $catalogo=isset($campos['ncm'])?(new CatalogoNcm())->ler():null;
+        $catalogo=isset($campos['ncm'])?CatalogoNcm::evidencia($campos['ncm']):null;
         $itens=[];
         foreach ($ids as $v) {
             $id=self::identificador($v);
@@ -197,7 +206,6 @@ final class FiscalProdutosService
     {
         $e=$this->estado();
         if (count($destinos)>200) { throw new RuntimeException('Limite de 200 itens.'); }
-        $catalogo=(new CatalogoNcm())->ler();
         $out=[]; $vistos=[];
         foreach ($destinos as $i=>$idTexto) {
             if ($idTexto==='') { continue; }
@@ -205,6 +213,7 @@ final class FiscalProdutosService
             if ($id===null || !isset($itens[$i],$e['produtos'][$id]) || isset($vistos[$id])) { throw new RuntimeException('Selecione produtos válidos e não repita o mesmo destino.'); }
             $vistos[$id]=true;
             $p=$e['produtos'][$id];
+            $catalogo=CatalogoNcm::evidencia((string)($itens[$i]['dados']['ncm'] ?? ''));
             $m=\Cardapim\Modules\Fiscal\ImportacaoFiscal::mesclar($p['dados'],$itens[$i]['dados'],$substituir,$catalogo);
             if ($m['mudancas']===[]) { continue; }
             $out[]=['id'=>$id,'nome'=>$p['nome'],'origem_nome'=>$itens[$i]['nome'],
@@ -237,10 +246,9 @@ final class FiscalProdutosService
         $cat=new \Cardapim\Modules\Fiscal\CatalogosFiscais($this->db);
         $catalogos=[];
         foreach (\Cardapim\Modules\Fiscal\CatalogosFiscais::TIPOS as $k=>$v) { $catalogos[$k]=$cat->vigente($k); }
-        $ncm=(new CatalogoNcm())->ler();
         $base=[];
         foreach ($e['produtos'] as $id=>$p) {
-            $base[$id]=\Cardapim\Modules\Fiscal\VerificacaoFiscal::produto($p,$e['perfis'][(int)$p['id_perfil']] ?? null,$e['empresa'],$catalogos,$ncm);
+            $base[$id]=\Cardapim\Modules\Fiscal\VerificacaoFiscal::produto($p,$e['perfis'][(int)$p['id_perfil']] ?? null,$e['empresa'],$catalogos);
         }
         $verificacao=$base;
         foreach ($estruturas as $id=>$s) {

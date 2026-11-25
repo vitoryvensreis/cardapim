@@ -34,15 +34,15 @@
     const ncm=form.elements.namedItem('ncm');
     btn.addEventListener('click',async()=>{
         if (busca.value.trim().length<2) { status.textContent='Digite pelo menos dois caracteres.'; return; }
-        btn.disabled=true; status.textContent='Consultando catálogo oficial...'; resultados.replaceChildren();
+        btn.disabled=true; status.textContent='Consultando BrasilAPI...'; resultados.replaceChildren();
         try {
             const r=await fetch(form.dataset.ncmUrl+'?q='+encodeURIComponent(busca.value.trim()),{headers:{Accept:'application/json'},credentials:'same-origin'});
             const d=await r.json();
             if (!r.ok || !d.ok) throw new Error(d.mensagem||'Consulta indisponível.');
             status.textContent=d.resultados.length?d.fonte+' — escolha somente a classificação compatível.':'Nenhum resultado. Tente outro termo ou código.';
             for (const item of d.resultados) {
-                const b=document.createElement('button'); b.type='button'; b.className='btn btn-outline'; b.textContent=item.codigo+' — '+item.descricao;
-                b.addEventListener('click',()=>{ncm.value=item.codigo; const marcar=form.querySelector('input[name="campos[]"][value="ncm"]'); if (marcar) marcar.checked=true; status.textContent='NCM selecionado. Confira antes de salvar.'; resultados.replaceChildren();});
+                const b=document.createElement('button'); b.type='button'; b.className='btn btn-outline'; b.textContent=item.codigo+' — '+item.descricao+' (vigência: '+item.data_inicio+' a '+item.data_fim+')';
+                b.addEventListener('click',()=>{ncm.value=item.codigo; const conf=form.elements.namedItem('confirmado'); if(conf) conf.checked=false; const marcar=form.querySelector('input[name="campos[]"][value="ncm"]'); if (marcar) marcar.checked=true; status.textContent='NCM selecionado. Confira antes de salvar.'; resultados.replaceChildren();});
                 resultados.append(b);
             }
         } catch(e) { status.textContent=e.message||'Consulta indisponível. Você pode salvar como pendente.'; }

@@ -94,7 +94,7 @@ final class CadastroProdutoFiscal
         foreach (['ncm'=>'NCM','origem'=>'Origem','gtin'=>'GTIN ou SEM GTIN','gtin_tributavel'=>'GTIN tributável ou SEM GTIN','unidade_comercial'=>'Unidade comercial','unidade_tributavel'=>'Unidade tributável','fator'=>'Fator de conversão'] as $k=>$rotulo) {
             if (($d[$k] ?? '')==='') { $r[]=$rotulo; }
         }
-        if (empty($d['ncm_fonte'])) { $r[]='NCM não conferido no catálogo oficial'; }
+        if (!CatalogoNcm::fonteValida((string)($d['ncm'] ?? ''),$d['ncm_fonte'] ?? null)) { $r[]='NCM sem consulta vigente registrada na BrasilAPI'; }
         if (empty($d['confirmado'])) { $r[]='Classificação individual não confirmada'; }
         return $r;
     }

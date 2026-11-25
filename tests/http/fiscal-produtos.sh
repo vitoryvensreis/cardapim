@@ -20,7 +20,8 @@ grep -q 'Aplicar perfil em massa' "$tmp/on"
 pid="$(grep -o 'name="produtos\[\]" value="[0-9]*"' "$tmp/on" | head -1 | cut -d'"' -f4)"
 test -n "$pid"
 test "$(curl -s -b "$tmp/g" -o "$tmp/prod" -w '%{http_code}' "$g/fiscal/produtos/$pid")" = 200
-grep -q 'Pesquisar NCM oficial' "$tmp/prod"
+grep -q 'Pesquisar NCM pela BrasilAPI' "$tmp/prod"
+test "$(curl -s -b "$tmp/g" -o "$tmp/ncm-invalid" -w '%{http_code}' "$g/fiscal/classificacoes/ncm?q=1")" = 422
 grep -q 'Reaproveitar classificação' "$tmp/prod"
 grep -q 'Consultar código de barras pela NeXT' "$tmp/prod"
 grep -q 'Classificação individual em massa' "$tmp/on"
@@ -61,6 +62,7 @@ test "$(adminpost 0)" = 303
 test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$g/fiscal/produtos")" = 403
 test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$g/fiscal/produtos/importar")" = 403
 test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$g/fiscal/produtos/catalogos")" = 403
+test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$g/fiscal/classificacoes/ncm?q=22021000")" = 403
 test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$g/fiscal/produtos/validacao")" = 403
 test "$(post "$g/fiscal/produtos/importar/aplicar" 'importacao=invalida')" = 403
 test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' "$base/painel/fiscal/catalogos")" = 403
