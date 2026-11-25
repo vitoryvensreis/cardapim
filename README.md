@@ -25,9 +25,11 @@ A plataforma usa **uma única chave de API** (Google Cloud → Routes API, fatur
 
 Testes sem chamadas pagas: `php tests/unit/integracoes.php`, `php tests/unit/entrega.php`. Documentação: [Routes API](https://developers.google.com/maps/documentation/routes/compute_route_directions), [políticas](https://developers.google.com/maps/documentation/routes/policies).
 
-## Central fiscal — API NeXT (etapa 01)
+## Central fiscal — API NeXT (etapas 01 e 02)
 
 O adm_master pode configurar e testar a credencial administrativa em **Painel → Fiscal** (/painel/fiscal). Integração desativada por padrão, somente consultas e ambientes de teste; sem emissão real nem alterações no PDV. A configuração é cifrada na tabela existente configuracoes. Veja [documentação fiscal](docs/architecture/fiscal-next.md).
+
+A configuração opcional por restaurante fica em **Gerência → Fiscal**. A confirmação do vínculo pelo administrador antecede o cadastro automático na NeXT; emissão real bloqueada. O card fiscal da integração de impressoras salva separadamente, usando o padrão do Cupom completo.
 
 ## Comece pelo mapa
 

@@ -22,9 +22,20 @@ final class FiscalNextService
 {
     private readonly FiscalNextRepository $repo;
 
-    public function __construct(PDO $db, private readonly UsuarioLogado $usuario, private readonly NextFiscalApi $api = new NextFiscalApi())
+    public function __construct(private readonly PDO $db, private readonly UsuarioLogado $usuario, private readonly NextFiscalApi $api = new NextFiscalApi())
     {
         $this->repo = new FiscalNextRepository($db);
+    }
+
+    public function restaurantes(): ?array
+    {
+        if (!\Cardapim\Shared\Esquema::tem($this->db, 'fiscal_restaurante')) { return null; }
+        try {
+            return (new \Cardapim\Repositories\Gerencia\FiscalRepository($this->db))->resumoPlataforma();
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Resumo fiscal indisponível (' . get_class($e) . ').');
+            return null;
+        }
     }
 
     public function estado(): array

@@ -7,7 +7,7 @@ namespace Cardapim\Modules\Integracoes;
 use Cardapim\Shared\Http\ClienteHttp;
 use RuntimeException;
 
-/** Fase administrativa: somente consultas. Nenhuma rota de emissao ou mutacao de CNPJs. */
+/** Cadastro e configuração fiscal; nenhum método de emissão. */
 final class NextFiscalApi
 {
     private const BASE = 'https://www.apinext.com.br/ws/v1/';
@@ -71,13 +71,44 @@ final class NextFiscalApi
         return ['quantidade' => $quantidade, 'clientes' => $clientes, 'parcial' => count($clientes) !== $quantidade];
     }
 
-    private function consultar(string $metodo, string $cnpj, string $token, ?int $ambiente): array
+    public function incluirCliente(string $sh, #[\SensitiveParameter] string $admin, string $cliente, string $razao): string
     {
-        $headers = ['X-CnpjSh' => $cnpj, 'X-CnpjCliente' => $cnpj, 'X-Token' => $token];
+        if ($sh === $cliente) { throw new RuntimeException('Emitente não permitido.'); }
+        $d = $this->consultar('clientes/ClienteIncluir', $sh, $admin, null, $cliente, ['RazaoSocial'=>$razao]);
+        $t = $d['TokenCliente'] ?? null;
+        if (!is_string($t) || preg_match('/\A[\x21-\x7E]{1,512}\z/', $t) !== 1) { throw new RuntimeException('Credencial individual ausente.'); }
+        return $t;
+    }
+
+    public function certificadoUpload(string $sh, string $cliente, #[\SensitiveParameter] string $token, #[\SensitiveParameter] string $bytes, #[\SensitiveParameter] string $senha, string $razao, string $uf, #[\SensitiveParameter] string $csc, string $id): void
+    {
+        $this->consultar('nfe/CertificadoUpload', $sh, $token, 2, $cliente, [
+            'DocBin'=>base64_encode($bytes), 'NomeEmpresa'=>$razao, 'UF'=>$uf, 'CSC'=>$csc,
+            'TokenCSC'=>$id, 'ArquivoCertificado'=>'certificado.pfx', 'SenhaCertificado'=>$senha,
+        ]);
+    }
+
+    public function configHomologacao(string $sh, string $cliente, #[\SensitiveParameter] string $token, string $razao, string $uf, #[\SensitiveParameter] string $csc, string $id): void
+    {
+        $this->consultar('nfe/Config', $sh, $token, 2, $cliente, ['UF'=>$uf,'CSC'=>$csc,'IdCSC'=>$id,'NomeEmpresa'=>$razao,'FormaEmissao'=>1]);
+    }
+
+    public function statusCliente(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente): int
+    {
+        if (!in_array($ambiente,[2,3],true)) { throw new RuntimeException('Ambiente não permitido.'); }
+        $d = $this->consultar('nfe/StatusServico',$sh,$token,$ambiente,$cliente);
+        $cod = filter_var($d['CodStatus'] ?? null,FILTER_VALIDATE_INT);
+        if ($cod === false || $cod < 0 || $cod > 9999) { throw new RuntimeException('Status não reconhecido.'); }
+        return $cod;
+    }
+
+    private function consultar(string $metodo, string $cnpj, #[\SensitiveParameter] string $token, ?int $ambiente, ?string $cliente = null, #[\SensitiveParameter] array $corpo = []): array
+    {
+        $headers = ['X-CnpjSh' => $cnpj, 'X-CnpjCliente' => $cliente ?? $cnpj, 'X-Token' => $token];
         if ($ambiente !== null) {
             $headers['X-Ambiente'] = (string) $ambiente;
         }
-        $resposta = $this->http->enviar('POST', self::BASE . $metodo, $headers, []);
+        $resposta = $this->http->enviar('POST', self::BASE . $metodo, $headers, $corpo);
         if (!$resposta->ok()) {
             throw new RuntimeException(match ($resposta->status) {
                 401, 403 => 'A NeXT recusou a credencial ou a permissão administrativa.',

@@ -25,9 +25,9 @@ $url = $base . '/fiscal';
         <div class="fiscal-metricas">
             <?php foreach ([
                 ['Emitentes na NeXT', $fiscal['quantidade'] ?? 'Não consultado', 'Última lista sincronizada'],
-                ['Restaurantes com fiscal ativo', 'Aguardando etapa 02', 'Ativação por restaurante'],
+                ['Restaurantes com fiscal ativo', $restaurantesFiscais === null ? 'Indisponível' : count(array_filter($restaurantesFiscais, static fn ($r) => $r['habilitado'])), 'Habilitados para configuração'],
                 ['Documentos e consumo', 'Aguardando emissão', $fiscal['limite'] === null ? 'Limite mensal não configurado' : 'Limite informado: ' . number_format($fiscal['limite'], 0, ',', '.')],
-                ['Certificados e pendências', 'Aguardando configuração', 'Monitoramento nas próximas etapas'],
+                ['Vínculos aguardando aprovação', $restaurantesFiscais === null ? 'Indisponível' : count(array_filter($restaurantesFiscais, static fn ($r) => $r['habilitado'] && !$r['aprovado'])), 'Conferência administrativa do CNPJ'],
             ] as [$rotulo, $valor, $dica]): ?>
                 <section class="bloco fiscal-metrica"><h2><?= $e($rotulo) ?></h2><strong><?= $e($valor) ?></strong><p class="texto-suave"><?= $e($dica) ?></p></section>
             <?php endforeach; ?>
@@ -90,4 +90,26 @@ $url = $base . '/fiscal';
             <?php endif; ?>
         </section>
     <?php endif; ?>
+    <section class="bloco">
+        <div class="bloco-cabecalho"><h2><?= Icon::svg('store') ?>Restaurantes fiscais</h2><p>Confira o vínculo do CNPJ antes de autorizar o cadastro automático. Emissão real permanece bloqueada.</p></div>
+        <?php if ($restaurantesFiscais === null): ?><p>Indicadores ainda indisponíveis.</p>
+        <?php elseif ($restaurantesFiscais === []): ?><p>Nenhum restaurante iniciou a configuração fiscal.</p>
+        <?php else: ?>
+            <?php foreach ($restaurantesFiscais as $r): ?>
+                <article class="bloco">
+                    <strong><?= $e($r['nome']) ?></strong><p><?= $e(Documento::formatarCnpj($r['cnpj'])) ?> · <?= $r['habilitado'] ? 'Módulo habilitado' : 'Desativado' ?></p>
+                    <p><?= $r['registrado'] ? 'Emitente conectado' : ($r['aprovado'] ? 'Vínculo aprovado' : 'Aguardando aprovação') ?> · Certificado: <?= $e($r['validade'] ?? 'Não cadastrado') ?> · <?= $e($r['alerta']) ?> · <?= $e($r['status']) ?></p>
+                    <?php if ($r['habilitado'] && !$r['aprovado']): ?>
+                        <form method="post" action="<?= $e($url . '/aprovar-restaurante') ?>">
+                            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                            <input type="hidden" name="id_restaurante" value="<?= (int) $r['id'] ?>">
+                            <input type="hidden" name="cnpj" value="<?= $e($r['cnpj']) ?>">
+                            <label><input type="checkbox" name="confirmacao" value="1" required> Confirmei a titularidade e autorização do CNPJ.</label>
+                            <button class="btn btn-outline" type="submit">Autorizar vínculo fiscal</button>
+                        </form>
+                    <?php endif; ?>
+                </article>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </section>
 </div>
