@@ -20,4 +20,18 @@ grep -q 'Cupom completo' "$tmp/i" || grep -q 'Nenhuma impressora' "$tmp/i"
 ! grep -q 'Salvar impressora fiscal' "$tmp/i"
 test "$(curl -s -b "$tmp/a" -o "$tmp/ahtml" -w '%{http_code}' "$base/painel/fiscal")" = 200
 grep -q 'Restaurantes fiscais' "$tmp/ahtml"
-echo 'Rotas fiscais, acesso e card oculto confirmados.'
+csrf="$(grep -o 'name="_csrf" value="[a-f0-9]*"' "$tmp/f" | head -1 | cut -d'"' -f4)"
+post() {
+  curl -s -b "$tmp/g" -c "$tmp/g" -o /dev/null -w '%{http_code}' --data-urlencode "_csrf=$csrf" --data-urlencode "$2" "$1"
+}
+test "$(post "$g/fiscal/habilitar" 'habilitado=1')" = 303
+curl -s -b "$tmp/g" "$g/integracoes/impressoras" > "$tmp/i2"
+grep -q 'Salvar impressora fiscal' "$tmp/i2"
+grep -q 'Usar padrão do Cupom completo' "$tmp/i2"
+test "$(post "$g/integracoes/impressoras/fiscal" 'impressora_fiscal=padrao')" = 303
+curl -s -b "$tmp/g" "$g/integracoes/impressoras" > "$tmp/i3"
+grep -q 'Impressora fiscal salva' "$tmp/i3"
+test "$(post "$g/fiscal/habilitar" 'habilitado=0')" = 303
+curl -s -b "$tmp/g" "$g/integracoes/impressoras" > "$tmp/i4"
+! grep -q 'Salvar impressora fiscal' "$tmp/i4"
+echo 'Rotas fiscais, acesso, card condicional e salvamento independente confirmados.'

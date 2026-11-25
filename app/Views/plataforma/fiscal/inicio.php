@@ -98,7 +98,7 @@ $url = $base . '/fiscal';
             <?php foreach ($restaurantesFiscais as $r): ?>
                 <article class="bloco">
                     <strong><?= $e($r['nome']) ?></strong><p><?= $e(Documento::formatarCnpj($r['cnpj'])) ?> · <?= $r['habilitado'] ? 'Módulo habilitado' : 'Desativado' ?></p>
-                    <p><?= $r['registrado'] ? 'Emitente conectado' : ($r['aprovado'] ? 'Vínculo aprovado' : 'Aguardando aprovação') ?> · Certificado: <?= $e($r['validade'] ?? 'Não cadastrado') ?> · <?= $e($r['status']) ?></p>
+                    <p><?= $r['registrado'] ? 'Emitente conectado' : ($r['aprovado'] ? 'Vínculo aprovado' : 'Aguardando aprovação') ?> · Certificado: <?= $e($r['validade'] ?? 'Não cadastrado') ?> · <?= $e($r['alerta']) ?> · <?= $e($r['status']) ?></p>
                     <?php if ($r['habilitado'] && !$r['aprovado']): ?>
                         <form method="post" action="<?= $e($url . '/aprovar-restaurante') ?>">
                             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">

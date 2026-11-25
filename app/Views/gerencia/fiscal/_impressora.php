@@ -1,4 +1,5 @@
 <?php
+use Cardapim\Core\Icon;
 /** Card independente; não faz parte do formulário que regrava os pontos atuais. */
 if (!($fiscalImpressora['habilitado'] ?? false)) { return; }
 ?>

@@ -71,16 +71,19 @@ final class FiscalRepository
     public function resumoPlataforma(): array
     {
         $lista = [];
-        $q = $this->db->query('SELECT f.id_restaurante, f.cnpj, f.habilitado, f.aprovado, r.nome FROM restaurante_fiscal f JOIN restaurantes r ON r.id = f.id_restaurante ORDER BY r.nome, f.id_restaurante');
+        $q = $this->db->query('SELECT f.id_restaurante, f.cnpj, f.habilitado, f.aprovado, f.dados, r.nome, r.cnpj AS cnpj_atual FROM restaurante_fiscal f JOIN restaurantes r ON r.id = f.id_restaurante ORDER BY r.nome, f.id_restaurante');
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $id = (int) $r['id_restaurante'];
-            $f = $this->buscar($id);
-            $d = $f['dados'] ?? [];
+            try {
+                $d = json_decode(Cripto::decifrar($r['dados']), true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($d)) { $d = []; }
+            } catch (\Throwable) { $d = []; }
             $lista[] = [
                 'id' => $id, 'nome' => $r['nome'], 'cnpj' => $r['cnpj'],
-                'habilitado' => (bool) $r['habilitado'], 'aprovado' => (bool) $r['aprovado'],
+                'habilitado' => (bool) $r['habilitado'] && $r['cnpj'] === $r['cnpj_atual'], 'aprovado' => (bool) $r['aprovado'],
                 'registrado' => isset($d['token']), 'validade' => $d['certificado']['validade'] ?? null,
                 'status' => $d['status'][2] ?? 'Aguardando homologação',
+                'alerta' => \Cardapim\Modules\Fiscal\CertificadoA1::alerta($d['certificado']['expira_em'] ?? null),
             ];
         }
         return $lista;

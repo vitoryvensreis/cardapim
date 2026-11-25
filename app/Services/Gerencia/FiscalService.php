@@ -108,6 +108,7 @@ final class FiscalService
     /** Aprovação explícita pelo adm_master, no controlador da plataforma. */
     public function aprovar(string $cnpj): Resultado
     {
+        if ($this->usuario->cargo !== 'adm_master') { return Resultado::falha('A aprovação é exclusiva da administração.'); }
         return $this->repo->serializar($this->id, function () use ($cnpj): Resultado {
             $r = $this->repo->buscar($this->id);
             if (!$r || !$r['habilitado'] || !$this->cnpjConfere($r, $this->perfil()) || $r['cnpj'] !== $cnpj || !isset($r['dados']['empresa'])) {
@@ -267,6 +268,7 @@ final class FiscalService
             }
             $c = $r['dados']['config'][2];
             $e = $r['dados']['empresa'];
+            if (!RateLimiter::padrao(10, 3600)->permitir('fiscal-certificado|' . $this->id)) { return Resultado::falha('Limite de envios atingido.'); }
             $this->api->certificadoUpload($sh, $cnpj, $token, $bytes, $senha, $e['razao'], $e['estado'], $c['csc'], $c['id_csc']);
             $r['dados']['certificado'] = $meta;
             $r['dados']['config_enviada'] = false;
@@ -283,6 +285,7 @@ final class FiscalService
             }
             [$sh, $cnpj, $token] = $this->credenciais($r);
             $c = $r['dados']['config'][2]; $e = $r['dados']['empresa'];
+            if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-config|' . $this->id)) { return Resultado::falha('Limite de envios atingido.'); }
             $this->api->configHomologacao($sh, $cnpj, $token, $e['razao'], $e['estado'], $c['csc'], $c['id_csc']);
             $r['dados']['config_enviada'] = true;
             unset($r['dados']['status'][2]);
