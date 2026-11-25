@@ -19,6 +19,9 @@ $tokenCsrf = static function () use ($e, $csrf): void { ?><input type="hidden" n
             </form>
         </section>
         <?php if ($fiscal['habilitado']): $d = $fiscal['empresa']; $c = $fiscal['config']; ?>
+            <?php if (!empty($fiscalProdutosDisponivel)): ?>
+                <section class="bloco"><div class="bloco-cabecalho"><h2><?= Icon::svg('package') ?> Cadastro fiscal dos produtos</h2><p>Crie perfis tributários, configure produtos em massa e acompanhe pendências.</p></div><a class="btn btn-outline" href="<?= $e($url.'/produtos') ?>">Produtos fiscais</a> <a class="btn btn-outline" href="<?= $e($url.'/perfis') ?>">Perfis tributários</a></section>
+            <?php endif; ?>
             <section class="bloco">
                 <div class="bloco-cabecalho"><h2><?= Icon::svg('store') ?>Dados fiscais da empresa</h2><p>Confira com o contador. O CNPJ vem do cadastro do restaurante.</p></div>
                 <p><strong>CNPJ: <?= $e(Documento::formatarCnpj($fiscal['cnpj'])) ?></strong></p>
