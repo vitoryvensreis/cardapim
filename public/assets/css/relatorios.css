@@ -32,3 +32,5 @@
  .rel-tabela td small { flex-basis:100%; text-align:right; }
  .rel-tabela td:last-child { border:0; }
 }
+
+.rel-datas[hidden] { display:none; }

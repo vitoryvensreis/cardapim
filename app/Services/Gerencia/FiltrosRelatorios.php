@@ -40,6 +40,8 @@ final class FiltrosRelatorios
             'situacao'=>$opcao($texto('situacao',20),self::SITUACOES,'todos'),
             'data_por'=>$opcao($texto('data_por',20),self::DATAS,'lancamento'),
             'busca'=>$texto('busca',120),
+            'nome_historico'=>$texto('nome_historico',180),
+            'unidade'=>$opcao($texto('unidade',5),['un'=>true,'kg'=>true,'l'=>true],''),
             'produto'=>$id($texto('produto',18)),
             'categoria'=>$id($texto('categoria',18)),
             'pedido'=>$id($texto('pedido',18)),

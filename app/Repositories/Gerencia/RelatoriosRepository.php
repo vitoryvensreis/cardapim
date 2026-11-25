@@ -36,6 +36,8 @@ final class RelatoriosRepository
             $sql.=" AND (i.nome LIKE ? ESCAPE '!' OR pr.nome LIKE ? ESCAPE '!')";
             $params[]=$like($v['busca']); $params[]=$like($v['busca']);
         }
+        if ($v['nome_historico']!=='') { $sql.=' AND i.nome=?'; $params[]=$v['nome_historico']; }
+        if ($v['unidade']!=='') { $sql.=' AND i.unidade=?'; $params[]=$v['unidade']; }
         foreach (['produto'=>'i.id_produto','categoria'=>'pr.id_categoria','pedido'=>'p.numero',
                   'mesa'=>'p.id_mesa','origem'=>'p.origem','funcionario'=>'i.id_user'] as $k=>$col) {
             if ($v[$k]!=='') { $sql.=" AND $col=?"; $params[]=$v[$k]; }

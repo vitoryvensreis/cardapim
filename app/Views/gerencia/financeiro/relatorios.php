@@ -33,9 +33,11 @@ $detalhe=$v['visao']==='pedido';
     <?php require __DIR__.'/_abas.php'; ?>
     <section class="bloco">
         <div class="bloco-cabecalho"><h2><?= Icon::svg('chart-no-axes-column') ?> Relatório de vendas</h2><p><?= $e($periodo->rotulo()) ?> · <?= $e(F::DATAS[$v['data_por']]) ?></p></div>
+        <?php if ($v['nome_historico']!==''): ?><p class="rel-nota">Detalhe de <?= $e($v['nome_historico']) ?> (<?= $e($v['unidade']) ?>) · <a href="<?= $e($link(['nome_historico'=>'','unidade'=>'','produto'=>'','pagina'=>1])) ?>">Remover seleção</a></p><?php endif; ?>
         <?php if ($filtros->aviso!==null): ?><p class="notice notice-info" role="status"><?= $e($filtros->aviso) ?></p><?php endif; ?>
         <form class="rel-filtros" method="get" action="<?= $e($url) ?>">
             <input type="hidden" name="visao" value="<?= $e($v['visao']) ?>">
+            <?php if ($v['nome_historico']!==''): ?><input type="hidden" name="nome_historico" value="<?= $e($v['nome_historico']) ?>"><input type="hidden" name="unidade" value="<?= $e($v['unidade']) ?>"><?php endif; ?>
             <div class="rel-grade">
                 <label>Período <?php $select('periodo',PeriodoFinanceiro::ATALHOS+['personalizado'=>'Personalizado'],$periodo->chave); ?></label>
                 <label>Pesquisar produto <input type="search" name="busca" value="<?= $e($v['busca']) ?>" maxlength="120" placeholder="Ex.: Heineken"></label>
@@ -102,7 +104,7 @@ $detalhe=$v['visao']==='pedido';
                 <tr>
                     <td data-label="Produto / período">
                         <?php if($v['visao']==='produto'): ?>
-                        <a href="<?= $e($link(['visao'=>'pedido','pagina'=>1,'produto'=>$l['produto_id']??'','busca'=>$l['produto_id']===null?$l['rotulo']:'','situacao'=>$l['situacao']])) ?>"><?= $e($l['rotulo']) ?></a>
+                        <a href="<?= $e($link(['visao'=>'pedido','pagina'=>1,'produto'=>$l['produto_id']??'','busca'=>'','nome_historico'=>$l['rotulo'],'unidade'=>$l['unidade'],'situacao'=>$l['situacao']])) ?>"><?= $e($l['rotulo']) ?></a>
                         <?php else: ?><?= $e($v['visao']==='dia'?date('d/m/Y',strtotime($l['rotulo'])):$l['rotulo']) ?><?php endif; ?>
                         <?php if($detalhe&&!empty($l['combo_nome'])): ?><small>Combo: <?= $e($l['combo_nome']) ?></small><?php endif; ?>
                     </td>
