@@ -120,6 +120,7 @@ jobs:
           php tests/unit/cupom-imagem.php
           php tests/unit/aparencia-cupom.php
           php tests/unit/fiscal-restaurante.php
+          php tests/unit/fiscal-cadastro.php
           bash -n deploy/scripts/apply-fiscal-restaurante.sh
 
       - name: Interface sem emojis e sem estilos inline

@@ -25,6 +25,15 @@ post() {
   curl -s -b "$tmp/g" -c "$tmp/g" -o /dev/null -w '%{http_code}' --data-urlencode "_csrf=$csrf" --data-urlencode "$2" "$1"
 }
 test "$(post "$g/fiscal/habilitar" 'habilitado=1')" = 303
+curl -s -b "$tmp/g" "$g/fiscal" > "$tmp/empresa"
+grep -q 'Repreencher pelo CNPJ' "$tmp/empresa"
+grep -q 'data-fiscal-inicial="1"' "$tmp/empresa"
+grep -q 'Buscar endereço pelo CEP' "$tmp/empresa"
+grep -q 'Não possuo ou não sei informar' "$tmp/empresa"
+! grep -q 'name="ibge"' "$tmp/empresa"
+# Sem CSRF não chega à consulta externa; CI não depende da disponibilidade de APIs públicas.
+test "$(curl -s -b "$tmp/g" -o /dev/null -w '%{http_code}' -d 'atualizar=1' "$g/fiscal/consultar-empresa")" = 303
+test "$(curl -s -o /dev/null -w '%{http_code}' -d 'atualizar=1' "$g/fiscal/consultar-empresa")" = 302 || test "$(curl -s -o /dev/null -w '%{http_code}' -d 'atualizar=1' "$g/fiscal/consultar-empresa")" = 303
 curl -s -b "$tmp/g" "$g/integracoes/impressoras" > "$tmp/i2"
 grep -q 'Salvar impressora fiscal' "$tmp/i2"
 grep -q 'Usar padrão do Cupom completo' "$tmp/i2"

@@ -27,7 +27,7 @@ final class FiscalController extends BaseGerencia
                 error_log('[Cardapim] Fiscal restaurante: falha de leitura (' . get_class($e) . ').');
             }
         }
-        return $this->tela('gerencia/fiscal/inicio', 'fiscal', 'Fiscal', ['fiscal' => $fiscal, 'pageStyles' => ['css/gerencia-fiscal.css']]);
+        return $this->tela('gerencia/fiscal/inicio', 'fiscal', 'Fiscal', ['fiscal' => $fiscal, 'pageStyles' => ['css/gerencia-fiscal.css'], 'pageScripts' => ['js/gerencia-fiscal.js']]);
     }
 
     private function acao(string $slug, callable $fn): Response
@@ -42,6 +42,21 @@ final class FiscalController extends BaseGerencia
         } catch (Throwable $e) {
             error_log('[Cardapim] Fiscal restaurante: falha na operação (' . get_class($e) . ').');
             return $this->voltar($url, 'erro', 'Não foi possível concluir. Confira o vínculo, a conexão da plataforma e os dados informados. Tente novamente.');
+        }
+    }
+
+    public function consultarEmpresa(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) { return $r; }
+        $headers = ['Cache-Control'=>'no-store'];
+        if (!Esquema::tem($this->db,'fiscal_restaurante')) {
+            return Response::json(['ok'=>false],503,$headers);
+        }
+        try {
+            return Response::json(['ok'=>true,'dados'=>$this->servico()->consultarEmpresa($this->marcado('atualizar'))],200,$headers);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Consulta cadastral fiscal indisponível (' . get_class($e) . ').');
+            return Response::json(['ok'=>false,'mensagem'=>'Consulta indisponível. Preencha manualmente ou tente novamente.'],422,$headers);
         }
     }
 
