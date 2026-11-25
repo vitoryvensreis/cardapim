@@ -8,6 +8,7 @@ $revisados=count(array_filter($produtos,static fn($p)=>$p['pendencias']===[]));
 <div class="painel-page fiscal-restaurante fiscal-produtos">
     <header class="painel-cabecalho"><div><h1>Cadastro fiscal dos produtos</h1><p>Configure em massa e revise as informações individuais, sem alterar o cardápio.</p></div><a class="btn btn-outline" href="<?= $e($url.'/perfis') ?>"><?= Icon::svg('layers','icon-sm') ?> Perfis tributários</a></header>
     <p><a href="<?= $e($url) ?>">Voltar à Central Fiscal</a></p>
+    <section class="bloco"><div class="bloco-cabecalho"><h2>Reaproveitar dados fiscais</h2><p>Importe a classificação de mercadorias já cadastradas a partir de XML ou CSV.</p></div><a class="btn btn-outline" href="<?= $e($url.'/produtos/importar') ?>"><?= Icon::svg('file-up','icon-sm') ?> Importar XML ou CSV</a></section>
     <section class="bloco">
         <div class="fiscal-resumo">
             <div><span>Produtos</span><strong><?= count($produtos) ?></strong></div>

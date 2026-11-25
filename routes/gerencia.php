@@ -156,6 +156,10 @@ return static function (Router $router): void {
     $router->post($g . '/fiscal/classificacoes/gtin', [FiscalProdutosController::class, 'gtin']);
     $router->post($g . '/fiscal/produtos/previa', [FiscalProdutosController::class, 'previa']);
     $router->post($g . '/fiscal/produtos/aplicar', [FiscalProdutosController::class, 'aplicar']);
+    $router->get($g . '/fiscal/produtos/importar', [FiscalProdutosController::class, 'importar']);
+    $router->post($g . '/fiscal/produtos/importar/ler', [FiscalProdutosController::class, 'lerImportacao']);
+    $router->post($g . '/fiscal/produtos/importar/previa', [FiscalProdutosController::class, 'previaImportacao']);
+    $router->post($g . '/fiscal/produtos/importar/aplicar', [FiscalProdutosController::class, 'aplicarImportacao']);
     $router->get($g . '/fiscal/produtos/{id}', [FiscalProdutosController::class, 'editarProduto']);
     $router->post($g . '/fiscal/produtos/{id}', [FiscalProdutosController::class, 'salvarProduto']);
     $router->post($g . '/fiscal/habilitar', [FiscalController::class, 'habilitar']);

@@ -13,3 +13,5 @@
 .fiscal-produtos input:not([type=checkbox]):not([type=hidden]),.fiscal-produtos select { min-height:44px; min-width:0; width:100%; padding:.5rem; border:1px solid var(--border,#ddd); border-radius:.5rem; background:var(--surface,#fff); color:inherit; font:inherit; }
 .fiscal-produtos details summary { cursor:pointer; padding:.75rem 0; font-weight:600; }
 .fiscal-produtos [data-ncm-resultados] button { text-align:left; white-space:normal; justify-content:flex-start; }
+
+.fiscal-produtos .fiscal-csv-modelo { white-space:pre-wrap; overflow-wrap:anywhere; padding:.75rem; background:var(--surface,#fff); border:1px solid var(--border,#ddd); border-radius:.5rem; }
