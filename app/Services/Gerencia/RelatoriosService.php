@@ -18,7 +18,15 @@ final class RelatoriosService
 
     public function tela(FiltrosRelatorios $f): array
     {
-        return $this->repo->linhas($f)+['resumos'=>$this->repo->resumo($f),'opcoes'=>$this->repo->opcoes()];
+        return $this->repo->linhas($f)+['resumos'=>$this->repo->resumo($f),'opcoes'=>$this->repo->opcoes($f->f['produto'])];
+    }
+
+    public function sugestoes(string $busca): array
+    {
+        return array_map(static fn(array $p):array=>[
+            'id'=>(string)$p['id'],'nome'=>(string)$p['nome'],
+            'categoria'=>(string)($p['categoria']??''),'ativo'=>(bool)$p['ativo'],
+        ],$this->repo->sugestoes($busca));
     }
 
     public static function quantidade(string $valor,string $unidade): string
