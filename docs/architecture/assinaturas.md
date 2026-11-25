@@ -50,6 +50,12 @@ plataforma conectado.
 - Troca de plano não altera os valores das cobranças pendentes já geradas (`updatePendingPayments: false`).
 - Documentação oficial: https://docs.asaas.com/docs/redirecionamento-apos-o-pagamento e https://docs.asaas.com/reference/atualizar-assinatura-existente.
 
+## Confirmação da primeira contratação
+
+- Após cadastro pago sem teste gratuito e emissão bem-sucedida, o controller registra na sessão um aviso de uso único vinculado ao gerente e restaurante.
+- A tela de assinatura consome o aviso e só renderiza o diálogo quando a primeira cobrança está pendente, com valor positivo e link de pagamento. Retornos do Asaas, recargas, logins posteriores, planos gratuitos, testes gratuitos e falhas de emissão não abrem o checkout.
+- O diálogo usa o mesmo link da fatura, em nova aba, e dados já disponíveis da assinatura. Fechar o diálogo mantém a página e o botão de pagamento original; não cria cobrança ou altera estado financeiro. CSS e JS externos são carregados somente quando necessários.
+
 ## Proteção contra duplicidade e conciliação
 
 - Emissão, troca de plano, cancelamento e reativação usam a mesma trava nomeada do MySQL por restaurante. Operações simultâneas retornam mensagem de tentativa em andamento.

@@ -160,8 +160,17 @@ pagina "$rj" "$base/$slugr/gerencia/assinatura" >/dev/null
 contem "fatura com botao Pagar agora" "$tmp/pagina.html" 'Pagar agora'
 contem "link da fatura do Asaas" "$tmp/pagina.html" 'https://sandbox.asaas.com/i/'
 contem "aguardando o primeiro pagamento" "$tmp/pagina.html" 'Aguardando pagamento'
+contem "checkout exibido após primeira contratação" "$tmp/pagina.html" 'data-checkout-assinatura'
+contem "checkout mostra confirmação da assinatura" "$tmp/pagina.html" 'Finalize sua assinatura'
+contem "checkout usa CSS externo" "$tmp/pagina.html" 'checkout-assinatura.css'
+contem "checkout usa JS externo" "$tmp/pagina.html" 'checkout-assinatura.js'
+contem "checkout mantém link do Asaas" "$tmp/pagina.html" 'data-checkout-pagar href="https://sandbox.asaas.com/i/'
+esperar "recarregar assinatura abre normalmente" "$(pagina "$rj" "$base/$slugr/gerencia/assinatura")" "200"
+nao_contem "checkout não reaparece ao recarregar" "$tmp/pagina.html" 'data-checkout-assinatura'
+nao_contem "sem checkout não carrega JS adicional" "$tmp/pagina.html" 'checkout-assinatura.js'
 esperar "retorno sem pagamento abre a assinatura" "$(pagina "$rj" "$base/$slugr/gerencia/assinatura?retorno=asaas")" "200"
 contem "retorno explica a confirmacao" "$tmp/pagina.html" 'Você voltou do Asaas'
+nao_contem "retorno Asaas não abre checkout" "$tmp/pagina.html" 'data-checkout-assinatura'
 esperar "cardapio fora do ar antes de pagar" "$(publico "$slugr")" "404"
 esperar "mas o gerente ja monta o restaurante" "$(pagina "$rj" "$base/$slugr/gerencia/estoque")" "200"
 curl -s "$fake/_teste/asaas-assinaturas" > "$tmp/subs.json"
@@ -210,6 +219,7 @@ slugrec="$(echo "${rr#* }" | sed 's~.*/\([a-z0-9-]*\)/gerencia.*~\1~')"
 esperar "cadastro com falha externa continua recuperável" "${rr%% *} ${rr#* }" "303 $base/$slugrec/gerencia/assinatura"
 pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
 contem "mostra botão de gerar cobrança" "$tmp/pagina.html" 'Gerar cobrança'
+nao_contem "falha de cobrança não abre checkout" "$tmp/pagina.html" 'data-checkout-assinatura'
 esperar "recuperação da recorrência" "$(enviar "$recj" "$base/$slugrec/gerencia/assinatura/cobranca" "$base/$slugrec/gerencia/assinatura")" "303 $base/$slugrec/gerencia/assinatura"
 pagina "$recj" "$base/$slugrec/gerencia/assinatura" >/dev/null
 contem "cobrança original recuperada" "$tmp/pagina.html" 'Pagar agora'

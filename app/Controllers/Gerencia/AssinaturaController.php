@@ -6,6 +6,7 @@ namespace Cardapim\Controllers\Gerencia;
 
 use Cardapim\Core\RateLimiter;
 use Cardapim\Core\Response;
+use Cardapim\Core\Session;
 use Cardapim\Services\Plataforma\AssinaturaCobranca;
 use Cardapim\Repositories\Gerencia\AssinaturaRepository;
 use Cardapim\Repositories\PlanoRepository;
@@ -37,7 +38,21 @@ final class AssinaturaController extends BaseGerencia
                 }
             }
         }
+        $checkout = Session::flash('checkout_primeira_assinatura');
+        $aberta = $vigente['fatura_aberta'] ?? null;
+        $mostrarCheckout = is_array($checkout)
+            && ($checkout['restaurante'] ?? null) === (int) $this->restaurante['id']
+            && ($checkout['usuario'] ?? null) === $this->usuario->id
+            && !$retornoAsaas
+            && $this->restaurante['status'] === 'pendente'
+            && $vigente !== null && $vigente['status'] === 'aguardando'
+            && (float) $vigente['valor'] > 0
+            && $aberta !== null && $aberta['status'] === 'pendente'
+            && (float) $aberta['valor'] > 0 && !empty($aberta['link_fatura']);
         return $this->tela('gerencia/assinatura', 'assinatura', 'Assinatura', [
+            'mostrarCheckout' => $mostrarCheckout,
+            'pageStyles' => $mostrarCheckout ? ['css/checkout-assinatura.css'] : [],
+            'pageScripts' => $mostrarCheckout ? ['js/checkout-assinatura.js'] : [],
             'vigente' => $vigente,
             'retornoAsaas' => $retornoAsaas,
             'faturas' => $servico->faturas(),
