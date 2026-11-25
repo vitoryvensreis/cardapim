@@ -25,6 +25,23 @@ final class VerificacaoFiscal
         foreach ([['cst_ibs_cbs','cclass_trib'],['cst_is','cclass_is']] as [$a,$b]) {
             if ((($dados[$a] ?? '')==='')!== (($dados[$b] ?? '')==='')) { $r[]='Informe o par '.$a.' e '.$b.' ou revise sua aplicabilidade.'; }
         }
+        // MOC NFC-e: I08-150, N12-30, N12a-20, N12-40/44, N12a-40/44.
+        // Escopo inicial: venda de mercadorias de restaurante, sem combustível, ISSQN ou remessas.
+        $cfop=(string)($dados['cfop'] ?? '');
+        $icms=(string)($dados['situacao_icms'] ?? '');
+        $uf=(string)($dados['uf'] ?? '');
+        $crt=(string)($dados['crt'] ?? '');
+        $venda=['5101','5102','5103','5104','5115'];
+        if ($cfop!=='' && !in_array($cfop,[...$venda,'5405'],true)) { $r[]='CFOP fora das vendas de mercadoria suportadas nesta etapa; confira a regra I08-150.'; }
+        if ($icms!=='') {
+            $aceitos=$crt==='4'?['102','300']:($crt==='1'?['102','103','300','400','500','900']:['00','20','40','41','60','90']);
+            if (!in_array($icms,$aceitos,true)) { $r[]='CST/CSOSN fora do escopo NFC-e deste cadastro.'; }
+            if (in_array($icms,['90','900','103','400'],true)) { $r[]='Confirme a permissão específica da UF para esta situação tributária na homologação.'; }
+            if ($cfop!=='' && in_array($icms,['60','500'],true) && $cfop!=='5405') { $r[]='CFOP incompatível com ICMS já cobrado por ST neste escopo.'; }
+            if ($cfop==='5405' && !in_array($icms,['60','500'],true) && !($uf==='CE' && in_array($icms,['90','900'],true))) { $r[]='Confira a compatibilidade entre CFOP 5405 e CST/CSOSN.'; }
+            if (in_array($icms,['00','20'],true) && ($dados['aliq_icms'] ?? '')==='') { $r[]='Informe a alíquota ICMS conforme orientação fiscal.'; }
+            if ($icms==='20' && ($dados['aliq_reducao_icms'] ?? '')==='') { $r[]='Informe a redução da base de cálculo conforme orientação fiscal.'; }
+        }
         // Não presumir obrigatoriedade, isenção ou alíquotas a partir do regime.
         return array_values(array_unique($r));
     }

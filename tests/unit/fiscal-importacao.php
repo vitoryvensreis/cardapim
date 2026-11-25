@@ -1,0 +1,45 @@
+<?php
+declare(strict_types=1);
+require dirname(__DIR__,2).'/bootstrap/app.php';
+use Cardapim\Modules\Fiscal\ImportacaoFiscal as I;
+use Cardapim\Modules\Fiscal\CatalogosFiscais as C;
+use Cardapim\Modules\Fiscal\ComposicaoFiscal as K;
+use Cardapim\Modules\Fiscal\VerificacaoFiscal as V;
+function fiOk(bool $v,string $m): void { if (!$v) { throw new RuntimeException($m); } }
+function fiRejeitar(callable $f): void { try { $f(); } catch (RuntimeException|InvalidArgumentException) { return; } throw new LogicException('Entrada inválida aceita.'); }
+$csv="nome;ncm;gtin;origem;cfop;preco\nProduto;22021000;7894900011517;0;1102;99.00\n";
+$it=I::csv($csv)[0];
+fiOk($it['dados']===['ncm'=>'22021000','origem'=>'0','gtin'=>'7894900011517'],'Projeção CSV indevida.');
+fiRejeitar(fn()=>I::csv("nome;nome;ncm\nA;B;22021000"));
+fiRejeitar(fn()=>I::csv("nome;ncm\nA;123"));
+fiRejeitar(fn()=>I::csv("nome;ncm\n".str_repeat("A;22021000\n",201)));
+$cnpj='11444777000161';$key=str_repeat('1',44);
+$xml='<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe'.$key.'"><ide><mod>55</mod><tpAmb>1</tpAmb></ide><emit><CNPJ>11222333000181</CNPJ></emit><dest><CNPJ>'.$cnpj.'</CNPJ></dest><det nItem="1"><prod><cProd>ITEM</cProd><xProd>Produto XML</xProd><cEAN>7894900011517</cEAN><NCM>22021000</NCM><CEST>0300700</CEST><CFOP>5102</CFOP><uCom>UN</uCom><qCom>10</qCom><vUnCom>2.00</vUnCom><cEANTrib>7894900011517</cEANTrib><uTrib>UN</uTrib></prod><imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><pICMS>18.00</pICMS></ICMS00></ICMS></imposto></det></infNFe></NFe><protNFe><infProt><chNFe>'.$key.'</chNFe><cStat>100</cStat></infProt></protNFe></nfeProc>';
+$x=I::xml($xml,$cnpj)[0];
+fiOk($x['dados']['origem']==='0' && $x['dados']['gtin']==='7894900011517' && $x['dados']['cest']==='0300700' && !isset($x['dados']['cfop'],$x['dados']['preco'],$x['dados']['fator']),'Projeção XML indevida.');
+fiRejeitar(fn()=>I::xml($xml,'99999999999999'));
+fiRejeitar(fn()=>I::xml(str_replace('<cStat>100','<cStat>110',$xml),$cnpj));
+fiRejeitar(fn()=>I::xml(str_replace('<tpAmb>1','<tpAmb>2',$xml),$cnpj));
+fiRejeitar(fn()=>I::xml('<!DOCTYPE nfeProc [<!ENTITY a SYSTEM "file:///etc/passwd">]>'.$xml,$cnpj));
+fiOk(I::sugerir($x,[['id'=>7,'dados'=>['gtin'=>'7894900011517','confirmado'=>true]]])===7,'Sugestão única falhou.');
+fiOk(I::sugerir($x,[['id'=>7,'dados'=>['gtin'=>'7894900011517','confirmado'=>true]],['id'=>8,'dados'=>['gtin'=>'7894900011517','confirmado'=>true]]])===null,'GTIN ambíguo sugerido.');
+$m=I::mesclar(['origem'=>'1','confirmado'=>true],$x['dados'],false,null);
+fiOk($m['dados']['origem']==='1' && $m['dados']['ncm']==='22021000' && !$m['dados']['confirmado'],'Preservação/revisão falhou.');
+$ce=['tipo'=>'cest','itens'=>C::normalizar('cest',"codigo;descricao;ncm;cst;nfce\n03.007.00;Teste;2202;;\n")];
+fiOk(C::contem($ce,'0300700','22021000') && !C::contem($ce,'0300700','19059090'),'Filtro CEST/NCM falhou.');
+fiRejeitar(fn()=>C::normalizar('cest',"codigo;descricao;ncm\n0300700;Teste;\n"));
+$cl=['tipo'=>'cclass_trib','itens'=>C::normalizar('cclass_trib',"codigo;descricao;ncm;cst;nfce\n000001;Teste;;000;sim\n000002;Vedado;;000;nao\n")];
+fiOk(C::contem($cl,'000001','','000') && !C::contem($cl,'000001','','200') && !C::contem($cl,'000002','','000'),'Filtro classificação/CST/modelo falhou.');
+fiOk(V::perfil(['crt'=>'4','uf'=>'CE','cfop'=>'5403','situacao_icms'=>'102'],[])!==[],'Perfil inconsistente passou.');
+$est=['combo'=>true,'fixos'=>[['id_produto'=>2,'quantidade'=>'1']],'opcoes'=>[3=>['nome'=>'Adicional','grupo'=>'Extras','preco'=>'1.00','ligado'=>null]]];
+$prod=[1=>['id'=>1],2=>['id'=>2],4=>['id'=>4]];
+$post=['confirmado'=>'1','assinatura'=>K::assinatura($est),'referencia'=>'Orientação de teste','opcoes'=>[3=>['modo'=>'produto','produto'=>'4']]];
+$cfg=K::normalizar(1,$est,$prod,[1=>$est],$post);
+fiOk($cfg['modo']==='componentes' && $cfg['opcoes'][3]['produto']===4,'Composição do combo falhou.');
+fiOk(K::pendencias(1,$est,['assinatura'=>K::assinatura($est),'dados'=>$cfg],[2=>[],4=>[]],[1=>$est])===[],'Componentes válidos recusados.');
+fiOk(K::pendencias(1,$est,['assinatura'=>K::assinatura($est),'dados'=>$cfg],[2=>['Pendente'],4=>[]],[1=>$est])!==[],'Componente incompleto aceito.');
+$est2=$est;$est2['fixos'][0]['quantidade']='2';
+fiOk(K::pendencias(1,$est2,['assinatura'=>K::assinatura($est),'dados'=>$cfg],[2=>[],4=>[]],[1=>$est2])!==[],'Composição alterada não detectada.');
+fiRejeitar(fn()=>K::normalizar(1,$est,$prod,[1=>$est],array_replace($post,['opcoes'=>[3=>['modo'=>'principal']]])));
+fiRejeitar(fn()=>K::normalizar(1,$est,$prod,[1=>$est],array_replace($post,['opcoes'=>[3=>['modo'=>'produto','produto'=>'999']]])));
+echo "Importação segura, catálogos e composições fiscais verificados sem rede.\n";

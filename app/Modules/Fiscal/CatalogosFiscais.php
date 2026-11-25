@@ -107,8 +107,11 @@ final class CatalogosFiscais
     public static function contem(?array $d,string $codigo,string $ncm='',string $cst=''): bool
     {
         if ($d===null || $codigo==='') { return false; }
-        foreach (self::pesquisar($d,$codigo,$ncm,$cst,10000) as $r) {
-            if ($r['codigo']===$codigo) { return true; }
+        foreach ($d['itens'] ?? [] as $r) {
+            if ($r['codigo']!==$codigo || $r['nfce']==='nao') { continue; }
+            if ($ncm!=='' && $r['ncm']!=='' && !str_starts_with($ncm,$r['ncm'])) { continue; }
+            if ($cst!=='' && $r['cst']!=='' && $cst!==$r['cst']) { continue; }
+            return true;
         }
         return false;
     }

@@ -53,6 +53,14 @@ try {
     $lote=$s->previa([(string)$pid],null,['campos'=>['origem'],'origem'=>'1','sobrescrever'=>'1']);
     $s->aplicar($lote);
     fpCheck($s->estado()['produtos'][$pid]['dados']['origem']==='1');
+    $import=$s->lerImportacao('csv',"nome;ncm;origem;fator\nProduto teste;;2;2\n");
+    $dest=[0=>(string)$pid];
+    $pv=$s->previaImportacao($import,$dest,true);
+    fpCheck($pv[0]['dados']['origem']==='2' && $pv[0]['dados']['gtin']==='SEM GTIN');
+    try { $s->previaImportacao($import,[0=>'999999999999999999'],true); throw new LogicException('Importação fora do tenant aceita.'); } catch (RuntimeException) {}
+    fpCheck($s->aplicarImportacao($import,$dest,true,$pv)===1);
+    fpCheck($s->estado()['produtos'][$pid]['dados']['fator']==='2');
+    try { $s->aplicarImportacao($import,$dest,true,$pv); throw new LogicException('Prévia antiga de importação aceita.'); } catch (RuntimeException) {}
     $oldPreview=$s->previa($ids,$perfil);
     $s->perfil($p+['id_perfil'=>(string)$perfil,'versao'=>'1','confirmar_impacto'=>'1']);
     try { $s->aplicar($oldPreview); throw new LogicException('Prévia antiga aceita.'); } catch (RuntimeException) {}
@@ -65,6 +73,31 @@ try {
         fpCheck((int)$cats[$cat]===$perfil);
     }
     fpCheck((int)$s->estado()['produtos'][$pid]['versao']===2);
+    $catalogos=new \Cardapim\Modules\Fiscal\CatalogosFiscais($db);
+    try { $catalogos->importar($gerente,'cfop','CI-FORBIDDEN','2020-01-01',"codigo;descricao\n5101;Teste\n"); throw new LogicException('Gerente importou catálogo global.'); } catch (RuntimeException) {}
+    fpCheck($catalogos->importar($admin,'cfop','CI-FISCAL-TESTE','2020-01-01',"codigo;descricao\n5101;Teste\n")===1);
+    fpCheck($catalogos->importar($admin,'cfop','CI-FISCAL-FUTURO','2099-01-01',"codigo;descricao\n5102;Teste futuro\n")===1);
+    fpCheck($catalogos->vigente('cfop')['versao']==='CI-FISCAL-TESTE');
+    $conferencia=$s->conferencia();
+    fpCheck(isset($conferencia['verificacao'][$pid]));
+    $db->beginTransaction();
+    try {
+        $pInsert=$db->prepare('INSERT INTO produtos(id_restaurante,nome,preco,controla_estoque,disponivel) VALUES (?,?,?,0,1)');
+        $pInsert->execute([$id,'Combo fiscal CI','15.00']); $comboId=(int)$db->lastInsertId();
+        $db->prepare('INSERT INTO combos(id_produto,id_restaurante,maximo) VALUES (?,?,NULL)')->execute([$comboId,$id]);
+        $db->prepare('INSERT INTO combo_itens(id_combo,id_produto,id_restaurante,quantidade,ordem) VALUES (?,?,?,?,0)')->execute([$comboId,$pid,$id,1]);
+        $comRepo=new \Cardapim\Repositories\Estoque\ComplementoRepository($db);
+        $gid=$comRepo->criarGrupo($id,'Extras fiscais CI',0,1,1);
+        $oid=$comRepo->criarOpcao($id,$gid,['nome'=>'Extra CI','descricao'=>null,'preco'=>'1.00','codigo'=>null,'imagem_path'=>null,'disponivel'=>1,'ordem'=>0]);
+        $comRepo->salvarGruposDoProduto($id,$comboId,[$gid]);
+        $com=new \Cardapim\Modules\Fiscal\ComposicaoFiscal($db,$id);
+        $estruturas=$com->estruturas();$est=$estruturas[$comboId];
+        fpCheck($est['combo'] && $est['fixos'][0]['id_produto']===$pid && isset($est['opcoes'][$oid]));
+        $cfg=\Cardapim\Modules\Fiscal\ComposicaoFiscal::normalizar($comboId,$est,[$pid=>['id'=>$pid]],$estruturas,
+            ['confirmado'=>'1','assinatura'=>\Cardapim\Modules\Fiscal\ComposicaoFiscal::assinatura($est),'referencia'=>'CI','opcoes'=>[$oid=>['modo'=>'produto','produto'=>(string)$pid]]]);
+        $com->salvar($comboId,$est,$cfg,$admin->id);
+        fpCheck($com->configuracoes()[$comboId]['dados']['opcoes'][$oid]['produto']===$pid);
+    } finally { $db->rollBack(); }
     $r['habilitado']=false; $f->serializar($id,fn()=> $f->salvar($id,$r));
     fpCheck(!S::disponivel($db,$id));
     try { $s->produto($pid,[]); throw new LogicException('Módulo desligado aceitou escrita.'); } catch (RuntimeException) {}
@@ -82,6 +115,7 @@ try {
     fpCheck($s->estado()['produtos'][$pid]===$antes);
     $produtos->execute([$id]); fpCheck($produtos->fetchAll(PDO::FETCH_ASSOC)===$originais);
 } finally {
+    $db->prepare('DELETE FROM fiscal_catalogos WHERE versao IN (?,?)')->execute(['CI-FISCAL-TESTE','CI-FISCAL-FUTURO']);
     A::global($db,$admin,true);
     $db->prepare('DELETE FROM fiscal_liberacoes WHERE id_restaurante=?')->execute([$id]);
     foreach (['fiscal_produtos','fiscal_categoria_perfil','fiscal_perfis'] as $t) { $db->prepare('DELETE FROM '.$t.' WHERE id_restaurante=?')->execute([$id]); }
