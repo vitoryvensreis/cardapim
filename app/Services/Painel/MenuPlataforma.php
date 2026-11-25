@@ -63,6 +63,14 @@ final class MenuPlataforma
             'planejado' => [],
             'pronto' => true,
         ],
+        'fiscal' => [
+            'titulo' => 'Central fiscal',
+            'rotulo' => 'Fiscal',
+            'icone' => 'receipt',
+            'descricao' => 'Integração administrativa e acompanhamento fiscal da plataforma.',
+            'planejado' => [],
+            'pronto' => true,
+        ],
         'integracoes' => [
             'titulo' => 'Integrações',
             'rotulo' => 'Integrações',
@@ -109,7 +117,7 @@ final class MenuPlataforma
     public const GRUPOS = [
         '' => ['dashboard'],
         'Gestão' => ['restaurantes', 'planos', 'faturas', 'usuarios'],
-        'Plataforma' => ['integracoes', 'tags', 'logs', 'configuracoes', 'suporte'],
+        'Plataforma' => ['fiscal', 'integracoes', 'tags', 'logs', 'configuracoes', 'suporte'],
         'Conta' => ['minha-conta'],
     ];
 

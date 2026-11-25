@@ -1,0 +1,16 @@
+/* Central fiscal: componentes locais; usa os tokens e botoes do painel. */
+.fiscal-central .fiscal-metricas,
+.fiscal-central .fiscal-grade { display:grid; grid-template-columns:minmax(0,1fr); gap:1rem; margin-block:1rem; }
+.fiscal-central .fiscal-metrica { min-width:0; margin:0; }
+.fiscal-central .fiscal-metrica h2 { font-size:.875rem; margin:0 0 .5rem; }
+.fiscal-central .fiscal-metrica strong { display:block; font-size:1.25rem; overflow-wrap:anywhere; }
+.fiscal-central .fiscal-metrica p { margin:.5rem 0 0; }
+.fiscal-central .fiscal-form { display:grid; gap:.5rem; }
+.fiscal-central .fiscal-form label { font-weight:600; margin-top:.5rem; }
+.fiscal-central .fiscal-form input:not([type=hidden]), .fiscal-central .fiscal-form select { width:100%; min-width:0; min-height:44px; font:inherit; padding:.625rem .75rem; border:1px solid var(--border,#d6d6d6); border-radius:.5rem; color:inherit; background:var(--surface,#fff); }
+.fiscal-central .fiscal-clientes article { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; padding:.75rem 0; border-bottom:1px solid var(--border,#d6d6d6); }
+.fiscal-central .fiscal-clientes article div { min-width:0; overflow-wrap:anywhere; }
+.fiscal-central .fiscal-clientes p { margin:.25rem 0 0; }
+@media (min-width: 640px) { .fiscal-central .fiscal-metricas { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width: 1100px) { .fiscal-central .fiscal-grade { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; } }
+@media (min-width: 1440px) { .fiscal-central .fiscal-metricas { grid-template-columns:repeat(4,minmax(0,1fr)); } }

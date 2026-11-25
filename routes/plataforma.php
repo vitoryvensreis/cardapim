@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Cardapim\Controllers\Plataforma\ConfiguracoesController;
 use Cardapim\Controllers\Plataforma\IntegracoesController;
+use Cardapim\Controllers\Plataforma\FiscalController;
 use Cardapim\Controllers\Plataforma\PainelController;
 use Cardapim\Controllers\Plataforma\PlanosController;
 use Cardapim\Controllers\Plataforma\RestaurantesController;
@@ -20,6 +21,11 @@ return static function (Router $router): void {
     $router->get('/painel', [PainelController::class, 'inicio']);
 
     $router->get('/painel/integracoes', [IntegracoesController::class, 'inicio']);
+    $router->get('/painel/fiscal', [FiscalController::class, 'inicio']);
+    $router->post('/painel/fiscal', [FiscalController::class, 'salvar']);
+    $router->post('/painel/fiscal/testar', [FiscalController::class, 'testar']);
+    $router->post('/painel/fiscal/ativar', [FiscalController::class, 'ativar']);
+    $router->post('/painel/fiscal/desativar', [FiscalController::class, 'desativar']);
     // Routes API global da plataforma: uma unica chave, apenas adm_master.
     $router->get('/painel/integracoes/google-maps', [IntegracoesController::class, 'google']);
     $router->post('/painel/integracoes/google-maps', [IntegracoesController::class, 'googleSalvar']);

@@ -43,6 +43,13 @@ $cartoes = [
             </article>
         <?php endforeach; ?>
 
+        <article class="integracao-cartao">
+            <div class="integracao-topo"><span class="integracao-icone" aria-hidden="true"><?= Icon::svg('receipt') ?></span></div>
+            <h2>Fiscal — API NeXT</h2>
+            <p>Credenciais administrativas, consulta de emitentes e monitoramento fiscal.</p>
+            <a class="btn btn-outline btn-sm btn-block" href="<?= $e($base . '/fiscal') ?>"><?= Icon::svg('settings', 'icon-sm') ?>Abrir Central Fiscal</a>
+        </article>
+
         <article class="integracao-cartao is-google-maps">
             <div class="integracao-topo">
                 <span class="integracao-icone" aria-hidden="true"><?= Icon::svg('map-pin') ?></span>
