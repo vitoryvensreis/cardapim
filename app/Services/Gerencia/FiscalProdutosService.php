@@ -24,7 +24,7 @@ final class FiscalProdutosService
     /** Consulta leve e fail-closed: estoque continua disponível se migration/integração fiscal falhar. */
     public static function disponivel(PDO $db,int $id): bool
     {
-        if (!Esquema::tem($db,'fiscal_restaurante') || !Esquema::tem($db,'fiscal_produtos')) { return false; }
+        if (!FiscalAcesso::permitido($db,$id) || !Esquema::tem($db,'fiscal_restaurante') || !Esquema::tem($db,'fiscal_produtos')) { return false; }
         try {
             $q=$db->prepare('SELECT f.cnpj,r.cnpj AS atual FROM restaurante_fiscal f JOIN restaurantes r ON r.id=f.id_restaurante WHERE f.id_restaurante=? AND f.habilitado=1');
             $q->execute([$id]);

@@ -6,6 +6,7 @@ namespace Cardapim\Controllers\Plataforma;
 
 use Cardapim\Core\Response;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Services\Gerencia\FiscalAcesso;
 use Cardapim\Services\Plataforma\FiscalNextService;
 use Throwable;
 
@@ -22,9 +23,34 @@ final class FiscalController extends BasePlataforma
             error_log('[Cardapim] Fiscal NeXT: falha ao ler configuração (' . get_class($e) . ').');
             $fiscal = null;
         }
+        try { $liberacoes=FiscalAcesso::painel($this->db,is_string($_GET['busca_restaurante'] ?? null)?$_GET['busca_restaurante']:''); }
+        catch (Throwable $e) { $liberacoes=null; }
         return $this->tela('plataforma/fiscal/inicio', 'fiscal', 'Central fiscal', [
-            'fiscal' => $fiscal, 'restaurantesFiscais' => $this->servico()->restaurantes(), 'pageStyles' => ['css/plataforma-fiscal.css'],
+            'fiscal' => $fiscal, 'liberacoes'=>$liberacoes, 'restaurantesFiscais' => $this->servico()->restaurantes(), 'pageStyles' => ['css/plataforma-fiscal.css'],
         ]);
+    }
+
+    public function liberarRestaurante(): Response
+    {
+        if ($r=$this->entrar(true)) { return $r; }
+        $id=filter_var($this->post('id_restaurante'),FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+        $v=$this->post('permitido');
+        try {
+            if ($id===false || !in_array($v,['0','1'],true)) { throw new \RuntimeException('Confira a autorização.'); }
+            FiscalAcesso::alterar($this->db,$this->usuario,$id,$v==='1');
+            return $this->voltar('/painel/fiscal#liberacao-fiscal','sucesso',$v==='1'?'Fiscal liberado para o restaurante.':'Fiscal ocultado. Configurações preservadas.');
+        } catch (Throwable $e) { return $this->voltar('/painel/fiscal#liberacao-fiscal','erro','Não foi possível alterar a autorização.'); }
+    }
+
+    public function visibilidade(): Response
+    {
+        if ($r=$this->entrar(true)) { return $r; }
+        $v=$this->post('visivel');
+        try {
+            if (!in_array($v,['0','1'],true)) { throw new \RuntimeException('Valor inválido.'); }
+            FiscalAcesso::global($this->db,$this->usuario,$v==='1');
+            return $this->voltar('/painel/fiscal#liberacao-fiscal','sucesso',$v==='1'?'Visibilidade restaurada para restaurantes autorizados.':'Fiscal ocultado de todos. Autorizações preservadas.');
+        } catch (Throwable $e) { return $this->voltar('/painel/fiscal#liberacao-fiscal','erro','Não foi possível alterar a visibilidade.'); }
     }
 
     public function aprovarRestaurante(): Response

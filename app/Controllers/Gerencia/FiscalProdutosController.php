@@ -18,6 +18,9 @@ final class FiscalProdutosController extends BaseGerencia
     private function acesso(string $slug,bool $post=false): ?Response
     {
         if ($r=$this->entrar($slug,$post)) { return $r; }
+        if (!\Cardapim\Services\Gerencia\FiscalAcesso::permitido($this->db,$this->restaurante['id'])) {
+            return \Cardapim\Services\Auth\Guard::proibido($this->usuario,'Módulo indisponível para este restaurante.');
+        }
         if (!FiscalProdutosService::disponivel($this->db,$this->restaurante['id'])) {
             return $this->tela('gerencia/fiscal/produtos/indisponivel','fiscal','Cadastro fiscal',[],403);
         }

@@ -90,6 +90,7 @@ $url = $base . '/fiscal';
             <?php endif; ?>
         </section>
     <?php endif; ?>
+    <?php require __DIR__.'/_liberacoes.php'; ?>
     <section class="bloco">
         <div class="bloco-cabecalho"><h2><?= Icon::svg('store') ?>Restaurantes fiscais</h2><p>Confira o vínculo do CNPJ antes de autorizar o cadastro automático. Emissão real permanece bloqueada.</p></div>
         <?php if ($restaurantesFiscais === null): ?><p>Indicadores ainda indisponíveis.</p>

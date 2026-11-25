@@ -6,6 +6,8 @@ namespace Cardapim\Controllers\Gerencia;
 use Cardapim\Core\Response;
 use Cardapim\Core\Session;
 use Cardapim\Services\Gerencia\FiscalService;
+use Cardapim\Services\Gerencia\FiscalAcesso;
+use Cardapim\Services\Auth\Guard;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Shared\Esquema;
 use Throwable;
@@ -20,6 +22,7 @@ final class FiscalController extends BaseGerencia
     public function inicio(string $slug): Response
     {
         if ($r = $this->entrar($slug)) { return $r; }
+        if (!FiscalAcesso::permitido($this->db,$this->restaurante['id'])) { return Guard::proibido($this->usuario,'Módulo indisponível para este restaurante.'); }
         $fiscal = null;
         if (Esquema::tem($this->db, 'fiscal_restaurante')) {
             try {
@@ -39,6 +42,7 @@ final class FiscalController extends BaseGerencia
     private function acao(string $slug, callable $fn): Response
     {
         if ($r = $this->entrar($slug, true)) { return $r; }
+        if (!FiscalAcesso::permitido($this->db,$this->restaurante['id'])) { return Guard::proibido($this->usuario,'Módulo indisponível para este restaurante.'); }
         $url = $this->url('fiscal');
         if (!Esquema::tem($this->db, 'fiscal_restaurante')) {
             return $this->voltar($url, 'erro', 'A configuração fiscal ainda está sendo disponibilizada.');
@@ -54,6 +58,7 @@ final class FiscalController extends BaseGerencia
     public function consultarEmpresa(string $slug): Response
     {
         if ($r = $this->entrar($slug, true)) { return $r; }
+        if (!FiscalAcesso::permitido($this->db,$this->restaurante['id'])) { return Guard::proibido($this->usuario,'Módulo indisponível para este restaurante.'); }
         $headers = ['Cache-Control'=>'no-store'];
         if (!Esquema::tem($this->db,'fiscal_restaurante')) {
             return Response::json(['ok'=>false],503,$headers);

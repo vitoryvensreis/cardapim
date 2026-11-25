@@ -21,6 +21,7 @@ try {
 $grupos = [];
 foreach (MenuGerencia::GRUPOS as $grupo => $chaves) {
     foreach ($chaves as $chave) {
+        if ($chave === 'fiscal' && !\Cardapim\Services\Gerencia\FiscalAcesso::permitido(Database::connect(),(int)$restaurante['id'])) { continue; }
         $area = MenuGerencia::AREAS[$chave] ?? null;
         $grupos[$grupo][] = [
             MenuGerencia::url($slug, $chave),
