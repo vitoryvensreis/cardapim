@@ -96,6 +96,13 @@ final class FiscalProdutosService
             $d['ncm_fonte']=isset($catalogo['itens'][$d['ncm']])?$catalogo['versao']:'';
             if ($d['ncm']!=='' && $catalogo!==null && $d['ncm_fonte']==='') { throw new RuntimeException('NCM não localizado como vigente na BrasilAPI. Confira a classificação.'); }
             if ($d['ncm_fonte']==='') { $d['confirmado']=false; }
+            if ($d['cest']!=='' && $d['confirmado']) {
+                $cest=(new \Cardapim\Modules\Fiscal\CatalogosFiscais($this->db))->vigente('cest');
+                if (!$cest) { $d['confirmado']=false; }
+                elseif (!\Cardapim\Modules\Fiscal\CatalogosFiscais::contem($cest,$d['cest'],$d['ncm'])) {
+                    throw new RuntimeException('CEST não localizado para o NCM. Confira código, descrição e segmento.');
+                }
+            }
             $this->repo->salvarProduto($id,$perfil,$perfil===null?null:(int)$perfis[$perfil]['versao'],$d,$this->usuario->id);
         });
         Auditoria::registrar($this->usuario,'Fiscal: produto salvo','Produto '.$id.'; cadastro fiscal independente.');

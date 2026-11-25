@@ -49,6 +49,17 @@ test "$(curl -s -b "$tmp/g" -o "$tmp/perfis" -w '%{http_code}' "$g/fiscal/perfis
 grep -q 'Modelos para começar' "$tmp/perfis"
 test "$(curl -s -b "$tmp/g" -o "$tmp/form" -w '%{http_code}' "$g/fiscal/perfis/novo")" = 200
 grep -q 'Nome do perfil' "$tmp/form"
+grep -q 'data-cest-pesquisar' "$tmp/prod"
+test "$(curl -s -b "$tmp/g" -o "$tmp/cest-invalid" -w '%{http_code}' "$g/fiscal/produtos/catalogos?tipo=cest&formato=json")" = 422
+test "$(curl -s -b "$tmp/g" -o "$tmp/cest-ausente" -w '%{http_code}' "$g/fiscal/produtos/catalogos?tipo=cest&formato=json&ncm=22021000")" = 503
+test "$(post "$g/fiscal/perfis/salvar" 'nome=Rascunho fiscal teste')" = 303
+curl -s -b "$tmp/g" -c "$tmp/g" "$g/fiscal/perfis/novo" > "$tmp/rascunho"
+grep -q 'Rascunho fiscal teste' "$tmp/rascunho"
+grep -q 'Os dados digitados foram recuperados' "$tmp/rascunho"
+test "$(curl -s -b "$tmp/g" -c "$tmp/g" -o /dev/null -w '%{http_code}' --data-urlencode "_csrf=$csrf" --data-urlencode "ncm=123" --data-urlencode "origem=2" "$g/fiscal/produtos/$pid")" = 303
+curl -s -b "$tmp/g" -c "$tmp/g" "$g/fiscal/produtos/$pid" > "$tmp/prod-rascunho"
+grep -q 'name="ncm" inputmode="numeric" maxlength="8" value="123"' "$tmp/prod-rascunho"
+grep -q 'Os dados digitados foram recuperados' "$tmp/prod-rascunho"
 curl -s -b "$tmp/g" "$g/estoque/produtos/novo" > "$tmp/novo-on"
 grep -q 'titulo-dados-fiscais' "$tmp/novo-on"
 # Revogar com módulo ativo: card, menu e rotas desaparecem; autorização local permanece.

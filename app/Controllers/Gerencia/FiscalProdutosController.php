@@ -47,6 +47,25 @@ final class FiscalProdutosController extends BaseGerencia
         return $this->voltar($url,'erro',$msg);
     }
 
+    private function chaveRascunho(string $tipo,string $id): string
+    { return 'fiscal_rascunho_'.$this->restaurante['id'].'_'.$this->usuario->id.'_'.$tipo.'_'.$id; }
+
+    private function guardarRascunho(string $tipo,string $id): void
+    {
+        $campos=$tipo==='perfil'
+            ? array_merge(['nome','operacao','cfop','situacao_icms','inicio','referencia','revisado','cst_pis','cst_cofins','cbenef','cst_ibs_cbs','cclass_trib','cst_is','cclass_is'],array_map(static fn($k)=>'aliq_'.$k,Validar::ALIQUOTAS))
+            : ['id_perfil','ncm','cest','origem','gtin','gtin_tributavel','unidade_comercial','unidade_tributavel','fator','confirmado'];
+        $dados=[];
+        foreach ($campos as $k) { if (is_string($_POST[$k] ?? null)) { $dados[$k]=mb_substr($_POST[$k],0,250); } }
+        Session::set($this->chaveRascunho($tipo,$id),['expira'=>time()+600,'dados'=>$dados]);
+    }
+
+    private function recuperarRascunho(string $tipo,string $id): ?array
+    {
+        $r=Session::flash($this->chaveRascunho($tipo,$id));
+        return is_array($r) && ($r['expira'] ?? 0)>=time() && is_array($r['dados'] ?? null)?$r['dados']:null;
+    }
+
     public function inicio(string $slug): Response
     {
         if ($r=$this->acesso($slug)) { return $r; }
@@ -78,7 +97,9 @@ final class FiscalProdutosController extends BaseGerencia
                     $dados=$e['perfis'][$copiar]['dados']; $dados['nome']=mb_substr($dados['nome'],0,112).' (cópia)';
                 }
             }
-            return $this->pagina('perfil-form','Perfil tributário',['perfil'=>$perfil,'dados'=>$dados,'empresa'=>$e['empresa']]);
+            $rascunho=$this->recuperarRascunho('perfil',(string)($id ?? 'novo'));
+            if ($rascunho!==null) { $dados=array_replace($dados,$rascunho); }
+            return $this->pagina('perfil-form','Perfil tributário',['perfil'=>$perfil,'dados'=>$dados,'empresa'=>$e['empresa'],'rascunho'=>$rascunho!==null]);
         } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/perfis')); }
     }
 
@@ -86,7 +107,11 @@ final class FiscalProdutosController extends BaseGerencia
     {
         if ($r=$this->acesso($slug,true)) { return $r; }
         try { $id=$this->servico()->perfil($_POST); return $this->voltar($this->url('fiscal/perfis/'.$id),'sucesso','Nova versão do perfil salva. Confira os produtos vinculados.'); }
-        catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/perfis/'.(self::id($this->post('id_perfil')) ?? 'novo'))); }
+        catch (Throwable $e) {
+            $id=(string)(self::id($this->post('id_perfil')) ?? 'novo');
+            $this->guardarRascunho('perfil',$id);
+            return $this->falha($e,$this->url('fiscal/perfis/'.$id));
+        }
     }
 
     public function editarProduto(string $slug,string $idTexto): Response
@@ -106,7 +131,13 @@ final class FiscalProdutosController extends BaseGerencia
                 $produto['id_perfil']=$origem['id_perfil'];
                 $copiaNome=$origem['nome'];
             }
-            return $this->pagina('produto-form','Dados fiscais do produto',$e+['produto'=>$produto,'copiaNome'=>$copiaNome]);
+            $rascunho=$this->recuperarRascunho('produto',(string)$id);
+            if ($rascunho!==null) {
+                $produto['dados']=array_replace($produto['dados'],$rascunho);
+                $produto['id_perfil']=self::id($rascunho['id_perfil'] ?? '');
+                $copiaNome=null;
+            }
+            return $this->pagina('produto-form','Dados fiscais do produto',$e+['produto'=>$produto,'copiaNome'=>$copiaNome,'rascunho'=>$rascunho!==null]);
         } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }
     }
 
@@ -117,7 +148,7 @@ final class FiscalProdutosController extends BaseGerencia
         if ($id===null) { return $this->naoEncontrado('Produto',$this->url('fiscal/produtos')); }
         $url=$this->url('fiscal/produtos/'.$id);
         try { $this->servico()->produto($id,$_POST); return $this->voltar($url,'sucesso','Dados fiscais salvos. O cadastro comercial não foi alterado.'); }
-        catch (Throwable $e) { return $this->falha($e,$url); }
+        catch (Throwable $e) { $this->guardarRascunho('produto',(string)$id); return $this->falha($e,$url); }
     }
 
     public function previa(string $slug): Response
@@ -183,6 +214,12 @@ final class FiscalProdutosController extends BaseGerencia
             $ncm=is_string($_GET['ncm'] ?? null)&&preg_match('/\A[0-9]{8}\z/',$_GET['ncm'])?$_GET['ncm']:'';
             $cst=is_string($_GET['cst'] ?? null)&&preg_match('/\A[0-9]{3}\z/',$_GET['cst'])?$_GET['cst']:'';
             $d=(new \Cardapim\Modules\Fiscal\CatalogosFiscais($this->db))->vigente($tipo);
+            if (($_GET['formato'] ?? '')==='json') {
+                if ($tipo!=='cest' || $ncm==='') { return Response::json(['ok'=>false,'mensagem'=>'Selecione um NCM válido antes de pesquisar CEST.'],422); }
+                if (!RateLimiter::padrao(30,60)->permitir('fiscal-cest|'.$this->restaurante['id'])) { return Response::json(['ok'=>false,'mensagem'=>'Muitas consultas. Tente novamente em instantes.'],429); }
+                if (!$d) { return Response::json(['ok'=>false,'mensagem'=>'Catálogo CEST ainda não disponibilizado. Solicite a atualização à administração.'],503); }
+                return Response::json(['ok'=>true,'resultados'=>\Cardapim\Modules\Fiscal\CatalogosFiscais::pesquisar($d,$q,$ncm),'versao'=>$d['versao']]);
+            }
             $resultados=$d?\Cardapim\Modules\Fiscal\CatalogosFiscais::pesquisar($d,$q,$ncm,$cst):[];
             return $this->pagina('catalogos','Pesquisar tabelas fiscais',['tipo'=>$tipo,'q'=>$q,'ncm'=>$ncm,'cst'=>$cst,'catalogo'=>$d,'resultados'=>$resultados]);
         } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }

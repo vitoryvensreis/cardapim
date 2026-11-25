@@ -15,3 +15,5 @@
 .fiscal-produtos [data-ncm-resultados] button { text-align:left; white-space:normal; justify-content:flex-start; }
 
 .fiscal-produtos .fiscal-csv-modelo { white-space:pre-wrap; overflow-wrap:anywhere; padding:.75rem; background:var(--surface,#fff); border:1px solid var(--border,#ddd); border-radius:.5rem; }
+
+.fiscal-produtos [data-cest-resultados] button { text-align:left; white-space:normal; justify-content:flex-start; }
