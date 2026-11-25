@@ -31,7 +31,7 @@ try {
     $r['dados']['empresa']=['crt'=>'4','estado'=>'CE'];
     $f->serializar($id,fn()=> $f->salvar($id,$r));
     fpCheck(S::disponivel($db,$id));
-    $p=['nome'=>'Perfil CI '.bin2hex(random_bytes(4)),'operacao'=>'producao','cfop'=>'5101','situacao_icms'=>'102','inicio'=>'2026-01-01','referencia'=>'Teste CI','revisado'=>'1'];
+    $p=['nome'=>'Perfil CI '.bin2hex(random_bytes(4)),'operacao'=>'producao','cfop'=>'5102','situacao_icms'=>'102','inicio'=>'2026-01-01','referencia'=>'Teste CI','revisado'=>'1'];
     $perfil=$s->perfil($p);
     $ids=array_map(static fn($p)=>(string)$p['id'],$originais);
     $outro=$db->prepare('SELECT p.id FROM produtos p WHERE p.id_restaurante<>? AND p.ativo=1 LIMIT 1');

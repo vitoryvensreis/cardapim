@@ -10,6 +10,7 @@ final class VerificacaoFiscal
     {
         $r=[];
         $tipo=in_array((string)($dados['crt'] ?? ''),['1','4'],true)?'csosn':'cst_icms';
+        $crt=(string)($dados['crt'] ?? '');
         $pares=['cfop'=>'cfop',$tipo=>'situacao_icms','cst_pis'=>'cst_pis','cst_cofins'=>'cst_cofins','cst_ibs_cbs'=>'cst_ibs_cbs','cclass_trib'=>'cclass_trib','cst_is'=>'cst_is','cclass_is'=>'cclass_is'];
         foreach ($pares as $cat=>$campo) {
             $codigo=(string)($dados[$campo] ?? '');
@@ -19,6 +20,8 @@ final class VerificacaoFiscal
             }
             $cst=match($cat) {'cclass_trib'=>(string)($dados['cst_ibs_cbs'] ?? ''),'cclass_is'=>(string)($dados['cst_is'] ?? ''),default=>''};
             if (in_array($cat,['cclass_trib','cclass_is'],true) && $cst==='') { $r[]='Informe o CST correspondente a '.$campo.'.'; }
+            // CRT 4: opções fixas explicitamente definidas pelo MOC N12a-81/91.
+            if ($crt==='4' && in_array($cat,['cfop','csosn'],true)) { continue; }
             if (empty($catalogos[$cat])) { $r[]='Tabela '.$cat.' não disponibilizada.'; }
             elseif (!CatalogosFiscais::contem($catalogos[$cat],$codigo,'',$cst)) { $r[]='Código '.$campo.' não localizado na versão vigente ou incompatível com o filtro.'; }
         }
@@ -31,11 +34,9 @@ final class VerificacaoFiscal
         $icms=(string)($dados['situacao_icms'] ?? '');
         $uf=(string)($dados['uf'] ?? '');
         $crt=(string)($dados['crt'] ?? '');
-        $venda=['5101','5102','5103','5104','5115'];
-        if ($cfop!=='' && !in_array($cfop,[...$venda,'5405'],true)) { $r[]='CFOP fora das vendas de mercadoria suportadas nesta etapa; confira a regra I08-150.'; }
+        if ($cfop!=='' && !isset(CadastroProdutoFiscal::cfops($crt)[$cfop])) { $r[]='CFOP fora das vendas de mercadoria suportadas nesta etapa; confira a regra I08-150.'; }
         if ($icms!=='') {
-            $aceitos=$crt==='4'?['102','300']:($crt==='1'?['102','103','300','400','500','900']:['00','20','40','41','60','90']);
-            if (!in_array($icms,$aceitos,true)) { $r[]='CST/CSOSN fora do escopo NFC-e deste cadastro.'; }
+            if (!isset(CadastroProdutoFiscal::situacoes($crt)[$icms])) { $r[]='CST/CSOSN fora do escopo NFC-e deste cadastro.'; }
             if (in_array($icms,['90','900','103','400'],true)) { $r[]='Confirme a permissão específica da UF para esta situação tributária na homologação.'; }
             if ($cfop!=='' && in_array($icms,['60','500'],true) && $cfop!=='5405') { $r[]='CFOP incompatível com ICMS já cobrado por ST neste escopo.'; }
             if ($cfop==='5405' && !in_array($icms,['60','500'],true) && !($uf==='CE' && in_array($icms,['90','900'],true))) { $r[]='Confira a compatibilidade entre CFOP 5405 e CST/CSOSN.'; }

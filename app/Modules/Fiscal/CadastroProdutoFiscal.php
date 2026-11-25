@@ -26,6 +26,21 @@ final class CadastroProdutoFiscal
         return (10-$s%10)%10 === (int)substr($v,-1);
     }
 
+    /** Escopo NFC-e de venda interna; não constitui autorização de emissão. */
+    public static function cfops(string $crt): array
+    {
+        $v=['5101'=>'Venda de produção do estabelecimento','5102'=>'Venda de mercadoria adquirida de terceiros','5103'=>'Venda de produção fora do estabelecimento','5104'=>'Venda de mercadoria de terceiros fora do estabelecimento','5115'=>'Venda de mercadoria recebida em consignação','5405'=>'Venda de mercadoria com ICMS ST (substituído)'];
+        return $crt==='4'?['5102'=>$v['5102']]:$v;
+    }
+
+    public static function situacoes(string $crt): array
+    {
+        if ($crt==='4') { return ['102'=>'Tributada pelo Simples Nacional sem permissão de crédito','300'=>'Imune']; }
+        if ($crt==='1') { return ['102'=>'Sem permissão de crédito','103'=>'Isenção por faixa de receita','300'=>'Imune','400'=>'Não tributada pelo Simples Nacional','500'=>'ICMS cobrado anteriormente por ST','900'=>'Outros']; }
+        if (in_array($crt,['2','3'],true)) { return ['00'=>'Tributada integralmente','20'=>'Com redução da base de cálculo','40'=>'Isenta','41'=>'Não tributada','60'=>'ICMS cobrado anteriormente por ST','90'=>'Outras']; }
+        return [];
+    }
+
     public static function perfil(array $p,array $empresa): array
     {
         $crt = (string)($empresa['crt'] ?? '');
@@ -36,9 +51,8 @@ final class CadastroProdutoFiscal
         $cfop=self::campo($p,'cfop',4);
         $icms=self::campo($p,'situacao_icms',3);
         if ($nome==='' || !in_array($op,['producao','revenda'],true)) { throw new InvalidArgumentException('Informe o nome e o tipo de operação.'); }
-        if ($cfop!=='' && !preg_match('/\A5[0-9]{3}\z/',$cfop)) { throw new InvalidArgumentException('Informe um CFOP de saída interna para NFC-e.'); }
-        $codigos = $crt==='4' ? ['102','300'] : ($crt==='1' ? ['101','102','103','201','202','203','300','400','500','900'] : ['00','10','20','30','40','41','50','51','60','70','90','02','15','53','61']);
-        if ($icms!=='' && !in_array($icms,$codigos,true)) { throw new InvalidArgumentException('Situação ICMS incompatível com o regime cadastrado.'); }
+        if ($cfop!=='' && !isset(self::cfops($crt)[$cfop])) { throw new InvalidArgumentException('Informe um CFOP de saída interna para NFC-e.'); }
+        if ($icms!=='' && !isset(self::situacoes($crt)[$icms])) { throw new InvalidArgumentException('Situação ICMS incompatível com o regime cadastrado.'); }
         $d=['nome'=>$nome,'crt'=>$crt,'uf'=>$uf,'modelo'=>65,'operacao'=>$op,'cfop'=>$cfop,'situacao_icms'=>$icms];
         foreach (['cst_pis'=>2,'cst_cofins'=>2,'cst_ibs_cbs'=>3,'cclass_trib'=>6,'cst_is'=>3,'cclass_is'=>6,'cbenef'=>10] as $k=>$max) {
             $v=self::campo($p,$k,$max);
@@ -82,7 +96,7 @@ final class CadastroProdutoFiscal
     public static function perfilVigente(array $p,array $empresa): bool
     {
         $d=$p['dados'] ?? [];
-        return !empty($p['revisado']) && ($d['crt'] ?? '')===(string)($empresa['crt'] ?? '') && ($d['uf'] ?? '')===($empresa['estado'] ?? '') && !empty($d['inicio']) && $d['inicio']<=date('Y-m-d');
+        return !empty($p['revisado']) && isset(self::cfops((string)($d['crt'] ?? ''))[$d['cfop'] ?? ''],self::situacoes((string)($d['crt'] ?? ''))[$d['situacao_icms'] ?? '']) && ($d['crt'] ?? '')===(string)($empresa['crt'] ?? '') && ($d['uf'] ?? '')===($empresa['estado'] ?? '') && !empty($d['inicio']) && $d['inicio']<=date('Y-m-d');
     }
 
     public static function pendencias(array $v,?array $perfil,array $empresa): array

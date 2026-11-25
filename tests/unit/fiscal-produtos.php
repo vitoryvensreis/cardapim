@@ -6,13 +6,19 @@ use Cardapim\Modules\Fiscal\CatalogoNcm;
 function fpOk(bool $v): void { if (!$v) { throw new RuntimeException('Falha na validação fiscal de produtos.'); } }
 function fpRejeitar(callable $f): void { try { $f(); } catch (InvalidArgumentException) { return; } throw new RuntimeException('Entrada inválida aceita.'); }
 $empresa=['crt'=>'4','estado'=>'CE'];
-$p=['nome'=>'Perfil teste','operacao'=>'producao','cfop'=>'5101','situacao_icms'=>'102','inicio'=>'2026-01-01','referencia'=>'Orientação de teste','revisado'=>'1','aliq_icms'=>'0,1234'];
+$p=['nome'=>'Perfil teste','operacao'=>'producao','cfop'=>'5102','situacao_icms'=>'102','inicio'=>'2026-01-01','referencia'=>'Orientação de teste','revisado'=>'1','aliq_icms'=>'0,1234'];
 $r=V::perfil($p,$empresa);
 fpOk($r['revisado'] && $r['dados']['aliq_icms']==='0.1234');
 $r['versao']=1;
 fpOk(V::perfilVigente($r,$empresa));
 fpOk(!V::perfilVigente($r,['crt'=>'1','estado'=>'CE']));
 fpRejeitar(fn()=>V::perfil(array_replace($p,['situacao_icms'=>'100']),$empresa));
+foreach (['5101','5103','5104','5115','5405'] as $cfop) { fpRejeitar(fn()=>V::perfil(array_replace($p,['cfop'=>$cfop]),$empresa)); }
+foreach (['500','900'] as $csosn) { fpRejeitar(fn()=>V::perfil(array_replace($p,['situacao_icms'=>$csosn]),$empresa)); }
+fpOk(V::perfil(array_replace($p,['situacao_icms'=>'300']),$empresa)['revisado']);
+fpOk(!V::perfilVigente(array_replace($r,['dados'=>array_replace($r['dados'],['cfop'=>'5101'])]),$empresa));
+fpOk(\Cardapim\Modules\Fiscal\VerificacaoFiscal::perfil($r['dados'],[])===[]);
+fpOk(\Cardapim\Modules\Fiscal\VerificacaoFiscal::perfil(array_replace($r['dados'],['cfop'=>'5101']),[])!==[]);
 fpRejeitar(fn()=>V::perfil(array_replace($p,['inicio'=>'2026-02-30']),$empresa));
 fpRejeitar(fn()=>V::perfil(array_replace($p,['referencia'=>'']),$empresa));
 fpRejeitar(fn()=>V::perfil(array_replace($p,['aliq_icms'=>'101']),$empresa));
