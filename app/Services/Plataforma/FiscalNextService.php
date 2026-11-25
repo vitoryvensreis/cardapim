@@ -22,7 +22,7 @@ final class FiscalNextService
 {
     private readonly FiscalNextRepository $repo;
 
-    public function __construct(PDO $db, private readonly UsuarioLogado $usuario, private readonly NextFiscalApi $api = new NextFiscalApi())
+    public function __construct(private readonly PDO $db, private readonly UsuarioLogado $usuario, private readonly NextFiscalApi $api = new NextFiscalApi())
     {
         $this->repo = new FiscalNextRepository($db);
     }

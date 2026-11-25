@@ -19,6 +19,12 @@ try {
     $q=$db->prepare('SELECT dados FROM restaurante_fiscal WHERE id_restaurante=?'); $q->execute([$id]);
     if (str_contains($q->fetchColumn(),'segredo-fiscal-teste')) { throw new RuntimeException('Credencial exposta.'); }
     if (isset($ids[1]) && $r->buscar((int)$ids[1]) !== null) { throw new RuntimeException('Isolamento fiscal falhou.'); }
-    if (str_contains(json_encode($r->resumoPlataforma()),'segredo-fiscal-teste')) { throw new RuntimeException('Credencial exposta no resumo.'); }
+    $admin = new \Cardapim\Services\Auth\UsuarioLogado(1, 'adm_master', 'CI', 'Fiscal', true, null, null, null, null);
+    $plataforma = new \Cardapim\Services\Plataforma\FiscalNextService($db, $admin);
+    $resumo = $plataforma->restaurantes();
+    if (!is_array($resumo) || !in_array($id, array_column($resumo, 'id'), true)) {
+        throw new RuntimeException('Central fiscal não consultou o resumo pelo PDO injetado.');
+    }
+    if (str_contains(json_encode($resumo),'segredo-fiscal-teste')) { throw new RuntimeException('Credencial exposta no resumo.'); }
 } finally { $db->rollBack(); Cripto::usarChave(null); }
 echo "Persistência e projeção fiscal confirmadas.\n";
