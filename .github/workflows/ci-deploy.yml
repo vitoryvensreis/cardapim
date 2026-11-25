@@ -81,6 +81,7 @@ jobs:
           # Comportamento sem navegador: confirmacao ("Tem certeza?") + trava contra clique duplo.
           node tests/js/confirmar-trava.js
           node tests/js/rastreamento.js
+          node tests/js/gerencia-fiscal.js
 
       - name: Testes unitarios sem banco
         shell: bash

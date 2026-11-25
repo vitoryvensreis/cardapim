@@ -14,7 +14,10 @@
         mensagem.classList.toggle('fiscal-consulta-erro', erro);
     };
     form.addEventListener('input', () => { revisao++; });
-    form.addEventListener('change', () => { revisao++; });
+    form.addEventListener('change', ev => {
+        revisao++;
+        if (ev.target === campo('cep') && campo('cep').value.replace(/\D/g,'').length === 8) buscarCep();
+    });
     function ajustarIe() {
         const possui = campo('ie_situacao').value === 'possui';
         campo('ie').required = possui;
@@ -49,7 +52,10 @@
                 if (typeof d.dados[k] === 'string' && d.dados[k] !== '') campo(k).value = d.dados[k];
             }
             revisao++;
-            avisar('Dados encontrados. Confira com o contador, informe a inscrição estadual e salve. Nenhum dado foi salvo automaticamente.');
+            const incompletos = campos.some(k => !['complemento','email','nome'].includes(k) && (typeof d.dados[k] !== 'string' || !d.dados[k]));
+            avisar(incompletos
+                ? 'Consulta parcial. Os campos não retornados foram preservados; confira o endereço, regime e inscrição estadual antes de salvar.'
+                : 'Dados encontrados. Confira com o contador, informe a inscrição estadual e salve. Nenhum dado foi salvo automaticamente.');
         } catch {
             avisar('Não foi possível consultar o CNPJ agora. Você pode tentar novamente ou preencher manualmente.',true);
         } finally { bloquear(false); }
@@ -77,8 +83,5 @@
     }
     btn.addEventListener('click', () => preencher(false));
     cepBtn.addEventListener('click', buscarCep);
-    campo('cep').addEventListener('change', () => {
-        if (campo('cep').value.replace(/\D/g,'').length === 8) buscarCep();
-    });
     if (form.dataset.fiscalInicial === '1') preencher(true);
 })();

@@ -23,3 +23,6 @@ BrasilAPI CNPJ (consulta pontual, sem crawling); projeção mínima de campos, c
 
 ## Etapa 02.2 — simulação automática
 Emitente conectado: botão de cadastro desabilitado, teste de conexão permanece separado. Ambiente 3: série interna 999, numeração inicial 1, preserva número válido anterior, CSC/ID vazios, sem A1 ou configuração remota. Formulário de parâmetros e certificado apenas em homologação; backend rejeita alterações manuais de simulação. Ambientes independentes, produção bloqueada. Toda comunicação fiscal é via NeXT, sem acesso direto à SEFAZ. Incremento/reserva transacional da numeração somente na etapa 04. Sem migration ou alterações no Agent/PDV/impressão.
+
+### Revisão do mapeamento cadastral (02.1)
+Compor tipo e nome do logradouro da BrasilAPI sem duplicar prefixo; campos ausentes mantêm valores existentes e consulta parcial é sinalizada. Busca automática CEP no evento change do formulário após incrementar revisão, evitando descarte da própria resposta. Testes cobrem todos os campos projetados e comportamento JS sem rede; IBGE continua verificado no backend ao salvar, IE manual.

@@ -1,0 +1,57 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const source = fs.readFileSync(path.join(__dirname,'../../public/assets/js/gerencia-fiscal.js'),'utf8');
+
+async function main() {
+    const fields = {};
+    const names = ['_csrf','razao','nome','email','cep','logradouro','numero','complemento','bairro','cidade','estado','crt','ie','ie_situacao'];
+    for (const name of names) fields[name] = {value:'',maxLength:160,addEventListener(){}};
+    fields._csrf.value='csrf-ci'; fields.ie.value='12345'; fields.ie_situacao.value='possui';
+    const elements = {};
+    for (const k of ['repreencher','cep','mensagem','ie']) elements[k]={addEventListener(n,fn){this[n]=fn;},classList:{toggle(){}}};
+    const handlers={};
+    const form = {dataset:{fiscalInicial:'1',fiscalConsulta:'/gerencia/fiscal/consultar-empresa'},elements:{namedItem:n=>fields[n]},querySelector:s=>elements[s.slice(13,-1)],addEventListener:(n,fn)=>handlers[n]=fn,setAttribute(){}};
+    const registro={razao:'Empresa Teste',nome:'Nome',email:'fiscal@example.org',cep:'60060-440',logradouro:'RUA EXEMPLO',numero:'S/N',complemento:'Loja',bairro:'Centro',cidade:'Fortaleza',estado:'CE',crt:'4'};
+    const requests=[];
+    let resposta=registro;
+    let pendente=null;
+    let atrasar=false;
+    const fetch=async (url,opts)=>{
+        requests.push({url,opts});
+        if (url.startsWith('/api/v1/cep/')) return {ok:true,json:async()=>({logradouro:'Avenida Nova',bairro:'Novo',cidade:'Caucaia',estado:'CE'})};
+        if (atrasar) await new Promise(resolve=>{pendente=resolve;});
+        return {ok:true,json:async()=>({ok:true,dados:resposta})};
+    };
+    vm.runInNewContext(source,{document:{querySelector:()=>form},window:{confirm:()=>true},fetch,URLSearchParams});
+    const flush=()=>new Promise(resolve=>setImmediate(resolve));
+    await flush();
+    for (const [k,v] of Object.entries(registro)) assert.equal(fields[k].value,v,k);
+    assert.equal(fields.ie.value,'12345');
+    assert.equal(requests[0].opts.body.get('atualizar'),'0');
+    fields.cep.value='61600-001';
+    handlers.change({target:fields.cep});
+    await flush();
+    assert.equal(fields.logradouro.value,'Avenida Nova');
+    assert.equal(fields.cidade.value,'Caucaia');
+    assert.equal(fields.numero.value,'S/N');
+    resposta={razao:'Outro nome'};
+    elements.repreencher.click();
+    await flush();
+    assert.equal(fields.razao.value,'Outro nome');
+    assert.equal(fields.logradouro.value,'Avenida Nova');
+    assert.match(elements.mensagem.textContent,/Consulta parcial/);
+    assert.equal(requests.at(-1).opts.body.get('atualizar'),'1');
+    atrasar=true; resposta={razao:'Não sobrescrever'};
+    elements.repreencher.click();
+    fields.razao.value='Editado manualmente';
+    handlers.input({target:fields.razao});
+    pendente();
+    await flush();
+    assert.equal(fields.razao.value,'Editado manualmente');
+    assert.match(elements.mensagem.textContent,/Nada foi substituído/);
+    console.log('Cadastro fiscal JS: mapeamento, CEP automático, reconsulta parcial e edição preservada.');
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});
