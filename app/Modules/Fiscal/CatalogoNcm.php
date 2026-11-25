@@ -72,9 +72,9 @@ final class CatalogoNcm
 
     public static function pesquisar(array $d,string $q): array
     {
+        $codigo=preg_replace('/[.\s]+/','',trim($q));
         $q=TextoLocal::chave(trim($q));
         if (mb_strlen($q)<2) { return []; }
-        $codigo=str_replace('.','',$q);
         $r=[];
         foreach ($d['itens'] ?? [] as $c=>$nome) {
             if ((ctype_digit($codigo) && str_starts_with((string)$c,$codigo)) || (!ctype_digit($codigo) && str_contains(TextoLocal::chave($nome),$q))) {

@@ -26,6 +26,6 @@ fpOk(V::pendencias(['dados'=>$d,'versao'=>1],$r,$empresa)!==[]);
 $d['ncm_fonte']='Tabela teste';
 fpOk(V::pendencias(['dados'=>$d,'versao'=>1],$r,$empresa)===[]);
 fpOk(V::pendencias(['dados'=>$d,'versao'=>2],$r,$empresa)!==[]);
-$n=CatalogoNcm::normalizar(['Data_Ultima_Atualizacao_NCM'=>'Vigente em 01/01/2026','Nomenclaturas'=>[['Codigo'=>'22','Descricao'=>'Bebidas'],['Codigo'=>'2202.10.00','Descricao'=>'Águas aromatizadas'],['Codigo'=>'01','Descricao'=>'Animais vivos'],['Codigo'=>'0101.21.00','Descricao'=>'Reprodutores']]]]);
-fpOk(count($n['itens'])===2 && CatalogoNcm::pesquisar($n,'BEBIDAS')[0]['codigo']==='22021000' && CatalogoNcm::pesquisar($n,'0101')[0]['codigo']==='01012100');
+$n=CatalogoNcm::normalizar(['Data_Ultima_Atualizacao_NCM'=>'Vigente em 01/01/2026','Nomenclaturas'=>[['Codigo'=>'22','Descricao'=>'Bebidas'],['Codigo'=>'2202.10.00','Descricao'=>'Águas aromatizadas'],['Codigo'=>'01','Descricao'=>'Animais vivos'],['Codigo'=>'0101.21.00','Descricao'=>'Reprodutores']]]);
+fpOk(count($n['itens'])===2 && CatalogoNcm::pesquisar($n,'BEBIDAS')[0]['codigo']==='22021000' && CatalogoNcm::pesquisar($n,'0101')[0]['codigo']==='01012100' && CatalogoNcm::pesquisar($n,'2202.10.00')[0]['codigo']==='22021000');
 echo "Validação cadastral fiscal, GTIN, perfil, vigência e catálogo NCM confirmados.\n";
