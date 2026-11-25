@@ -57,15 +57,18 @@
     const ncm=form.elements.namedItem('ncm');
     btn.addEventListener('click',async()=>{
         if (busca.value.trim().length<2) { status.textContent='Digite pelo menos dois caracteres.'; return; }
+        const termo=busca.value.trim();
         btn.disabled=true; status.textContent='Consultando BrasilAPI...'; resultados.replaceChildren();
         try {
-            const r=await fetch(form.dataset.ncmUrl+'?q='+encodeURIComponent(busca.value.trim()),{headers:{Accept:'application/json'},credentials:'same-origin'});
+            const r=await fetch(form.dataset.ncmUrl+'?q='+encodeURIComponent(termo),{headers:{Accept:'application/json'},credentials:'same-origin'});
             const d=await r.json();
             if (!r.ok || !d.ok) throw new Error(d.mensagem||'Consulta indisponível.');
-            status.textContent=d.resultados.length?d.fonte+' — escolha somente a classificação compatível.':'Nenhum resultado. Tente outro termo ou código.';
+            if (busca.value.trim()!==termo) { status.textContent='Pesquisa alterada. Pesquise novamente.'; return; }
+            status.textContent=d.resultados.length?(d.assistida?'Sugestões por nome comercial, verificadas na BrasilAPI. Confira composição e apresentação.':d.fonte+' — escolha somente a classificação compatível.'):'Nenhum resultado. Tente uma descrição fiscal ou código NCM.';
+            if(d.parcial)status.textContent+=' Consulta parcial. Tente novamente para conferir as demais opções.';
             for (const item of d.resultados) {
-                const b=document.createElement('button'); b.type='button'; b.className='btn btn-outline'; b.textContent=item.codigo+' — '+item.descricao+' (vigência: '+item.data_inicio+' a '+item.data_fim+')';
-                b.addEventListener('click',()=>{ncm.value=item.codigo; ncm.dispatchEvent(new Event('input')); const conf=form.elements.namedItem('confirmado'); if(conf) conf.checked=false; const marcar=form.querySelector('input[name="campos[]"][value="ncm"]'); if (marcar) marcar.checked=true; status.textContent='NCM selecionado. Confira antes de salvar.'; resultados.replaceChildren();});
+                const b=document.createElement('button'); b.type='button'; b.className='btn btn-outline'; b.textContent=(item.sugestao_comercial?'Sugestão: '+item.sugestao_comercial+' — ':'')+item.codigo+' — '+item.descricao+' (vigência: '+item.data_inicio+' a '+item.data_fim+')';
+                b.addEventListener('click',()=>{if(busca.value.trim()!==termo){status.textContent='Pesquisa alterada. Pesquise novamente.';resultados.replaceChildren();return;}ncm.value=item.codigo; ncm.dispatchEvent(new Event('input')); const conf=form.elements.namedItem('confirmado'); if(conf) conf.checked=false; const marcar=form.querySelector('input[name="campos[]"][value="ncm"]'); if (marcar) marcar.checked=true; status.textContent='NCM selecionado. Confira antes de salvar.'; resultados.replaceChildren();});
                 resultados.append(b);
             }
         } catch(e) { status.textContent=e.message||'Consulta indisponível. Você pode salvar como pendente.'; }

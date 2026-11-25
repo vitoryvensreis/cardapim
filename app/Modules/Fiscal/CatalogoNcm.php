@@ -73,6 +73,44 @@ final class CatalogoNcm
         return ['itens'=>[$codigo=>$e['descricao']],'versao'=>$e['fonte']];
     }
 
+    /** Atalhos de busca, não regras de enquadramento. Não usar para salvar automaticamente. */
+    public static function termosComerciais(string $q): array
+    {
+        if (self::codigo($q)!=='') { return []; }
+        $t=\Cardapim\Modules\Entrega\TextoLocal::chave($q);
+        // Não interpretar combinações de famílias como uma única mercadoria.
+        $pizza=preg_match('/\b(?:pizza|pizzas|pizzinha|pizzinhas)\b/',$t)===1;
+        $bebida=preg_match('/\b(?:refrigerante|refrigerantes|refri|refris|coca cola|guarana)\b/',$t)===1;
+        $lanche=preg_match('/\b(?:hamburguer|hamburgueres|hamburger|hamburgers|burger|burgers|cheeseburger|cheeseburgers|x burger|x burguer|x salada)\b/',$t)===1;
+        if ((int)$pizza+(int)$bebida+(int)$lanche!==1 || preg_match('/\b(?:combo|kit|equipamento|maquina|fluido|gas|recipiente|refrigerador|forno|embalagem|caixa|forma|cortador|cru|crua|crus|cruas|carne moida|massa|pao|molho|xarope|concentrado|sorvete|bolo|doce de|polpa|po|semente)\b/',$t)) { return []; }
+        if ($pizza) { return ['19059090'=>'Produtos de padaria preparados: confira composição e apresentação.']; }
+        if ($bebida) { return ['22021000'=>'Bebida à base de água, adoçada ou aromatizada. Confira composição.','22029900'=>'Outras bebidas não alcoólicas: confira composição e exclusões.']; }
+        return ['16025000'=>'Preparações de carne bovina: confira espécie, composição e preparo.','19059090'=>'Produtos de padaria ou lanches: confira composição e proporção dos ingredientes.'];
+    }
+
+    /** Cada candidato passa pela mesma consulta exata, validação de vigência e cache. */
+    public function consultarAssistido(string $q,callable $autorizarAdicional): array
+    {
+        $q=trim($q);
+        if (mb_strlen($q)<2 || mb_strlen($q)>100) { throw new RuntimeException('Pesquisa NCM inválida.'); }
+        $atalhos=self::termosComerciais($q);
+        if ($atalhos===[]) { return ['resultados'=>$this->consultar($q),'assistida'=>false,'parcial'=>false]; }
+        $out=[]; $parcial=false; $i=0;
+        foreach ($atalhos as $codigo=>$contexto) {
+            if ($i++>0 && !$autorizarAdicional()) { $parcial=true; break; }
+            try { $itens=$this->consultar((string)$codigo); }
+            catch (RuntimeException|\JsonException $e) {
+                if ($out===[]) { throw $e; }
+                $parcial=true; break;
+            }
+            foreach ($itens as $item) {
+                $item['sugestao_comercial']=$contexto;
+                $out[]=$item;
+            }
+        }
+        return ['resultados'=>$out,'assistida'=>true,'parcial'=>$parcial];
+    }
+
     public function consultar(string $q): array
     {
         $q=trim($q);

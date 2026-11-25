@@ -42,7 +42,7 @@ $revisados=count(array_filter($produtos,static fn($p)=>$p['pendencias']===[]));
             <details><summary>Classificação individual em massa (opcional)</summary>
                 <p>Marque apenas os campos comuns aos produtos compatíveis. GTIN não será replicado. A revisão individual será solicitada após alterações.</p>
                 <div class="fiscal-form">
-                    <label for="lote-ncm-busca">Pesquisar NCM pela BrasilAPI</label><input id="lote-ncm-busca" data-ncm-busca type="search" maxlength="100" placeholder="Nome ou código">
+                    <label for="lote-ncm-busca">Pesquisar NCM pela BrasilAPI (nome ou código)</label><input id="lote-ncm-busca" data-ncm-busca type="search" maxlength="100" placeholder="Nome ou código">
                     <button class="btn btn-outline" type="button" data-ncm-pesquisar><?= Icon::svg('search','icon-sm') ?> Pesquisar classificação</button>
                     <p role="status" aria-live="polite" data-ncm-status></p><div data-ncm-resultados class="fiscal-lista"></div>
                     <?php foreach (['ncm'=>'NCM (8 dígitos)','cest'=>'CEST (7 dígitos, quando aplicável)','origem'=>'Origem (0 a 8)','unidade_comercial'=>'Unidade comercial','unidade_tributavel'=>'Unidade tributável','fator'=>'Fator de conversão'] as $k=>$rot): ?>
