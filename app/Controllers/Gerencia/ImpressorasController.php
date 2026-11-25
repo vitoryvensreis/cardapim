@@ -78,6 +78,7 @@ final class ImpressorasController extends BaseGerencia
     public function fiscal(string $slug): Response
     {
         if ($r = $this->entrar($slug, true)) { return $r; }
+        if (!\Cardapim\Services\Gerencia\FiscalAcesso::permitido($this->db,$this->restaurante['id'])) { return \Cardapim\Services\Auth\Guard::proibido($this->usuario,'Módulo indisponível para este restaurante.'); }
         $url = $this->url('integracoes/impressoras') . '#cupom-fiscal';
         if (!Esquema::tem($this->db, 'fiscal_restaurante')) {
             return $this->voltar($url, 'erro', 'Módulo fiscal indisponível.');

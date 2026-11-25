@@ -102,13 +102,33 @@ final class NextFiscalApi
         return $cod;
     }
 
-    private function consultar(string $metodo, string $cnpj, #[\SensitiveParameter] string $token, ?int $ambiente, ?string $cliente = null, #[\SensitiveParameter] array $corpo = []): array
+    /** Consulta de catálogo, nunca emissão. Exige A1 e ambiente de homologação neste fluxo. */
+    public function gtin(string $sh,string $cliente,#[\SensitiveParameter] string $token,string $ean): array
+    {
+        if (!\Cardapim\Modules\Fiscal\CadastroProdutoFiscal::gtin($ean)) { throw new RuntimeException('Código de barras inválido.'); }
+        $d=$this->consultar('nfe/GTINConsulta?EAN='.rawurlencode($ean),$sh,$token,2,$cliente,[],'GET');
+        return self::filtrarGtin($d);
+    }
+
+    public static function filtrarGtin(array $d): array
+    {
+        $status=filter_var($d['CodStatus'] ?? null,FILTER_VALIDATE_INT);
+        $ncm=is_string($d['NCM'] ?? null)?$d['NCM']:'';
+        $cest=is_string($d['CEST'] ?? null)?$d['CEST']:'';
+        $nome=is_string($d['XProd'] ?? null)?mb_substr(trim($d['XProd']),0,160):'';
+        if (!in_array($status,[100,9490],true) || !preg_match('/\A[0-9]{8}\z/',$ncm) || $nome==='') {
+            throw new RuntimeException('A NeXT não retornou uma classificação de GTIN reconhecida.');
+        }
+        return ['descricao'=>$nome,'ncm'=>$ncm,'cest'=>preg_match('/\A[0-9]{7}\z/',$cest)?$cest:'','fonte'=>'NeXT / CCG (homologação)'];
+    }
+
+    private function consultar(string $metodo, string $cnpj, #[\SensitiveParameter] string $token, ?int $ambiente, ?string $cliente = null, #[\SensitiveParameter] array $corpo = [], string $verbo = 'POST'): array
     {
         $headers = ['X-CnpjSh' => $cnpj, 'X-CnpjCliente' => $cliente ?? $cnpj, 'X-Token' => $token];
         if ($ambiente !== null) {
             $headers['X-Ambiente'] = (string) $ambiente;
         }
-        $resposta = $this->http->enviar('POST', self::BASE . $metodo, $headers, $corpo);
+        $resposta = $this->http->enviar($verbo, self::BASE . $metodo, $headers, $verbo==='GET'?null:$corpo);
         if (!$resposta->ok()) {
             throw new RuntimeException(match ($resposta->status) {
                 401, 403 => 'A NeXT recusou a credencial ou a permissão administrativa.',

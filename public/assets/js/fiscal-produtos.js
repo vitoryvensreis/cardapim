@@ -51,4 +51,35 @@
     busca.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();btn.click();}});
     const gtin=form.querySelector('[data-fiscal-gtin]');
     if (gtin) gtin.addEventListener('click',()=>{form.elements.namedItem('gtin').value=gtin.dataset.fiscalGtin;});
+    const consultaGtin=form.querySelector('[data-fiscal-gtin-consultar]');
+    if (consultaGtin) consultaGtin.addEventListener('click',async()=>{
+        const campo=form.elements.namedItem('gtin');
+        const codigo=campo.value.trim();
+        const msg=form.querySelector('[data-fiscal-gtin-status]');
+        const out=form.querySelector('[data-fiscal-gtin-resultado]');
+        out.replaceChildren();
+        if (!/^(?:\d{8}|\d{12,14})$/.test(codigo)) { msg.textContent='Informe um código de barras válido.';return; }
+        consultaGtin.disabled=true; msg.textContent='Consultando NeXT...';
+        try {
+            const r=await fetch(form.dataset.gtinUrl,{method:'POST',headers:{Accept:'application/json'},credentials:'same-origin',body:new URLSearchParams({_csrf:form.elements.namedItem('_csrf').value,gtin:codigo})});
+            const d=await r.json();
+            if (!r.ok || !d.ok) throw new Error(d.mensagem||'Consulta indisponível.');
+            if (campo.value.trim()!==codigo) { msg.textContent='O código foi alterado. Consulte novamente.';return; }
+            msg.textContent=d.dados.fonte+' — '+d.dados.descricao;
+            const b=document.createElement('button');b.type='button';b.className='btn btn-outline';
+            b.textContent='Usar NCM '+d.dados.ncm+(d.dados.cest?' e CEST '+d.dados.cest:'')+' como sugestão';
+            b.addEventListener('click',()=>{
+                if (campo.value.trim()!==codigo) { msg.textContent='O código foi alterado. Consulte novamente.';out.replaceChildren();return; }
+                const cest=form.elements.namedItem('cest');
+                if ((ncm.value && ncm.value!==d.dados.ncm)||(d.dados.cest && cest.value && cest.value!==d.dados.cest)) {
+                    if (!window.confirm('Substituir a classificação que está no formulário?')) return;
+                }
+                ncm.value=d.dados.ncm;if(d.dados.cest)cest.value=d.dados.cest;
+                form.elements.namedItem('confirmado').checked=false;
+                msg.textContent='Sugestão carregada. Confira a classificação antes de salvar.';out.replaceChildren();
+            });
+            out.append(b);
+        } catch(e){msg.textContent=e.message||'Consulta indisponível.';}
+        finally{consultaGtin.disabled=false;}
+    });
 })();

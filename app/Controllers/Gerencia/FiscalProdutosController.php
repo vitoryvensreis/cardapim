@@ -158,6 +158,20 @@ final class FiscalProdutosController extends BaseGerencia
         } catch (Throwable $e) { return $this->falha($e,$url); }
     }
 
+    public function gtin(string $slug): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        $headers=['Cache-Control'=>'no-store'];
+        try {
+            $s=new \Cardapim\Services\Gerencia\FiscalService($this->db,$this->usuario,$this->restaurante['id']);
+            return Response::json(['ok'=>true,'dados'=>$s->consultarGtin($this->post('gtin'))],200,$headers);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Consulta GTIN indisponível ('.get_class($e).').');
+            $msg='Consulta indisponível. Confira o código de barras, certificado A1 e ambiente de homologação.';
+            return Response::json(['ok'=>false,'mensagem'=>$msg],422,$headers);
+        }
+    }
+
     public function ncm(string $slug): Response
     {
         if ($r=$this->acesso($slug)) { return $r; }

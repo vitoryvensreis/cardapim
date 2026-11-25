@@ -273,6 +273,24 @@ final class FiscalService
         });
     }
 
+    public function consultarGtin(string $ean): array
+    {
+        if (!\Cardapim\Modules\Fiscal\CadastroProdutoFiscal::gtin($ean)) { throw new RuntimeException('Código de barras inválido.'); }
+        return $this->repo->serializar($this->id,function () use ($ean): array {
+            if (!FiscalAcesso::permitido($this->db,$this->id)) { throw new RuntimeException('Módulo indisponível.'); }
+            $r=$this->repo->buscar($this->id);
+            if (!$r || !$r['habilitado'] || !$this->cnpjConfere($r,$this->perfil())) { throw new RuntimeException('Módulo indisponível.'); }
+            if (($r['dados']['ambiente'] ?? 3)!==2 || ($r['dados']['certificado']['expira_em'] ?? 0)<=time()) {
+                throw new RuntimeException('A consulta oficial de GTIN exige certificado A1 válido e ambiente de homologação.');
+            }
+            [$sh,$cnpj,$token]=$this->credenciais($r);
+            if (!RateLimiter::padrao(30,3600)->permitir('fiscal-gtin|'.$this->id) || !RateLimiter::padrao(60,60)->permitir('fiscal-gtin-global')) {
+                throw new RuntimeException('Limite de consultas atingido.');
+            }
+            return $this->api->gtin($sh,$cnpj,$token,$ean);
+        });
+    }
+
     private function credenciais(array $r): array
     {
         $g = $this->global();
