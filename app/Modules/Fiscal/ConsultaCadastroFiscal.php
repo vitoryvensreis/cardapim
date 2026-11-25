@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Cardapim\Modules\Fiscal;
 
 use Cardapim\Shared\Http\ClienteHttp;
+use Cardapim\Modules\Entrega\TextoLocal;
 use Cardapim\Shared\Validation\Documento;
 use RuntimeException;
 
@@ -49,6 +50,19 @@ final class ConsultaCadastroFiscal
             }
             if ($k === 'estado' && !MunicipioIbge::ufValida(strtoupper($v))) { continue; }
             $out[$k] = $k === 'estado' ? strtoupper($v) : $v;
+        }
+        // O cadastro federal separa o tipo do nome do logradouro.
+        $tipo = $d['descricao_tipo_de_logradouro'] ?? null;
+        if (isset($out['logradouro']) && is_string($tipo)) {
+            $tipo = trim($tipo);
+            if ($tipo !== '' && !preg_match('/[\x00-\x1f\x7f]/', $tipo)) {
+                $nome = TextoLocal::chave($out['logradouro']);
+                $prefixo = TextoLocal::chave($tipo);
+                if ($prefixo !== '' && $nome !== $prefixo && !str_starts_with($nome, $prefixo . ' ')) {
+                    $completo = $tipo . ' ' . $out['logradouro'];
+                    if (mb_strlen($completo) <= 120) { $out['logradouro'] = $completo; }
+                }
+            }
         }
         // Sugestão, nunca inferir regime normal nem excesso de sublimite.
         if (($d['opcao_pelo_mei'] ?? null) === true) {

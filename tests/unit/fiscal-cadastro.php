@@ -28,4 +28,10 @@ $pronto=['ie_situacao'=>'possui','ie'=>'123456789','ibge'=>'2304400','ibge_verif
 cadastroFiscalOk(\Cardapim\Services\Gerencia\FiscalService::empresaPronta($pronto));
 cadastroFiscalOk(!\Cardapim\Services\Gerencia\FiscalService::empresaPronta(array_replace($pronto,['ie_situacao'=>'isento','ie'=>''])));
 cadastroFiscalOk(!\Cardapim\Services\Gerencia\FiscalService::empresaPronta(array_replace($pronto,['ibge_verificado'=>false])));
+$completo = ['cnpj'=>'11222333000181','razao_social'=>'Empresa Teste LTDA','nome_fantasia'=>'Teste','email'=>'fiscal@example.org','cep'=>'60060440','descricao_tipo_de_logradouro'=>'RUA','logradouro'=>'EXEMPLO','numero'=>'S/N','complemento'=>'LOJA 2','bairro'=>'CENTRO','municipio'=>'FORTALEZA','uf'=>'CE','opcao_pelo_mei'=>false,'opcao_pelo_simples'=>true,'codigo_municipio_ibge'=>2304400,'qsa'=>[['nome'=>'Não expor']]];
+$esperado = ['razao'=>'Empresa Teste LTDA','nome'=>'Teste','email'=>'fiscal@example.org','cep'=>'60060-440','logradouro'=>'RUA EXEMPLO','numero'=>'S/N','complemento'=>'LOJA 2','bairro'=>'CENTRO','cidade'=>'FORTALEZA','estado'=>'CE','crt'=>'1'];
+cadastroFiscalOk(ConsultaCadastroFiscal::normalizar('11222333000181',$completo) === $esperado);
+cadastroFiscalOk(ConsultaCadastroFiscal::normalizar('11222333000181',array_replace($completo,['logradouro'=>'Rua EXEMPLO']))['logradouro'] === 'Rua EXEMPLO');
+$parcial = ConsultaCadastroFiscal::normalizar('11222333000181',array_replace($completo,['email'=>null,'nome_fantasia'=>'','opcao_pelo_mei'=>null,'opcao_pelo_simples'=>null]));
+cadastroFiscalOk(!isset($parcial['email'],$parcial['nome'],$parcial['crt'],$parcial['ibge']));
 echo "Consulta fiscal, projeção e município aprovados.\n";
