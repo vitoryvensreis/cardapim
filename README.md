@@ -25,6 +25,10 @@ A plataforma usa **uma única chave de API** (Google Cloud → Routes API, fatur
 
 Testes sem chamadas pagas: `php tests/unit/integracoes.php`, `php tests/unit/entrega.php`. Documentação: [Routes API](https://developers.google.com/maps/documentation/routes/compute_route_directions), [políticas](https://developers.google.com/maps/documentation/routes/policies).
 
+## Central fiscal — API NeXT (etapa 01)
+
+O adm_master pode configurar e testar a credencial administrativa em **Painel → Fiscal** (/painel/fiscal). Integração desativada por padrão, somente consultas e ambientes de teste; sem emissão real nem alterações no PDV. A configuração é cifrada na tabela existente configuracoes. Veja [documentação fiscal](docs/architecture/fiscal-next.md).
+
 ## Comece pelo mapa
 
 **Antes de mexer em qualquer coisa, leia o [Mapa do projeto](docs/MAPA-DO-PROJETO.md).**

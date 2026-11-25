@@ -1,0 +1,93 @@
+<?php
+use Cardapim\Core\Icon;
+use Cardapim\Shared\Validation\Documento;
+
+$e = static fn (mixed $v): string => htmlspecialchars((string) $v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$url = $base . '/fiscal';
+?>
+<div class="painel-page fiscal-central">
+    <header class="painel-cabecalho">
+        <div>
+            <h1>Central fiscal</h1>
+            <p>Gerencie as credenciais da plataforma e acompanhe a integração com a API NeXT.</p>
+        </div>
+        <?php if ($fiscal !== null): ?>
+            <span class="etiqueta <?= $fiscal['ativo'] ? 'etiqueta-ok' : 'etiqueta-neutra' ?>">
+                <?= Icon::svg($fiscal['ativo'] ? 'circle-check' : 'power', 'icon-sm') ?>
+                <?= $fiscal['ativo'] ? 'Integração ativa' : 'Integração desativada' ?>
+            </span>
+        <?php endif; ?>
+    </header>
+    <div class="notice notice-info"><?= Icon::svg('info') ?><div><strong>Emissão real bloqueada</strong><p>Esta etapa não altera o caixa dos restaurantes. Apenas consultas administrativas e ambientes de teste estão disponíveis.</p></div></div>
+    <?php if ($fiscal === null): ?>
+        <div class="notice notice-warning" role="alert">Não foi possível ler a configuração fiscal. Confira a criptografia e os logs do servidor. Nenhuma configuração será sobrescrita.</div>
+    <?php else: ?>
+        <div class="fiscal-metricas">
+            <?php foreach ([
+                ['Emitentes na NeXT', $fiscal['quantidade'] ?? 'Não consultado', 'Última lista sincronizada'],
+                ['Restaurantes com fiscal ativo', 'Aguardando etapa 02', 'Ativação por restaurante'],
+                ['Documentos e consumo', 'Aguardando emissão', $fiscal['limite'] === null ? 'Limite mensal não configurado' : 'Limite informado: ' . number_format($fiscal['limite'], 0, ',', '.')],
+                ['Certificados e pendências', 'Aguardando configuração', 'Monitoramento nas próximas etapas'],
+            ] as [$rotulo, $valor, $dica]): ?>
+                <section class="bloco fiscal-metrica"><h2><?= $e($rotulo) ?></h2><strong><?= $e($valor) ?></strong><p class="texto-suave"><?= $e($dica) ?></p></section>
+            <?php endforeach; ?>
+        </div>
+        <div class="fiscal-grade">
+            <section class="bloco">
+                <div class="bloco-cabecalho"><h2><?= Icon::svg('shield-check') ?>Configuração da API NeXT</h2><p>Credencial administrativa da Software House. O token nunca será exibido novamente.</p></div>
+                <form method="post" action="<?= $e($url) ?>" autocomplete="off" class="fiscal-form">
+                    <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                    <label for="fiscal-cnpj">CNPJ da Software House</label>
+                    <input id="fiscal-cnpj" name="cnpj" inputmode="numeric" maxlength="18" required value="<?= $e(Documento::formatarCnpj($fiscal['cnpj'])) ?>">
+                    <label for="fiscal-razao">Razão social</label>
+                    <input id="fiscal-razao" name="razao" maxlength="160" required value="<?= $e($fiscal['razao']) ?>">
+                    <label for="fiscal-token">Token administrativo</label>
+                    <input id="fiscal-token" name="token" type="password" autocomplete="new-password" spellcheck="false" maxlength="512" <?= $fiscal['configurado'] ? '' : 'required' ?> placeholder="<?= $fiscal['configurado'] ? 'Token protegido; vazio mantém o atual' : 'Cole o token administrativo' ?>">
+                    <label for="fiscal-ambiente">Ambiente padrão</label>
+                    <select id="fiscal-ambiente" name="ambiente">
+                        <option value="3" <?= $fiscal['ambiente'] === 3 ? 'selected' : '' ?>>Simulação</option>
+                        <option value="2" <?= $fiscal['ambiente'] === 2 ? 'selected' : '' ?>>Homologação</option>
+                        <option value="1" disabled>Produção (bloqueada)</option>
+                    </select>
+                    <label for="fiscal-limite">Limite mensal contratado (opcional)</label>
+                    <input id="fiscal-limite" name="limite" type="number" min="1" max="100000000" value="<?= $e($fiscal['limite'] ?? '') ?>">
+                    <div class="bloco-rodape"><button class="btn btn-primary" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar configurações</button></div>
+                </form>
+            </section>
+            <section class="bloco">
+                <div class="bloco-cabecalho"><h2><?= Icon::svg('plug-zap') ?>Conexão e permissões</h2><p>O teste consulta a disponibilidade e a lista de emitentes; não cadastra empresas nem emite notas.</p></div>
+                <div class="resumo-assinatura">
+                    <div class="resumo-linha"><span>Credencial</span><strong><?= $fiscal['configurado'] ? 'Armazenada com segurança' : 'Não cadastrada' ?></strong></div>
+                    <div class="resumo-linha"><span>Disponibilidade</span><strong><?= $e($fiscal['disponibilidade']) ?></strong></div>
+                    <div class="resumo-linha"><span>Permissão administrativa</span><strong><?= $e($fiscal['administracao']) ?></strong></div>
+                    <div class="resumo-linha"><span>Último teste</span><strong><?= $e($fiscal['testado_em'] ?: 'Ainda não testado') ?></strong></div>
+                </div>
+                <div class="bloco-rodape">
+                    <form method="post" action="<?= $e($url . '/testar') ?>">
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <button type="submit" class="btn btn-outline" <?= $fiscal['configurado'] ? '' : 'disabled' ?>><?= Icon::svg('refresh-cw', 'icon-sm') ?>Testar e sincronizar</button>
+                    </form>
+                    <form method="post" action="<?= $e($url . ($fiscal['ativo'] ? '/desativar' : '/ativar')) ?>">
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <button type="submit" class="btn btn-outline" <?= !$fiscal['ativo'] && ($fiscal['disponibilidade'] !== 'Serviço em operação' || $fiscal['administracao'] !== 'Permissão administrativa confirmada') ? 'disabled' : '' ?>><?= Icon::svg('power', 'icon-sm') ?><?= $fiscal['ativo'] ? 'Desativar' : 'Ativar integração' ?></button>
+                    </form>
+                </div>
+                <p class="texto-suave">A ativação é apenas administrativa. Nenhum restaurante terá emissão habilitada automaticamente.</p>
+                <a class="voltar-link" href="<?= $e($base . '/logs') ?>"><?= Icon::svg('file-text', 'icon-sm') ?>Consultar logs de auditoria</a>
+            </section>
+        </div>
+        <section class="bloco">
+            <div class="bloco-cabecalho"><h2><?= Icon::svg('store') ?>CNPJs cadastrados na NeXT</h2><p>Última sincronização: <?= $e($fiscal['sincronizado_em'] ?: 'ainda não realizada') ?>. Cadastro na NeXT não significa habilitação fiscal no Deliveryzim.</p></div>
+            <?php if ($fiscal['parcial']): ?><p class="texto-suave">Exibindo até 100 CNPJs. O total inclui todos os emitentes da conta, inclusive pessoas físicas, não exibidas aqui.</p><?php endif; ?>
+            <?php if ($fiscal['clientes'] === []): ?>
+                <p class="texto-suave">Nenhum CNPJ para exibir. Use Testar e sincronizar para consultar a conta.</p>
+            <?php else: ?>
+                <div class="fiscal-clientes">
+                    <?php foreach ($fiscal['clientes'] as $cliente): ?>
+                        <article><div><strong><?= $e($cliente['razao'] ?: 'Razão social não informada') ?></strong><p><?= $e(Documento::formatarCnpj($cliente['cnpj'])) ?></p></div><span class="etiqueta etiqueta-neutra"><?= $cliente['software_house'] ? 'Software House' : 'Emitente' ?></span></article>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
+    <?php endif; ?>
+</div>

@@ -52,6 +52,38 @@ final class ClienteFalso extends ClienteHttp
     }
 }
 
+/* ---------- Fiscal NeXT (sem rede) ---------- */
+$nextHttp = new ClienteFalso([
+    new RespostaHttp(200, '{"sucesso":true,"mensagem":"","dados":{}}'),
+    new RespostaHttp(200, '{"sucesso":true,"dados":{"ArqIniClientes":{"Clientes":{"Quantidade":"1"},"Cliente1":{"CNPJ":"11222333000181","RazaoSocial":"Empresa teste","Token":"segredo-do-emitente","SoftwareHouse":"1"}}}}'),
+]);
+$next = new \Cardapim\Modules\Integracoes\NextFiscalApi($nextHttp);
+$next->disponibilidade('11222333000181', 'token-falso-adm', 3);
+$lista = $next->clientes('11222333000181', 'token-falso-adm');
+$ok($lista['quantidade'] === 1 && $lista['clientes'][0]['cnpj'] === '11222333000181' && $lista['clientes'][0]['software_house'], 'NeXT: lista administrativa');
+$ok(!str_contains(json_encode($lista), 'segredo-do-emitente') && !isset($lista['clientes'][0]['Token']), 'NeXT: nunca propaga token do emitente');
+$ok($nextHttp->pedidos[0]['url'] === 'https://www.apinext.com.br/ws/v1/nfe/Disponibilidade' && $nextHttp->pedidos[0]['cabecalhos']['X-Ambiente'] === '3', 'NeXT: disponibilidade em simulacao');
+$ok($nextHttp->pedidos[1]['url'] === 'https://www.apinext.com.br/ws/v1/clientes/ClientesListar' && !isset($nextHttp->pedidos[1]['cabecalhos']['X-Ambiente']), 'NeXT: consulta administrativa sem ambiente');
+try {
+    $next->disponibilidade('11222333000181', 'token-falso-adm', 1);
+    $ok(false, 'NeXT: producao deve ser bloqueada');
+} catch (\RuntimeException) {
+    $ok(count($nextHttp->pedidos) === 2, 'NeXT: bloqueio antes de chamada de producao');
+}
+try {
+    \Cardapim\Modules\Integracoes\NextFiscalApi::filtrarClientes(['ArqIniClientes' => ['Clientes' => ['Quantidade' => '2']]]);
+    $ok(false, 'NeXT: lista incompleta deve falhar');
+} catch (\RuntimeException) {
+    $ok(true, 'NeXT: lista incompleta rejeitada');
+}
+try {
+    $recusado = new \Cardapim\Modules\Integracoes\NextFiscalApi(new ClienteFalso([new RespostaHttp(403, '{"mensagem":"segredo-adm"}')]));
+    $recusado->clientes('11222333000181', 'token-falso-adm');
+    $ok(false, 'NeXT: permissao recusada deve falhar');
+} catch (\RuntimeException $e) {
+    $ok(!str_contains($e->getMessage(), 'segredo-adm'), 'NeXT: erro sanitizado');
+}
+
 /* ---------- Asaas ---------- */
 putenv('ASAAS_URL_SANDBOX=https://sandbox.exemplo/v3');
 putenv('ASAAS_URL_PRODUCAO=https://producao.exemplo/v3');
