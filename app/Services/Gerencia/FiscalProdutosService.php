@@ -24,7 +24,7 @@ final class FiscalProdutosService
     /** Consulta leve e fail-closed: estoque continua disponível se migration/integração fiscal falhar. */
     public static function disponivel(PDO $db,int $id): bool
     {
-        if (!Esquema::tem($db,'fiscal_restaurante') || !Esquema::tem($db,'fiscal_produtos')) { return false; }
+        if (!FiscalAcesso::permitido($db,$id) || !Esquema::tem($db,'fiscal_restaurante') || !Esquema::tem($db,'fiscal_produtos')) { return false; }
         try {
             $q=$db->prepare('SELECT f.cnpj,r.cnpj AS atual FROM restaurante_fiscal f JOIN restaurantes r ON r.id=f.id_restaurante WHERE f.id_restaurante=? AND f.habilitado=1');
             $q->execute([$id]);
@@ -97,34 +97,83 @@ final class FiscalProdutosService
         return is_string($v) && ctype_digit($v) && strlen($v)<=18 && (int)$v>0?(int)$v:null;
     }
 
-    public function previa(array $ids,int $perfil): array
+    public const CAMPOS_LOTE=['ncm','cest','origem','unidade_comercial','unidade_tributavel','fator'];
+
+    /** Alterações explícitas e restritas; nunca replicar GTIN ou confirmação fiscal individual. */
+    public static function loteCampos(array $entrada): array
     {
-        $e=$this->estado(); $p=$e['perfis'][$perfil] ?? null;
-        if (!$p || !Validar::perfilVigente($p,$e['empresa'])) { throw new RuntimeException('Escolha um perfil revisado e vigente.'); }
+        $marcados=$entrada['campos'] ?? [];
+        if (!is_array($marcados) || count($marcados)>count(self::CAMPOS_LOTE)) { throw new RuntimeException('Seleção de campos inválida.'); }
+        $dados=[];
+        foreach ($marcados as $k) {
+            if (!is_string($k) || !in_array($k,self::CAMPOS_LOTE,true)) { throw new RuntimeException('Campo não permitido em massa.'); }
+            $dados[$k]=$entrada[$k] ?? '';
+        }
+        $validos=Validar::produto($dados);
+        $out=[];
+        foreach (self::CAMPOS_LOTE as $k) {
+            if (array_key_exists($k,$dados)) {
+                if ($validos[$k]==='') { throw new RuntimeException('Preencha os campos escolhidos para aplicação.'); }
+                $out[$k]=$validos[$k];
+            }
+        }
+        return $out;
+    }
+
+    public static function mesclarLote(array $atual,array $campos,bool $sobrescrever,?array $catalogo): array
+    {
+        $mudancas=[];
+        foreach ($campos as $k=>$v) {
+            if (!in_array($k,self::CAMPOS_LOTE,true)) { throw new RuntimeException('Campo não permitido.'); }
+            $antes=(string)($atual[$k] ?? '');
+            if ($antes===$v || (!$sobrescrever && $antes!=='')) { continue; }
+            if ($k==='ncm' && $catalogo!==null && !isset($catalogo['itens'][$v])) { throw new RuntimeException('NCM não consta do catálogo oficial vigente.'); }
+            $mudancas[$k]=['de'=>$antes,'para'=>$v];
+            $atual[$k]=$v;
+            if ($k==='ncm') { $atual['ncm_fonte']=isset($catalogo['itens'][$v])?$catalogo['versao']:''; }
+        }
+        if ($mudancas!==[]) { $atual['confirmado']=false; }
+        return ['dados'=>$atual,'mudancas'=>$mudancas];
+    }
+
+    public function previa(array $ids,?int $perfil,array $entrada=[]): array
+    {
+        $campos=self::loteCampos($entrada);
+        $sobrescrever=($entrada['sobrescrever'] ?? '')==='1';
+        $e=$this->estado(); $p=$perfil===null?null:($e['perfis'][$perfil] ?? null);
+        if ($perfil!==null && (!$p || !Validar::perfilVigente($p,$e['empresa']))) { throw new RuntimeException('Escolha um perfil revisado e vigente.'); }
+        if ($perfil===null && $campos===[]) { throw new RuntimeException('Selecione um perfil ou campos de classificação.'); }
         if ($ids===[] || count($ids)>200) { throw new RuntimeException('Selecione de 1 a 200 produtos.'); }
+        $catalogo=isset($campos['ncm'])?(new CatalogoNcm())->ler():null;
         $itens=[];
         foreach ($ids as $v) {
             $id=self::identificador($v);
             if ($id===null || !isset($e['produtos'][$id])) { throw new RuntimeException('Seleção inválida. Nenhum produto alterado.'); }
             $item=$e['produtos'][$id];
-            $itens[$id]=['id'=>$id,'nome'=>$item['nome'],'anterior'=>$e['perfis'][(int)$item['id_perfil']]['nome'] ?? 'Sem perfil','assinatura'=>hash('sha256',json_encode($item,JSON_THROW_ON_ERROR))];
+            $m=self::mesclarLote($item['dados'],$campos,$sobrescrever,$catalogo);
+            $anterior=$e['perfis'][(int)$item['id_perfil']]['nome'] ?? 'Sem perfil';
+            $itens[$id]=['id'=>$id,'nome'=>$item['nome'],'anterior'=>$anterior,'novo'=>$p['nome'] ?? $anterior,
+                'assinatura'=>hash('sha256',json_encode($item,JSON_THROW_ON_ERROR)),
+                'id_perfil'=>$perfil ?? ($item['id_perfil']===null?null:(int)$item['id_perfil']),
+                'versao'=>$p?(int)$p['versao']:($item['versao']===null?null:(int)$item['versao']),
+                'dados'=>$m['dados'],'mudancas'=>$m['mudancas']];
         }
-        return ['perfil'=>$perfil,'versao'=>(int)$p['versao'],'nome'=>$p['nome'],'itens'=>array_values($itens)];
+        return ['perfil'=>$perfil,'versao'=>$p?(int)$p['versao']:null,'nome'=>$p['nome'] ?? 'Manter perfil atual',
+            'entrada'=>['campos'=>array_keys($campos),'sobrescrever'=>$sobrescrever?'1':'0']+$campos,'itens'=>array_values($itens)];
     }
 
     public function aplicar(array $previa): int
     {
         $n=$this->escrever(function ($empresa) use ($previa) {
             $ids=array_map(static fn($p)=>(string)$p['id'],$previa['itens']);
-            $agora=$this->previa($ids,(int)$previa['perfil']);
+            $agora=$this->previa($ids,$previa['perfil'],$previa['entrada']);
             if ($agora!==$previa) { throw new RuntimeException('Dados mudaram desde a prévia. Revise novamente.'); }
-            $produtos=$this->repo->produtos();
             foreach ($agora['itens'] as $p) {
-                $this->repo->salvarProduto($p['id'],$agora['perfil'],$agora['versao'],$produtos[$p['id']]['dados'],$this->usuario->id);
+                $this->repo->salvarProduto($p['id'],$p['id_perfil'],$p['versao'],$p['dados'],$this->usuario->id);
             }
             return count($ids);
         });
-        Auditoria::registrar($this->usuario,'Fiscal: aplicação em massa','Perfil '.$previa['perfil'].'; versão '.$previa['versao'].'; '.$n.' produtos.');
+        Auditoria::registrar($this->usuario,'Fiscal: aplicação em massa','Perfil '.($previa['perfil'] ?? 'mantido').'; campos '.implode(',',$previa['entrada']['campos']).'; '.$n.' produtos.');
         return $n;
     }
 

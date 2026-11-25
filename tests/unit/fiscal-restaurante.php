@@ -32,3 +32,16 @@ echo "Testes fiscais sem rede aprovados.\n";
 $sim = \Cardapim\Services\Gerencia\FiscalService::configSimulacao([]);
 fiscalOk($sim === ['serie'=>999,'numero'=>1,'id_csc'=>'','csc'=>'']);
 fiscalOk(\Cardapim\Services\Gerencia\FiscalService::configSimulacao(['serie'=>1,'numero'=>42,'id_csc'=>'1','csc'=>'segredo']) === ['serie'=>999,'numero'=>42,'id_csc'=>'','csc'=>'']);
+
+final class FiscalGtinFake extends ClienteHttp {
+    public array $pedido=[];
+    public function enviar(string $metodo,string $url,array $cabecalhos=[],array|string|null $corpo=null): RespostaHttp {
+        $this->pedido=[$metodo,$url,$cabecalhos,$corpo];
+        return new RespostaHttp(200,'{"sucesso":true,"dados":{"CodStatus":9490,"XProd":"Produto teste","NCM":"22021000","CEST":"0300700","Token":"nao-repassar"}}');
+    }
+}
+$gtinFake=new FiscalGtinFake();
+$gtin=(new NextFiscalApi($gtinFake))->gtin('11222333000181','11444777000161','individual','7894900011517');
+fiscalOk($gtinFake->pedido[0]==='GET' && str_ends_with($gtinFake->pedido[1],'nfe/GTINConsulta?EAN=7894900011517') && $gtinFake->pedido[2]['X-Ambiente']==='2' && $gtinFake->pedido[2]['X-Token']==='individual' && $gtinFake->pedido[3]===null);
+fiscalOk($gtin['ncm']==='22021000' && $gtin['cest']==='0300700' && !isset($gtin['Token']));
+try { NextFiscalApi::filtrarGtin(['CodStatus'=>9491,'NCM'=>'22021000','XProd'=>'Teste']); throw new LogicException('GTIN não localizado aceito.'); } catch (RuntimeException) {}

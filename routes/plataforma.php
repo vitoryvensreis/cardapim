@@ -24,6 +24,8 @@ return static function (Router $router): void {
     $router->get('/painel/fiscal', [FiscalController::class, 'inicio']);
     $router->post('/painel/fiscal', [FiscalController::class, 'salvar']);
     $router->post('/painel/fiscal/aprovar-restaurante', [FiscalController::class, 'aprovarRestaurante']);
+    $router->post('/painel/fiscal/liberar-restaurante', [FiscalController::class, 'liberarRestaurante']);
+    $router->post('/painel/fiscal/visibilidade', [FiscalController::class, 'visibilidade']);
     $router->post('/painel/fiscal/testar', [FiscalController::class, 'testar']);
     $router->post('/painel/fiscal/ativar', [FiscalController::class, 'ativar']);
     $router->post('/painel/fiscal/desativar', [FiscalController::class, 'desativar']);

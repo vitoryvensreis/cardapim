@@ -144,3 +144,6 @@ Ambiente 3 sem preenchimento manual de série, numeração, CSC ou A1. Série in
 
 ### Cadastro fiscal dos produtos (etapa 03 — base)
 Com módulo fiscal habilitado: Central Fiscal → Produtos fiscais / Perfis tributários, modelos de nomes sem impostos predefinidos, perfis versionados, revisão declarada, vínculos em massa com prévia, sugestões por categoria, classificação individual e consulta NCM oficial. Dados fiscais separados do CRUD comercial. Sem emissão. CEST e demais códigos avançados têm cadastro manual e validação estrutural; importação XML/CSV, catálogos CEST/CFOP/cClassTrib, regras de complementos e validação completa do motor ainda pendentes.
+
+### Liberação administrativa e automação fiscal (Etapa 03)
+Superadmin → Fiscal → Liberação do módulo fiscal: autorização individual por restaurante e controle geral de visibilidade. Por padrão nenhum restaurante autorizado (inclusive existentes, liberar explicitamente); dados e ativação local preservados ao ocultar. Menu, URLs, cards fiscais e ações de impressão protegidos. Classificação individual em lote com seleção de campos, preservação padrão, prévia, transação e nova revisão; GTIN nunca replicado. Consulta GTIN NeXT via NFC-e em homologação com A1 válido, somente sugestão, sem mudar cadastro comercial. Não libera emissão real.

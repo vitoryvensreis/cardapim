@@ -71,7 +71,7 @@ final class FiscalService
     /** Apenas projeção de impressão, sem dependência do provedor. */
     public function impressora(?array $r = null): array
     {
-        if (!Esquema::tem($this->db, 'fiscal_restaurante')) {
+        if (!FiscalAcesso::permitido($this->db,$this->id) || !Esquema::tem($this->db, 'fiscal_restaurante')) {
             return ['habilitado' => false];
         }
         $r ??= $this->repo->buscar($this->id);
@@ -94,6 +94,7 @@ final class FiscalService
     public function habilitar(bool $ativo): Resultado
     {
         return $this->repo->serializar($this->id, function () use ($ativo): Resultado {
+            if (!FiscalAcesso::permitido($this->db,$this->id)) { return Resultado::falha('Módulo não autorizado pela plataforma.'); }
             $p = $this->perfil();
             $cnpj = Documento::somenteDigitos((string) ($p['cnpj'] ?? ''));
             $r = $this->repo->buscar($this->id);
@@ -117,6 +118,7 @@ final class FiscalService
     {
         if ($this->usuario->cargo !== 'adm_master') { return Resultado::falha('A aprovação é exclusiva da administração.'); }
         return $this->repo->serializar($this->id, function () use ($cnpj): Resultado {
+            if (!FiscalAcesso::permitido($this->db,$this->id)) { return Resultado::falha('Libere o acesso do restaurante primeiro.'); }
             $r = $this->repo->buscar($this->id);
             if (!$r || !$r['habilitado'] || !$this->cnpjConfere($r, $this->perfil()) || $r['cnpj'] !== $cnpj || !isset($r['dados']['empresa'])) {
                 return Resultado::falha('Confira os dados fiscais e o vínculo do restaurante antes de aprovar.');
@@ -144,6 +146,7 @@ final class FiscalService
     private function operacao(callable $acao): Resultado
     {
         return $this->repo->serializar($this->id, function () use ($acao): Resultado {
+            if (!FiscalAcesso::permitido($this->db,$this->id)) { return Resultado::falha('Módulo não autorizado pela plataforma.'); }
             $r = $this->repo->buscar($this->id);
             if (!$r || !$r['habilitado'] || !$this->cnpjConfere($r, $this->perfil())) {
                 return Resultado::falha('Habilite o módulo fiscal e confira o CNPJ cadastrado.');
@@ -164,6 +167,7 @@ final class FiscalService
 
     public function consultarEmpresa(bool $atualizar): array
     {
+        if (!FiscalAcesso::permitido($this->db,$this->id)) { throw new RuntimeException('Módulo indisponível.'); }
         $r = $this->repo->buscar($this->id);
         if (!$r || !$r['habilitado'] || !$this->cnpjConfere($r,$this->perfil())) {
             throw new RuntimeException('Módulo indisponível.');
@@ -266,6 +270,24 @@ final class FiscalService
             $r['dados']['config_enviada'] = false;
             $r['dados']['status'] = [];
             return Resultado::sucesso('Emitente conectado à NeXT com credencial protegida.');
+        });
+    }
+
+    public function consultarGtin(string $ean): array
+    {
+        if (!\Cardapim\Modules\Fiscal\CadastroProdutoFiscal::gtin($ean)) { throw new RuntimeException('Código de barras inválido.'); }
+        return $this->repo->serializar($this->id,function () use ($ean): array {
+            if (!FiscalAcesso::permitido($this->db,$this->id)) { throw new RuntimeException('Módulo indisponível.'); }
+            $r=$this->repo->buscar($this->id);
+            if (!$r || !$r['habilitado'] || !$this->cnpjConfere($r,$this->perfil())) { throw new RuntimeException('Módulo indisponível.'); }
+            if (($r['dados']['ambiente'] ?? 3)!==2 || ($r['dados']['certificado']['expira_em'] ?? 0)<=time()) {
+                throw new RuntimeException('A consulta oficial de GTIN exige certificado A1 válido e ambiente de homologação.');
+            }
+            [$sh,$cnpj,$token]=$this->credenciais($r);
+            if (!RateLimiter::padrao(30,3600)->permitir('fiscal-gtin|'.$this->id) || !RateLimiter::padrao(60,60)->permitir('fiscal-gtin-global')) {
+                throw new RuntimeException('Limite de consultas atingido.');
+            }
+            return $this->api->gtin($sh,$cnpj,$token,$ean);
         });
     }
 

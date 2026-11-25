@@ -18,9 +18,12 @@ try {
 } catch (\Throwable) {
     $suporteNovidades = 0;
 }
+try { $fiscalPermitido=\Cardapim\Services\Gerencia\FiscalAcesso::permitido(Database::connect(),(int)$restaurante['id']); }
+catch (\Throwable) { $fiscalPermitido=false; }
 $grupos = [];
 foreach (MenuGerencia::GRUPOS as $grupo => $chaves) {
     foreach ($chaves as $chave) {
+        if ($chave === 'fiscal' && !$fiscalPermitido) { continue; }
         $area = MenuGerencia::AREAS[$chave] ?? null;
         $grupos[$grupo][] = [
             MenuGerencia::url($slug, $chave),

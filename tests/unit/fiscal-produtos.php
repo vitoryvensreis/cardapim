@@ -29,3 +29,11 @@ fpOk(V::pendencias(['dados'=>$d,'versao'=>2],$r,$empresa)!==[]);
 $n=CatalogoNcm::normalizar(['Data_Ultima_Atualizacao_NCM'=>'Vigente em 01/01/2026','Nomenclaturas'=>[['Codigo'=>'22','Descricao'=>'Bebidas'],['Codigo'=>'2202.10.00','Descricao'=>'Águas aromatizadas'],['Codigo'=>'01','Descricao'=>'Animais vivos'],['Codigo'=>'0101.21.00','Descricao'=>'Reprodutores']]]);
 fpOk(count($n['itens'])===2 && CatalogoNcm::pesquisar($n,'BEBIDAS')[0]['codigo']==='22021000' && CatalogoNcm::pesquisar($n,'0101')[0]['codigo']==='01012100' && CatalogoNcm::pesquisar($n,'2202.10.00')[0]['codigo']==='22021000');
 echo "Validação cadastral fiscal, GTIN, perfil, vigência e catálogo NCM confirmados.\n";
+
+use Cardapim\Services\Gerencia\FiscalProdutosService as Lote;
+fpOk(Lote::loteCampos(['campos'=>['origem','fator'],'origem'=>'0','fator'=>'1,25'])===['origem'=>'0','fator'=>'1.25']);
+try { Lote::loteCampos(['campos'=>['gtin'],'gtin'=>'SEM GTIN']); throw new LogicException('GTIN em massa aceito.'); } catch (RuntimeException) {}
+$m=Lote::mesclarLote(['origem'=>'0','gtin'=>'SEM GTIN','confirmado'=>true],['origem'=>'1','ncm'=>'22021000'],false,$n);
+fpOk($m['dados']['origem']==='0' && $m['dados']['gtin']==='SEM GTIN' && $m['dados']['ncm_fonte']===$n['versao'] && !$m['dados']['confirmado']);
+fpOk(Lote::mesclarLote(['origem'=>'0'],['origem'=>'1'],true,null)['dados']['origem']==='1');
+try { Lote::mesclarLote([],['ncm'=>'99999999'],false,$n); throw new LogicException('NCM ausente aceito.'); } catch (RuntimeException) {}

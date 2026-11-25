@@ -40,6 +40,8 @@ final class Esquema
         'cupom_aparencia' => ['restaurante_cupom_aparencia', 'tamanho'],
         'fiscal_restaurante' => ['restaurante_fiscal', 'dados'],
         'fiscal_produtos' => ['fiscal_produtos', 'dados'],
+        'fiscal_visibilidade' => ['fiscal_visibilidade', 'visivel'],
+        'fiscal_liberacoes' => ['fiscal_liberacoes', 'permitido'],
     ];
 
     /** @var array<string,bool> */

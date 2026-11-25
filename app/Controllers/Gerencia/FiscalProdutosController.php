@@ -18,6 +18,9 @@ final class FiscalProdutosController extends BaseGerencia
     private function acesso(string $slug,bool $post=false): ?Response
     {
         if ($r=$this->entrar($slug,$post)) { return $r; }
+        if (!\Cardapim\Services\Gerencia\FiscalAcesso::permitido($this->db,$this->restaurante['id'])) {
+            return \Cardapim\Services\Auth\Guard::proibido($this->usuario,'Módulo indisponível para este restaurante.');
+        }
         if (!FiscalProdutosService::disponivel($this->db,$this->restaurante['id'])) {
             return $this->tela('gerencia/fiscal/produtos/indisponivel','fiscal','Cadastro fiscal',[],403);
         }
@@ -122,8 +125,8 @@ final class FiscalProdutosController extends BaseGerencia
         if ($r=$this->acesso($slug,true)) { return $r; }
         try {
             $perfil=self::id($this->post('id_perfil'));
-            if ($perfil===null) { throw new InvalidArgumentException('Selecione um perfil.'); }
-            $p=$this->servico()->previa(is_array($_POST['produtos'] ?? null)?$_POST['produtos']:[],$perfil);
+            if ($perfil===null && $this->post('id_perfil')!=='') { throw new InvalidArgumentException('Perfil inválido.'); }
+            $p=$this->servico()->previa(is_array($_POST['produtos'] ?? null)?$_POST['produtos']:[],$perfil,$_POST);
             $token=bin2hex(random_bytes(24));
             Session::set('fiscal_lote_'.$this->restaurante['id'],['token'=>$token,'autor'=>$this->usuario->id,'expira'=>time()+300,'previa'=>$p]);
             return $this->pagina('previa','Revisar aplicação em massa',['previa'=>$p,'lote'=>$token]);
@@ -138,7 +141,7 @@ final class FiscalProdutosController extends BaseGerencia
             $p=Session::flash('fiscal_lote_'.$this->restaurante['id']);
             if (!is_array($p) || ($p['autor'] ?? null)!==$this->usuario->id || ($p['expira'] ?? 0)<time() || !hash_equals((string)$p['token'],$this->post('lote'))) { throw new InvalidArgumentException('Prévia expirada. Selecione os produtos novamente.'); }
             $n=$this->servico()->aplicar($p['previa']);
-            return $this->voltar($url,'sucesso',$n.' produtos vinculados ao perfil. Confira as classificações individuais.');
+            return $this->voltar($url,'sucesso',$n.' produtos processados. Confira as classificações individuais e pendências.');
         } catch (Throwable $e) { return $this->falha($e,$url); }
     }
 
@@ -153,6 +156,20 @@ final class FiscalProdutosController extends BaseGerencia
             $this->servico()->categoria($id,$perfil);
             return $this->voltar($url,'sucesso','Sugestão da categoria salva. Nenhum produto foi reclassificado.');
         } catch (Throwable $e) { return $this->falha($e,$url); }
+    }
+
+    public function gtin(string $slug): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        $headers=['Cache-Control'=>'no-store'];
+        try {
+            $s=new \Cardapim\Services\Gerencia\FiscalService($this->db,$this->usuario,$this->restaurante['id']);
+            return Response::json(['ok'=>true,'dados'=>$s->consultarGtin($this->post('gtin'))],200,$headers);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Consulta GTIN indisponível ('.get_class($e).').');
+            $msg='Consulta indisponível. Confira o código de barras, certificado A1 e ambiente de homologação.';
+            return Response::json(['ok'=>false,'mensagem'=>$msg],422,$headers);
+        }
     }
 
     public function ncm(string $slug): Response
