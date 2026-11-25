@@ -4,6 +4,10 @@ declare(strict_types=1);
 namespace Cardapim\Services\Gerencia;
 
 use Cardapim\Core\RateLimiter;
+use Cardapim\Core\Session;
+use Cardapim\Modules\Fiscal\ConsultaCadastroFiscal;
+use Cardapim\Modules\Fiscal\MunicipioIbge;
+use Cardapim\Modules\Entrega\TextoLocal;
 use Cardapim\Modules\Fiscal\CertificadoA1;
 use Cardapim\Modules\Integracoes\NextFiscalApi;
 use Cardapim\Repositories\Desktop\ImpressoraRepository;
@@ -47,6 +51,8 @@ final class FiscalService
             'aprovado' => $r['aprovado'] ?? false,
             'registrado' => isset($d['token']),
             'empresa' => $dados, 'ambiente' => $amb,
+            'empresa_salva' => isset($d['empresa']),
+            'empresa_pronta' => self::empresaPronta($d['empresa'] ?? []),
             'config' => array_intersect_key($config, array_flip(['serie', 'numero', 'id_csc'])),
             'tem_csc' => isset($config['csc']) && $config['csc'] !== '',
             'certificado' => $d['certificado'] ?? null,
@@ -155,27 +161,84 @@ final class FiscalService
         return is_string($p[$c] ?? null) ? trim($p[$c]) : '';
     }
 
+    public function consultarEmpresa(bool $atualizar): array
+    {
+        $r = $this->repo->buscar($this->id);
+        if (!$r || !$r['habilitado'] || !$this->cnpjConfere($r,$this->perfil())) {
+            throw new RuntimeException('Módulo indisponível.');
+        }
+        // Cache filtrado, somente na sessão do usuário; nunca a resposta bruta ou os sócios.
+        $chave = 'fiscal_consulta_cnpj';
+        $cache = Session::get($chave);
+        if (!$atualizar && is_array($cache) && ($cache['id'] ?? null) === $this->id && ($cache['cnpj'] ?? '') === $r['cnpj'] && ($cache['expira'] ?? 0) > time() && is_array($cache['dados'] ?? null)) {
+            return $cache['dados'];
+        }
+        if (!RateLimiter::padrao(6,3600)->permitir('fiscal-cnpj|' . $this->id) || !RateLimiter::padrao(20,60)->permitir('fiscal-cnpj-global')) {
+            throw new RuntimeException('Limite de consultas.');
+        }
+        $dados = (new ConsultaCadastroFiscal())->consultar($r['cnpj']);
+        // CEP complementa campos ausentes, sem trocar o município/UF cadastral por outro.
+        if (isset($dados['cep']) && (!isset($dados['logradouro']) || !isset($dados['bairro']) || !isset($dados['cidade']) || !isset($dados['estado']))) {
+            $endereco = (new \Cardapim\Services\Geo\Geocodificador())->cep($dados['cep']);
+            if ($endereco !== null && (!isset($dados['estado']) || $dados['estado'] === $endereco['estado'])
+                && (!isset($dados['cidade']) || TextoLocal::chave($dados['cidade']) === TextoLocal::chave($endereco['cidade']))) {
+                foreach (['logradouro'=>120,'bairro'=>80,'cidade'=>80,'estado'=>2] as $k=>$max) {
+                    if (!isset($dados[$k]) && is_string($endereco[$k] ?? null) && $endereco[$k] !== '') {
+                        $dados[$k] = mb_substr($endereco[$k],0,$max);
+                    }
+                }
+            }
+        }
+        Session::set($chave,['id'=>$this->id,'cnpj'=>$r['cnpj'],'expira'=>time()+86400,'dados'=>$dados]);
+        return $dados;
+    }
+
+    /** Cadastro pendente pode conectar em simulação, mas não preparar emissão em homologação. */
+    public static function empresaPronta(array $e): bool
+    {
+        return ($e['ie_situacao'] ?? (preg_match('/\A[0-9]{2,20}\z/', (string) ($e['ie'] ?? '')) ? 'possui' : 'pendente')) === 'possui'
+            && preg_match('/\A[0-9]{2,20}\z/', (string) ($e['ie'] ?? '')) === 1
+            && ($e['ibge_verificado'] ?? false) === true
+            && preg_match('/\A[0-9]{7}\z/', (string) ($e['ibge'] ?? '')) === 1;
+    }
+
     public function empresa(array $p): Resultado
     {
-        $campos = ['razao' => 160, 'nome' => 120, 'ie' => 20, 'cep' => 9, 'logradouro' => 120, 'numero' => 20, 'complemento' => 100, 'bairro' => 80, 'cidade' => 80, 'estado' => 2, 'ibge' => 7, 'crt' => 1, 'email' => 160];
+        $campos = ['razao' => 160, 'nome' => 120, 'cep' => 9, 'logradouro' => 120, 'numero' => 20, 'complemento' => 100, 'bairro' => 80, 'cidade' => 80, 'estado' => 2, 'crt' => 1, 'email' => 160];
         $d = [];
         foreach ($campos as $c => $max) {
             $d[$c] = self::campo($p, $c);
-            if (mb_strlen($d[$c]) > $max || ($c !== 'complemento' && $d[$c] === '')) {
+            if (mb_strlen($d[$c]) > $max || (!in_array($c,['complemento','nome','email','bairro'],true) && $d[$c] === '')) {
                 return Resultado::falha('Confira os campos obrigatórios dos dados fiscais.');
             }
         }
         $d['cep'] = Documento::somenteDigitos($d['cep']);
         $d['estado'] = strtoupper($d['estado']);
-        $ufs = ['AC'=>12,'AL'=>27,'AP'=>16,'AM'=>13,'BA'=>29,'CE'=>23,'DF'=>53,'ES'=>32,'GO'=>52,'MA'=>21,'MT'=>51,'MS'=>50,'MG'=>31,'PA'=>15,'PB'=>25,'PR'=>41,'PE'=>26,'PI'=>22,'RJ'=>33,'RN'=>24,'RS'=>43,'RO'=>11,'RR'=>14,'SC'=>42,'SP'=>35,'SE'=>28,'TO'=>17];
-        if (!isset($ufs[$d['estado']]) || preg_match('/\A[0-9]{7}\z/', $d['ibge']) !== 1 || substr($d['ibge'], 0, 2) !== (string) $ufs[$d['estado']] || strlen($d['cep']) !== 8 || preg_match('/\A[0-9]{2,20}\z/', $d['ie']) !== 1 || !in_array($d['crt'], ['1','2','3','4'], true) || !filter_var($d['email'], FILTER_VALIDATE_EMAIL)) {
-            return Resultado::falha('Confira CEP, IE, UF, código IBGE, regime tributário e e-mail.');
+        $situacao = self::campo($p,'ie_situacao');
+        $ie = self::campo($p,'ie');
+        if (!MunicipioIbge::ufValida($d['estado']) || strlen($d['cep']) !== 8 || !in_array($d['crt'], ['1','2','3','4'], true) || ($d['email'] !== '' && !filter_var($d['email'], FILTER_VALIDATE_EMAIL))) {
+            return Resultado::falha('Confira CEP, UF, regime tributário e e-mail.');
         }
+        if (!in_array($situacao,['possui','isento','pendente'],true) || ($situacao === 'possui' && preg_match('/\A[0-9]{2,20}\z/', $ie) !== 1)) {
+            return Resultado::falha('Informe a situação da inscrição estadual e, se possuir, seus dígitos.');
+        }
+        $d['ie_situacao'] = $situacao;
+        $d['ie'] = $situacao === 'possui' ? $ie : '';
+        if ($d['nome'] === '') { $d['nome'] = mb_substr($d['razao'],0,120); }
         return $this->operacao(function (array &$r) use ($d): Resultado {
+            $anterior = $r['dados']['empresa'] ?? [];
+            $mesmo = ($anterior['ibge_verificado'] ?? false) === true && ($anterior['estado'] ?? '') === $d['estado']
+                && TextoLocal::chave($anterior['cidade'] ?? '') === TextoLocal::chave($d['cidade']);
+            $ibge = $mesmo ? ($anterior['ibge'] ?? null) : null;
+            if (!$mesmo && RateLimiter::padrao(20,3600)->permitir('fiscal-ibge|' . $this->id)) {
+                $ibge = (new MunicipioIbge())->resolver($d['cidade'],$d['estado'],$d['cep']);
+            }
+            $d['ibge'] = $ibge ?? '';
+            $d['ibge_verificado'] = $ibge !== null && $ibge !== '';
             $r['dados']['empresa'] = $d;
             $r['dados']['config_enviada'] = false;
             $r['dados']['status'] = [];
-            return Resultado::sucesso('Dados fiscais salvos.');
+            return Resultado::sucesso(self::empresaPronta($d) ? 'Dados fiscais salvos.' : 'Dados fiscais salvos. Confira as pendências de inscrição estadual ou município antes da homologação.');
         });
     }
 
@@ -260,6 +323,7 @@ final class FiscalService
             if (($r['dados']['ambiente'] ?? 3) !== 2 || !isset($r['dados']['empresa'], $r['dados']['config'][2])) {
                 return Resultado::falha('Selecione homologação e salve os parâmetros antes do certificado.');
             }
+            if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha('Regularize a inscrição estadual e o município antes da homologação.'); }
             [$sh, $cnpj, $token] = $this->credenciais($r);
             try {
                 $meta = CertificadoA1::validar($bytes, $senha, $cnpj);
@@ -283,6 +347,7 @@ final class FiscalService
             if (($r['dados']['ambiente'] ?? 3) !== 2 || !isset($r['dados']['empresa'], $r['dados']['config'][2]) || ($r['dados']['certificado']['expira_em'] ?? 0) <= time()) {
                 return Resultado::falha('Configure homologação, parâmetros e certificado válido primeiro.');
             }
+            if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha('Regularize a inscrição estadual e o município antes da homologação.'); }
             [$sh, $cnpj, $token] = $this->credenciais($r);
             $c = $r['dados']['config'][2]; $e = $r['dados']['empresa'];
             if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-config|' . $this->id)) { return Resultado::falha('Limite de envios atingido.'); }
@@ -298,7 +363,7 @@ final class FiscalService
         return $this->operacao(function (array &$r): Resultado {
             [$sh, $cnpj, $token] = $this->credenciais($r);
             $amb = $r['dados']['ambiente'] ?? 3;
-            if ($amb === 2 && (!($r['dados']['config_enviada'] ?? false) || ($r['dados']['certificado']['expira_em'] ?? 0) <= time())) {
+            if ($amb === 2 && (!self::empresaPronta($r['dados']['empresa'] ?? []) || !($r['dados']['config_enviada'] ?? false) || ($r['dados']['certificado']['expira_em'] ?? 0) <= time())) {
                 return Resultado::falha('Envie a configuração de homologação e confira o certificado antes do teste.');
             }
             if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-teste|' . $this->id)) {

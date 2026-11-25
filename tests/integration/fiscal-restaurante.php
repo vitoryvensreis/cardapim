@@ -9,10 +9,13 @@ $ids = $db->query('SELECT id FROM restaurantes ORDER BY id LIMIT 2')->fetchAll(P
 if (count($ids) < 1) { throw new RuntimeException('Restaurante de teste ausente.'); }
 $id = (int) $ids[0];
 $r = new FiscalRepository($db);
+$qcnpj = $db->prepare('SELECT cnpj FROM restaurantes WHERE id=?');
+$qcnpj->execute([$id]);
+$cnpj = (string) $qcnpj->fetchColumn();
 $db->beginTransaction();
 try {
-    $r->serializar($id, function () use ($r,$id): void {
-        $r->salvar($id,['cnpj'=>'11222333000181','habilitado'=>true,'aprovado'=>false,'id_impressora'=>null,'dados'=>['token'=>'segredo-fiscal-teste']]);
+    $r->serializar($id, function () use ($r,$id,$cnpj): void {
+        $r->salvar($id,['cnpj'=>$cnpj,'habilitado'=>true,'aprovado'=>false,'id_impressora'=>null,'dados'=>['token'=>'segredo-fiscal-teste','empresa'=>['cidade'=>'Fortaleza','estado'=>'CE','ibge'=>'2304400','ibge_verificado'=>true]]]);
     });
     $row = $r->buscar($id);
     if (!$row['habilitado'] || $row['dados']['token'] !== 'segredo-fiscal-teste') { throw new RuntimeException('Configuração não persistida.'); }
@@ -26,5 +29,11 @@ try {
         throw new RuntimeException('Central fiscal não consultou o resumo pelo PDO injetado.');
     }
     if (str_contains(json_encode($resumo),'segredo-fiscal-teste')) { throw new RuntimeException('Credencial exposta no resumo.'); }
+    $servico = new \Cardapim\Services\Gerencia\FiscalService($db,$admin,$id);
+    $res = $servico->empresa(['razao'=>'Empresa CI','nome'=>'Nome editado','email'=>'','cep'=>'60060440','logradouro'=>'Rua Teste','numero'=>'1','complemento'=>'','bairro'=>'Centro','cidade'=>'Fortaleza','estado'=>'CE','crt'=>'4','ie_situacao'=>'pendente','ibge'=>'9999999']);
+    $dados = $r->buscar($id)['dados'];
+    if (!$res->ok || $dados['empresa']['ie'] !== '' || $dados['empresa']['ibge'] !== '2304400' || $dados['empresa']['nome'] !== 'Nome editado' || $dados['token'] !== 'segredo-fiscal-teste' || $servico->estado()['empresa_pronta']) {
+        throw new RuntimeException('Cadastro pendente editável, município ou preservação do token falhou.');
+    }
 } finally { $db->rollBack(); Cripto::usarChave(null); }
 echo "Persistência e projeção fiscal confirmadas.\n";

@@ -146,6 +146,7 @@ return static function (Router $router): void {
     $router->get($g . '/integracoes', [IntegracoesController::class, 'inicio']);
     $router->get($g . '/fiscal', [FiscalController::class, 'inicio']);
     $router->post($g . '/fiscal/habilitar', [FiscalController::class, 'habilitar']);
+    $router->post($g . '/fiscal/consultar-empresa', [FiscalController::class, 'consultarEmpresa']);
     $router->post($g . '/fiscal/empresa', [FiscalController::class, 'empresa']);
     $router->post($g . '/fiscal/conectar', [FiscalController::class, 'conectar']);
     $router->post($g . '/fiscal/ambiente', [FiscalController::class, 'ambiente']);
