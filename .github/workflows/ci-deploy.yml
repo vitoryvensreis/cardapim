@@ -96,6 +96,7 @@ jobs:
           php tests/unit/tags.php
           php tests/unit/assinaturas.php
           php tests/unit/financeiro.php
+          php tests/unit/relatorios.php
           php tests/unit/gerencia.php
           php tests/unit/integracoes.php
           php tests/unit/pix-expiracao.php
@@ -220,6 +221,7 @@ jobs:
           grep -q 'Criados agora: 0 categorias, 0 insumos, 0 produtos, 0 linhas' /tmp/cardapim-cardapio-2.txt
           php database/seed-cardapio-exemplo.php --verify
           php tests/integration/gerencia.php
+          php tests/integration/relatorios.php
           php tests/integration/fiscal-restaurante.php
           php tests/integration/fiscal-produtos.php
           php tests/integration/peso.php

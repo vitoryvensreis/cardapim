@@ -156,3 +156,5 @@ Correção NCM: pesquisa direta por código/descrição na BrasilAPI, somente po
 - Fiscal etapa 03: simplificação do cadastro, seleção por regime, CEST integrado e recuperação de formulários; ver `docs/architecture/fiscal-next.md`. Emissão real permanece bloqueada.
 
 - Fiscal: pesquisa NCM assistida por nomes comerciais e sinônimos, com candidatos verificados pela BrasilAPI e seleção explícita (sem classificação automática).
+
+- Financeiro → Relatórios: vendas por produto, dia, hora, pedido/comanda, com filtros combinados, resumo por situação e CSV. Consulta somente leitura dos itens históricos, preços e quantidades por unidade; componentes de combos já rateados, adicionais comuns incluídos no total do item (sem ranking individual de adicionais). Por padrão considera o horário de lançamento e todas as situações, com cancelamentos separados; por fechamento considera apenas itens válidos de pedidos concluídos. Categoria do cadastro atual, período máximo de 93 dias, paginação de 50 e exportação limitada a 10 mil linhas. A rota anterior de planilha financeira permanece intacta. Sem novas tabelas ou migrations.
