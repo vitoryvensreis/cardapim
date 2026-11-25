@@ -10,6 +10,7 @@ $crt=(string)($empresa['crt'] ?? '');
     <header class="painel-cabecalho"><div><h1><?= $perfil?'Editar perfil tributário':'Novo perfil tributário' ?></h1><p>Preencha com a orientação do responsável fiscal. Alterações geram uma versão nova.</p></div></header>
     <p><a href="<?= $e($url.'/perfis') ?>">Voltar aos perfis</a></p>
     <section class="bloco"><p>Regime (CRT): <strong><?= $e($crt ?: 'Não cadastrado') ?></strong> · UF: <strong><?= $e($empresa['estado'] ?? 'Não cadastrada') ?></strong> · NFC-e (65)</p>
+        <p><a href="<?= $e($url.'/produtos/catalogos?tipo=cfop') ?>" target="_blank" rel="noopener noreferrer">Pesquisar CFOP e códigos tributários em outra aba</a></p>
         <form method="post" action="<?= $e($url.'/perfis/salvar') ?>" class="fiscal-form"><?php $token(); ?>
             <input type="hidden" name="id_perfil" value="<?= $e($perfil['id'] ?? '') ?>"><input type="hidden" name="versao" value="<?= $e($perfil['versao'] ?? '') ?>">
             <label for="fp-nome">Nome do perfil</label><input id="fp-nome" name="nome" required maxlength="120" value="<?= $v('nome') ?>">

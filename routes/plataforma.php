@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cardapim\Controllers\Plataforma\ConfiguracoesController;
 use Cardapim\Controllers\Plataforma\IntegracoesController;
 use Cardapim\Controllers\Plataforma\FiscalController;
+use Cardapim\Controllers\Plataforma\FiscalCatalogosController;
 use Cardapim\Controllers\Plataforma\PainelController;
 use Cardapim\Controllers\Plataforma\PlanosController;
 use Cardapim\Controllers\Plataforma\RestaurantesController;
@@ -22,6 +23,8 @@ return static function (Router $router): void {
 
     $router->get('/painel/integracoes', [IntegracoesController::class, 'inicio']);
     $router->get('/painel/fiscal', [FiscalController::class, 'inicio']);
+    $router->get('/painel/fiscal/catalogos', [FiscalCatalogosController::class, 'inicio']);
+    $router->post('/painel/fiscal/catalogos/importar', [FiscalCatalogosController::class, 'importar']);
     $router->post('/painel/fiscal', [FiscalController::class, 'salvar']);
     $router->post('/painel/fiscal/aprovar-restaurante', [FiscalController::class, 'aprovarRestaurante']);
     $router->post('/painel/fiscal/liberar-restaurante', [FiscalController::class, 'liberarRestaurante']);

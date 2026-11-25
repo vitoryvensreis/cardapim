@@ -145,6 +145,21 @@ final class FiscalProdutosController extends BaseGerencia
         } catch (Throwable $e) { return $this->falha($e,$url); }
     }
 
+    public function catalogos(string $slug): Response
+    {
+        if ($r=$this->acesso($slug)) { return $r; }
+        try {
+            $t=\Cardapim\Modules\Fiscal\CatalogosFiscais::TIPOS;
+            $tipo=is_string($_GET['tipo'] ?? null)&&isset($t[$_GET['tipo']])?$_GET['tipo']:'cest';
+            $q=is_string($_GET['q'] ?? null)?mb_substr(trim($_GET['q']),0,100):'';
+            $ncm=is_string($_GET['ncm'] ?? null)&&preg_match('/\A[0-9]{8}\z/',$_GET['ncm'])?$_GET['ncm']:'';
+            $cst=is_string($_GET['cst'] ?? null)&&preg_match('/\A[0-9]{3}\z/',$_GET['cst'])?$_GET['cst']:'';
+            $d=(new \Cardapim\Modules\Fiscal\CatalogosFiscais($this->db))->vigente($tipo);
+            $resultados=$d?\Cardapim\Modules\Fiscal\CatalogosFiscais::pesquisar($d,$q,$ncm,$cst):[];
+            return $this->pagina('catalogos','Pesquisar tabelas fiscais',['tipo'=>$tipo,'q'=>$q,'ncm'=>$ncm,'cst'=>$cst,'catalogo'=>$d,'resultados'=>$resultados]);
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }
+    }
+
     public function importar(string $slug): Response
     {
         if ($r=$this->acesso($slug)) { return $r; }
