@@ -1,4 +1,7 @@
-<?php require __DIR__.'/_base.php'; ?>
+<?php
+use Cardapim\Core\Icon;
+use Cardapim\Modules\Fiscal\CadastroProdutoFiscal as Validar;
+ require __DIR__.'/_base.php'; ?>
 <div class="painel-page fiscal-restaurante fiscal-produtos">
     <header class="painel-cabecalho"><div><h1>Perfis tributários</h1><p>Configure uma vez, reutilize nos produtos compatíveis.</p></div><a class="btn btn-primary" href="<?= $e($url.'/perfis/novo') ?>"><?= Icon::svg('plus','icon-sm') ?> Novo perfil</a></header>
     <p><a href="<?= $e($url.'/produtos') ?>">Voltar aos produtos fiscais</a></p>

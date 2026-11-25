@@ -1,4 +1,7 @@
 <?php
+use Cardapim\Core\Icon;
+use Cardapim\Modules\Fiscal\CadastroProdutoFiscal as Validar;
+
 require __DIR__.'/_base.php';
 $revisados=count(array_filter($produtos,static fn($p)=>$p['pendencias']===[]));
 ?>

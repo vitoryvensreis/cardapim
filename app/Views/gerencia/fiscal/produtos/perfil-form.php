@@ -1,4 +1,7 @@
 <?php
+use Cardapim\Core\Icon;
+use Cardapim\Modules\Fiscal\CadastroProdutoFiscal as Validar;
+
 require __DIR__.'/_base.php';
 $v=static fn(string $k):string=>$e($dados[$k] ?? '');
 $crt=(string)($empresa['crt'] ?? '');

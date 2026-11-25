@@ -1,4 +1,7 @@
-<?php require __DIR__.'/_base.php'; ?>
+<?php
+use Cardapim\Core\Icon;
+use Cardapim\Modules\Fiscal\CadastroProdutoFiscal as Validar;
+ require __DIR__.'/_base.php'; ?>
 <div class="painel-page fiscal-restaurante fiscal-produtos">
     <header class="painel-cabecalho"><div><h1>Revisar aplicação em massa</h1><p>Perfil <?= $e($previa['nome']) ?> · versão <?= $e($previa['versao']) ?>. Nenhuma alteração foi gravada.</p></div></header>
     <section class="bloco">

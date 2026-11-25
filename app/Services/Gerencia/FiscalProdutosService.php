@@ -66,6 +66,7 @@ final class FiscalProdutosService
     {
         $id=self::identificador($p['id_perfil'] ?? '');
         $versao=self::identificador($p['versao'] ?? '') ?? 0;
+        if ($id===null && ($p['id_perfil'] ?? '')!=='') { throw new RuntimeException('Perfil inválido.'); }
         $r=$this->escrever(function ($empresa) use ($p,$id,$versao) {
             $d=Validar::perfil($p,$empresa);
             if ($id!==null && ($p['confirmar_impacto'] ?? '')!=='1') { throw new RuntimeException('Confirme a criação da nova versão e revisão dos vínculos.'); }
@@ -80,6 +81,7 @@ final class FiscalProdutosService
         $this->escrever(function ($empresa) use ($id,$p) {
             $d=Validar::produto($p);
             $perfil=self::identificador($p['id_perfil'] ?? '');
+            if ($perfil===null && ($p['id_perfil'] ?? '')!=='') { throw new RuntimeException('Perfil inválido.'); }
             $perfis=$this->repo->perfis();
             if ($perfil!==null && (!isset($perfis[$perfil]) || !Validar::perfilVigente($perfis[$perfil],$empresa))) { throw new RuntimeException('Selecione um perfil revisado compatível.'); }
             $catalogo=(new CatalogoNcm())->ler();

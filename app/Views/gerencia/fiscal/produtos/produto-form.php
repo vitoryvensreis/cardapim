@@ -1,4 +1,7 @@
 <?php
+use Cardapim\Core\Icon;
+use Cardapim\Modules\Fiscal\CadastroProdutoFiscal as Validar;
+
 require __DIR__.'/_base.php';
 $d=$produto['dados'];
 $sugerido=$produto['id_perfil'] ?? $produto['sugestao'];
