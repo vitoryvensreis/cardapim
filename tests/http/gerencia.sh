@@ -60,9 +60,15 @@ contem "formulario do insumo envia para a rota certa" "$tmp/pagina.html" "action
 cj="$tmp/caixa"
 login "$cj" ci_caixa >/dev/null
 esperar "caixa nao abre o estoque" "$(pagina "$cj" "$g/estoque")" "403"
+esperar "caixa nao abre relatorios" "$(pagina "$cj" "$g/financeiro/relatorios")" "403"
 oj="$tmp/outro"
 login "$oj" ci_outro_gerente >/dev/null
 esperar "gerente de outro restaurante nao abre" "$(pagina "$oj" "$g/estoque/insumos")" "403"
+esperar "gerente de outro restaurante nao abre relatorios" "$(pagina "$oj" "$g/financeiro/relatorios")" "403"
+esperar "gerente abre relatorios" "$(pagina "$gj" "$g/financeiro/relatorios")" "200"
+contem "relatorio de vendas" "$tmp/pagina.html" "Relatório de vendas"
+esperar "gerente exporta relatorios" "$(pagina "$gj" "$g/financeiro/relatorios?exportar=1")" "200"
+contem "cabecalho CSV" "$tmp/pagina.html" "Quantidade"
 esperar "POST sem CSRF volta com erro" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' --data 'nome=Hack&unidade=un' "$g/estoque/insumos")" "303"
 pagina "$gj" "$g/estoque/insumos" >/dev/null
 nao_contem "insumo sem CSRF nao foi criado" "$tmp/pagina.html" '>Hack<'

@@ -10,6 +10,7 @@ use Cardapim\Controllers\Gerencia\FidelidadeController;
 use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
 use Cardapim\Controllers\Gerencia\FinanceiroController;
+use Cardapim\Controllers\Gerencia\RelatoriosController;
 use Cardapim\Controllers\Gerencia\ImportarCardapioController;
 use Cardapim\Controllers\Gerencia\ImpressorasController;
 use Cardapim\Controllers\Gerencia\FiscalController;
@@ -81,6 +82,7 @@ return static function (Router $router): void {
     $router->get($g . '/financeiro/extrato', [FinanceiroController::class, 'extrato']);
     $router->get($g . '/financeiro/fechamentos', [FinanceiroController::class, 'fechamentos']);
     $router->get($g . '/financeiro/relatorio', [FinanceiroController::class, 'planilha']);
+    $router->get($g . '/financeiro/relatorios', [RelatoriosController::class, 'index']);
     $router->get($g . '/financeiro/contas', [FinanceiroController::class, 'contas']);
     $router->get($g . '/financeiro/contas/nova', [FinanceiroController::class, 'novaConta']);
     $router->post($g . '/financeiro/contas', [FinanceiroController::class, 'criarConta']);

@@ -8,6 +8,7 @@ $abasFinanceiro = [
     'extrato' => ['Entradas e saídas', 'arrow-right-left', '/financeiro/extrato' . $qsAbas],
     'contas' => ['Contas a pagar e receber', 'calendar-clock', '/financeiro/contas'],
     'fechamentos' => ['Fechamentos de caixa', 'lock', '/financeiro/fechamentos' . $qsAbas],
+    'relatorios' => ['Relatórios', 'chart-no-axes-column', '/financeiro/relatorios'],
 ];
 ?>
 <nav class="painel-abas" aria-label="Partes do financeiro">

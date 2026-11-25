@@ -1,0 +1,36 @@
+/* Relatórios de vendas: estilos isolados, mobile-first. */
+.rel-filtros { display:grid; gap:1rem; }
+.rel-grade { display:grid; gap:.8rem; grid-template-columns:repeat(auto-fit,minmax(min(100%, 12rem),1fr)); align-items:end; }
+.rel-grade label { display:grid; gap:.35rem; font-weight:600; font-size:.9rem; min-width:0; }
+.rel-grade input,.rel-grade select { width:100%; min-width:0; min-height:2.9rem; border:1px solid var(--c-line); border-radius:var(--r-md); padding:.6rem; color:var(--c-ink); background:var(--c-white); font:inherit; }
+.rel-grade input:focus-visible,.rel-grade select:focus-visible { outline:2px solid var(--c-wine); outline-offset:2px; }
+.rel-filtros details { border:1px solid var(--c-line); border-radius:var(--r-md); padding:.8rem; }
+.rel-filtros summary { cursor:pointer; font-weight:700; color:var(--c-wine); }
+.rel-filtros details[open] summary { margin-bottom:.8rem; }
+.rel-acoes { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; }
+.rel-indicadores { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%, 14rem),1fr)); gap:.8rem; margin:1rem 0; }
+.rel-indicadores .indicador strong { white-space:normal; overflow-wrap:anywhere; }
+.rel-nota { color:var(--c-muted); font-size:.85rem; margin:.6rem 0 1rem; }
+.rel-visoes { margin-bottom:.8rem; }
+.rel-tabela { overflow:auto; }
+.rel-tabela table { width:100%; border-collapse:collapse; font-size:.9rem; text-align:left; }
+.rel-tabela th,.rel-tabela td { padding:.8rem .65rem; border-bottom:1px solid var(--c-line); vertical-align:top; }
+.rel-tabela th { background:var(--c-cream); font-size:.8rem; }
+.rel-tabela td small { display:block; color:var(--c-muted); margin-top:.25rem; }
+.rel-tabela a { color:var(--c-wine); font-weight:700; }
+.rel-status { display:inline-block; border:1px solid currentColor; border-radius:var(--r-md); padding:.15rem .45rem; font-size:.78rem; }
+.rel-status-vendido { color:var(--c-success); }
+.rel-status-aberto { color:var(--c-wine); }
+.rel-status-cancelado { color:var(--c-danger); }
+@media (max-width:650px) {
+ .rel-tabela { overflow:visible; }
+ .rel-tabela table,.rel-tabela tbody,.rel-tabela tr,.rel-tabela td { display:block; width:100%; }
+ .rel-tabela thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+ .rel-tabela tr { border:1px solid var(--c-line); border-radius:var(--r-md); padding:.3rem .7rem; margin-bottom:.7rem; }
+ .rel-tabela td { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.4rem; padding:.45rem 0; }
+ .rel-tabela td::before { content:attr(data-label); color:var(--c-muted); font-size:.78rem; }
+ .rel-tabela td small { flex-basis:100%; text-align:right; }
+ .rel-tabela td:last-child { border:0; }
+}
+
+.rel-datas[hidden] { display:none; }
