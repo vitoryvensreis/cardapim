@@ -28,3 +28,7 @@ fiscalOk(CertificadoA1::alerta(time()+6*86400) === 'Vence em até 7 dias');
 fiscalOk(CertificadoA1::alerta(time()+14*86400) === 'Vence em até 15 dias');
 fiscalOk(CertificadoA1::alerta(time()+29*86400) === 'Vence em até 30 dias');
 echo "Testes fiscais sem rede aprovados.\n";
+
+$sim = \Cardapim\Services\Gerencia\FiscalService::configSimulacao([]);
+fiscalOk($sim === ['serie'=>999,'numero'=>1,'id_csc'=>'','csc'=>'']);
+fiscalOk(\Cardapim\Services\Gerencia\FiscalService::configSimulacao(['serie'=>1,'numero'=>42,'id_csc'=>'1','csc'=>'segredo']) === ['serie'=>999,'numero'=>42,'id_csc'=>'','csc'=>'']);

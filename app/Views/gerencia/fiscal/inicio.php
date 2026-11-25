@@ -55,7 +55,7 @@ $tokenCsrf = static function () use ($e, $csrf): void { ?><input type="hidden" n
                 <div class="bloco-cabecalho"><h2><?= Icon::svg('key-round') ?>Conexão com a NeXT</h2><p>O cadastro automático é liberado após a administração conferir o vínculo com o CNPJ. Nenhum token é exibido.</p></div>
                 <p><?= $fiscal['registrado'] ? 'Emitente conectado' : ($fiscal['aprovado'] ? 'Vínculo aprovado; conecte o emitente.' : 'Aguardando confirmação administrativa') ?></p>
                 <form method="post" action="<?= $e($url . '/conectar') ?>"><?php $tokenCsrf(); ?>
-                    <button class="btn btn-primary" type="submit" <?= !$fiscal['aprovado'] ? 'disabled' : '' ?>><?= $fiscal['registrado'] ? 'Conferir vínculo' : 'Conectar emitente' ?></button>
+                    <button class="btn btn-primary" type="submit" <?= !$fiscal['aprovado'] || $fiscal['registrado'] ? 'disabled' : '' ?>><?= $fiscal['registrado'] ? 'Conectado à NeXT' : 'Conectar emitente' ?></button>
                 </form>
             </section>
             <section class="bloco">
@@ -64,6 +64,13 @@ $tokenCsrf = static function () use ($e, $csrf): void { ?><input type="hidden" n
                     <label for="f-amb">Ambiente</label><select id="f-amb" name="ambiente"><option value="3" <?= $fiscal['ambiente'] === 3 ? 'selected' : '' ?>>Simulação</option><option value="2" <?= $fiscal['ambiente'] === 2 ? 'selected' : '' ?>>Homologação</option><option disabled>Produção (bloqueada)</option></select>
                     <button class="btn btn-outline" type="submit">Selecionar ambiente</button>
                 </form>
+                <?php if ($fiscal['ambiente'] === 3): ?>
+                    <div class="fiscal-separado">
+                        <p><strong><?= Icon::svg('check-circle','icon-sm') ?> Configuração automática</strong></p>
+                        <p class="texto-suave">Série de teste <?= $e($c['serie']) ?>. Numeração gerenciada pelo sistema. Não é necessário CSC, ID do CSC ou certificado digital.</p>
+                        <p class="texto-suave">A NeXT simula as respostas sem transmitir à SEFAZ. Nenhum documento possui validade fiscal.</p>
+                    </div>
+                <?php else: ?>
                 <form method="post" action="<?= $e($url . '/configurar') ?>" class="fiscal-form fiscal-separado"><?php $tokenCsrf(); ?>
                     <label for="f-serie">Série</label><input id="f-serie" name="serie" type="number" min="0" max="999" required value="<?= $e($c['serie'] ?? 1) ?>">
                     <label for="f-numero">Próxima numeração</label><input id="f-numero" name="numero" type="number" min="1" max="999999999" required value="<?= $e($c['numero'] ?? 1) ?>">
@@ -71,7 +78,9 @@ $tokenCsrf = static function () use ($e, $csrf): void { ?><input type="hidden" n
                     <label for="f-csc">CSC (quando exigido)</label><input id="f-csc" name="csc" type="password" maxlength="128" autocomplete="new-password" placeholder="<?= $fiscal['tem_csc'] ? 'Protegido; vazio mantém se ID não mudar' : 'Informe o código' ?>">
                     <button class="btn btn-primary" type="submit">Salvar parâmetros</button>
                 </form>
+                <?php endif; ?>
             </section>
+            <?php if ($fiscal['ambiente'] === 2): ?>
             <section class="bloco">
                 <div class="bloco-cabecalho"><h2><?= Icon::svg('shield-check') ?>Certificado digital A1</h2><p>Em simulação não é necessário certificado. O envio ocorre apenas em homologação.</p></div>
                 <p><strong><?= $e($fiscal['alerta']) ?></strong></p>
@@ -85,8 +94,9 @@ $tokenCsrf = static function () use ($e, $csrf): void { ?><input type="hidden" n
                     <form method="post" action="<?= $e($url . '/enviar-config') ?>" class="fiscal-separado"><?php $tokenCsrf(); ?><button class="btn btn-outline" type="submit" <?= !$fiscal['registrado'] ? 'disabled' : '' ?>>Enviar configuração de homologação</button></form>
                 <?php endif; ?>
             </section>
+            <?php endif; ?>
             <section class="bloco">
-                <div class="bloco-cabecalho"><h2><?= Icon::svg('refresh-cw') ?>Conexão fiscal</h2></div>
+                <div class="bloco-cabecalho"><h2><?= Icon::svg('refresh-cw') ?>Conexão fiscal</h2><p>Consulta realizada exclusivamente pela API NeXT.</p></div>
                 <p><?= $e($fiscal['status']) ?></p>
                 <form method="post" action="<?= $e($url . '/testar') ?>"><?php $tokenCsrf(); ?><button class="btn btn-outline" type="submit" <?= !$fiscal['registrado'] ? 'disabled' : '' ?>>Testar conexão</button></form>
                 <p class="texto-suave">Este teste não é homologação de emissão.</p>
