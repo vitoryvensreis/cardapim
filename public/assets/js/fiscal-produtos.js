@@ -35,6 +35,19 @@
         busca.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();select.focus();}});
         select.addEventListener('change',()=>{busca.value='';for(const op of select.options)op.hidden=false;});
     }
+    const perfil=document.querySelector('[data-fiscal-perfil]');
+    if(perfil){
+        const situacao=perfil.elements.namedItem('situacao_icms');
+        const grupos={icms:['00','20','90','900'],st:['90','900'],fcp:['00','20','90','900'],reducao_icms:['20','90','900']};
+        const atualizar=()=>{
+            for(const campo of perfil.querySelectorAll('[data-fiscal-aliquota]')){
+                const mostrar=!!campo.value || (grupos[campo.dataset.fiscalAliquota]||[]).includes(situacao.value);
+                campo.hidden=!mostrar;for(const label of campo.labels)label.hidden=!mostrar;
+            }
+        };
+        situacao.addEventListener('change',atualizar);
+        atualizar();
+    }
     const form=document.querySelector('[data-fiscal-classificacao]');
     if (!form) return;
     const btn=form.querySelector('[data-ncm-pesquisar]');
@@ -61,6 +74,7 @@
     busca.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();btn.click();}});
     const conf=form.elements.namedItem('confirmado');
     const revisar=()=>{if(conf)conf.checked=false;};
+    if(conf)form.addEventListener('input',e=>{if(['id_perfil','ncm','cest','origem','gtin','gtin_tributavel','unidade_comercial','unidade_tributavel','fator'].includes(e.target.name))revisar();});
     const cest=form.elements.namedItem('cest');
     const cestBusca=form.querySelector('[data-cest-busca]');
     const cestBotao=form.querySelector('[data-cest-pesquisar]');

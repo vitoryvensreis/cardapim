@@ -4,7 +4,7 @@ use Cardapim\Modules\Fiscal\CadastroProdutoFiscal as Validar;
 
 require __DIR__.'/_base.php';
 $d=$produto['dados'];
-$sugerido=$produto['id_perfil'] ?? $produto['sugestao'];
+$sugerido=!empty($rascunho)?$produto['id_perfil']:($produto['id_perfil'] ?? $produto['sugestao']);
 $un=strtoupper((string)($produto['unidade_venda'] ?? 'UN'));
 $v=static fn(string $k,string $padrao=''):string=>$e($d[$k] ?? $padrao);
 ?>
@@ -19,7 +19,7 @@ $v=static fn(string $k,string $padrao=''):string=>$e($d[$k] ?? $padrao);
     <section class="bloco">
         <?php if (!empty($rascunho)): ?><p role="status">Os dados digitados foram recuperados. Corrija os campos e confirme novamente.</p><?php endif; ?>
         <form method="post" action="<?= $e($url.'/produtos/'.$produto['id']) ?>" class="fiscal-form" data-fiscal-classificacao data-ncm-url="<?= $e($url.'/classificacoes/ncm') ?>" data-gtin-url="<?= $e($url.'/classificacoes/gtin') ?>" data-cest-url="<?= $e($url.'/produtos/catalogos') ?>"><?php $token(); ?>
-            <label for="pf-perfil">Perfil tributário</label><select id="pf-perfil" name="id_perfil"><option value="">Sem perfil (pendente)</option><?php foreach ($perfis as $p): if (!Validar::perfilVigente($p,$empresa)) { continue; } ?><option value="<?= $e($p['id']) ?>" <?= (int)$sugerido===(int)$p['id']?'selected':'' ?>><?= $e($p['nome']) ?> · v<?= $e($p['versao']) ?></option><?php endforeach; ?></select>
+            <label for="pf-perfil">Perfil tributário</label><select id="pf-perfil" name="id_perfil"><option value="">Sem perfil (pendente)</option><?php if ($sugerido!==null && (!isset($perfis[$sugerido]) || !Validar::perfilVigente($perfis[$sugerido],$empresa))): ?><option value="<?= $e($sugerido) ?>" selected>Perfil anterior incompatível ou não revisado — selecione novamente</option><?php endif; ?><?php foreach ($perfis as $p): if (!Validar::perfilVigente($p,$empresa)) { continue; } ?><option value="<?= $e($p['id']) ?>" <?= (int)$sugerido===(int)$p['id']?'selected':'' ?>><?= $e($p['nome']) ?> · v<?= $e($p['versao']) ?></option><?php endforeach; ?></select>
             <?php if ($produto['id_perfil']===null && $produto['sugestao']!==null): ?><p class="texto-suave">Sugestão da categoria. Confira antes de salvar.</p><?php endif; ?>
             <label for="pf-pesquisa">Pesquisar NCM pela BrasilAPI</label><input id="pf-pesquisa" data-ncm-busca type="search" maxlength="100" placeholder="Ex.: refrigerante, 2202" value="<?= $e(mb_substr((string)$produto['nome'],0,100)) ?>"><button class="btn btn-outline" type="button" data-ncm-pesquisar><?= Icon::svg('search','icon-sm') ?> Pesquisar classificação</button>
             <p role="status" aria-live="polite" data-ncm-status></p><div data-ncm-resultados class="fiscal-lista"></div>
@@ -36,7 +36,7 @@ $v=static fn(string $k,string $padrao=''):string=>$e($d[$k] ?? $padrao);
             <p class="texto-suave">Consulta em homologação; requer certificado A1 válido. Nenhum dado será salvo automaticamente.</p>
             <p data-fiscal-gtin-status role="status" aria-live="polite"></p><div data-fiscal-gtin-resultado></div>
             <button type="button" class="btn btn-outline" data-fiscal-sem-gtin>Produto sem código de barras</button>
-            <details><summary>Unidades, conversão e código tributável</summary><div class="fiscal-form">
+            <details<?= !empty($rascunho)?' open':'' ?>><summary>Unidades, conversão e código tributável</summary><div class="fiscal-form">
             <label for="pf-gtint">GTIN tributável (ou SEM GTIN)</label><input id="pf-gtint" name="gtin_tributavel" maxlength="14" value="<?= $v('gtin_tributavel') ?>">
             <label for="pf-un">Unidade comercial</label><input id="pf-un" name="unidade_comercial" maxlength="6" value="<?= $v('unidade_comercial',$un) ?>">
             <label for="pf-unt">Unidade tributável</label><input id="pf-unt" name="unidade_tributavel" maxlength="6" value="<?= $v('unidade_tributavel',(string)($d['unidade_comercial'] ?? $un)) ?>">
