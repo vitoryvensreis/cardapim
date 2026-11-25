@@ -145,6 +145,34 @@ final class FiscalProdutosController extends BaseGerencia
         } catch (Throwable $e) { return $this->falha($e,$url); }
     }
 
+    public function validacao(string $slug): Response
+    {
+        if ($r=$this->acesso($slug)) { return $r; }
+        try { return $this->pagina('validacao','Conferência fiscal',$this->servico()->conferencia()); }
+        catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }
+    }
+
+    public function composicao(string $slug,string $idTexto): Response
+    {
+        if ($r=$this->acesso($slug)) { return $r; }
+        try {
+            $id=self::id($idTexto);
+            if ($id===null) { throw new InvalidArgumentException('Produto inválido.'); }
+            return $this->pagina('composicao','Composição fiscal',$this->servico()->composicao($id));
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/validacao')); }
+    }
+
+    public function salvarComposicao(string $slug,string $idTexto): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        try {
+            $id=self::id($idTexto);
+            if ($id===null) { throw new InvalidArgumentException('Produto inválido.'); }
+            $this->servico()->salvarComposicao($id,$_POST);
+            return $this->voltar($this->url('fiscal/produtos/validacao'),'sucesso','Composição fiscal registrada. Venda e estoque preservados.');
+        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/validacao')); }
+    }
+
     public function catalogos(string $slug): Response
     {
         if ($r=$this->acesso($slug)) { return $r; }

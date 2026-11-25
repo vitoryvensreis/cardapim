@@ -17,4 +17,16 @@ CREATE TABLE IF NOT EXISTS fiscal_catalogos (
     KEY idx_catalogo_vigencia (tipo,vigencia,id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 SQL);
+    $db->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS fiscal_composicoes (
+    id_restaurante BIGINT UNSIGNED NOT NULL,
+    id_produto BIGINT UNSIGNED NOT NULL,
+    assinatura CHAR(64) NOT NULL,
+    dados JSON NOT NULL,
+    autor BIGINT UNSIGNED NOT NULL,
+    atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_restaurante,id_produto),
+    CONSTRAINT fk_fcomp_rest FOREIGN KEY (id_restaurante) REFERENCES restaurantes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+SQL);
 };
