@@ -154,3 +154,5 @@ Em Fiscal → Produtos fiscais: importar XML de NF-e/NFC-e processado de produç
 Correção NCM: pesquisa direta por código/descrição na BrasilAPI, somente por ação fiscal explícita, cache de sessão limitado e consulta exata no salvamento fiscal individual fora da transação; lotes/importações usam evidências locais e podem salvar pendente. Não há novas tabelas, migrations ou chamadas no núcleo comercial. Fonte e vigência registradas; evidência cadastral revalidada em até 30 dias, sem autorização de emissão.
 
 - Fiscal etapa 03: simplificação do cadastro, seleção por regime, CEST integrado e recuperação de formulários; ver `docs/architecture/fiscal-next.md`. Emissão real permanece bloqueada.
+
+- Fiscal: pesquisa NCM assistida por nomes comerciais e sinônimos, com candidatos verificados pela BrasilAPI e seleção explícita (sem classificação automática).

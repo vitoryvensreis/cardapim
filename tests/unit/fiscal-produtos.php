@@ -62,6 +62,40 @@ $many=[];
 for ($i=0;$i<40;$i++) { $many[]=array_replace($item,['codigo'=>sprintf('2202%04d',$i)]); }
 fpOk(count(CatalogoNcm::normalizar($many))===35);
 fpOk(CatalogoNcm::normalizar([array_replace($item,['data_inicio'=>'2099-01-01'])])===[]);
+// Atalhos comerciais não são uma tabela de tributação nem alteram consulta exata.
+fpOk(array_keys(CatalogoNcm::termosComerciais('PIZZA calabresa'))===[19059090]);
+fpOk(array_keys(CatalogoNcm::termosComerciais('Refrigerante'))===[22021000,22029900]);
+fpOk(array_keys(CatalogoNcm::termosComerciais('Hambúrguer artesanal'))===[16025000,19059090]);
+fpOk(CatalogoNcm::termosComerciais('X-Burger')!==[] && CatalogoNcm::termosComerciais('Refri')!==[]);
+foreach (['22021000','fluido refrigerante','massa de pizza','pão de hambúrguer','combo pizza refrigerante','refrigerador','Águas'] as $literal) { fpOk(CatalogoNcm::termosComerciais($literal)===[]); }
+final class NcmAssistidoFake extends ClienteHttp {
+    public array $urls=[];
+    public function __construct(private array $respostas) {}
+    public function enviar(string $metodo,string $url,array $cabecalhos=[],array|string|null $corpo=null): RespostaHttp {
+        $this->urls[]=$url;
+        if (!isset($this->respostas[$url])) { throw new LogicException('Consulta inesperada '.$url); }
+        return $this->respostas[$url];
+    }
+}
+$baseNcm=CatalogoNcm::URL;
+$respNcm=static fn(string $codigo,string $descricao)=>new RespostaHttp(200,json_encode(array_replace($item,['codigo'=>$codigo,'descricao'=>$descricao]),JSON_THROW_ON_ERROR));
+$fakeA=new NcmAssistidoFake([$baseNcm.'/22021000'=>$respNcm('22021000','Águas aromatizadas'),$baseNcm.'/22029900'=>$respNcm('22029900','Outras bebidas')]);
+$extras=0;
+$a=(new CatalogoNcm($fakeA))->consultarAssistido('Refrigerante',static function() use (&$extras){$extras++;return true;});
+fpOk($extras===1 && $a['assistida'] && !$a['parcial'] && count($a['resultados'])===2 && $a['resultados'][0]['codigo']==='22021000' && $a['resultados'][0]['descricao']==='Águas aromatizadas' && isset($a['resultados'][0]['sugestao_comercial']));
+fpOk($fakeA->urls===[$baseNcm.'/22021000',$baseNcm.'/22029900']);
+$fakeA=new NcmAssistidoFake([$baseNcm.'/22021000'=>$respNcm('22021000','Águas aromatizadas')]);
+$a=(new CatalogoNcm($fakeA))->consultarAssistido('Refri',static fn()=>false);
+fpOk($a['parcial'] && count($a['resultados'])===1 && count($fakeA->urls)===1);
+$fakeA=new NcmAssistidoFake([$baseNcm.'/19059090'=>new RespostaHttp(404,'{}')]);
+$a=(new CatalogoNcm($fakeA))->consultarAssistido('Pizza',static fn()=>true);
+fpOk($a['assistida'] && $a['resultados']===[]);
+$fakeA=new NcmAssistidoFake([$baseNcm.'/16025000'=>$respNcm('16025000','Preparações bovinas'),$baseNcm.'/19059090'=>new RespostaHttp(503,'{}')]);
+$a=(new CatalogoNcm($fakeA))->consultarAssistido('Hambúrguer',static fn()=>true);
+fpOk($a['parcial'] && count($a['resultados'])===1);
+$fakeA=new NcmAssistidoFake([$baseNcm.'/19059090'=>$respNcm('19059090','Outros produtos de padaria')]);
+$a=(new CatalogoNcm($fakeA))->consultarAssistido('19059090',static fn()=>false);
+fpOk(!$a['assistida'] && !$a['parcial'] && !isset($a['resultados'][0]['sugestao_comercial']));
 echo "BrasilAPI NCM: consulta exata e parcial, vigência, limite, ausência e falhas simuladas aprovadas.\n";
 echo "Validação cadastral fiscal, GTIN, perfil, vigência e catálogo NCM confirmados.\n";
 

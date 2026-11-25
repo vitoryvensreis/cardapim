@@ -321,8 +321,10 @@ final class FiscalProdutosController extends BaseGerencia
         if (!RateLimiter::padrao(30,60)->permitir('fiscal-ncm|'.$this->restaurante['id'])) { return Response::json(['ok'=>false,'mensagem'=>'Limite de consultas. Tente novamente.'],429,$headers); }
         if (!RateLimiter::padrao(30,60)->permitir('fiscal-ncm-brasilapi-global')) { return Response::json(['ok'=>false,'mensagem'=>'Limite de consultas. Tente novamente.'],429,$headers); }
         try {
-            $resultados=(new CatalogoNcm())->consultar($q);
-            return Response::json(['ok'=>true,'fonte'=>'BrasilAPI','resultados'=>$resultados],200,$headers);
+            $dados=(new CatalogoNcm())->consultarAssistido($q,fn()=>
+                RateLimiter::padrao(30,60)->permitir('fiscal-ncm|'.$this->restaurante['id'])
+                && RateLimiter::padrao(30,60)->permitir('fiscal-ncm-brasilapi-global'));
+            return Response::json(['ok'=>true,'fonte'=>'BrasilAPI']+$dados,200,$headers);
         } catch (Throwable $e) {
             error_log('[Cardapim] NCM BrasilAPI indisponível: '.get_class($e));
             return Response::json(['ok'=>false,'mensagem'=>'Consulta NCM indisponível. Informe o código manualmente e salve como pendente, ou tente novamente.'],503,$headers);
