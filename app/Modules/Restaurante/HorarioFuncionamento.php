@@ -68,8 +68,12 @@ final class HorarioFuncionamento
      * Esta aberto neste momento?
      * @param list<array{dia_semana:int,turno:int,abre:string,fecha:string}> $turnos
      */
-    public static function abertoEm(bool $sempreAberto, array $turnos, DateTimeImmutable $agora): bool
+    public static function abertoEm(bool $sempreAberto, array $turnos, DateTimeImmutable $agora, array $fechamentos = []): bool
     {
+        if (in_array($agora->format('Y-m-d'), $fechamentos, true)) {
+            return false;
+        }
+        $ontemFechado = in_array($agora->modify('-1 day')->format('Y-m-d'), $fechamentos, true);
         if ($sempreAberto) {
             return true;
         }
@@ -83,11 +87,22 @@ final class HorarioFuncionamento
             if ((int) $t['dia_semana'] === $hoje && $hora >= $abre && ($viraDia || $hora < $fecha)) {
                 return true;
             }
-            if ((int) $t['dia_semana'] === $ontem && $viraDia && $hora < $fecha) {
+            if (!$ontemFechado && (int) $t['dia_semana'] === $ontem && $viraDia && $hora < $fecha) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** @return array<int,string> Proxima ocorrencia de cada dia, incluindo hoje. */
+    public static function proximasDatas(DateTimeImmutable $agora): array
+    {
+        $datas = [];
+        for ($i = 0; $i < 7; $i++) {
+            $data = $agora->modify('+' . $i . ' days');
+            $datas[(int) $data->format('w')] = $data->format('Y-m-d');
+        }
+        return $datas;
     }
 
     /**

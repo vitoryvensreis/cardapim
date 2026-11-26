@@ -233,6 +233,21 @@ try {
     $exigir($r->ok && count((new PerfilRepository($db))->horarios($idRest)) === 3, 'Horarios gravados (TIME).');
     $exigir($perfil->salvarHorarios(['modo' => 'sempre'])->ok && (int) $valor('SELECT sempre_aberto FROM restaurantes WHERE id = ?', [$idRest]) === 1, 'Sempre aberto.');
     $exigir(count((new PerfilRepository($db))->horarios($idRest)) === 3, 'Sempre aberto preserva os horarios para depois.');
+    $repoPerfil = new PerfilRepository($db);
+    $originais = $repoPerfil->horarios($idRest);
+    $agora = new DateTimeImmutable('2026-11-13 19:00');
+    $publico = new \Cardapim\Services\Cardapio\CardapioPublico($db);
+    $exigir($perfil->definirFechamento('2026-11-13', '1', $agora)->ok, 'Fecha data.');
+    $exigir(!$publico->informacoes($idRest, $agora)['aberto'], 'Cardapio fechado.');
+    $exigir($repoPerfil->horarios($idRest) === $originais, 'Horarios preservados.');
+    $exigir($repoPerfil->fechamentos($idOutro) === [], 'Outro restaurante intacto.');
+    $exigir($perfil->definirFechamento('2026-11-14', '1', $agora)->ok, 'Fecha segunda data.');
+    $exigir($perfil->definirFechamento('2026-11-13', '0', $agora)->ok, 'Reabre primeira data.');
+    $exigir($publico->informacoes($idRest, $agora)['aberto'], 'Cardapio reaberto.');
+    $exigir($repoPerfil->fechamentos($idRest) === ['2026-11-14'], 'Segunda data preservada.');
+    $exigir($perfil->salvarHorarios(['modo' => 'sempre'])->ok && $repoPerfil->fechamentos($idRest) === ['2026-11-14'], 'Salvar horario preserva excecao.');
+    $exigir(!$perfil->definirFechamento('2026-11-12', '1', $agora)->ok, 'Data passada recusada.');
+    $exigir($publico->informacoes($idRest, new DateTimeImmutable('2026-11-15 19:00'))['aberto'], 'Expiracao sem cron.');
 
     /* ---------- Assinatura ---------- */
     $assinatura = new AssinaturaService($db, $autor, $idRest);

@@ -173,6 +173,9 @@ final class CardapioPublico
         $perfil = new PerfilRepository($this->db);
         $r = $perfil->buscar($idRestaurante) ?? [];
         $turnos = $perfil->horarios($idRestaurante);
+        $fechamentos = $perfil->fechamentos($idRestaurante);
+        $fechadoHoje = in_array($agora->format('Y-m-d'), $fechamentos, true);
+        $datas = HorarioFuncionamento::proximasDatas($agora);
         $sempre = (int) ($r['sempre_aberto'] ?? 0) === 1;
         $nomes = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         $hoje = (int) $agora->format('w');
@@ -181,7 +184,7 @@ final class CardapioPublico
             foreach (HorarioFuncionamento::porDia($turnos) as $d => $doDia) {
                 $horarios[] = [
                     'dia' => $nomes[$d],
-                    'texto' => $doDia === [] ? 'Fechado' : implode(' e ', array_map(static fn (array $t): string => $t['abre'] . ' às ' . $t['fecha'], $doDia)),
+                    'texto' => $doDia === [] || in_array($datas[$d], $fechamentos, true) ? 'Fechado' : implode(' e ', array_map(static fn (array $t): string => $t['abre'] . ' às ' . $t['fecha'], $doDia)),
                     'hoje' => $d === $hoje,
                 ];
             }
@@ -196,8 +199,8 @@ final class CardapioPublico
         ])));
         return [
             // O cardápio próprio segue exclusivamente os horários do Perfil, nunca o status do iFood.
-            'aberto' => ($sempre || $turnos !== []) && HorarioFuncionamento::abertoEm($sempre, $turnos, $agora),
-            'horario_informado' => $sempre || $turnos !== [],
+            'aberto' => ($sempre || $turnos !== []) && HorarioFuncionamento::abertoEm($sempre, $turnos, $agora, $fechamentos),
+            'horario_informado' => $sempre || $turnos !== [] || $fechadoHoje,
             'sempre_aberto' => $sempre,
             'horarios' => $horarios,
             'endereco' => trim($rua . ($complemento !== '' ? ' - ' . $complemento : '')),

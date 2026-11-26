@@ -11,6 +11,8 @@ use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Shared\Validation\Documento;
 use PDO;
+use DateTimeImmutable;
+use Cardapim\Shared\Esquema;
 use RuntimeException;
 use Throwable;
 
@@ -141,6 +143,49 @@ final class PerfilService
         LogoUpload::apagar((string) $antes['logo_path']);
         Auditoria::registrar($this->autor, 'Logo do restaurante removida', 'Agora aparecem as iniciais do nome no lugar da logo.');
         return Resultado::sucesso('Logo removida. No lugar dela aparecem as iniciais do restaurante.');
+    }
+
+    /** Excecao por data: nunca modifica os turnos semanais nem sincroniza iFood. */
+    public function definirFechamento(mixed $data, mixed $fechado, ?DateTimeImmutable $agora = null): Resultado
+    {
+        $agora ??= new DateTimeImmutable('now');
+        if (!is_string($data) || !in_array($data, HorarioFuncionamento::proximasDatas($agora), true)
+            || !in_array($fechado, ['0', '1'], true)) {
+            return Resultado::falha('Data ou ação inválida. Atualize a página.');
+        }
+        if (!Esquema::tem($this->db, 'fechamento_temporario')) {
+            return Resultado::falha('Fechamento temporário ainda indisponível.');
+        }
+        $this->db->beginTransaction();
+        try {
+            $sql = 'SELECT id FROM restaurantes WHERE id = ?'
+                . ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '');
+            $q = $this->db->prepare($sql);
+            $q->execute([$this->idRestaurante]);
+            if (!$q->fetchColumn()) {
+                $this->db->rollBack();
+                return Resultado::falha('Restaurante não encontrado.');
+            }
+            // Ontem ainda pode afetar um turno que atravessa a meia-noite.
+            $limite = $agora->modify('-1 day')->format('Y-m-d');
+            $datas = array_values(array_filter($this->perfil->fechamentos($this->idRestaurante), static fn (string $d): bool => $d >= $limite));
+            $antes = in_array($data, $datas, true);
+            $fechar = $fechado === '1';
+            $datas = array_values(array_diff($datas, [$data]));
+            if ($fechar) {
+                $datas[] = $data;
+            }
+            sort($datas);
+            $this->perfil->salvarFechamentos($this->idRestaurante, $datas);
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+        if ($antes !== $fechar) {
+            Auditoria::registrar($this->autor, $fechar ? 'Delivery fechado temporariamente' : 'Delivery reaberto', 'Data: ' . $data);
+        }
+        return Resultado::sucesso($fechar ? 'Pedidos pelo link fechados nesta data.' : 'Horário normal restaurado nesta data.');
     }
 
     /** @param array<string,mixed> $e */
