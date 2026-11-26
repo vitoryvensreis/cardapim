@@ -94,4 +94,5 @@ final class FiscalController extends BaseGerencia
     }
     public function enviarConfig(string $slug): Response { return $this->acao($slug, fn ($s) => $s->enviarConfig()); }
     public function testar(string $slug): Response { return $this->acao($slug, fn ($s) => $s->testar()); }
+    public function emissao(string $slug): Response { return $this->acao($slug, fn ($s) => $s->emissao($_POST)); }
 }

@@ -208,6 +208,9 @@ final class ComandaPix
             }
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', $resultado === 'fechou' ? 'comanda.fechada' : 'comanda.atualizada', ['id' => $idPedido, 'pix' => (int) $pix['id']]);
             $this->db->commit();
+            if ($resultado === 'fechou') {
+                \Cardapim\Services\Fiscal\FiscalEmissao::solicitar($this->db, $this->idRestaurante, $idPedido);
+            }
             return $resultado;
         } catch (Throwable $erro) {
             if ($this->db->inTransaction()) {

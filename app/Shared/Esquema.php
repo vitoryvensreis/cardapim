@@ -45,6 +45,7 @@ final class Esquema
         'fiscal_liberacoes' => ['fiscal_liberacoes', 'permitido'],
         'fiscal_catalogos' => ['fiscal_catalogos', 'dados'],
         'fiscal_composicoes' => ['fiscal_composicoes', 'dados'],
+        'fiscal_documentos' => ['fiscal_documentos', 'xml_arquivo'],
     ];
 
     /** @var array<string,bool> */

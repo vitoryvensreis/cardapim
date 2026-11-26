@@ -16,6 +16,8 @@ final class MunicipioIbge
 
     public static function ufValida(string $uf): bool { return isset(self::UFS[$uf]); }
 
+    public static function codigoUf(string $uf): int { return self::UFS[$uf] ?? 0; }
+
     public static function identificar(array $lista, string $cidade, string $uf): ?string
     {
         if (!self::ufValida($uf) || trim($cidade) === '') { return null; }
