@@ -3,7 +3,8 @@
  * Impressoras do Deliveryzim Agent: impressao por produto (padrao), cupom completo e resumo do caixa.
  * Espera: $ativo, $porProduto, $impressoras (ImpressoraRepository::listar), $produtosPorImpressora, $padraoProducao,
  * $completo e $fechamento (ids/padrao), $produtosTeste (com grupos/combo), $logoCupom, $agentDownload, $base, $csrf,
- * $formatos (papel informado pelo Agent, por id), $aparencia (null = indisponivel), $aparenciaOpcoes, $aparenciaPadrao.
+ * $formatos (papel e margem lateral, por id), $aparencia (null = indisponivel), $aparenciaOpcoes, $aparenciaPadrao,
+ * $cupomOpcoes (nome de quem atendeu e total no delivery; null = indisponivel).
  */
 use Cardapim\Core\Icon;
 
@@ -112,6 +113,48 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                 <?php endif; ?>
             <?php endif; ?>
 
+            <?php if (($cupomOpcoes ?? null) !== null): ?>
+                <fieldset class="bloco impressao-ponto">
+                    <legend><?= Icon::svg('list-checks') ?>O que aparece no cupom</legend>
+                    <input type="hidden" name="opcoes_enviado" value="1">
+                    <div class="impressao-opcoes">
+                        <?php if ($porProduto): ?>
+                            <label class="alternador">
+                                <span><strong>Mostrar o total no pedido do delivery</strong>
+                                    <small>Na impressão automática ao aceitar o pedido, sai também o total, a taxa de entrega, o desconto, a forma de pagamento e o troco. Se o pedido sair em mais de uma impressora, o total vai só na impressora padrão.</small></span>
+                                <input type="checkbox" name="delivery_com_preco" value="1"<?= $cupomOpcoes['delivery_com_preco'] ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                            </label>
+                        <?php endif; ?>
+                        <label class="alternador">
+                            <span><strong>Imprimir o nome de quem atendeu</strong>
+                                <small>O nome do garçom ou de quem aceitou o pedido sai ao lado da data e hora. Desligue para não aparecer em nenhum cupom.</small></span>
+                            <input type="checkbox" name="mostrar_atendente" value="1"<?= $cupomOpcoes['mostrar_atendente'] ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset class="bloco impressao-ponto">
+                    <legend><?= Icon::svg('arrow-left-right') ?>Margem lateral</legend>
+                    <p class="impressao-ponto-ajuda">Se o texto estiver cortando nas laterais do papel, aumente a margem da impressora. Vale para o <?= marca_html() ?> Agent 0.9 ou mais novo.</p>
+                    <input type="hidden" name="laterais_enviado" value="1">
+                    <ul class="impressao-ponto-lista impressao-laterais">
+                        <?php foreach ($impressoras as $imp):
+                            $atual = $formatos[$imp['id']]['lateral'] ?? null;
+                            $idCampo = 'lateral-' . (int) $imp['id']; ?>
+                            <li>
+                                <label for="<?= $e($idCampo) ?>"><strong><?= $e($imp['apelido']) ?></strong></label>
+                                <select id="<?= $e($idCampo) ?>" name="lateral[<?= (int) $imp['id'] ?>]">
+                                    <option value=""<?= $atual === null ? ' selected' : '' ?>>Padrão (0,8 mm)</option>
+                                    <?php for ($d = 0; $d <= 16; $d++): $mm = $d / 2; ?>
+                                        <option value="<?= $e(number_format($mm, 1, '.', '')) ?>"<?= $atual !== null && abs($atual - $mm) < 0.01 ? ' selected' : '' ?>><?= $e(str_replace('.', ',', rtrim(rtrim(number_format($mm, 1, '.', ''), '0'), '.'))) ?> mm</option>
+                                    <?php endfor; ?>
+                                </select>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </fieldset>
+            <?php endif; ?>
+
             <fieldset class="bloco impressao-ponto">
                 <legend><?= Icon::svg('receipt') ?>Cupom completo</legend>
                 <p class="impressao-ponto-ajuda">Botões "Conta" do caixa, "Comanda inteira" do garçom e "Imprimir" do pedido do delivery. Saem com todos os itens. Com duas ou mais marcadas, quem imprime escolhe na hora (a padrão já vem selecionada).</p>
@@ -166,7 +209,7 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                         <?php endforeach; ?>
                     </fieldset>
                     <fieldset class="cupom-aparencia-chips">
-                        <legend>Tamanho da letra</legend>
+                        <legend>Tamanho da letra <small>Extra grande: cabem menos letras por linha (cerca de 23 no papel de 58 mm)</small></legend>
                         <?php foreach ($aparenciaOpcoes['tamanhos'] as $t): ?>
                             <label class="chip-opcao"><input type="radio" name="tamanho" value="<?= $e($t['id']) ?>"<?= $aparencia['tamanho'] === $t['id'] ? ' checked' : '' ?>><span><?= $e($t['rotulo']) ?></span></label>
                         <?php endforeach; ?>

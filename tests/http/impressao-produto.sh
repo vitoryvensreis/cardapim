@@ -259,7 +259,36 @@ esperar "pedido novo ainda nao manda via de producao" "$(qtd_cupons)" "0"
 enviar "$cx" "$c/delivery/$pedido/aceitar" "$c/delivery/$pedido" >/dev/null
 agente "$ta" >/dev/null
 case "$(cupom_da coz0000000001)" in *'PRODUÇÃO · COZINHA'*'PEDIDO #'*'Item do Agent CI'*) ok "aceito: via na Cozinha";; *) falha "via do delivery ($(cupom_da coz0000000001))";; esac
+# Padrao: sem o resumo de valores e com o nome de quem aceitou ao lado da data.
+via_tem() { cupom_da coz0000000001 | php -r '$d=json_decode(stream_get_contents(STDIN),true); $t=array_column($d["blocos"]??[],"texto"); $r=array_column($d["blocos"]??[],"rotulo");
+  echo match($argv[1]) { "total" => in_array("TOTAL",$r,true) && (bool) preg_grep("~^Pagamento: ~",$t) ? "sim" : "nao",
+    "nome" => preg_grep("~^\d\d/\d\d/\d{4} \d\d:\d\d · .+~u",$t) ? "sim" : "nao" };' "$1"; }
+esperar "padrao: via do delivery sem o total" "$(via_tem total)" "nao"
+esperar "padrao: via com o nome de quem aceitou" "$(via_tem nome)" "sim"
 confirmar_todos
+
+echo "O que aparece no cupom: total no delivery, nome de quem atendeu e margem lateral"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "chave do total no delivery" "$tmp/ger.html" 'name="delivery_com_preco" value="1">'
+contem "chave do nome de quem atendeu ligada" "$tmp/ger.html" 'name="mostrar_atendente" value="1" checked'
+contem "margem lateral por impressora" "$tmp/ger.html" "name=\"lateral\[$cozinha\]\""
+esperar "gerente liga o total e tira o nome" "$(enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "producao=$cozinha" opcoes_enviado=1 delivery_com_preco=1 laterais_enviado=1 "lateral[$cozinha]=3.5" | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "total no delivery salvo" "$tmp/ger.html" 'name="delivery_com_preco" value="1" checked'
+contem "nome desligado salvo" "$tmp/ger.html" 'name="mostrar_atendente" value="1">'
+contem "margem de 3,5 mm salva" "$tmp/ger.html" 'value="3.5" selected'
+enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "producao=$cozinha" laterais_enviado=1 "lateral[$cozinha]=9" >/dev/null
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "margem acima de 8 mm recusada (continua 3,5)" "$tmp/ger.html" 'value="3.5" selected'
+pedido="$(php tests/http/desktop-pedido-ci.php "$slug")"
+enviar "$cx" "$c/delivery/$pedido/aceitar" "$c/delivery/$pedido" >/dev/null
+agente "$ta" >/dev/null
+esperar "ligado: via do delivery com total e pagamento" "$(via_tem total)" "sim"
+esperar "nome desligado: so a data e a hora" "$(via_tem nome)" "nao"
+confirmar_todos
+esperar "volta ao padrao" "$(enviar "$gj" "$g/integracoes/impressoras" "$g/integracoes/impressoras" "producao=$cozinha" opcoes_enviado=1 mostrar_atendente=1 laterais_enviado=1 "lateral[$cozinha]=" | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/integracoes/impressoras" -o "$tmp/ger.html"
+contem "margem de volta ao padrao" "$tmp/ger.html" 'value="" selected>Padrão'
 
 # Limpa: categoria, pontos e Agents.
 enviar "$gj" "$g/estoque/categorias/$cat_cerveja/impressoras" "$g/estoque/categorias" >/dev/null

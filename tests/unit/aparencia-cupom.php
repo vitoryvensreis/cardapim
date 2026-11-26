@@ -39,7 +39,8 @@ $ok($r['personalizada'] === false && $r['fonte'] === 'roboto-mono', 'sem a migra
 
 $opc = AparenciaCupom::opcoes();
 $ok(count($opc['fontes']) === 2 && $opc['fontes'][0]['pesos'][3]['rotulo'] === 'Regular (400)', 'opcoes da tela com rotulos');
-$ok(array_column($opc['tamanhos'], 'id') === ['pequena', 'normal', 'grande'], 'tamanhos pequena, normal e grande');
+$ok(array_column($opc['tamanhos'], 'id') === ['pequena', 'normal', 'grande', 'extra'], 'tamanhos pequena, normal, grande e extra grande');
+$ok(is_array(AparenciaCupom::validar(['tamanho' => 'extra'] + AparenciaCupom::PADRAO)), 'extra grande aceito');
 
 if (CupomImagem::disponivel()) {
     $b = AparenciaCupom::exemplo('Loja Teste');
@@ -47,7 +48,8 @@ if (CupomImagem::disponivel()) {
     $pequena = $alt(CupomImagem::png($b, 80, 4, true, ['tamanho' => 'pequena'] + AparenciaCupom::PADRAO));
     $normal = $alt(CupomImagem::png($b, 80, 4, true));
     $grande = $alt(CupomImagem::png($b, 80, 4, true, ['tamanho' => 'grande'] + AparenciaCupom::PADRAO));
-    $ok($pequena < $normal && $normal < $grande, 'letra maior deixa o cupom mais comprido');
+    $extra = $alt(CupomImagem::png($b, 80, 4, true, ['tamanho' => 'extra'] + AparenciaCupom::PADRAO));
+    $ok($pequena < $normal && $normal < $grande && $grande < $extra, 'letra maior deixa o cupom mais comprido');
     $roboto = CupomImagem::png($b, 80, 4, true);
     $poppins = CupomImagem::png($b, 80, 4, true, ['fonte' => 'poppins'] + AparenciaCupom::PADRAO);
     $ok($roboto !== $poppins, 'fonte muda o desenho');

@@ -22,7 +22,10 @@ final class CupomImagem
     /** Altura de uma "linha" do espaco antes do corte (avanco padrao das termicas, 1/6 de polegada). */
     private const LINHA_CORTE = 34;
     private const ALTURA_MAXIMA = 20000;
+    /** Margem de cada lado quando a impressora nao tem margem lateral escolhida (pontos; ~0,8 mm). */
     private const LADO = 6;
+    /** Pontos por milimetro das termicas (203 dpi). */
+    public const PONTOS_POR_MM = 8;
 
     /**
      * Estilos do desenho atual: arquivo da fonte, tamanho (pontos do GD, 96 dpi) e altura da linha em pontos da impressora.
@@ -60,13 +63,15 @@ final class CupomImagem
      * PNG do cupom.
      * @param list<array<string,mixed>> $blocos
      * @param array<string,mixed>|null $aparencia AparenciaCupom (null = padrao do Deliveryzim)
+     * @param float|null $lateralMm margem de cada lado em mm (0 a 8; null ou invalida = padrao)
      */
-    public static function png(array $blocos, int $papel = 80, int $margem = self::MARGEM_PADRAO, bool $logo = true, ?array $aparencia = null): string
+    public static function png(array $blocos, int $papel = 80, int $margem = self::MARGEM_PADRAO, bool $logo = true, ?array $aparencia = null, ?float $lateralMm = null): string
     {
         self::preparar($aparencia);
         $largura = self::PONTOS[$papel] ?? self::PONTOS[80];
         $margem = $margem >= 0 && $margem <= 20 ? $margem : self::MARGEM_PADRAO;
-        $util = $largura - 2 * self::LADO;
+        $borda = self::lado($lateralMm);
+        $util = $largura - 2 * $borda;
 
         $logoImg = $logo ? self::logo($largura) : null;
         // 1) Monta as linhas (texto ja quebrado na largura) e soma a altura.
@@ -155,14 +160,14 @@ final class CupomImagem
                     }
                 }
             } elseif ($op[0] === 'linha') {
-                for ($x = self::LADO; $x < $largura - self::LADO; $x += 10) {
-                    imagefilledrectangle($img, $x, $op[1], min($x + 5, $largura - self::LADO), $op[1] + 1, $preto);
+                for ($x = $borda; $x < $largura - $borda; $x += 10) {
+                    imagefilledrectangle($img, $x, $op[1], min($x + 5, $largura - $borda), $op[1] + 1, $preto);
                 }
             } elseif ($op[0] === 'texto') {
                 [, $y, $estilo, $texto, $alinha, $recuo, $direita] = $op;
                 $e = self::$estilos[$estilo];
                 $base = $y + (int) round($e['linha'] * 0.78);
-                $x = self::LADO + $recuo;
+                $x = $borda + $recuo;
                 if ($alinha === 'centro') {
                     $x = (int) (($largura - self::medir($texto, $estilo)) / 2);
                 }
@@ -170,7 +175,7 @@ final class CupomImagem
                     imagettftext($img, $e['tamanho'], 0, $x, $base, -$preto, $e['fonte'], $texto);
                 }
                 if ($direita !== '') {
-                    $xd = $largura - self::LADO - self::medir($direita, $estilo);
+                    $xd = $largura - $borda - self::medir($direita, $estilo);
                     imagettftext($img, $e['tamanho'], 0, $xd, $base, -$preto, $e['fonte'], $direita);
                 }
             }
@@ -182,6 +187,15 @@ final class CupomImagem
         imagepng($img, null, 9);
         imagedestroy($img);
         return (string) ob_get_clean();
+    }
+
+    /** Margem de cada lado em pontos da impressora. */
+    public static function lado(?float $lateralMm): int
+    {
+        if ($lateralMm === null || $lateralMm < 0 || $lateralMm > 8) {
+            return self::LADO;
+        }
+        return (int) round($lateralMm * self::PONTOS_POR_MM);
     }
 
     /** Rotulo a esquerda e valor a direita na mesma linha (o rotulo quebra se nao couber). */

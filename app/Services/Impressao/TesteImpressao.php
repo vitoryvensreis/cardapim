@@ -252,6 +252,17 @@ final class TesteImpressao
         if ($semMarcacao !== []) {
             $avisos[] = 'Sem impressora marcada no produto (sai na padrão ' . $padrao['apelido'] . '): ' . implode(', ', array_unique($semMarcacao)) . '.';
         }
+        // Delivery com "Mostrar o total" ligado: o resumo sai so na via da padrao (ou na primeira com itens).
+        $resumo = [];
+        $comResumo = null;
+        if ($situacao === 'delivery' && $this->fila->opcoesCupom()['delivery_com_preco'] && $grupos !== []) {
+            $subtotal = array_sum(array_map(static fn (array $i): int => Numero::centavos((string) $i['total']), $itens));
+            $resumo = CupomImpressao::resumoPedido([
+                'subtotal' => CaixaService::dec($subtotal), 'taxa_entrega' => '5.00', 'desconto' => '0.00',
+                'total' => CaixaService::dec($subtotal + 500), 'forma_pagamento' => 'pix', 'tipo' => 'entrega', 'troco_para' => null,
+            ]);
+            $comResumo = isset($grupos[$padrao['id']]) ? $padrao['id'] : array_key_first($grupos);
+        }
         $cupons = [];
         foreach ((new ImpressoraRepository($this->db))->listar($this->idRestaurante) as $imp) {
             $lista = $grupos[$imp['id']] ?? [];
@@ -267,8 +278,8 @@ final class TesteImpressao
             $cupons[] = [
                 'id' => $imp['id'], 'apelido' => $imp['apelido'], 'ligada' => $imp['ligada'], 'padrao' => $imp['id'] === $padrao['id'],
                 'blocos' => $lista === [] ? null : ($situacao === 'cancelamento'
-                    ? CupomImpressao::cancelamento($cabeca, $imp['apelido'], $lista, 'Cliente desistiu (teste)', false, $this->autor->nome)
-                    : CupomImpressao::producao($cabeca, $imp['apelido'], $lista, $this->autor->nome)),
+                    ? CupomImpressao::cancelamento($cabeca, $imp['apelido'], $lista, 'Cliente desistiu (teste)', false, $this->fila->quem())
+                    : CupomImpressao::producao($cabeca, $imp['apelido'], $lista, $this->fila->quem(), $imp['id'] === $comResumo ? $resumo : [])),
                 'motivos' => $motivos,
             ];
         }
@@ -297,7 +308,7 @@ final class TesteImpressao
             'rotulo' => 'Balcão · Teste', 'rotulo_mesa' => 'Balcão', 'nome' => 'Teste', 'itens' => $itens,
             'subtotal' => $subtotal, 'servico' => 0, 'desconto' => 0, 'total' => $subtotal, 'pago' => 0, 'restante' => $subtotal,
         ];
-        $cupom = CupomImpressao::comanda($c, $this->restaurante, 'conta', 0, $this->autor->nome);
+        $cupom = CupomImpressao::comanda($c, $this->restaurante, 'conta', 0, $this->fila->quem());
         $avisos = [];
         if ($escolhida !== null && !$escolhida['ligada']) {
             $avisos[] = $escolhida['apelido'] . ' está desligada: abra o Deliveryzim Agent no computador "' . $escolhida['computador'] . '".';

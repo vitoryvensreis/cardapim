@@ -155,7 +155,19 @@ final class CupomImpressao
             $blocos[] = ['t' => 'texto', 'texto' => $obs];
             $blocos[] = ['t' => 'linha'];
         }
-        $blocos[] = ['t' => 'valor', 'rotulo' => 'Itens', 'valor' => Numero::reais((string) $p['subtotal'])];
+        $blocos = [...$blocos, ...self::resumoPedido($p)];
+        return ['titulo' => 'Pedido #' . (int) $p['numero'], 'blocos' => $blocos];
+    }
+
+    /**
+     * Valores do pedido de entrega ou retirada: itens, entrega, desconto, TOTAL, forma de pagamento e troco.
+     * Usado no cupom completo e, quando o restaurante liga, na via de producao do delivery aceito.
+     * @param array<string,mixed> $p
+     * @return list<array<string,mixed>>
+     */
+    public static function resumoPedido(array $p): array
+    {
+        $blocos = [['t' => 'valor', 'rotulo' => 'Itens', 'valor' => Numero::reais((string) $p['subtotal'])]];
         if (Numero::centavos((string) ($p['taxa_entrega'] ?? '0')) > 0) {
             $blocos[] = ['t' => 'valor', 'rotulo' => 'Entrega', 'valor' => Numero::reais((string) $p['taxa_entrega'])];
         }
@@ -164,13 +176,13 @@ final class CupomImpressao
         }
         $blocos[] = ['t' => 'valor', 'rotulo' => 'TOTAL', 'valor' => Numero::reais((string) $p['total']), 'forte' => true];
         $blocos[] = ['t' => 'texto', 'texto' => 'Pagamento: ' . StatusPedido::forma((string) $p['forma_pagamento'], (string) $p['tipo'])];
-        if ($p['forma_pagamento'] === 'dinheiro' && $p['troco_para'] !== null) {
+        if (($p['forma_pagamento'] ?? '') === 'dinheiro' && ($p['troco_para'] ?? null) !== null) {
             $troco = Numero::centavos((string) $p['troco_para']) - Numero::centavos((string) $p['total']);
             if ($troco > 0) {
                 $blocos[] = ['t' => 'valor', 'rotulo' => 'Troco para ' . Numero::reais((string) $p['troco_para']), 'valor' => self::reais($troco), 'forte' => true];
             }
         }
-        return ['titulo' => 'Pedido #' . (int) $p['numero'], 'blocos' => $blocos];
+        return $blocos;
     }
 
     /**
@@ -254,12 +266,14 @@ final class CupomImpressao
 
     /**
      * Via de producao de uma estacao (Churrasqueira, Cozinha, Bar...): so os itens dela, com a mesa (ou o pedido)
-     * em letra grande, hora, quem pediu, complementos e observacoes. Sem o total da conta.
+     * em letra grande, hora, quem pediu, complementos e observacoes. Sem o total da conta, a nao ser que venha
+     * $resumo (delivery aceito com "Mostrar o total" ligado: so na via da impressora padrao da producao).
      * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
      * @param list<array<string,mixed>> $itens
+     * @param list<array<string,mixed>> $resumo
      * @return list<array<string,mixed>>
      */
-    public static function producao(array $cabeca, string $estacao, array $itens, string $quem = ''): array
+    public static function producao(array $cabeca, string $estacao, array $itens, string $quem = '', array $resumo = []): array
     {
         $blocos = [
             ['t' => 'centro', 'texto' => 'PRODUÇÃO · ' . mb_strtoupper($estacao)],
@@ -279,6 +293,10 @@ final class CupomImpressao
         if (trim($cabeca['observacao']) !== '') {
             $blocos[] = ['t' => 'destaque', 'texto' => 'OBSERVAÇÃO'];
             $blocos[] = ['t' => 'texto', 'texto' => trim($cabeca['observacao'])];
+            $blocos[] = ['t' => 'linha'];
+        }
+        if ($resumo !== []) {
+            $blocos = [...$blocos, ...$resumo];
             $blocos[] = ['t' => 'linha'];
         }
         return $blocos;
