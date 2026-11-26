@@ -12,6 +12,8 @@ use Cardapim\Repositories\Gerencia\PerfilRepository;
 use Cardapim\Services\Gerencia\PerfilService;
 use Cardapim\Shared\Validation\Documento;
 use DateTimeImmutable;
+use Cardapim\Shared\Esquema;
+use Cardapim\Services\Cardapio\CardapioPublico;
 
 /** Aba Perfil: dados do restaurante, endereco, logo e horario de funcionamento. */
 final class PerfilController extends BaseGerencia
@@ -72,6 +74,20 @@ final class PerfilController extends BaseGerencia
         return $this->pagina(['horarios' => $resultado->erros], ['horarios' => $_POST], 422);
     }
 
+    public function fechamento(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $resultado = $this->servico()->definirFechamento($_POST['data'] ?? null, $_POST['fechado'] ?? null);
+        if (!$resultado->ok) {
+            return Response::json(['ok' => false, 'mensagem' => $resultado->mensagem], 422);
+        }
+        $info = (new CardapioPublico($this->db))->informacoes($this->restaurante['id']);
+        return Response::json(['ok' => true, 'mensagem' => $resultado->mensagem,
+            'fechado' => $_POST['fechado'] === '1', 'aberto' => $info['aberto'], 'horario_informado' => $info['horario_informado']]);
+    }
+
     /**
      * @param array<string,array<string,string>> $erros por formulario
      * @param array<string,array<string,mixed>> $enviado o que foi digitado, por formulario
@@ -83,6 +99,7 @@ final class PerfilController extends BaseGerencia
         $turnos = $repo->horarios($this->restaurante['id']);
         $sempre = (int) ($perfil['sempre_aberto'] ?? 0) === 1;
         $agora = new DateTimeImmutable('now');
+        $fechamentos = $repo->fechamentos($this->restaurante['id']);
 
         $dados = $enviado['dados'] ?? [
             'nome' => $perfil['nome'] ?? '',
@@ -97,8 +114,11 @@ final class PerfilController extends BaseGerencia
             'horario' => $enviado['horarios'] ?? null,
             'turnosPorDia' => HorarioFuncionamento::porDia($turnos),
             'sempreAberto' => $sempre,
-            'abertoAgora' => HorarioFuncionamento::abertoEm($sempre, $turnos, $agora),
-            'semHorario' => !$sempre && $turnos === [],
+            'abertoAgora' => HorarioFuncionamento::abertoEm($sempre, $turnos, $agora, $fechamentos),
+            'semHorario' => !$sempre && $turnos === [] && !in_array($agora->format('Y-m-d'), $fechamentos, true),
+            'fechamentos' => $fechamentos,
+            'datasFechamento' => HorarioFuncionamento::proximasDatas($agora),
+            'fechamentoDisponivel' => Esquema::tem($this->db, 'fechamento_temporario'),
             'erros' => $erros,
             'pageScripts' => ['js/forms.js', 'js/perfil.js'],
         ], $status);

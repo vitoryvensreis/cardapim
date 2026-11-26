@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Repositories\Gerencia;
 
 use PDO;
+use Cardapim\Shared\Esquema;
 
 /** Dados publicos do restaurante (perfil, endereco, logo) e horario de funcionamento. */
 final class PerfilRepository
@@ -39,6 +40,25 @@ final class PerfilRepository
             $d['nome'], $d['telefone'], $d['email'], $d['cep'], $d['logradouro'], $d['numero'], $d['complemento'],
             $d['bairro'], $d['cidade'], $d['estado'], $d['ponto_referencia'], $id,
         ]);
+    }
+
+    /** @return list<string> Datas excepcionais do cardapio proprio. */
+    public function fechamentos(int $idRestaurante): array
+    {
+        if (!Esquema::tem($this->db, 'fechamento_temporario')) {
+            return [];
+        }
+        $q = $this->db->prepare('SELECT fechamentos_temporarios FROM restaurantes WHERE id = ?');
+        $q->execute([$idRestaurante]);
+        $dados = json_decode((string) $q->fetchColumn(), true);
+        return is_array($dados) ? array_values(array_filter($dados, 'is_string')) : [];
+    }
+
+    /** @param list<string> $datas */
+    public function salvarFechamentos(int $idRestaurante, array $datas): void
+    {
+        $this->db->prepare('UPDATE restaurantes SET fechamentos_temporarios = ? WHERE id = ?')
+            ->execute([$datas === [] ? null : json_encode(array_values($datas), JSON_THROW_ON_ERROR), $idRestaurante]);
     }
 
     public function definirLogo(int $id, ?string $caminho): void

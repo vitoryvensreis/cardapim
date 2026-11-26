@@ -15,6 +15,7 @@ final class Esquema
 {
     /** recurso => tabela/coluna que so existe depois da migracao */
     private const RECURSOS = [
+        'fechamento_temporario' => ['restaurantes', 'fechamentos_temporarios'],
         'complementos' => ['pedido_itens', 'complementos_texto'],
         // Estoque contado no proprio produto (revenda): insumo proprio ligado ao produto.
         'estoque_produto' => ['insumos', 'id_produto_proprio'],

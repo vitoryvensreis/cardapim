@@ -44,7 +44,42 @@
 
   /* ---------- Horarios ---------- */
   const horarios = document.querySelector("[data-horarios]");
-  horarios?.addEventListener("click", (evento) => {
+  horarios?.addEventListener("click", async (evento) => {
+    const fechar = evento.target.closest("[data-fechar-data]");
+    if (fechar) {
+      const formulario = horarios.closest("form");
+      const mensagem = formulario.querySelector("[data-fechamento-mensagem]");
+      const botoes = [...horarios.querySelectorAll("[data-fechar-data]")];
+      if (botoes.some((b) => b.disabled)) return;
+      const novo = fechar.dataset.fechado === "1" ? "0" : "1";
+      botoes.forEach((b) => { b.disabled = true; });
+      mensagem.textContent = "Salvando...";
+      try {
+        const resposta = await fetch(horarios.dataset.fechamentoUrl, {
+          method: "POST", credentials: "same-origin", headers: { Accept: "application/json" },
+          body: new URLSearchParams({ _csrf: formulario.querySelector("[name=_csrf]").value,
+            data: fechar.dataset.fecharData, fechado: novo }),
+        });
+        if (!resposta.headers.get("content-type")?.includes("application/json")) throw new Error("Sessão expirada ou resposta indisponível. Atualize a página.");
+        const info = await resposta.json();
+        if (!resposta.ok || !info.ok) throw new Error(info.mensagem || "Não foi possível salvar.");
+        fechar.dataset.fechado = info.fechado ? "1" : "0";
+        fechar.querySelector("[data-fechamento-rotulo]").textContent = info.fechado ? "Reabrir" : "Fechar temporariamente";
+        fechar.closest(".horario-fechamento").querySelector("[data-fechamento-estado]").textContent = info.fechado ? "· Fechado temporariamente" : "";
+        const estado = document.querySelector("[data-situacao-perfil]");
+        if (estado) {
+          estado.classList.remove("etiqueta-neutra", "etiqueta-ok", "etiqueta-alerta");
+          estado.classList.add(!info.horario_informado ? "etiqueta-neutra" : (info.aberto ? "etiqueta-ok" : "etiqueta-alerta"));
+          estado.querySelector("[data-situacao-texto]").textContent = !info.horario_informado ? "Horário não informado" : (info.aberto ? "Aberto agora" : "Fechado agora");
+        }
+        mensagem.textContent = info.mensagem;
+      } catch (erro) {
+        mensagem.textContent = erro.message || "Falha ao salvar. Tente novamente.";
+      } finally {
+        botoes.forEach((b) => { b.disabled = false; });
+      }
+      return;
+    }
     const botao = evento.target.closest("[data-copiar-dia]");
     if (!botao) return;
     const origem = botao.closest("[data-dia]");

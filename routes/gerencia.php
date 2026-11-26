@@ -99,6 +99,7 @@ return static function (Router $router): void {
     $router->post($g . '/perfil/logo', [PerfilController::class, 'logo']);
     $router->post($g . '/perfil/logo/remover', [PerfilController::class, 'removerLogo']);
     $router->post($g . '/perfil/horarios', [PerfilController::class, 'horarios']);
+    $router->post($g . '/perfil/horarios/fechamento', [PerfilController::class, 'fechamento']);
 
     // Entrega e pagamento (cardapio online)
     // Clientes: cupons de desconto e programa de fidelidade (cardapio online)

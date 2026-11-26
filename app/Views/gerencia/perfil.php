@@ -44,9 +44,9 @@ $hv = static function (int $dia, string $campo) use ($horario, $turnosPorDia): s
         </div>
         <div class="painel-acoes">
             <?php if ($semHorario): ?>
-                <span class="etiqueta etiqueta-neutra"><?= Icon::svg('clock') ?>Horário não informado</span>
+                <span class="etiqueta etiqueta-neutra" data-situacao-perfil><?= Icon::svg('clock') ?><span data-situacao-texto>Horário não informado</span></span>
             <?php else: ?>
-                <span class="etiqueta <?= $abertoAgora ? 'etiqueta-ok' : 'etiqueta-alerta' ?>"><?= Icon::svg('clock') ?><?= $abertoAgora ? 'Aberto agora' : 'Fechado agora' ?></span>
+                <span class="etiqueta <?= $abertoAgora ? 'etiqueta-ok' : 'etiqueta-alerta' ?>" data-situacao-perfil><?= Icon::svg('clock') ?><span data-situacao-texto><?= $abertoAgora ? 'Aberto agora' : 'Fechado agora' ?></span></span>
             <?php endif; ?>
             <a class="btn btn-outline btn-sm" href="/<?= $e((string) $restaurante['slug']) ?>" target="_blank" rel="noopener"><?= Icon::svg('arrow-up-right', 'icon-sm') ?>Ver minha página</a>
         </div>
@@ -162,10 +162,16 @@ $hv = static function (int $dia, string $campo) use ($horario, $turnosPorDia): s
                 </label>
             </fieldset>
 
-            <div class="horarios" data-horarios>
+            <?php if ($fechamentoDisponivel): ?>
+                <p class="texto-suave">Fechar temporariamente afeta apenas a data indicada e os pedidos pelo link. O horário semanal fica salvo.</p>
+                <p class="texto-suave" role="status" aria-live="polite" data-fechamento-mensagem></p>
+            <?php endif; ?>
+            <div class="horarios<?= $fechamentoDisponivel ? ' horarios-com-fechamento' : '' ?>" data-horarios data-fechamento-url="<?= $e($base . '/perfil/horarios/fechamento') ?>">
                 <?php foreach (HorarioFuncionamento::DIAS as $dia => $nomeDia):
                     $erroDia = $errosHorario['dia' . $dia] ?? null;
                     $aberto = $hv($dia, 'aberto') === '1';
+                    $dataFechamento = $datasFechamento[$dia];
+                    $pausado = in_array($dataFechamento, $fechamentos, true);
                 ?>
                     <div class="horario-dia<?= $erroDia ? ' is-invalido' : '' ?>" data-dia="<?= $dia ?>">
                         <div class="horario-topo">
@@ -194,6 +200,12 @@ $hv = static function (int $dia, string $campo) use ($horario, $turnosPorDia): s
                             <button class="link-acao" type="button" data-copiar-dia><?= Icon::svg('copy', 'icon-sm') ?>Usar este horário em todos os dias</button>
                             <?php if ($erroDia): ?><p class="field-msg ficha-erro"><?= $e($erroDia) ?></p><?php endif; ?>
                         </div>
+                        <?php if ($fechamentoDisponivel): ?>
+                            <div class="horario-fechamento">
+                                <small class="texto-suave"><?= $e(substr($dataFechamento, 8, 2) . '/' . substr($dataFechamento, 5, 2) . '/' . substr($dataFechamento, 0, 4)) ?> <span data-fechamento-estado><?= $pausado ? '· Fechado temporariamente' : '' ?></span></small>
+                                <button class="btn btn-outline btn-sm" type="button" data-fechar-data="<?= $e($dataFechamento) ?>" data-fechado="<?= $pausado ? '1' : '0' ?>"><?= Icon::svg('clock', 'icon-sm') ?><span data-fechamento-rotulo><?= $pausado ? 'Reabrir' : 'Fechar temporariamente' ?></span></button>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
                 <p class="texto-suave">Fecha depois da meia-noite? Coloque normalmente, por exemplo, das 18:00 até as 02:00.</p>

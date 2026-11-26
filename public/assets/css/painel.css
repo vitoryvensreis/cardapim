@@ -457,7 +457,12 @@
 .dados-fixos div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem 1rem; }
 .dados-fixos dt { color: var(--c-muted); font-size: .88rem; }
 .dados-fixos dd { margin: 0; color: var(--c-ink); font-weight: 700; overflow-wrap: anywhere; }
-.horarios-form:has(input[name="modo"][value="sempre"]:checked) .horarios { display: none; }
+.horarios-form:has(input[name="modo"][value="sempre"]:checked) .horarios:not(.horarios-com-fechamento) { display: none; }
+.horarios-form:has(input[name="modo"][value="sempre"]:checked) .horarios-com-fechamento :is(.horario-turnos, .chave-mini) { display: none; }
+.horarios-form:has(input[name="modo"][value="sempre"]:checked) .horarios-com-fechamento > p { display: none; }
+.horario-fechamento { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; }
+.horario-fechamento .btn { min-height: 2.75rem; }
+.horario-fechamento [data-fechado="1"] { font-weight: 700; }
 .chave-mini { position: relative; display: inline-flex; align-items: center; gap: .55rem; cursor: pointer; font-weight: 700; font-size: .88rem; }
 .chave-mini input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .chave-mini input:checked + .alternador-chave { background: var(--c-success); }

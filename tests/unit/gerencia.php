@@ -92,6 +92,15 @@ $ok(!HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-1
 $ok(HorarioFuncionamento::abertoEm(true, [], new DateTimeImmutable('2026-11-13 04:00')), 'sempre aberto');
 $ok(HorarioFuncionamento::resumo(false, $sexta) === 'Dom: fechado; Seg: fechado; Ter: fechado; Qua: fechado; Qui: fechado; Sex: 18:00-02:00; Sáb: fechado', 'resumo');
 
+$ok(!HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11-13 19:00'), ['2026-11-13']), 'fechamento da sexta');
+$ok(!HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11-14 01:30'), ['2026-11-13']), 'turno fechado nao reaparece na madrugada');
+$ok(!HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11-14 01:30'), ['2026-11-14']), 'data fechada bloqueia turno de ontem');
+$ok(HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11-20 19:00'), ['2026-11-13']), 'semana seguinte normal');
+$ok(!HorarioFuncionamento::abertoEm(true, [], new DateTimeImmutable('2026-11-13 04:00'), ['2026-11-13']), 'fechamento em modo 24h');
+$ok(HorarioFuncionamento::abertoEm(true, [], new DateTimeImmutable('2026-11-14 04:00'), ['2026-11-13']), '24h volta no dia seguinte');
+$ok(HorarioFuncionamento::proximasDatas(new DateTimeImmutable('2026-11-13'))[4] === '2026-11-19', 'proxima ocorrencia da quinta');
+$ok(HorarioFuncionamento::proximasDatas(new DateTimeImmutable('2026-11-13'))[5] === '2026-11-13', 'inclui hoje');
+
 /* ---------- Numero ---------- */
 $ok(Numero::dinheiroParaDecimal('1.234,56') === '1234.56', 'dinheiro com milhar');
 $ok(Numero::dinheiroParaDecimal('24,9') === '24.90', 'dinheiro uma casa');
