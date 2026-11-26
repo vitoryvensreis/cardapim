@@ -1,7 +1,7 @@
 <?php require __DIR__.'/_base.php'; ?>
 <div class="painel-page fiscal-restaurante fiscal-produtos">
     <header class="painel-cabecalho"><div><h1>Composição fiscal: <?= $e($produto['nome']) ?></h1><p>Defina como classificar os componentes sem alterar o combo, os complementos ou os valores comerciais.</p></div><a class="btn btn-outline" href="<?= $e($url.'/produtos/validacao') ?>">Voltar à conferência fiscal</a></header>
-    <section class="bloco"><h2><?= $estrutura['combo']?'Combo — componentes separados':'Produto e complementos' ?></h2>
+    <section class="bloco"><div class="bloco-cabecalho"><h2><?= $estrutura['combo']?'Combo — componentes separados':'Produto e complementos' ?></h2></div>
         <p><?= $estrutura['combo']?'O sistema comercial já reparte o combo em linhas. A proposta fiscal considera os componentes, sem duplicar o produto pai.':'Cada complemento deve ser classificado como parte do principal ou usar uma referência fiscal própria, conforme a orientação contábil.' ?></p>
         <?php foreach ($estrutura['fixos'] as $f): ?><div class="fiscal-linha"><strong><?= $e($produtos[$f['id_produto']]['nome'] ?? ('Produto '.$f['id_produto'].' indisponível')) ?></strong><small>Quantidade <?= $e($f['quantidade']) ?> · classificação do componente</small></div><?php endforeach; ?>
         <form method="post" action="<?= $e($url.'/produtos/'.$produto['id'].'/composicao') ?>" class="fiscal-form"><?php $token(); ?>

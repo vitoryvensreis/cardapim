@@ -13,7 +13,7 @@ require __DIR__.'/_base.php';
             <button type="submit" class="btn btn-primary">Pesquisar</button>
         </form>
     </section>
-    <section class="bloco"><h2>Resultados</h2>
+    <section class="bloco"><div class="bloco-cabecalho"><h2>Resultados</h2></div>
         <p><a href="<?= $e(CatalogosFiscais::TIPOS[$tipo][2]) ?>" target="_blank" rel="noopener noreferrer">Consultar fonte oficial</a></p>
         <?php if (!$catalogo): ?><p>Catálogo ainda não disponibilizado pela administração. Consulte a fonte oficial.</p><?php else: ?>
             <p>Versão declarada: <?= $e($catalogo['versao']) ?> · Vigência: <?= $e($catalogo['vigencia']) ?>. A busca apresenta até 35 candidatos; não determina tributação.</p>

@@ -11,8 +11,7 @@ $selecionadoIcms=(string)($dados['situacao_icms'] ?? '');
 if ($crt==='4' && $selecionadoCfop==='' && empty($rascunho)) { $selecionadoCfop='5102'; }
 ?>
 <div class="painel-page fiscal-restaurante fiscal-produtos">
-    <header class="painel-cabecalho"><div><h1><?= $perfil?'Editar perfil tributário':'Novo perfil tributário' ?></h1><p>Preencha com a orientação do responsável fiscal. Alterações geram uma versão nova.</p></div></header>
-    <p><a href="<?= $e($url.'/perfis') ?>">Voltar aos perfis</a></p>
+    <header class="painel-cabecalho"><div><a class="voltar-link" href="<?= $e($url.'/perfis') ?>"><?= \Cardapim\Core\Icon::svg('arrow-left','icon-sm') ?>Perfis tributários</a><h1><?= $perfil?'Editar perfil tributário':'Novo perfil tributário' ?></h1><p>Preencha com a orientação do responsável fiscal. Alterações geram uma versão nova.</p></div></header>
     <?php $regimes=['1'=>'Simples Nacional','2'=>'Simples Nacional — excesso de sublimite','3'=>'Regime normal','4'=>'MEI']; ?>
     <section class="bloco"><p>Regime tributário: <strong><?= $e($regimes[$crt] ?? 'não cadastrado na Central fiscal') ?></strong> · UF: <strong><?= $e($empresa['estado'] ?? 'não cadastrada') ?></strong> · Nota fiscal do consumidor (NFC-e)</p>
         <?php if (!empty($rascunho)): ?><p role="status">Os dados digitados foram recuperados. Corrija os campos e confirme novamente a revisão.</p><?php endif; ?>

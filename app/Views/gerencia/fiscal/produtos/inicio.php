@@ -7,8 +7,7 @@ $revisados=count(array_filter($produtos,static fn($p)=>$p['pendencias']===[]));
 $ncmPendentes=count(array_filter($produtos,static fn($p)=>($p['dados']['ncm'] ?? '')!=='' && !\Cardapim\Modules\Fiscal\CatalogoNcm::fonteValida((string)$p['dados']['ncm'],$p['dados']['ncm_fonte'] ?? null)));
 ?>
 <div class="painel-page fiscal-restaurante fiscal-produtos">
-    <header class="painel-cabecalho"><div><h1>Cadastro fiscal dos produtos</h1><p>Configure em massa e revise as informações individuais, sem alterar o cardápio.</p></div><a class="btn btn-outline" href="<?= $e($url.'/perfis') ?>"><?= Icon::svg('list','icon-sm') ?> Perfis tributários</a></header>
-    <p><a href="<?= $e($url) ?>">Voltar à Central Fiscal</a></p>
+    <header class="painel-cabecalho"><div><a class="voltar-link" href="<?= $e($url) ?>"><?= \Cardapim\Core\Icon::svg('arrow-left','icon-sm') ?>Central fiscal</a><h1>Cadastro fiscal dos produtos</h1><p>Configure em massa e revise as informações individuais, sem alterar o cardápio.</p></div><a class="btn btn-outline" href="<?= $e($url.'/perfis') ?>"><?= Icon::svg('list','icon-sm') ?> Perfis tributários</a></header>
     <section class="bloco"><div class="bloco-cabecalho"><h2>Reaproveitar dados fiscais</h2><p>Importe a classificação de mercadorias já cadastradas a partir de XML ou CSV.</p></div><a class="btn btn-outline" href="<?= $e($url.'/produtos/importar') ?>"><?= Icon::svg('upload','icon-sm') ?> Importar XML ou CSV</a> <a class="btn btn-outline" href="<?= $e($url.'/produtos/catalogos') ?>">Pesquisar tabelas fiscais</a> <a class="btn btn-outline" href="<?= $e($url.'/produtos/validacao') ?>">Conferência fiscal</a></section>
     <section class="bloco">
         <div class="fiscal-resumo">
