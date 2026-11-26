@@ -87,11 +87,11 @@ try {
     FiscalEmissao::solicitar($db, $id, $pIfood);
     if ($linhas($pIfood) !== 0) { falha('iFood emitiu com a opção desligada (padrão).'); }
 
-    $dadosSemMesa = $dadosBase + ['emissao' => ['mesa' => false, 'balcao' => true, 'delivery' => true, 'ifood' => false, 'imprimir' => false]];
-    $repo->serializar($id, static fn () => $repo->salvar($id, ['cnpj' => $cnpj, 'habilitado' => true, 'aprovado' => true, 'id_impressora' => null, 'dados' => $dadosSemMesa]));
-    $pMesa = $novoPedido('mesa', 'mesa');
-    FiscalEmissao::solicitar($db, $id, $pMesa);
-    if ($linhas($pMesa) !== 0) { falha('mesa emitiu com a origem desligada.'); }
+    $dadosSemBalcao = $dadosBase + ['emissao' => ['mesa' => true, 'balcao' => false, 'delivery' => true, 'ifood' => false, 'imprimir' => false]];
+    $repo->serializar($id, static fn () => $repo->salvar($id, ['cnpj' => $cnpj, 'habilitado' => true, 'aprovado' => true, 'id_impressora' => null, 'dados' => $dadosSemBalcao]));
+    $pBalcao = $novoPedido('balcao', 'balcao');
+    FiscalEmissao::solicitar($db, $id, $pBalcao);
+    if ($linhas($pBalcao) !== 0) { falha('balcão emitiu com a origem desligada.'); }
 
     // Emissor: pendência (item avulso / sem conexão global) bloqueia e não reserva número.
     $q = $db->prepare('SELECT id FROM fiscal_documentos WHERE id_restaurante = ? AND id_pedido = ?');
