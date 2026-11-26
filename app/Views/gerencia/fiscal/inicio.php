@@ -8,21 +8,22 @@ $dataBr = static fn (?string $iso): string => is_string($iso) && preg_match('/\A
 ?>
 <div class="painel-page fiscal-restaurante">
     <header class="painel-cabecalho"><div><h1>Central fiscal</h1><p>Prepare o restaurante para emitir a nota fiscal do consumidor (NFC-e) pelo <?= marca_html() ?>.</p></div></header>
-    <div class="notice notice-info"><?= Icon::svg('info') ?><div><strong>Nenhuma nota é emitida nesta fase</strong><p>Aqui você só prepara o cadastro. O caixa continua funcionando como hoje.</p></div></div>
     <?php if ($fiscal === null): ?>
         <section class="bloco"><p>A configuração fiscal está temporariamente indisponível. Tente novamente em alguns minutos.</p></section>
     <?php else:
         $hom = $fiscal['ambiente'] === 2;
+        $producao = $fiscal['ambiente'] === 1;
+        $sefaz = $hom || $producao;
         $testado = $fiscal['status'] !== 'Não testado';
         $certOk = ($fiscal['certificado']['expira_em'] ?? 0) > time();
-        $temParametros = $hom && ($fiscal['config']['id_csc'] ?? '') !== '' && $fiscal['tem_csc'];
+        $temParametros = $sefaz && ($fiscal['config']['id_csc'] ?? '') !== '' && $fiscal['tem_csc'];
         // Etapas na ordem real do fluxo. Cada uma aponta para o bloco onde se resolve.
         $etapas = [['Ativar o módulo fiscal', $fiscal['habilitado'], 'modulo-fiscal']];
         if ($fiscal['habilitado']) {
-            $etapas[] = ['Preencher os dados da empresa', $fiscal['empresa_salva'] && (!$hom || $fiscal['empresa_pronta']), 'dados-empresa'];
+            $etapas[] = ['Preencher os dados da empresa', $fiscal['empresa_salva'] && (!$sefaz || $fiscal['empresa_pronta']), 'dados-empresa'];
             $etapas[] = ['Aguardar a aprovação da plataforma', $fiscal['aprovado'], 'conexao-emissor'];
             $etapas[] = ['Conectar ao emissor de notas', $fiscal['registrado'], 'conexao-emissor'];
-            if ($hom) {
+            if ($sefaz) {
                 $etapas[] = ['Salvar série, numeração e CSC', $temParametros, 'nfce-ambiente'];
                 $etapas[] = ['Enviar o certificado digital A1', $certOk, 'certificado-a1'];
                 $etapas[] = ['Enviar a configuração', (bool) $fiscal['config_enviada'], 'certificado-a1'];
@@ -32,6 +33,11 @@ $dataBr = static fn (?string $iso): string => is_string($iso) && preg_match('/\A
         $atual = null;
         foreach ($etapas as $i => $etapa) { if (!$etapa[1]) { $atual = $i; break; } }
     ?>
+        <?php if ($producao): ?>
+            <div class="notice notice-warning"><?= Icon::svg('triangle-exclamation-point') ?><div><strong>Produção: as notas têm valor fiscal</strong><p>Cada venda com emissão automática ligada gera uma NFC-e válida na SEFAZ. Para cancelar uma nota, use Notas emitidas.</p></div></div>
+        <?php else: ?>
+            <div class="notice notice-info"><?= Icon::svg('info') ?><div><strong>Modo de teste: as notas não têm valor fiscal</strong><p>O caixa continua funcionando normalmente.<?= $fiscal['producao_liberada'] ? ' A produção já foi liberada pela plataforma: conclua o teste com a SEFAZ e escolha "Produção" no modo.' : ' A emissão com valor fiscal é liberada pela plataforma depois do teste com a SEFAZ.' ?></p></div></div>
+        <?php endif; ?>
         <section class="bloco fiscal-etapas" aria-labelledby="titulo-etapas">
             <div class="bloco-cabecalho"><h2 id="titulo-etapas"><?= Icon::svg('list-checks') ?>Seu progresso</h2>
                 <p><?= $atual === null ? 'Todas as etapas desta fase foram concluídas.' : 'Próximo passo: ' . $e(mb_strtolower($etapas[$atual][0])) . '.' ?></p></div>
@@ -101,12 +107,12 @@ $dataBr = static fn (?string $iso): string => is_string($iso) && preg_match('/\A
             </section>
 
             <section class="bloco" id="nfce-ambiente">
-                <div class="bloco-cabecalho"><h2><?= Icon::svg('settings') ?>Modo de teste</h2><p>Comece pelo teste interno. Use o teste com a SEFAZ quando tiver o certificado A1 e o CSC.</p></div>
+                <div class="bloco-cabecalho"><h2><?= Icon::svg('settings') ?>Modo de emissão</h2><p>Comece pelo teste interno. Use o teste com a SEFAZ quando tiver o certificado A1 e o CSC. A produção aparece aqui depois de liberada pela plataforma.</p></div>
                 <form method="post" action="<?= $e($url . '/ambiente') ?>" class="fiscal-form"><?php $tokenCsrf(); ?>
-                    <label for="f-amb">Modo</label><select id="f-amb" name="ambiente"><option value="3" <?= $fiscal['ambiente'] === 3 ? 'selected' : '' ?>>Teste interno (simulação, sem SEFAZ)</option><option value="2" <?= $hom ? 'selected' : '' ?>>Teste com a SEFAZ (homologação)</option></select>
+                    <label for="f-amb">Modo</label><select id="f-amb" name="ambiente"><option value="3" <?= $fiscal['ambiente'] === 3 ? 'selected' : '' ?>>Teste interno (simulação, sem SEFAZ)</option><option value="2" <?= $hom ? 'selected' : '' ?>>Teste com a SEFAZ (homologação)</option><?php if ($fiscal['producao_liberada'] || $producao): ?><option value="1" <?= $producao ? 'selected' : '' ?>>Produção (notas com valor fiscal)</option><?php endif; ?></select>
                     <button class="btn btn-outline" type="submit">Usar este modo</button>
                 </form>
-                <?php if (!$hom): ?>
+                <?php if (!$sefaz): ?>
                     <div class="fiscal-separado">
                         <p><strong><?= Icon::svg('circle-check','icon-sm') ?> Configuração automática</strong></p>
                         <p class="texto-suave">Série de teste <?= $e($c['serie']) ?> e numeração controlada pelo sistema. Não precisa de CSC nem de certificado.</p>
@@ -125,9 +131,9 @@ $dataBr = static fn (?string $iso): string => is_string($iso) && preg_match('/\A
                 <?php endif; ?>
             </section>
 
-            <?php if ($hom): ?>
+            <?php if ($sefaz): ?>
             <section class="bloco" id="certificado-a1">
-                <div class="bloco-cabecalho"><h2><?= Icon::svg('shield-check') ?>Certificado digital A1</h2><p>Arquivo .pfx ou .p12 do restaurante. Usado só no teste com a SEFAZ; o arquivo e a senha não ficam guardados no <?= marca_html() ?>.</p></div>
+                <div class="bloco-cabecalho"><h2><?= Icon::svg('shield-check') ?>Certificado digital A1</h2><p>Arquivo .pfx ou .p12 do restaurante. Usado para assinar as notas<?= $producao ? ' de produção' : ' de teste' ?>; o arquivo e a senha não ficam guardados no <?= marca_html() ?>.</p></div>
                 <p><strong><?= $e($fiscal['alerta']) ?></strong><?php if ($fiscal['certificado']): ?> · vence em <?= $e($dataBr($fiscal['certificado']['validade'] ?? '')) ?><?php endif; ?></p>
                 <?php $motivoCert = !$fiscal['registrado'] ? 'Conecte o restaurante ao emissor primeiro.' : (!$temParametros ? 'Salve série, numeração e CSC primeiro.' : (!$fiscal['empresa_pronta'] ? \Cardapim\Services\Gerencia\FiscalService::pendenciaEmpresa($d) : '')); ?>
                 <form method="post" enctype="multipart/form-data" action="<?= $e($url . '/certificado') ?>" class="fiscal-form"><?php $tokenCsrf(); ?>
@@ -155,6 +161,7 @@ $dataBr = static fn (?string $iso): string => is_string($iso) && preg_match('/\A
             <?php if ($fiscal['registrado']): $em = $fiscal['emissao']; ?>
             <section class="bloco" id="emissao-automatica">
                 <div class="bloco-cabecalho"><h2><?= Icon::svg('receipt') ?>Emissão automática</h2><p>A nota é emitida sozinha quando o pagamento é confirmado. Se o emissor estiver fora do ar, a venda segue normalmente e a nota é reenviada depois.</p></div>
+                <p><a class="btn btn-outline" href="<?= $e($url . '/notas') ?>"><?= Icon::svg('file-text','icon-sm') ?>Ver notas emitidas</a></p>
                 <form method="post" action="<?= $e($url . '/emissao') ?>" class="fiscal-form"><?php $tokenCsrf(); ?>
                     <fieldset class="fiscal-opcoes"><legend>Emitir a nota automaticamente em</legend>
                         <?php foreach (\Cardapim\Services\Fiscal\FiscalEmissao::ORIGENS as $k => $rot): ?>

@@ -23,7 +23,12 @@ fiscalOk($h->pedidos[1][1]['X-Ambiente'] === '2' && $h->pedidos[1][2]['DocBin'] 
 $a->configHomologacao('11222333000181','11444777000161','individual','Teste','CE','csc','1');
 fiscalOk($h->pedidos[2][2]['FormaEmissao'] === 1 && $h->pedidos[2][1]['X-Ambiente'] === '2');
 fiscalOk($a->statusCliente('11222333000181','11444777000161','individual',3) === 107);
-try { $a->statusCliente('11222333000181','11444777000161','individual',1); throw new LogicException('Produção não bloqueada'); } catch (RuntimeException) {}
+// Produção: a API aceita o ambiente 1; quem bloqueia é a liberação da plataforma (FiscalAcesso::producaoLiberada).
+fiscalOk($a->statusCliente('11222333000181','11444777000161','individual',1) === 107 && end($h->pedidos)[1]['X-Ambiente'] === '1');
+try { $a->statusCliente('11222333000181','11444777000161','individual',4); throw new LogicException('Ambiente inválido aceito'); } catch (RuntimeException) {}
+$a->configAmbiente('11222333000181','11444777000161','individual','Teste','CE','csc','1',1);
+fiscalOk(end($h->pedidos)[1]['X-Ambiente'] === '1');
+try { $a->configAmbiente('11222333000181','11444777000161','individual','Teste','CE','csc','1',3); throw new LogicException('Config em simulação aceita'); } catch (RuntimeException) {}
 try { CertificadoA1::validar('invalido','senha','11444777000161'); throw new LogicException('Certificado inválido aceito'); } catch (RuntimeException) {}
 fiscalOk(CertificadoA1::alerta(time()+6*86400) === 'Vence em até 7 dias');
 fiscalOk(CertificadoA1::alerta(time()+14*86400) === 'Vence em até 15 dias');

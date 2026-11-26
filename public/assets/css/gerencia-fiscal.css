@@ -26,3 +26,39 @@
 .fiscal-restaurante .fiscal-opcoes legend { font-weight:600; margin-bottom:.25rem; }
 .fiscal-restaurante .fiscal-check, .fiscal-restaurante .fiscal-form label.fiscal-check { display:flex; align-items:center; gap:.5rem; min-height:44px; font-weight:500; margin-top:0; }
 .fiscal-restaurante .fiscal-form .fiscal-check input[type=checkbox] { width:20px; min-height:20px; flex:none; accent-color:#651424; }
+
+/* ---------- Notas emitidas (NFC-e) ---------- */
+.notas-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem; }
+.notas-resumo div { display: grid; gap: .2rem; padding: .85rem 1rem; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); }
+.notas-resumo span { color: var(--c-muted); font-size: .85rem; }
+.notas-resumo strong { font: 700 1.5rem/1.1 var(--f-head); color: var(--c-ink); }
+.notas-filtros, .notas-campos { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin-bottom: 1rem; }
+.notas-filtros label, .notas-campos label { display: grid; gap: .25rem; flex: 1 1 10rem; font-weight: 600; font-size: .9rem; }
+.notas-lista, .notas-itens, .notas-totais { list-style: none; margin: 0; padding: 0; }
+.notas-lista > li { border-bottom: 1px solid var(--c-line); }
+.notas-linha { display: grid; grid-template-columns: 1fr auto auto; gap: .5rem 1rem; align-items: center; padding: .85rem .25rem; color: inherit; text-decoration: none; min-height: 3rem; }
+.notas-linha:hover, .notas-linha:focus-visible { background: var(--c-blush); }
+.notas-numero small, .notas-itens small { display: block; color: var(--c-muted); font-size: .82rem; }
+.notas-valor { font-weight: 700; white-space: nowrap; }
+.notas-motivo { margin: 0 0 .75rem .25rem; color: var(--c-danger); font-size: .85rem; }
+.notas-vazio { display: grid; justify-items: center; gap: .25rem; padding: 2rem 1rem; text-align: center; color: var(--c-muted); }
+.notas-vazio p { margin: 0; }
+.notas-paginas { display: flex; align-items: center; justify-content: center; gap: .75rem; margin-top: 1rem; }
+.notas-acoes { display: flex; flex-wrap: wrap; gap: .5rem; }
+.notas-acoes form { margin: 0; }
+.notas-itens li, .notas-totais li { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--c-line); }
+.notas-itens li > span:last-child { text-align: right; white-space: nowrap; }
+.notas-totais li { font-weight: 600; }
+.notas-dados { display: grid; grid-template-columns: max-content 1fr; gap: .4rem 1rem; margin: 0; }
+.notas-dados dt { color: var(--c-muted); }
+.notas-dados dd { margin: 0; overflow-wrap: anywhere; }
+.notas-chave { font-family: ui-monospace, "Roboto Mono", monospace; letter-spacing: .02em; }
+.notas-email-linha { display: flex; gap: .5rem; flex-wrap: wrap; }
+.notas-email-linha input { flex: 1 1 14rem; }
+.notas-inutilizar summary, .notas-cancelar summary { cursor: pointer; font-weight: 700; display: flex; align-items: center; gap: .5rem; min-height: 2.75rem; }
+@media (max-width: 40rem) {
+  .notas-linha { grid-template-columns: 1fr auto; }
+  .notas-linha .etiqueta { grid-column: 1; justify-self: start; }
+  .notas-dados { grid-template-columns: 1fr; }
+  .notas-dados dd { margin-bottom: .5rem; }
+}

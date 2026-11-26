@@ -15,7 +15,7 @@ $ncmPendentes=count(array_filter($produtos,static fn($p)=>($p['dados']['ncm'] ??
             <div><span>Cadastro revisado</span><strong><?= $revisados ?></strong></div>
             <div><span>Pendências</span><strong><?= count($produtos)-$revisados ?></strong></div>
         </div>
-        <p class="texto-suave">Produto revisado significa cadastro completo; a emissão de notas continua bloqueada nesta fase.</p>
+        <p class="texto-suave">Produto revisado significa cadastro completo: ele pode sair na nota fiscal. Produtos com pendência deixam a nota da venda em espera até serem corrigidos.</p>
         <?php if ($ncmPendentes>0): ?>
             <form method="post" action="<?= $e($url.'/produtos/revalidar-ncm') ?>" class="fiscal-aviso"><?php $token(); ?>
                 <p><strong><?= $e($ncmPendentes) ?> produtos com NCM ainda não conferido na BrasilAPI.</strong> A conferência é feita uma vez por código e vale enquanto o NCM estiver em vigor.</p>

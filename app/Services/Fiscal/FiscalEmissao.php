@@ -53,7 +53,10 @@ final class FiscalEmissao
             $q = $db->prepare('SELECT cnpj FROM restaurantes WHERE id = ?');
             $q->execute([$idRestaurante]);
             if ($r['cnpj'] !== Documento::somenteDigitos((string) $q->fetchColumn())) { return null; }
-            return ['ambiente' => (int) ($r['dados']['ambiente'] ?? 3), 'config' => self::configuracao($r['dados'])];
+            $ambiente = (int) ($r['dados']['ambiente'] ?? 3);
+            // Produção só com a liberação da plataforma; sem ela, nenhuma nota com valor fiscal entra na fila.
+            if ($ambiente === 1 && !FiscalAcesso::producaoLiberada($db, $idRestaurante)) { return null; }
+            return ['ambiente' => $ambiente, 'config' => self::configuracao($r['dados'])];
         } catch (Throwable $e) {
             error_log('[Cardapim] Fiscal: verificação de emissão ignorada (' . get_class($e) . ').');
             return null;

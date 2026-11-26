@@ -45,4 +45,11 @@ $podeReenviar = in_array($st, ['rejeitada', 'bloqueada'], true);
             <button type="submit" class="btn btn-outline btn-sm"><?= Icon::svg('refresh-cw', 'icon-sm') ?>Tentar de novo</button>
         </form>
     <?php endif; ?>
+    <?php if ($st === 'autorizada'): ?>
+        <form method="post" action="<?= $e($base . '/fiscal/' . (int) $idPedido . '/imprimir') ?>">
+            <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+            <input type="hidden" name="voltar" value="<?= $e((string) $voltar) ?>">
+            <button type="submit" class="btn btn-outline btn-sm"><?= Icon::svg('printer', 'icon-sm') ?>Imprimir nota</button>
+        </form>
+    <?php endif; ?>
 </section>

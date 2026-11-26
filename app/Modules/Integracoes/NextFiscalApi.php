@@ -99,9 +99,10 @@ final class NextFiscalApi
         return $t;
     }
 
-    public function certificadoUpload(string $sh, string $cliente, #[\SensitiveParameter] string $token, #[\SensitiveParameter] string $bytes, #[\SensitiveParameter] string $senha, string $razao, string $uf, #[\SensitiveParameter] string $csc, string $id): void
+    public function certificadoUpload(string $sh, string $cliente, #[\SensitiveParameter] string $token, #[\SensitiveParameter] string $bytes, #[\SensitiveParameter] string $senha, string $razao, string $uf, #[\SensitiveParameter] string $csc, string $id, int $ambiente = 2): void
     {
-        $this->consultar('nfe/CertificadoUpload', $sh, $token, 2, $cliente, [
+        if (!in_array($ambiente, [1, 2], true)) { throw new RuntimeException('Ambiente não permitido.'); }
+        $this->consultar('nfe/CertificadoUpload', $sh, $token, $ambiente, $cliente, [
             'DocBin'=>base64_encode($bytes), 'NomeEmpresa'=>$razao, 'UF'=>$uf, 'CSC'=>$csc,
             'TokenCSC'=>$id, 'ArquivoCertificado'=>'certificado.pfx', 'SenhaCertificado'=>$senha,
         ]);
@@ -109,12 +110,19 @@ final class NextFiscalApi
 
     public function configHomologacao(string $sh, string $cliente, #[\SensitiveParameter] string $token, string $razao, string $uf, #[\SensitiveParameter] string $csc, string $id): void
     {
-        $this->consultar('nfe/Config', $sh, $token, 2, $cliente, ['UF'=>$uf,'CSC'=>$csc,'IdCSC'=>$id,'NomeEmpresa'=>$razao,'FormaEmissao'=>1]);
+        $this->configAmbiente($sh, $cliente, $token, $razao, $uf, $csc, $id, 2);
+    }
+
+    /** nfe/Config no ambiente informado (1 = produção, 2 = homologação). */
+    public function configAmbiente(string $sh, string $cliente, #[\SensitiveParameter] string $token, string $razao, string $uf, #[\SensitiveParameter] string $csc, string $id, int $ambiente): void
+    {
+        if (!in_array($ambiente, [1, 2], true)) { throw new RuntimeException('Ambiente não permitido.'); }
+        $this->consultar('nfe/Config', $sh, $token, $ambiente, $cliente, ['UF'=>$uf,'CSC'=>$csc,'IdCSC'=>$id,'NomeEmpresa'=>$razao,'FormaEmissao'=>1]);
     }
 
     public function statusCliente(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente): int
     {
-        if (!in_array($ambiente,[2,3],true)) { throw new RuntimeException('Ambiente não permitido.'); }
+        if (!in_array($ambiente,[1,2,3],true)) { throw new RuntimeException('Ambiente não permitido.'); }
         $d = $this->consultar('nfe/StatusServico',$sh,$token,$ambiente,$cliente);
         $cod = filter_var($d['CodStatus'] ?? null,FILTER_VALIDATE_INT);
         if ($cod === false || $cod < 0 || $cod > 9999) { throw new RuntimeException('Status não reconhecido.'); }

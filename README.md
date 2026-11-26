@@ -151,6 +151,9 @@ Contrato da NeXT conferido com a OpenAPI oficial: `ClienteIncluir` envia o CNPJ 
 ### Emissão de NFC-e e caixa (Etapas 04 e 05)
 Com o módulo fiscal pronto para o restaurante, a venda concluída (mesa, balcão, delivery próprio; iFood opcional e desligado por padrão) entra numa fila e o cron `bin/fiscal-fila.php` emite a NFC-e pela NeXT, com número reservado em transação, confirmação antes de reenviar e retentativas automáticas. A venda nunca espera nem falha por causa da nota. O caixa pode informar CPF/CNPJ na nota, vê a situação da nota e pode tentar de novo. Com o módulo desligado nada muda. Migration `20261127100000_fiscal_documentos` (tag `[cardapim-fiscal-documentos]`). Detalhes em [docs/architecture/fiscal-next.md](docs/architecture/fiscal-next.md).
 
+### DANFE, notas emitidas e produção fiscal (Etapas 06 a 08)
+DANFE NFC-e com QR Code impresso pelo Deliveryzim Agent (QR gerado no servidor, sem biblioteca externa), reimpressão no caixa, tela **Notas emitidas** (cancelar, inutilizar números, PDF, XML, e-mail e ZIP mensal para o contador) e liberação de **produção** por restaurante, exclusiva do superadmin. Migration `20261128100000_fiscal_danfe_producao` (tag `[cardapim-fiscal-danfe-producao]`). Detalhes em [docs/architecture/fiscal-next.md](docs/architecture/fiscal-next.md).
+
 ### Liberação administrativa e automação fiscal (Etapa 03)
 Superadmin → Fiscal → Liberação do módulo fiscal: autorização individual por restaurante e controle geral de visibilidade. Por padrão nenhum restaurante autorizado (inclusive existentes, liberar explicitamente); dados e ativação local preservados ao ocultar. Menu, URLs, cards fiscais e ações de impressão protegidos. Classificação individual em lote com seleção de campos, preservação padrão, prévia, transação e nova revisão; GTIN nunca replicado. Consulta GTIN NeXT via NFC-e em homologação com A1 válido, somente sugestão, sem mudar cadastro comercial. Não libera emissão real.
 

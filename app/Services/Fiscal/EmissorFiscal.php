@@ -49,6 +49,9 @@ final class EmissorFiscal
         try {
             $ctx = $this->contexto((int) $doc['id_restaurante']);
             if ($ctx === null) { return $this->bloquear($doc, ['O módulo fiscal foi desativado ou a conexão com o emissor foi desfeita.']); }
+            if ((int) $doc['ambiente'] === 1 && !\Cardapim\Services\Gerencia\FiscalAcesso::producaoLiberada($this->db, (int) $doc['id_restaurante'])) {
+                return $this->bloquear($doc, ['A emissão em produção foi bloqueada pela plataforma.']);
+            }
             if ($estavaIncerta && $doc['chave'] !== null) {
                 $consulta = $this->api->consultarSituacao($ctx['sh'], $ctx['cnpj'], $ctx['token'], (int) $doc['ambiente'], $ctx['uf'], (string) $doc['chave']);
                 $cod = (int) ($consulta['dados']['CodStatus'] ?? 0);
@@ -101,7 +104,7 @@ final class EmissorFiscal
     }
 
     /** Credenciais e dados do emitente, lidos no servidor; nunca expostos. */
-    private function contexto(int $idRestaurante): ?array
+    public function contexto(int $idRestaurante): ?array
     {
         $r = (new FiscalRepository($this->db))->buscar($idRestaurante);
         $g = (new FiscalNextRepository($this->db))->ler()['dados'];

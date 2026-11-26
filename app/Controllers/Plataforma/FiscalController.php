@@ -26,7 +26,7 @@ final class FiscalController extends BasePlataforma
         try { $liberacoes=FiscalAcesso::painel($this->db,is_string($_GET['busca_restaurante'] ?? null)?$_GET['busca_restaurante']:''); }
         catch (Throwable $e) { $liberacoes=null; }
         return $this->tela('plataforma/fiscal/inicio', 'fiscal', 'Central fiscal', [
-            'fiscal' => $fiscal, 'liberacoes'=>$liberacoes, 'restaurantesFiscais' => $this->servico()->restaurantes(), 'pageStyles' => ['css/plataforma-fiscal.css'],
+            'fiscal' => $fiscal, 'liberacoes'=>$liberacoes, 'restaurantesFiscais' => $this->servico()->restaurantes(), 'consumoFiscal' => $this->servico()->consumo(), 'pageStyles' => ['css/plataforma-fiscal.css'],
         ]);
     }
 
@@ -40,6 +40,20 @@ final class FiscalController extends BasePlataforma
             FiscalAcesso::alterar($this->db,$this->usuario,$id,$v==='1');
             return $this->voltar('/painel/fiscal#liberacao-fiscal','sucesso',$v==='1'?'Fiscal liberado para o restaurante.':'Fiscal ocultado. Configurações preservadas.');
         } catch (Throwable $e) { return $this->voltar('/painel/fiscal#liberacao-fiscal','erro','Não foi possível alterar a autorização.'); }
+    }
+
+    public function producao(): Response
+    {
+        if ($r=$this->entrar(true)) { return $r; }
+        $id=filter_var($this->post('id_restaurante'),FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+        $v=$this->post('producao');
+        try {
+            if ($id===false || !in_array($v,['0','1'],true)) { throw new \RuntimeException('Confira a liberação.'); }
+            FiscalAcesso::alterarProducao($this->db,$this->usuario,$id,$v==='1');
+            return $this->voltar('/painel/fiscal#liberacao-fiscal','sucesso',$v==='1'?'Produção liberada. O restaurante já pode configurar a emissão com valor fiscal.':'Produção bloqueada. O restaurante voltou para homologação.');
+        } catch (\RuntimeException $e) {
+            return $this->voltar('/painel/fiscal#liberacao-fiscal','erro',$e->getMessage());
+        } catch (Throwable $e) { return $this->voltar('/painel/fiscal#liberacao-fiscal','erro','Não foi possível alterar a produção.'); }
     }
 
     public function visibilidade(): Response

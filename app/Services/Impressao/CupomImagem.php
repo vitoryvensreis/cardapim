@@ -111,6 +111,19 @@ final class CupomImagem
                         foreach (self::quebrar(self::limpar((string) $d), 'detalhe', $util - 18) as $l) $poe('detalhe', $l, 'esq', 18);
                     }
                     break;
+                case 'qrcode':
+                    // QR Code (NFC-e): matriz gerada aqui, centralizada, com zona de silencio de 4 modulos.
+                    try {
+                        $matriz = \Cardapim\Shared\QrCode::matriz((string) ($b['dados'] ?? ''));
+                    } catch (\Throwable) {
+                        foreach (self::quebrar($texto, 'detalhe', $util) as $l) $poe('detalhe', $l, 'centro');
+                        break;
+                    }
+                    $modulos = count($matriz) + 8;
+                    $escala = max(2, intdiv((int) min($util * 0.62, 340), $modulos));
+                    $ops[] = ['qr', $altura + 6, $matriz, $escala];
+                    $altura += $modulos * $escala + 12;
+                    break;
                 default:
                     foreach (self::quebrar($texto, 'normal', $util) as $l) $poe('normal', $l);
             }
@@ -129,6 +142,18 @@ final class CupomImagem
             }
             if ($op[0] === 'logo' && $logoImg !== null) {
                 self::colarLogo($img, $logoImg, (int) (($largura - imagesx($logoImg)) / 2), $op[1], $preto);
+            } elseif ($op[0] === 'qr') {
+                [, $y, $matriz, $escala] = $op;
+                $lado = count($matriz);
+                $x0 = (int) (($largura - $lado * $escala) / 2);
+                $y0 = $y + 4 * $escala;
+                foreach ($matriz as $l => $linha) {
+                    foreach ($linha as $c => $escuro) {
+                        if ($escuro) {
+                            imagefilledrectangle($img, $x0 + $c * $escala, $y0 + $l * $escala, $x0 + ($c + 1) * $escala - 1, $y0 + ($l + 1) * $escala - 1, $preto);
+                        }
+                    }
+                }
             } elseif ($op[0] === 'linha') {
                 for ($x = self::LADO; $x < $largura - self::LADO; $x += 10) {
                     imagefilledrectangle($img, $x, $op[1], min($x + 5, $largura - self::LADO), $op[1] + 1, $preto);
