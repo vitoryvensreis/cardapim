@@ -3,7 +3,7 @@ require __DIR__.'/_base.php';
 ?>
 <div class="painel-page fiscal-restaurante fiscal-produtos">
     <header class="painel-cabecalho"><div><h1>Importar classificação fiscal</h1><p>Aproveite dados de notas de fornecedores ou planilhas sem movimentar o estoque.</p></div><a class="btn btn-outline" href="<?= $e($url.'/produtos') ?>">Voltar aos produtos fiscais</a></header>
-    <section class="bloco"><h2>Escolha um arquivo</h2>
+    <section class="bloco"><div class="bloco-cabecalho"><h2>Escolha um arquivo</h2></div>
         <p>XML processado de produção (NF-e/NFC-e com o CNPJ do restaurante) ou CSV UTF-8 separado por ponto e vírgula. Até 2 MB e 200 itens. Os dados serão apresentados para revisão; não verificamos a autenticidade do XML na SEFAZ.</p>
         <form method="post" enctype="multipart/form-data" action="<?= $e($url.'/produtos/importar/ler') ?>" class="fiscal-form"><?php $token(); ?>
             <label for="importacao-tipo">Tipo do arquivo</label><select id="importacao-tipo" name="tipo"><option value="xml">XML da nota fiscal</option><option value="csv">CSV de classificação</option></select>

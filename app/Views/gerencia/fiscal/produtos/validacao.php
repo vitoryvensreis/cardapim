@@ -5,7 +5,7 @@
         <div class="fiscal-resumo"><div><span>Produtos</span><strong><?= count($produtos) ?></strong></div><div><span>Sem pendências detectadas</span><strong><?= count(array_filter($verificacao,static fn($r)=>$r===[])) ?></strong></div><div><span>Com pendências</span><strong><?= count(array_filter($verificacao,static fn($r)=>$r!==[])) ?></strong></div></div>
         <p class="texto-suave">Esta conferência verifica o cadastro, não todos os cenários de impostos. A emissão de notas continua bloqueada nesta fase.</p>
     </section>
-    <section class="bloco"><h2>Conferir produtos e composições</h2>
+    <section class="bloco"><div class="bloco-cabecalho"><h2>Conferir produtos e composições</h2></div>
         <div class="fiscal-filtros" data-fiscal-lote-filtros>
             <label>Buscar produto<input type="search" data-fiscal-busca placeholder="Nome do produto"></label>
             <label>Mostrar<select data-fiscal-situacao><option value="1">Só com pendências</option><option value="">Todos</option><option value="0">Só sem pendências</option></select></label>

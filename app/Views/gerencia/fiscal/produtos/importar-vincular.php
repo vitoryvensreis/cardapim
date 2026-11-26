@@ -12,6 +12,6 @@
             <label class="fiscal-check"><input type="checkbox" name="sobrescrever" value="1" <?= !empty($substituir)?'checked':'' ?>> Substituir campos já preenchidos. Desmarcado, só os campos vazios são preenchidos.</label>
             <button class="btn btn-primary" type="submit">Revisar alterações</button>
         </form>
-        <p><a href="<?= $e($url.'/produtos/importar') ?>">Cancelar</a></p>
+        <p><a class="btn btn-outline" href="<?= $e($url.'/produtos/importar') ?>">Cancelar</a></p>
     </section>
 </div>
