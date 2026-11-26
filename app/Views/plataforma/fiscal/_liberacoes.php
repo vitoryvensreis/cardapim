@@ -21,7 +21,7 @@ use Cardapim\Core\Icon;
         <?php foreach ($liberacoes['restaurantes'] as $r): ?>
             <article class="bloco">
                 <strong><?= $e($r['nome']) ?></strong><p><?= $e($r['slug']) ?> · <?= $r['permitido']?'Autorizado':'Não autorizado' ?><?= $r['permitido']&&!$liberacoes['global']?' (oculto globalmente)':'' ?><?= $r['permitido']?' · '.((int)$r['producao']===1?'Produção liberada (notas com valor fiscal)':'Somente testes'):'' ?></p>
-                <form method="post" action="<?= $e($url.'/liberar-restaurante') ?>" data-confirm="<?= $r['permitido']?'Ocultar a aba Fiscal deste restaurante? Os dados serão preservados.':'Liberar a aba Fiscal para este restaurante? A emissão real permanece bloqueada.' ?>">
+                <form method="post" action="<?= $e($url.'/liberar-restaurante') ?>" data-confirm="<?= $r['permitido']?'Ocultar a aba Fiscal deste restaurante? Os dados serão preservados.':'Liberar a aba Fiscal para este restaurante? Ele poderá emitir só em modo de teste até você liberar a produção.' ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <input type="hidden" name="id_restaurante" value="<?= (int)$r['id'] ?>">
                     <input type="hidden" name="permitido" value="<?= $r['permitido']?'0':'1' ?>">

@@ -19,7 +19,7 @@ $dataBr = static fn (?string $v): string => is_string($v) && preg_match('/\A(\d{
             </span>
         <?php endif; ?>
     </header>
-    <div class="notice notice-info"><?= Icon::svg('info') ?><div><strong>Emissão real bloqueada</strong><p>Esta etapa não altera o caixa dos restaurantes. Apenas consultas administrativas e ambientes de teste estão disponíveis.</p></div></div>
+    <div class="notice notice-info"><?= Icon::svg('info') ?><div><strong>Notas com valor fiscal só com a sua liberação</strong><p>Cada restaurante emite em modo de teste (sem valor fiscal) até você liberar a produção em <a href="#liberacao-fiscal">Liberação do módulo fiscal</a>. Restaurantes com o módulo desligado continuam com o caixa funcionando normalmente.</p></div></div>
     <?php if ($fiscal === null): ?>
         <div class="notice notice-warning" role="alert">Não foi possível ler a configuração fiscal. Confira a criptografia e os logs do servidor. Nenhuma configuração será sobrescrita.</div>
     <?php else: ?>
@@ -43,7 +43,7 @@ $dataBr = static fn (?string $v): string => is_string($v) && preg_match('/\A(\d{
                         <div>
                             <strong><?= $e($r['nome']) ?></strong>
                             <p><?= $e(Documento::formatarCnpj($r['cnpj'])) ?> · <?= $r['habilitado'] ? 'Módulo ativo' : 'Módulo desativado' ?> · <?= $r['registrado'] ? 'Conectado ao emissor' : ($r['aprovado'] ? 'Aprovado, aguardando conexão' : 'Aguardando aprovação') ?></p>
-                            <p class="texto-suave">Certificado: <?= $e($r['validade'] ? $dataBr($r['validade']) : 'não enviado') ?> · <?= $e($r['alerta']) ?> · Último teste: <?= $e($r['status']) ?></p>
+                            <p class="texto-suave">Certificado: <?= $e($r['validade'] ? $dataBr($r['validade']) : 'não enviado') ?> · <?= $e($r['alerta']) ?> · Modo: <?= $e($r['modo']) ?> · Último teste: <?= $e($r['status']) ?></p>
                         </div>
                         <?php if ($r['cnpj_divergente']): ?>
                             <form method="post" action="<?= $e($url . '/refazer-vinculo') ?>" class="fiscal-acao">
