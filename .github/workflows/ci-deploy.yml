@@ -124,6 +124,7 @@ jobs:
           php tests/unit/cupom-imagem.php
           php tests/unit/aparencia-cupom.php
           php tests/unit/fiscal-restaurante.php
+          php tests/unit/fiscal-next-contrato.php
           php tests/unit/fiscal-cadastro.php
           php tests/unit/fiscal-produtos.php
           php tests/unit/fiscal-importacao.php

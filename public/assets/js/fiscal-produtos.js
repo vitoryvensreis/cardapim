@@ -15,15 +15,49 @@
             todos.indeterminate=!todos.checked && visiveis.some(l=>l.querySelector('input').checked);
             contagem.textContent=selecionados+' selecionados (máximo 200)';
         };
+        const situacao=lote.querySelector('[data-fiscal-situacao]');
         const filtrar=()=>{
-            for (const l of linhas) l.hidden=!(normalizar(l.dataset.nome).includes(normalizar(busca.value)) && (!filtro.value || l.dataset.categoria===filtro.value));
+            for (const l of linhas) l.hidden=!(normalizar(l.dataset.nome).includes(normalizar(busca.value)) && (!filtro.value || l.dataset.categoria===filtro.value) && (!situacao || !situacao.value || l.dataset.pendente===situacao.value));
             atualizar();
         };
         busca.addEventListener('input',filtrar);
         filtro.addEventListener('change',filtrar);
+        if (situacao) situacao.addEventListener('change',filtrar);
+        // Preencher um campo do lote já marca "Aplicar este campo"; esvaziar desmarca.
+        for (const campo of lote.querySelectorAll('[data-fiscal-lote-campo]')) {
+            const marcar=lote.querySelector('input[name="campos[]"][value="'+campo.dataset.fiscalLoteCampo+'"]');
+            if (marcar) campo.addEventListener('input',()=>{marcar.checked=campo.value.trim()!=='';});
+        }
         todos.addEventListener('change',()=>{for (const l of linhas) if (!l.hidden) l.querySelector('input').checked=todos.checked; atualizar();});
         lote.addEventListener('change',atualizar);
         atualizar();
+    }
+    const conferencia=document.querySelector('[data-fiscal-conferencia]');
+    if (conferencia) {
+        const itens=[...conferencia.querySelectorAll('[data-fiscal-linha]')];
+        const busca=conferencia.querySelector('[data-fiscal-busca]');
+        const situacao=conferencia.querySelector('[data-fiscal-situacao]');
+        const normalizar=v=>v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+        const filtrar=()=>{for (const d of itens) d.hidden=!(normalizar(d.dataset.nome).includes(normalizar(busca.value)) && (!situacao.value || d.dataset.pendente===situacao.value));};
+        busca.addEventListener('input',filtrar);
+        situacao.addEventListener('change',filtrar);
+        filtrar();
+    }
+    // Erro de validação vindo do servidor: destaca, abre a seção e leva o foco ao campo certo.
+    for (const f of document.querySelectorAll('form[data-fiscal-erro]')) {
+        const nome=f.dataset.fiscalErro;
+        if (!nome) continue;
+        const campo=f.elements.namedItem(nome);
+        if (!campo || typeof campo.focus!=='function') continue;
+        campo.setAttribute('aria-invalid','true');
+        const aviso=document.createElement('p');
+        aviso.className='fiscal-erro-campo'; aviso.id='erro-'+nome; aviso.textContent='Corrija este campo (veja a mensagem no topo da página).';
+        campo.setAttribute('aria-describedby',aviso.id);
+        campo.insertAdjacentElement('afterend',aviso);
+        for (let el=campo.parentElement; el; el=el.parentElement) { if (el.tagName==='DETAILS') el.open=true; }
+        campo.scrollIntoView({block:'center'});
+        campo.focus({preventScroll:true});
+        campo.addEventListener('input',()=>{campo.removeAttribute('aria-invalid');aviso.remove();},{once:true});
     }
     for (const busca of document.querySelectorAll('[data-fiscal-filtrar]')) {
         const select=document.getElementById(busca.dataset.fiscalFiltrar);

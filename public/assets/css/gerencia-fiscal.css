@@ -8,3 +8,17 @@
 .fiscal-restaurante .fiscal-consulta { min-height:1.5em; margin:0; }
 .fiscal-restaurante .fiscal-consulta-erro { color:#651424; font-weight:600; }
 .fiscal-restaurante [data-fiscal-ie]:not([hidden]) { display:grid; gap:.5rem; }
+
+/* Etapas da configuração: o estado é dito em texto, não só pela cor. */
+.fiscal-restaurante .fiscal-passos { list-style:none; margin:0; padding:0; display:grid; gap:.5rem; }
+.fiscal-restaurante .fiscal-passo { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.75rem; padding:.75rem 1rem; border:1px solid var(--border,#d6d6d6); border-radius:.5rem; }
+.fiscal-restaurante .fiscal-passo a { color:inherit; font-weight:600; text-decoration:none; min-width:0; overflow-wrap:anywhere; }
+.fiscal-restaurante .fiscal-passo a:hover, .fiscal-restaurante .fiscal-passo a:focus-visible { text-decoration:underline; }
+.fiscal-restaurante .fiscal-passo-estado { font-size:.8rem; font-weight:700; white-space:nowrap; }
+.fiscal-restaurante .fiscal-passo-feito { background:var(--c-success-bg,#ecf8f1); border-color:transparent; }
+.fiscal-restaurante .fiscal-passo-feito .fiscal-passo-estado { color:var(--c-success,#166534); }
+.fiscal-restaurante .fiscal-passo-atual { border-color:#FF5825; border-width:2px; }
+.fiscal-restaurante .fiscal-passo-atual .fiscal-passo-estado { color:#651424; }
+.fiscal-restaurante .fiscal-passo-pendente { color:var(--c-muted,#6b5b5f); }
+.fiscal-restaurante section[id] { scroll-margin-top:1rem; }
+.fiscal-restaurante button[disabled] + .texto-suave, .fiscal-restaurante .texto-suave[id^="motivo"] { margin-top:.25rem; }

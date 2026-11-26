@@ -50,8 +50,8 @@ final class FiscalController extends BaseGerencia
         try {
             return $this->responder($fn($this->servico()), $url);
         } catch (Throwable $e) {
-            error_log('[Cardapim] Fiscal restaurante: falha na operação (' . get_class($e) . ').');
-            return $this->voltar($url, 'erro', 'Não foi possível concluir. Confira o vínculo, a conexão da plataforma e os dados informados. Tente novamente.');
+            error_log('[Cardapim] Fiscal restaurante: falha na operação (' . get_class($e) . ($e instanceof \Cardapim\Modules\Integracoes\NextFiscalErro && $e->codigoFornecedor !== '' ? ' ' . $e->codigoFornecedor : '') . ').');
+            return $this->voltar($url, 'erro', \Cardapim\Modules\Fiscal\MensagemFiscal::para($e, 'Não foi possível concluir. Confira os dados informados e tente novamente.'));
         }
     }
 

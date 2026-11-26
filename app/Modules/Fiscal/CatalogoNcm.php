@@ -12,6 +12,8 @@ final class CatalogoNcm
 {
     public const URL='https://brasilapi.com.br/api/ncm/v1';
     private const CHAVE='fiscal_ncm_consultas_v2';
+    /** A consulta vale enquanto o código estiver vigente, com reconferência anual (antes: 30 dias). */
+    public const VALIDADE_DIAS=365;
     public function __construct(private readonly ClienteHttp $http=new ClienteHttp(8)) {}
 
     public static function codigo(string $q): string
@@ -30,7 +32,7 @@ final class CatalogoNcm
         if (!is_string($fonte) || !preg_match('/\ABrasilAPI \| ([0-9]{8}) \| (\d{4}-\d{2}-\d{2}) \| (\d{4}-\d{2}-\d{2}) a (\d{4}-\d{2}-\d{2})\z/',$fonte,$m)) { return false; }
         $hoje=date('Y-m-d');
         return $m[1]===$codigo && self::data($m[2]) && self::data($m[3]) && self::data($m[4])
-            && $m[2]<=$hoje && $m[2]>=date('Y-m-d',strtotime('-30 days')) && $m[3]<=$hoje && $m[4]>=$hoje;
+            && $m[2]<=$hoje && $m[2]>=date('Y-m-d',strtotime('-'.self::VALIDADE_DIAS.' days')) && $m[3]<=$hoje && $m[4]>=$hoje;
     }
 
     public static function normalizar(array $rows,?string $exato=null): array

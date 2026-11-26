@@ -7,7 +7,7 @@
         <form method="post" action="<?= $e($url.'/produtos/'.$produto['id'].'/composicao') ?>" class="fiscal-form"><?php $token(); ?>
             <input type="hidden" name="assinatura" value="<?= $e($assinatura) ?>">
             <?php foreach ($estrutura['opcoes'] as $oid=>$o): $regra=$config['dados']['opcoes'][$oid] ?? []; ?>
-                <div class="fiscal-linha"><div><strong><?= $e($o['nome']) ?></strong><small><?= $e($o['grupo']) ?> · preço cadastrado <?= $e($o['preco']) ?></small></div>
+                <div class="fiscal-linha"><div><strong><?= $e($o['nome']) ?></strong><small><?= $e($o['grupo']) ?> · R$ <?= $e(number_format((float)$o['preco'],2,',','.')) ?></small></div>
                     <?php if ($estrutura['combo'] && $o['ligado']!==null): ?><p>Usará a classificação do produto vinculado: <?= $e($produtos[$o['ligado']]['nome'] ?? 'Produto indisponível') ?></p>
                     <?php else: ?>
                         <div class="fiscal-form"><label for="modo-<?= $oid ?>">Tratamento fiscal</label><select id="modo-<?= $oid ?>" name="opcoes[<?= $oid ?>][modo]" required><option value="">Selecione</option><?php if (!$estrutura['combo']): ?><option value="principal" <?= ($regra['modo'] ?? '')==='principal'?'selected':'' ?>>Compor o produto principal</option><?php endif; ?><option value="produto" <?= ($regra['modo'] ?? '')==='produto'?'selected':'' ?>>Classificação separada por referência</option></select>
@@ -17,9 +17,12 @@
                 </div>
             <?php endforeach; ?>
             <label for="comp-referencia">Referência da orientação fiscal</label><input id="comp-referencia" name="referencia" maxlength="250" required value="<?= $e($config['dados']['referencia'] ?? '') ?>">
+            <?php $semelhantes=\Cardapim\Services\Gerencia\FiscalProdutosService::semelhantes((int)$produto['id'],$estruturas); if ($semelhantes>0): ?>
+                <label class="fiscal-check"><input type="checkbox" name="aplicar_semelhantes" value="1" checked> Aplicar o mesmo tratamento a mais <?= $e($semelhantes) ?> produtos que usam estes complementos</label>
+            <?php endif; ?>
             <label class="fiscal-check"><input type="checkbox" name="confirmado" value="1" required> Confirmei a composição e as referências fiscais com o responsável fiscal.</label>
             <button class="btn btn-primary" type="submit">Salvar composição fiscal</button>
         </form>
-        <p>A referência não cria produto, não baixa estoque e não altera preço. A emissão e os rateios serão implementados na etapa 04.</p>
+        <p class="texto-suave">Isso não cria produto, não mexe no estoque nem no preço. Mudar só o preço de um complemento não exige nova revisão.</p>
     </section>
 </div>

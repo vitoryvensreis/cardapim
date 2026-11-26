@@ -42,21 +42,33 @@ final class FiscalProdutosController extends BaseGerencia
     {
         // Não propagar SQL, stack traces ou dados privados ao navegador.
         $msg=$e instanceof InvalidArgumentException || ($e instanceof RuntimeException && !$e instanceof \PDOException) ? $e->getMessage() : 'Não foi possível concluir a configuração fiscal. Confira os dados.';
-        if ($e instanceof \PDOException) { $msg='Não foi possível salvar. Confira se o nome do perfil já existe.'; }
+        if ($e instanceof \PDOException) { $msg=($e->errorInfo[1] ?? null)===1062 ? 'Já existe um perfil com esse nome. Escolha outro nome.' : 'Não foi possível salvar agora. Tente novamente.'; }
         error_log('[Cardapim] Cadastro fiscal de produtos: '.get_class($e));
         return $this->voltar($url,'erro',$msg);
+    }
+
+    /** Consulta de código de barras só funciona em homologação com A1 válido. */
+    private function gtinDisponivel(): bool
+    {
+        try {
+            $f=(new \Cardapim\Services\Gerencia\FiscalService($this->db,$this->usuario,$this->restaurante['id']))->estado();
+            return $f['ambiente']===2 && $f['registrado'] && ($f['certificado']['expira_em'] ?? 0)>time();
+        } catch (Throwable) { return false; }
     }
 
     private function chaveRascunho(string $tipo,string $id): string
     { return 'fiscal_rascunho_'.$this->restaurante['id'].'_'.$this->usuario->id.'_'.$tipo.'_'.$id; }
 
-    private function guardarRascunho(string $tipo,string $id): void
+    private function guardarRascunho(string $tipo,string $id,?Throwable $erro=null): void
     {
         $campos=$tipo==='perfil'
             ? array_merge(['nome','operacao','cfop','situacao_icms','inicio','referencia','revisado','cst_pis','cst_cofins','cbenef','cst_ibs_cbs','cclass_trib','cst_is','cclass_is'],array_map(static fn($k)=>'aliq_'.$k,Validar::ALIQUOTAS))
             : ['id_perfil','ncm','cest','origem','gtin','gtin_tributavel','unidade_comercial','unidade_tributavel','fator','confirmado'];
         $dados=[];
         foreach ($campos as $k) { if (is_string($_POST[$k] ?? null)) { $dados[$k]=mb_substr($_POST[$k],0,250); } }
+        // A confirmação nunca volta marcada; o campo com erro recebe foco na tela.
+        unset($dados['revisado'],$dados['confirmado']);
+        if ($erro instanceof \Cardapim\Modules\Fiscal\CampoFiscalInvalido) { $dados['_campo']=$erro->campo; }
         Session::set($this->chaveRascunho($tipo,$id),['expira'=>time()+600,'dados'=>$dados]);
     }
 
@@ -98,8 +110,9 @@ final class FiscalProdutosController extends BaseGerencia
                 }
             }
             $rascunho=$this->recuperarRascunho('perfil',(string)($id ?? 'novo'));
-            if ($rascunho!==null) { $dados=array_replace($dados,$rascunho); }
-            return $this->pagina('perfil-form','Perfil tributário',['perfil'=>$perfil,'dados'=>$dados,'empresa'=>$e['empresa'],'rascunho'=>$rascunho!==null]);
+            $campoErro=is_string($rascunho['_campo'] ?? null)?$rascunho['_campo']:'';
+            if ($rascunho!==null) { unset($rascunho['_campo']); $dados=array_replace($dados,$rascunho); }
+            return $this->pagina('perfil-form','Perfil tributário',['perfil'=>$perfil,'dados'=>$dados,'empresa'=>$e['empresa'],'rascunho'=>$rascunho!==null,'campoErro'=>$campoErro]);
         } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/perfis')); }
     }
 
@@ -109,7 +122,7 @@ final class FiscalProdutosController extends BaseGerencia
         try { $id=$this->servico()->perfil($_POST); return $this->voltar($this->url('fiscal/perfis/'.$id),'sucesso','Nova versão do perfil salva. Confira os produtos vinculados.'); }
         catch (Throwable $e) {
             $id=(string)(self::id($this->post('id_perfil')) ?? 'novo');
-            $this->guardarRascunho('perfil',$id);
+            $this->guardarRascunho('perfil',$id,$e);
             return $this->falha($e,$this->url('fiscal/perfis/'.$id));
         }
     }
@@ -132,12 +145,14 @@ final class FiscalProdutosController extends BaseGerencia
                 $copiaNome=$origem['nome'];
             }
             $rascunho=$this->recuperarRascunho('produto',(string)$id);
+            $campoErro=is_string($rascunho['_campo'] ?? null)?$rascunho['_campo']:'';
             if ($rascunho!==null) {
+                unset($rascunho['_campo']);
                 $produto['dados']=array_replace($produto['dados'],$rascunho);
                 $produto['id_perfil']=self::id($rascunho['id_perfil'] ?? '');
                 $copiaNome=null;
             }
-            return $this->pagina('produto-form','Dados fiscais do produto',$e+['produto'=>$produto,'copiaNome'=>$copiaNome,'rascunho'=>$rascunho!==null]);
+            return $this->pagina('produto-form','Dados fiscais do produto',$e+['produto'=>$produto,'copiaNome'=>$copiaNome,'rascunho'=>$rascunho!==null,'campoErro'=>$campoErro,'gtinDisponivel'=>$this->gtinDisponivel()]);
         } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos')); }
     }
 
@@ -148,7 +163,7 @@ final class FiscalProdutosController extends BaseGerencia
         if ($id===null) { return $this->naoEncontrado('Produto',$this->url('fiscal/produtos')); }
         $url=$this->url('fiscal/produtos/'.$id);
         try { $this->servico()->produto($id,$_POST); return $this->voltar($url,'sucesso','Dados fiscais salvos. O cadastro comercial não foi alterado.'); }
-        catch (Throwable $e) { $this->guardarRascunho('produto',(string)$id); return $this->falha($e,$url); }
+        catch (Throwable $e) { $this->guardarRascunho('produto',(string)$id,$e); return $this->falha($e,$url); }
     }
 
     public function previa(string $slug): Response
@@ -176,6 +191,24 @@ final class FiscalProdutosController extends BaseGerencia
         } catch (Throwable $e) { return $this->falha($e,$url); }
     }
 
+    public function revalidarNcm(string $slug): Response
+    {
+        if ($r=$this->acesso($slug,true)) { return $r; }
+        $url=$this->url('fiscal/produtos');
+        try {
+            $id=$this->restaurante['id'];
+            $r=$this->servico()->revalidarNcm(fn()=>RateLimiter::padrao(30,60)->permitir('fiscal-ncm|'.$id) && RateLimiter::padrao(30,60)->permitir('fiscal-ncm-brasilapi-global'));
+            $msg=$r['verificados'].' códigos NCM confirmados como vigentes ('.$r['produtos'].' produtos atualizados).';
+            if ($r['nao_localizados']!==[]) { $msg.=' Não localizados como vigentes: '.implode(', ',array_slice($r['nao_localizados'],0,8)).'. Revise esses produtos.'; }
+            if ($r['restantes']>0) { $msg.=' Faltam '.$r['restantes'].' códigos: clique em Revalidar novamente em um minuto.'; }
+            if ($r['verificados']===0 && $r['nao_localizados']===[] && $r['restantes']===0) { $msg='Todos os NCMs preenchidos já têm consulta válida.'; }
+            return $this->voltar($url,'sucesso',$msg);
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Revalidação NCM: '.get_class($e));
+            return $this->voltar($url,'erro','A BrasilAPI não respondeu agora. Os cadastros não foram alterados; tente novamente em alguns minutos.');
+        }
+    }
+
     public function validacao(string $slug): Response
     {
         if ($r=$this->acesso($slug)) { return $r; }
@@ -199,8 +232,8 @@ final class FiscalProdutosController extends BaseGerencia
         try {
             $id=self::id($idTexto);
             if ($id===null) { throw new InvalidArgumentException('Produto inválido.'); }
-            $this->servico()->salvarComposicao($id,$_POST);
-            return $this->voltar($this->url('fiscal/produtos/validacao'),'sucesso','Composição fiscal registrada. Venda e estoque preservados.');
+            $n=$this->servico()->salvarComposicao($id,$_POST);
+            return $this->voltar($this->url('fiscal/produtos/validacao'),'sucesso','Composição fiscal registrada'.($n>0?' e aplicada a mais '.$n.' produtos com os mesmos complementos':'').'. Venda e estoque preservados.');
         } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/validacao')); }
     }
 
@@ -264,15 +297,24 @@ final class FiscalProdutosController extends BaseGerencia
     public function previaImportacao(string $slug): Response
     {
         if ($r=$this->acesso($slug,true)) { return $r; }
+        $s=null; $destinos=[]; $substituir=false;
         try {
             $s=$this->sessaoImportacao('vincular');
-            $destinos=is_array($_POST['destinos'] ?? null)?$_POST['destinos']:[];
+            $destinos=is_array($_POST['destinos'] ?? null)?array_map(static fn($v)=>is_string($v)?$v:'',$_POST['destinos']):[];
             $substituir=$this->post('sobrescrever')==='1';
             $previa=$this->servico()->previaImportacao($s['itens'],$destinos,$substituir);
             $token=bin2hex(random_bytes(24));
             Session::set($this->chaveImportacao(),array_replace($s,['token'=>$token,'fase'=>'aplicar','destinos'=>$destinos,'substituir'=>$substituir,'previa'=>$previa,'expira'=>time()+600]));
             return $this->pagina('importar-previa','Confirmar importação',['previa'=>$previa,'importacao'=>$token]);
-        } catch (Throwable $e) { return $this->falha($e,$this->url('fiscal/produtos/importar')); }
+        } catch (Throwable $e) {
+            if (!is_array($s)) { return $this->falha($e,$this->url('fiscal/produtos/importar')); }
+            // Erro de vínculo: volta para a mesma tela com as escolhas feitas, sem pedir o arquivo de novo.
+            error_log('[Cardapim] Cadastro fiscal de produtos: '.get_class($e));
+            $token=bin2hex(random_bytes(24));
+            Session::set($this->chaveImportacao(),array_replace($s,['token'=>$token,'expira'=>time()+900]));
+            Session::set('flash',['tipo'=>'erro','mensagem'=>$e instanceof RuntimeException && !$e instanceof \PDOException ? $e->getMessage() : 'Confira os vínculos e tente novamente.']);
+            return $this->pagina('importar-vincular','Relacionar mercadorias',['itens'=>$s['itens'],'produtos'=>$this->servico()->estado()['produtos'],'importacao'=>$token,'destinos'=>$destinos,'substituir'=>$substituir]);
+        }
     }
 
     public function aplicarImportacao(string $slug): Response
@@ -307,7 +349,9 @@ final class FiscalProdutosController extends BaseGerencia
             return Response::json(['ok'=>true,'dados'=>$s->consultarGtin($this->post('gtin'))],200,$headers);
         } catch (Throwable $e) {
             error_log('[Cardapim] Consulta GTIN indisponível ('.get_class($e).').');
-            $msg='Consulta indisponível. Confira o código de barras, certificado A1 e ambiente de homologação.';
+            $msg=$e instanceof RuntimeException && in_array($e->getMessage(),['Código de barras inválido.','A consulta oficial de GTIN exige certificado A1 válido e ambiente de homologação.','Limite de consultas atingido.','A NeXT não retornou uma classificação de GTIN reconhecida.'],true)
+                ? $e->getMessage()
+                : \Cardapim\Modules\Fiscal\MensagemFiscal::para($e,'Consulta indisponível. Confira o código de barras, o certificado A1 e o ambiente de homologação.');
             return Response::json(['ok'=>false,'mensagem'=>$msg],422,$headers);
         }
     }

@@ -108,6 +108,48 @@ final class FiscalProdutosService
         Auditoria::registrar($this->usuario,'Fiscal: produto salvo','Produto '.$id.'; cadastro fiscal independente.');
     }
 
+    /**
+     * Revalida na BrasilAPI os NCMs distintos sem consulta válida e grava a evidência nos produtos.
+     * Lotes pequenos por clique, dentro do limite de consultas; não altera a classificação nem a confirmação.
+     * @return array{verificados:int,nao_localizados:list<string>,restantes:int,produtos:int}
+     */
+    public function revalidarNcm(callable $autorizar,int $maximo=12): array
+    {
+        $produtos=$this->estado()['produtos'];
+        $pendentes=[];
+        foreach ($produtos as $p) {
+            $ncm=(string)($p['dados']['ncm'] ?? '');
+            if (preg_match('/\A[0-9]{8}\z/',$ncm) && !CatalogoNcm::fonteValida($ncm,$p['dados']['ncm_fonte'] ?? null)) { $pendentes[$ncm]=true; }
+        }
+        $codigos=array_keys($pendentes); $evidencias=[]; $nao=[]; $feitos=0;
+        $api=new CatalogoNcm();
+        foreach ($codigos as $codigo) {
+            if ($feitos>=$maximo || !$autorizar()) { break; }
+            $feitos++;
+            // Consultas fora do lock e da transação, como no salvamento individual.
+            try { $api->consultar((string)$codigo); }
+            catch (Throwable $e) { if ($evidencias===[] && $nao===[]) { throw $e; } $feitos--; break; }
+            $e=CatalogoNcm::evidencia((string)$codigo);
+            if (isset($e['itens'][(string)$codigo])) { $evidencias[(string)$codigo]=$e['versao']; } else { $nao[]=(string)$codigo; }
+        }
+        $n=0;
+        if ($evidencias!==[]) {
+            $n=$this->escrever(function () use ($evidencias) {
+                $total=0;
+                foreach ($this->repo->produtos() as $p) {
+                    $ncm=(string)($p['dados']['ncm'] ?? '');
+                    if (!isset($evidencias[$ncm])) { continue; }
+                    $d=$p['dados']; $d['ncm_fonte']=$evidencias[$ncm];
+                    $this->repo->salvarProduto((int)$p['id'],$p['id_perfil']===null?null:(int)$p['id_perfil'],$p['versao']===null?null:(int)$p['versao'],$d,$this->usuario->id);
+                    $total++;
+                }
+                return $total;
+            });
+            Auditoria::registrar($this->usuario,'Fiscal: NCM revalidado',count($evidencias).' códigos vigentes na BrasilAPI; '.$n.' produtos atualizados; classificação não alterada.');
+        }
+        return ['verificados'=>count($evidencias),'nao_localizados'=>$nao,'restantes'=>max(0,count($codigos)-$feitos),'produtos'=>$n];
+    }
+
     public static function identificador(mixed $v): ?int
     {
         return is_string($v) && ctype_digit($v) && strlen($v)<=18 && (int)$v>0?(int)$v:null;
@@ -175,6 +217,7 @@ final class FiscalProdutosService
                 'dados'=>$m['dados'],'mudancas'=>$m['mudancas']];
         }
         return ['perfil'=>$perfil,'versao'=>$p?(int)$p['versao']:null,'nome'=>$p['nome'] ?? 'Manter perfil atual',
+            'aviso_ncm'=>isset($campos['ncm']) && !isset($catalogo['itens'][$campos['ncm']]),
             'entrada'=>['campos'=>array_keys($campos),'sobrescrever'=>$sobrescrever?'1':'0']+$campos,'itens'=>array_values($itens)];
     }
 
@@ -261,7 +304,7 @@ final class FiscalProdutosService
         foreach ($estruturas as $id=>$s) {
             if (!isset($e['produtos'][$id])) { continue; }
             // Combo pai não é linha fiscal adicional; componentes usam a classificação individual.
-            $r=\Cardapim\Modules\Fiscal\ComposicaoFiscal::pendencias($id,$s,$config[$id] ?? null,$base,$estruturas);
+            $r=\Cardapim\Modules\Fiscal\ComposicaoFiscal::pendencias($id,$s,$config[$id] ?? null,$base,$estruturas,array_column($e['produtos'],'nome','id'));
             $verificacao[$id]=array_values(array_unique(array_merge($s['combo']?[]:$base[$id],$r)));
         }
         return $e+['estruturas'=>$estruturas,'configuracoes'=>$config,'verificacao'=>$verificacao];
@@ -276,14 +319,39 @@ final class FiscalProdutosService
             'config'=>$c->configuracoes()[$id] ?? null,'assinatura'=>\Cardapim\Modules\Fiscal\ComposicaoFiscal::assinatura($estruturas[$id])];
     }
 
-    public function salvarComposicao(int $id,array $p): void
+    /** @return int quantidade de outros produtos que receberam a mesma regra */
+    public function salvarComposicao(int $id,array $p): int
     {
-        $this->escrever(function () use($id,$p) {
+        $copiados=$this->escrever(function () use($id,$p) {
             $e=$this->composicao($id);
+            $c=new \Cardapim\Modules\Fiscal\ComposicaoFiscal($this->db,$this->id);
             $d=\Cardapim\Modules\Fiscal\ComposicaoFiscal::normalizar($id,$e['estrutura'],$e['produtos'],$e['estruturas'],$p);
-            (new \Cardapim\Modules\Fiscal\ComposicaoFiscal($this->db,$this->id))->salvar($id,$e['estrutura'],$d,$this->usuario->id);
+            $c->salvar($id,$e['estrutura'],$d,$this->usuario->id);
+            if (($p['aplicar_semelhantes'] ?? '')!=='1' || $e['estrutura']['combo']) { return 0; }
+            $n=0;
+            foreach ($e['estruturas'] as $outro=>$estrutura) {
+                if ($outro===$id || !isset($e['produtos'][$outro])) { continue; }
+                $regra=\Cardapim\Modules\Fiscal\ComposicaoFiscal::replicar($d,$id,(int)$outro,$estrutura,$e['produtos'],$e['estruturas']);
+                if ($regra===null) { continue; }
+                $c->salvar((int)$outro,$estrutura,$regra,$this->usuario->id);
+                $n++;
+            }
+            return $n;
         });
-        Auditoria::registrar($this->usuario,'Fiscal: composição revisada','Produto '.$id.'; sem alteração comercial.');
+        Auditoria::registrar($this->usuario,'Fiscal: composição revisada','Produto '.$id.($copiados>0?'; mesma regra aplicada a '.$copiados.' produtos com os mesmos complementos':'').'; sem alteração comercial.');
+        return $copiados;
+    }
+
+    /** Quantos outros produtos usam exatamente opções cobertas por este produto (para orientar a tela). */
+    public static function semelhantes(int $id,array $estruturas): int
+    {
+        $base=$estruturas[$id] ?? null;
+        if (!$base || $base['combo'] || $base['opcoes']===[]) { return 0; }
+        $n=0;
+        foreach ($estruturas as $outro=>$s) {
+            if ($outro!==$id && !$s['combo'] && $s['opcoes']!==[] && array_diff_key($s['opcoes'],$base['opcoes'])===[]) { $n++; }
+        }
+        return $n;
     }
 
     public function categoria(int $categoria,?int $perfil): void

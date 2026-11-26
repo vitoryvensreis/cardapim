@@ -69,6 +69,38 @@ final class FiscalController extends BasePlataforma
         }
     }
 
+    public function conferirCredencial(): Response
+    {
+        if ($r = $this->entrar(true)) { return $r; }
+        $id = filter_var($this->post('id_restaurante'), FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if ($id === false || !\Cardapim\Shared\Esquema::tem($this->db, 'fiscal_restaurante')) {
+            return $this->voltar('/painel/fiscal#restaurantes-fiscais', 'erro', 'Restaurante inválido.');
+        }
+        try {
+            $s = new \Cardapim\Services\Gerencia\FiscalService($this->db, $this->usuario, $id);
+            return $this->responder($s->conferirCredencial(), '/painel/fiscal#restaurantes-fiscais');
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Conferência de credencial fiscal (' . get_class($e) . ').');
+            return $this->voltar('/painel/fiscal#restaurantes-fiscais', 'erro', \Cardapim\Modules\Fiscal\MensagemFiscal::para($e, 'Não foi possível conferir a credencial agora.'));
+        }
+    }
+
+    public function refazerVinculo(): Response
+    {
+        if ($r = $this->entrar(true)) { return $r; }
+        $id = filter_var($this->post('id_restaurante'), FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if ($id === false || $this->post('confirmacao') !== '1' || !\Cardapim\Shared\Esquema::tem($this->db, 'fiscal_restaurante')) {
+            return $this->voltar('/painel/fiscal#restaurantes-fiscais', 'erro', 'Confirme que deseja refazer o vínculo com o novo CNPJ.');
+        }
+        try {
+            $s = new \Cardapim\Services\Gerencia\FiscalService($this->db, $this->usuario, $id);
+            return $this->responder($s->refazerVinculo(), '/painel/fiscal#restaurantes-fiscais');
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Refazer vínculo fiscal (' . get_class($e) . ').');
+            return $this->voltar('/painel/fiscal#restaurantes-fiscais', 'erro', 'Não foi possível refazer o vínculo agora.');
+        }
+    }
+
     public function salvar(): Response
     {
         return $this->acao(fn (FiscalNextService $s): Resultado => $s->salvar(
