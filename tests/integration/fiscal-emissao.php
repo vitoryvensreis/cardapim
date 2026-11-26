@@ -83,7 +83,7 @@ try {
     if (FiscalEmissao::informarDocumento($db, $id, $p1, '111.111.111-11')) { falha('CPF inválido aceito.'); }
     if (!FiscalEmissao::informarDocumento($db, $id, $p1, '529.982.247-25') || FiscalEmissao::situacao($db, $id, $p1)['cpf_cnpj'] !== '52998224725') { falha('CPF válido não gravado.'); }
 
-    $pIfood = $novoPedido('ifood', 'entrega');
+    $pIfood = $novoPedido('ifood', 'retirada');
     FiscalEmissao::solicitar($db, $id, $pIfood);
     if ($linhas($pIfood) !== 0) { falha('iFood emitiu com a opção desligada (padrão).'); }
 
