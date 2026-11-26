@@ -48,3 +48,29 @@ Complemento de UX: valores avançados previamente preenchidos continuam visívei
 
 ## Pesquisa NCM assistida — termos comerciais
 Atalhos limitados de pizza, refrigerante/refri, hambúrguer/burger e sinônimos, normalizados por TextoLocal. Combinações, produtos brutos, ingredientes e equipamentos não são presumidos. Os atalhos apenas direcionam a consultas exatas de candidatos na BrasilAPI, com descrição e vigência reais, sem atribuição automática, sem persistir sugestão como classificação, mantendo consulta literal por código/descrição. Máximo de duas consultas por ação, ambas sujeitas ao limite existente por restaurante e global; segunda indisponível ou limitada sinaliza resultado parcial. Sem novas tabelas, cron ou serviços. Referências para os candidatos: https://normas.receita.fazenda.gov.br/sijut2consulta/anexoOutros.action?idArquivoBinario=75663 (SC 98.277/2024, base de pizza específica); https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/coletanea-2022.pdf (exemplos específicos de sanduíches); https://legislacao.fazenda.sp.gov.br/Paginas/Portaria-CAT-57-de-2021.aspx (referência de códigos de refrigerantes, não regra tributária do Ceará). Os exemplos não determinam o NCM de uma receita concreta. Confirmar composição, preparo, apresentação e orientação fiscal. Teste real na VPS permanece necessário.
+
+## Correções da auditoria (26/11/2026)
+Base: auditoria do módulo e especificação OpenAPI oficial da NeXT (`https://www.apinext.com.br/ws/v1/openapi.json`), lida em 26/11/2026. Sem migration, sem marcador de deploy, sem alteração no Agent, PDV ou impressão comercial.
+
+**Contrato NeXT**
+- `clientes/ClienteIncluir` autentica só com `X-CnpjSh` + `X-Token` (token administrativo); o CNPJ a cadastrar vai no corpo como `CNPJCliente`, junto com `RazaoSocial`. Antes ia em `X-CnpjCliente` sem `CNPJCliente` no corpo: causa provável do `NAO_AUTENTICADO` com o token individual.
+- Erros: `sucesso=false` (HTTP 200) com `mensagem` e erros fora do método `{"erro":{"codigo","mensagem","campo"}}` viram `NextFiscalErro`, com texto higienizado (sem controles e sem trechos longos que pareçam credenciais), exibido como "A NeXT informou: ...". `MensagemFiscal` traduz as demais falhas conhecidas; SQL e exceções internas nunca são exibidos.
+- `NextFiscalApi::tokenDoCliente` lê o token do emitente no `ClientesListar`, só no servidor.
+- `tests/unit/fiscal-next-contrato.php` confere URL, cabeçalhos e campos de corpo de `ClienteIncluir`, `Config` e `CertificadoUpload` contra a OpenAPI, além do tratamento dos dois formatos de erro.
+
+**Plataforma (adm_master)**
+- `POST /painel/fiscal/conferir-credencial`: compara com `hash_equals` o token gravado com o do `ClientesListar`; se divergir, grava o da NeXT (ou chama `ClienteIncluir` se o CNPJ não estiver na conta) e zera certificado, configuração enviada e status, que precisam ser reenviados. Limite de 10 por hora por restaurante; auditado sem segredo.
+- `POST /painel/fiscal/refazer-vinculo`: quando o CNPJ do perfil mudou, troca o CNPJ do registro fiscal, remove token, exige nova aprovação e volta para simulação. Recusa CNPJ inválido, da Software House ou já usado por outro restaurante.
+- O resumo da plataforma compara CNPJs só com dígitos (antes um CNPJ formatado no perfil marcava o módulo como desativado).
+
+**Restaurante**
+- Certificado A1 PKCS#12 antigo (RC2/3DES), que o OpenSSL 3 recusa sem o provedor legacy: convertido só para validação local com o binário `openssl -legacy` (arquivos temporários 0600, senha por variável de ambiente); o arquivo original segue para a NeXT. Mensagens distintas para senha errada e formato não suportado.
+- Homologação: CSC e ID do CSC obrigatórios (QR Code da NFC-e); certificado e configuração não são enviados sem eles. Série de 0 a 889 (890 a 999 reservadas). Mensagens específicas para inscrição estadual ausente, isenta ou município não identificado.
+- Tela em etapas com o próximo passo em destaque, motivo ao lado de cada botão desativado, estado da configuração enviada e datas em dd/mm/aaaa.
+
+**Produtos**
+- Erros de validação com rótulo do campo (`CampoFiscalInvalido`); o formulário destaca o campo, abre a seção e leva o foco a ele. A confirmação não volta marcada após erro; um produto já conferido abre com a confirmação marcada e ela só é retirada se a classificação mudar.
+- NCM: a evidência da BrasilAPI vale enquanto o código estiver vigente, com reconferência anual (`CatalogoNcm::VALIDADE_DIAS`, antes 30 dias). `POST /{slug}/gerencia/fiscal/produtos/revalidar-ncm` consulta cada código distinto uma vez (até 12 por clique, dentro do limite de 30 por minuto) e grava só a evidência, sem alterar classificação nem confirmação. A prévia em massa avisa quando o NCM vai entrar sem verificação.
+- Conferência: CFOP e CST/CSOSN do escopo NFC-e já são listas fixas (MOC N12a-81/91, I08-150, N12-30) e não exigem catálogo importado em nenhum regime. Pendências em linguagem simples, com nome do produto em vez de ID.
+- Composição: a assinatura não inclui mais o preço das opções (assinaturas antigas continuam aceitas); opção "aplicar o mesmo tratamento" replica a regra para produtos cujas opções estão todas cobertas pela revisão.
+- Importação: CSV em Windows-1252 é convertido para UTF-8; erro de um item cita o nome do item; vínculo por seletor com o nome do produto; erro na prévia volta para a mesma tela sem pedir o arquivo de novo; aviso quando a unidade veio do fornecedor.

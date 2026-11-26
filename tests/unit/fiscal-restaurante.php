@@ -16,7 +16,8 @@ function fiscalOk(bool $v): void { if (!$v) { throw new RuntimeException('Teste 
 $h = new FiscalHttpFalso();
 $a = new NextFiscalApi($h);
 fiscalOk($a->incluirCliente('11222333000181','admin','11444777000161','Teste') === 'token-teste');
-fiscalOk($h->pedidos[0][1]['X-CnpjCliente'] === '11444777000161' && !isset($h->pedidos[0][1]['X-Ambiente']));
+// OpenAPI NeXT: ClienteIncluir autentica só com SH + token; o CNPJ do emitente vai no corpo.
+fiscalOk($h->pedidos[0][2]['CNPJCliente'] === '11444777000161' && $h->pedidos[0][2]['RazaoSocial'] === 'Teste' && $h->pedidos[0][1]['X-CnpjCliente'] === '11222333000181' && !isset($h->pedidos[0][1]['X-Ambiente']));
 $a->certificadoUpload('11222333000181','11444777000161','individual','pfx','senha','Teste','CE','csc','1');
 fiscalOk($h->pedidos[1][1]['X-Ambiente'] === '2' && $h->pedidos[1][2]['DocBin'] === base64_encode('pfx'));
 $a->configHomologacao('11222333000181','11444777000161','individual','Teste','CE','csc','1');
@@ -45,3 +46,17 @@ $gtin=(new NextFiscalApi($gtinFake))->gtin('11222333000181','11444777000161','in
 fiscalOk($gtinFake->pedido[0]==='GET' && str_ends_with($gtinFake->pedido[1],'nfe/GTINConsulta?EAN=7894900011517') && $gtinFake->pedido[2]['X-Ambiente']==='2' && $gtinFake->pedido[2]['X-Token']==='individual' && $gtinFake->pedido[3]===null);
 fiscalOk($gtin['ncm']==='22021000' && $gtin['cest']==='0300700' && !isset($gtin['Token']));
 try { NextFiscalApi::filtrarGtin(['CodStatus'=>9491,'NCM'=>'22021000','XProd'=>'Teste']); throw new LogicException('GTIN não localizado aceito.'); } catch (RuntimeException) {}
+
+// Certificado A1 em formato antigo (RC2/3DES): OpenSSL 3 recusa sem o provedor legacy; o sistema converte só para validar.
+$dirA1 = sys_get_temp_dir() . '/cardapim-a1-' . bin2hex(random_bytes(4));
+@mkdir($dirA1, 0700);
+$gerou = trim((string) shell_exec('cd ' . escapeshellarg($dirA1) . ' && openssl req -x509 -newkey rsa:2048 -nodes -keyout k.pem -out c.pem -days 30 -subj "/CN=EMPRESA TESTE:11444777000161" >/dev/null 2>&1 && openssl pkcs12 -export -legacy -inkey k.pem -in c.pem -out legado.pfx -passout pass:1234 >/dev/null 2>&1 && echo ok'));
+if ($gerou === 'ok') {
+    $meta = CertificadoA1::validar((string) file_get_contents($dirA1 . '/legado.pfx'), '1234', '11444777000161');
+    fiscalOk(($meta['expira_em'] ?? 0) > time());
+    try { CertificadoA1::validar((string) file_get_contents($dirA1 . '/legado.pfx'), 'errada', '11444777000161'); throw new LogicException('Senha errada aceita'); }
+    catch (RuntimeException $e) { fiscalOk(str_contains($e->getMessage(), 'senha')); }
+    echo "Certificado A1 legado validado.\n";
+}
+array_map('unlink', glob($dirA1 . '/*') ?: []);
+@rmdir($dirA1);

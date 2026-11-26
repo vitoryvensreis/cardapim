@@ -160,6 +160,7 @@ return static function (Router $router): void {
     $router->post($g . '/fiscal/classificacoes/gtin', [FiscalProdutosController::class, 'gtin']);
     $router->post($g . '/fiscal/produtos/previa', [FiscalProdutosController::class, 'previa']);
     $router->post($g . '/fiscal/produtos/aplicar', [FiscalProdutosController::class, 'aplicar']);
+    $router->post($g . '/fiscal/produtos/revalidar-ncm', [FiscalProdutosController::class, 'revalidarNcm']);
     $router->get($g . '/fiscal/produtos/validacao', [FiscalProdutosController::class, 'validacao']);
     $router->get($g . '/fiscal/produtos/{id}/composicao', [FiscalProdutosController::class, 'composicao']);
     $router->post($g . '/fiscal/produtos/{id}/composicao', [FiscalProdutosController::class, 'salvarComposicao']);

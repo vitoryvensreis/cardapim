@@ -71,10 +71,29 @@ final class NextFiscalApi
         return ['quantidade' => $quantidade, 'clientes' => $clientes, 'parcial' => count($clientes) !== $quantidade];
     }
 
+    /**
+     * Token que a própria NeXT associa ao CNPJ do emitente, lido do ClientesListar.
+     * Uso exclusivo do servidor para conferir a credencial gravada; nunca exibido nem registrado.
+     */
+    public function tokenDoCliente(string $sh, #[\SensitiveParameter] string $admin, string $cliente): ?string
+    {
+        $ini = $this->consultar('clientes/ClientesListar', $sh, $admin, null)['ArqIniClientes'] ?? null;
+        if (!is_array($ini)) { throw new RuntimeException('Formato da lista de emitentes não reconhecido.'); }
+        foreach ($ini as $secao => $campos) {
+            if (!is_string($secao) || preg_match('/\ACliente[0-9]+\z/', $secao) !== 1 || !is_array($campos)) { continue; }
+            if (($campos['CNPJ'] ?? null) === $cliente) {
+                $t = $campos['Token'] ?? null;
+                return is_string($t) && preg_match('/\A[\x21-\x7E]{1,512}\z/', $t) === 1 ? $t : null;
+            }
+        }
+        return null;
+    }
+
     public function incluirCliente(string $sh, #[\SensitiveParameter] string $admin, string $cliente, string $razao): string
     {
         if ($sh === $cliente) { throw new RuntimeException('Emitente não permitido.'); }
-        $d = $this->consultar('clientes/ClienteIncluir', $sh, $admin, null, $cliente, ['RazaoSocial'=>$razao]);
+        // OpenAPI NeXT: autentica só com X-CnpjSh + X-Token; o CNPJ a cadastrar vai no corpo (CNPJCliente).
+        $d = $this->consultar('clientes/ClienteIncluir', $sh, $admin, null, null, ['CNPJCliente'=>$cliente, 'RazaoSocial'=>$razao]);
         $t = $d['TokenCliente'] ?? null;
         if (!is_string($t) || preg_match('/\A[\x21-\x7E]{1,512}\z/', $t) !== 1) { throw new RuntimeException('Credencial individual ausente.'); }
         return $t;
@@ -129,17 +148,42 @@ final class NextFiscalApi
             $headers['X-Ambiente'] = (string) $ambiente;
         }
         $resposta = $this->http->enviar($verbo, self::BASE . $metodo, $headers, $verbo==='GET'?null:$corpo);
+        $json = self::jsonSeguro($resposta->corpo);
         if (!$resposta->ok()) {
+            // Erros fora do método: {"erro": {"codigo","mensagem","campo"}} (OpenAPI NeXT).
+            $erro = is_array($json['erro'] ?? null) ? $json['erro'] : [];
+            $texto = self::textoFornecedor($erro['mensagem'] ?? null);
+            $campo = self::textoFornecedor($erro['campo'] ?? null, 60);
+            if ($texto !== '') {
+                throw new NextFiscalErro($texto . ($campo !== '' ? ' (campo ' . $campo . ')' : ''), self::textoFornecedor($erro['codigo'] ?? null, 60));
+            }
             throw new RuntimeException(match ($resposta->status) {
                 401, 403 => 'A NeXT recusou a credencial ou a permissão administrativa.',
                 429 => 'Limite de consultas da NeXT atingido.',
                 default => 'A NeXT retornou erro HTTP ' . $resposta->status . '.',
             });
         }
-        $json = $resposta->json();
         if (($json['sucesso'] ?? null) !== true || !is_array($json['dados'] ?? null)) {
+            // Rejeição dentro do método: HTTP 200 com sucesso=false e mensagem.
+            $texto = self::textoFornecedor($json['mensagem'] ?? null);
+            if ($texto !== '') { throw new NextFiscalErro($texto); }
             throw new RuntimeException('A NeXT não confirmou a operação. Confira as credenciais e tente novamente.');
         }
         return $json['dados'];
+    }
+
+    private static function jsonSeguro(string $corpo): array
+    {
+        try { $d = json_decode($corpo, true, 64, JSON_THROW_ON_ERROR); } catch (\JsonException) { return []; }
+        return is_array($d) ? $d : [];
+    }
+
+    /** Texto curto do fornecedor, sem quebras, controles ou trechos que pareçam credenciais. */
+    public static function textoFornecedor(mixed $v, int $max = 220): string
+    {
+        if (!is_string($v)) { return ''; }
+        $v = trim(preg_replace('/[\x00-\x1f\x7f]+/u', ' ', $v) ?? '');
+        $v = preg_replace('/\b[A-Za-z0-9+\/=_-]{32,}\b/', '***', $v) ?? '';
+        return mb_substr($v, 0, $max);
     }
 }

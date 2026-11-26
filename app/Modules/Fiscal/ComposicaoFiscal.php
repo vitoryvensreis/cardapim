@@ -42,8 +42,41 @@ final class ComposicaoFiscal
         return $out;
     }
 
+    /** Só a estrutura entra na assinatura: reajuste de preço não invalida a revisão fiscal. */
     public static function assinatura(array $estrutura): string
+    {
+        foreach ($estrutura['opcoes'] as &$o) { unset($o['preco']); }
+        unset($o);
+        return hash('sha256',json_encode($estrutura,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
+    }
+
+    /** Assinatura antiga (com preço), aceita para não invalidar revisões já registradas. */
+    public static function assinaturaLegada(array $estrutura): string
     { return hash('sha256',json_encode($estrutura,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)); }
+
+    public static function revisada(array $estrutura,?array $cfg): bool
+    {
+        return $cfg!==null && (hash_equals(self::assinatura($estrutura),(string)$cfg['assinatura']) || hash_equals(self::assinaturaLegada($estrutura),(string)$cfg['assinatura']));
+    }
+
+    /**
+     * Copia a regra revisada de um produto para outro que usa as mesmas opções (mesmo grupo de complementos).
+     * Retorna null quando alguma opção do destino não tem regra equivalente.
+     */
+    public static function replicar(array $regra,int $origem,int $destino,array $estruturaDestino,array $produtos,array $estruturas): ?array
+    {
+        if ($estruturaDestino['combo'] || $estruturaDestino['opcoes']===[]) { return null; }
+        $opcoes=[];
+        foreach ($estruturaDestino['opcoes'] as $oid=>$o) {
+            $r=$regra['opcoes'][$oid] ?? null;
+            if (!is_array($r)) { return null; }
+            if ($r['modo']==='principal') { $opcoes[$oid]=['modo'=>'principal','produto'=>$destino]; continue; }
+            $alvo=(int)$r['produto'];
+            if ($alvo===$destino || !isset($produtos[$alvo]) || !empty($estruturas[$alvo]['combo'])) { return null; }
+            $opcoes[$oid]=['modo'=>'produto','produto'=>$alvo];
+        }
+        return ['referencia'=>$regra['referencia'],'modo'=>'principal','opcoes'=>$opcoes];
+    }
 
     public function configuracoes(): array
     {
@@ -86,14 +119,14 @@ final class ComposicaoFiscal
     }
 
     /** Não monta linhas de venda: verifica a classificação de referências sem duplicar o pai do combo. */
-    public static function pendencias(int $id,array $estrutura,?array $cfg,array $pendenciasBase,array $estruturas): array
+    public static function pendencias(int $id,array $estrutura,?array $cfg,array $pendenciasBase,array $estruturas,array $nomes=[]): array
     {
         $r=[];
-        if (!$cfg || $cfg['assinatura']!==self::assinatura($estrutura)) { return ['Composição fiscal não revisada ou alterada desde a revisão.']; }
+        if (!self::revisada($estrutura,$cfg)) { return ['Composição fiscal não revisada ou com complementos alterados desde a revisão.']; }
         if ($estrutura['combo'] && $estrutura['fixos']===[] && $estrutura['opcoes']===[]) { $r[]='Combo sem componentes.'; }
         foreach ($estrutura['fixos'] as $f) {
             $p=$f['id_produto'];
-            if ($p===$id || !empty($estruturas[$p]['combo']) || !array_key_exists($p,$pendenciasBase) || $pendenciasBase[$p]!==[]) { $r[]='Componente '.$p.' sem classificação revisada ou é outro combo.'; }
+            if ($p===$id || !empty($estruturas[$p]['combo']) || !array_key_exists($p,$pendenciasBase) || $pendenciasBase[$p]!==[]) { $r[]='Item do combo "'.($nomes[$p] ?? 'produto removido').'" ainda sem classificação fiscal revisada (ou é outro combo).'; }
         }
         foreach ($estrutura['opcoes'] as $oid=>$o) {
             $regra=$cfg['dados']['opcoes'][$oid] ?? [];
@@ -101,7 +134,7 @@ final class ComposicaoFiscal
             $modo=$regra['modo'] ?? '';
             if ($modo==='principal' && !$estrutura['combo'] && $p===$id) { continue; }
             if ($modo!=='produto' || $p===$id || ($o['ligado']!==null && $p!==$o['ligado']) || !isset($pendenciasBase[$p]) || !empty($estruturas[$p]['combo']) || $pendenciasBase[$p]!==[]) {
-                $r[]='Complemento '.$o['nome'].' sem referência fiscal revisada.';
+                $r[]='Complemento "'.$o['nome'].'" sem tratamento fiscal definido ou com referência pendente.';
             }
         }
         return $r;

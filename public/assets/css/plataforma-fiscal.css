@@ -14,3 +14,9 @@
 @media (min-width: 640px) { .fiscal-central .fiscal-metricas { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (min-width: 1100px) { .fiscal-central .fiscal-grade { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; } }
 @media (min-width: 1440px) { .fiscal-central .fiscal-metricas { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.fiscal-central .fiscal-restaurante-item { display:grid; gap:.75rem; padding:1rem 0; border-bottom:1px solid var(--border,#d6d6d6); }
+.fiscal-central .fiscal-restaurante-item p { margin:.25rem 0 0; overflow-wrap:anywhere; }
+.fiscal-central .fiscal-acao { display:grid; gap:.5rem; justify-items:start; }
+.fiscal-central .fiscal-acao .fiscal-check { display:flex; align-items:center; gap:.5rem; min-height:44px; }
+.fiscal-central [id] { scroll-margin-top:1rem; }
+@media (min-width: 900px) { .fiscal-central .fiscal-restaurante-item { grid-template-columns:minmax(0,1fr) minmax(260px,auto); align-items:center; } }

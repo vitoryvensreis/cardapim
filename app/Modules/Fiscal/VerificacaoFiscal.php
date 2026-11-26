@@ -12,21 +12,23 @@ final class VerificacaoFiscal
         $tipo=in_array((string)($dados['crt'] ?? ''),['1','4'],true)?'csosn':'cst_icms';
         $crt=(string)($dados['crt'] ?? '');
         $pares=['cfop'=>'cfop',$tipo=>'situacao_icms','cst_pis'=>'cst_pis','cst_cofins'=>'cst_cofins','cst_ibs_cbs'=>'cst_ibs_cbs','cclass_trib'=>'cclass_trib','cst_is'=>'cst_is','cclass_is'=>'cclass_is'];
+        $rot=static fn(string $c):string=>CampoFiscalInvalido::rotulo($c);
         foreach ($pares as $cat=>$campo) {
             $codigo=(string)($dados[$campo] ?? '');
             if ($codigo==='') {
-                if (in_array($campo,['cfop','situacao_icms'],true)) { $r[]='Informe '.$campo.'.'; }
+                if (in_array($campo,['cfop','situacao_icms'],true)) { $r[]='Perfil: informe '.$rot($campo).'.'; }
                 continue;
             }
             $cst=match($cat) {'cclass_trib'=>(string)($dados['cst_ibs_cbs'] ?? ''),'cclass_is'=>(string)($dados['cst_is'] ?? ''),default=>''};
-            if (in_array($cat,['cclass_trib','cclass_is'],true) && $cst==='') { $r[]='Informe o CST correspondente a '.$campo.'.'; }
-            // CRT 4: opções fixas explicitamente definidas pelo MOC N12a-81/91.
-            if ($crt==='4' && in_array($cat,['cfop','csosn'],true)) { continue; }
-            if (empty($catalogos[$cat])) { $r[]='Tabela '.$cat.' não disponibilizada.'; }
-            elseif (!CatalogosFiscais::contem($catalogos[$cat],$codigo,'',$cst)) { $r[]='Código '.$campo.' não localizado na versão vigente ou incompatível com o filtro.'; }
+            if (in_array($cat,['cclass_trib','cclass_is'],true) && $cst==='') { $r[]='Perfil: informe o CST correspondente à '.mb_strtolower($rot($campo)).'.'; }
+            // CFOP e CST/CSOSN do escopo NFC-e já são listas fixas validadas abaixo (MOC N12a-81/91, I08-150, N12-30):
+            // não dependem de catálogo importado pela administração.
+            if (in_array($cat,['cfop','csosn','cst_icms'],true)) { continue; }
+            if (empty($catalogos[$cat])) { $r[]='Perfil: a tabela oficial de '.$rot($campo).' ainda não foi disponibilizada pela administração.'; }
+            elseif (!CatalogosFiscais::contem($catalogos[$cat],$codigo,'',$cst)) { $r[]='Perfil: o código de '.$rot($campo).' não está na tabela vigente ou não combina com o CST.'; }
         }
         foreach ([['cst_ibs_cbs','cclass_trib'],['cst_is','cclass_is']] as [$a,$b]) {
-            if ((($dados[$a] ?? '')==='')!== (($dados[$b] ?? '')==='')) { $r[]='Informe o par '.$a.' e '.$b.' ou revise sua aplicabilidade.'; }
+            if ((($dados[$a] ?? '')==='')!== (($dados[$b] ?? '')==='')) { $r[]='Perfil: preencha '.$rot($a).' e '.mb_strtolower($rot($b)).' juntos, ou deixe os dois em branco.'; }
         }
         // MOC NFC-e: I08-150, N12-30, N12a-20, N12-40/44, N12a-40/44.
         // Escopo inicial: venda de mercadorias de restaurante, sem combustível, ISSQN ou remessas.
@@ -53,11 +55,11 @@ final class VerificacaoFiscal
         if ($perfil) { $r=array_merge($r,self::perfil($perfil['dados'],$catalogos)); }
         $codigo=(string)($d['ncm'] ?? '');
         if (($d['cest'] ?? '')!=='') {
-            if (empty($catalogos['cest'])) { $r[]='Tabela CEST não disponibilizada.'; }
-            elseif ($codigo==='' || !CatalogosFiscais::contem($catalogos['cest'],$d['cest'],$codigo)) { $r[]='CEST não localizado para o NCM; revise o segmento e descrição.'; }
+            if (empty($catalogos['cest'])) { $r[]='CEST: a tabela oficial ainda não foi disponibilizada pela administração.'; }
+            elseif ($codigo==='' || !CatalogosFiscais::contem($catalogos['cest'],$d['cest'],$codigo)) { $r[]='CEST não combina com o NCM informado. Pesquise o CEST de novo e confira a descrição.'; }
         }
-        if (($d['unidade_comercial'] ?? '')!=='' && strtoupper((string)$produto['unidade_venda'])!==$d['unidade_comercial']) { $r[]='Unidade comercial fiscal difere da unidade de venda; revise a conversão.'; }
-        if (($d['unidade_comercial'] ?? '')!=='' && ($d['unidade_comercial'] ?? '')===($d['unidade_tributavel'] ?? '') && ($d['fator'] ?? '')!=='' && !preg_match('/\A0*1(?:\.0+)?\z/',$d['fator'])) { $r[]='Unidades iguais exigem revisão do fator de conversão.'; }
+        if (($d['unidade_comercial'] ?? '')!=='' && strtoupper((string)$produto['unidade_venda'])!==$d['unidade_comercial']) { $r[]='A unidade comercial fiscal é diferente da unidade de venda do cardápio. Confira a conversão.'; }
+        if (($d['unidade_comercial'] ?? '')!=='' && ($d['unidade_comercial'] ?? '')===($d['unidade_tributavel'] ?? '') && ($d['fator'] ?? '')!=='' && !preg_match('/\A0*1(?:\.0+)?\z/',$d['fator'])) { $r[]='Com unidades iguais, o fator de conversão deve ser 1.'; }
         return array_values(array_unique($r));
     }
 }

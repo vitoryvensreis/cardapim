@@ -16,8 +16,12 @@ final class ImportacaoFiscal
 
     public static function csvLinhas(string $bytes,int $max=self::LIMITE): array
     {
+        if ($bytes!=='' && strlen($bytes)<=self::BYTES && !str_contains($bytes,"\0") && !mb_check_encoding($bytes,'UTF-8')) {
+            // Excel no Windows salva CSV em Windows-1252: converte em vez de recusar.
+            $bytes=mb_convert_encoding($bytes,'UTF-8','Windows-1252');
+        }
         if ($bytes==='' || strlen($bytes)>self::BYTES || !mb_check_encoding($bytes,'UTF-8') || str_contains($bytes,"\0")) {
-            throw new RuntimeException('Arquivo vazio, inválido ou acima de 2 MB. Use CSV UTF-8.');
+            throw new RuntimeException('Arquivo vazio, inválido ou acima de 2 MB.');
         }
         $f=fopen('php://temp','w+');
         if (!$f) { throw new RuntimeException('Não foi possível ler o arquivo.'); }
@@ -94,7 +98,8 @@ final class ImportacaoFiscal
         $codigo=CadastroProdutoFiscal::campo($r,'codigo',80);
         if ($nome==='') { throw new RuntimeException('Cada item precisa de descrição.'); }
         $campos=array_intersect_key($r,array_flip(self::CAMPOS));
-        $d=CadastroProdutoFiscal::produto($campos);
+        try { $d=CadastroProdutoFiscal::produto($campos); }
+        catch (\InvalidArgumentException $e) { throw new RuntimeException('Item "'.mb_substr($nome,0,60).'" — '.$e->getMessage()); }
         $d=array_filter(array_intersect_key($d,array_flip(self::CAMPOS)),static fn($v)=>$v!=='');
         if ($d===[]) { throw new RuntimeException('Item sem classificação fiscal aproveitável.'); }
         return ['nome'=>$nome,'codigo'=>$codigo,'dados'=>$d];

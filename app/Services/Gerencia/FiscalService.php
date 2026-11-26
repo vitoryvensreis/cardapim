@@ -134,6 +134,71 @@ final class FiscalService
         });
     }
 
+    /**
+     * Confere o token gravado com o que a NeXT associa ao CNPJ (ClientesListar) e corrige se divergir.
+     * Exclusivo do adm_master. Não exibe, não registra e não compara tokens fora do servidor.
+     */
+    public function conferirCredencial(): Resultado
+    {
+        if ($this->usuario->cargo !== 'adm_master') { return Resultado::falha('A conferência é exclusiva da administração.'); }
+        return $this->repo->serializar($this->id, function (): Resultado {
+            $r = $this->repo->buscar($this->id);
+            if (!$r || !$r['aprovado'] || !$this->cnpjConfere($r, $this->perfil())) {
+                return Resultado::falha('Aprove o vínculo e confira o CNPJ do restaurante antes de conferir a credencial.');
+            }
+            $g = $this->global();
+            if (!RateLimiter::padrao(10, 3600)->permitir('fiscal-credencial|' . $this->id)) {
+                return Resultado::falha('Limite de conferências atingido. Tente mais tarde.');
+            }
+            $listado = $this->api->tokenDoCliente($g['cnpj'], $g['token'], $r['cnpj']);
+            $gravado = is_string($r['dados']['token'] ?? null) ? $r['dados']['token'] : '';
+            if ($listado !== null && $gravado !== '' && hash_equals($listado, $gravado) && ($r['dados']['software_house'] ?? '') === $g['cnpj']) {
+                Auditoria::registrar($this->usuario, 'Fiscal: credencial conferida', 'Restaurante ' . $this->id . '; credencial confere com a NeXT.');
+                return Resultado::sucesso('A credencial do restaurante confere com a NeXT. Nenhuma alteração foi necessária.');
+            }
+            if ($listado === null) {
+                // CNPJ ausente da conta: cadastra de novo (idempotente na NeXT).
+                $listado = $this->api->incluirCliente($g['cnpj'], $g['token'], $r['cnpj'], (string) ($r['dados']['empresa']['razao'] ?? ''));
+            }
+            $r['dados']['token'] = $listado;
+            $r['dados']['software_house'] = $g['cnpj'];
+            // Certificado e configuração podem ter ido para outra credencial: precisam ser reenviados.
+            $r['dados']['certificado'] = null;
+            $r['dados']['config_enviada'] = false;
+            $r['dados']['status'] = [];
+            $this->repo->salvar($this->id, $r);
+            Auditoria::registrar($this->usuario, 'Fiscal: credencial corrigida', 'Restaurante ' . $this->id . '; credencial substituída pela registrada na NeXT. Certificado e configuração devem ser reenviados.');
+            return Resultado::sucesso('Credencial corrigida com a registrada na NeXT. Peça ao restaurante para testar a conexão e, em homologação, reenviar certificado e configuração.');
+        });
+    }
+
+    /** CNPJ do restaurante corrigido no cadastro: refaz o vínculo fiscal do zero, preservando os dados da empresa. */
+    public function refazerVinculo(): Resultado
+    {
+        if ($this->usuario->cargo !== 'adm_master') { return Resultado::falha('Ação exclusiva da administração.'); }
+        return $this->repo->serializar($this->id, function (): Resultado {
+            $r = $this->repo->buscar($this->id);
+            $novo = Documento::somenteDigitos((string) ($this->perfil()['cnpj'] ?? ''));
+            if ($r === null) { return Resultado::falha('O restaurante ainda não iniciou a configuração fiscal.'); }
+            if (!Documento::cnpjValido($novo)) { return Resultado::falha('O CNPJ do cadastro do restaurante é inválido. Corrija o perfil primeiro.'); }
+            if ($r['cnpj'] === $novo) { return Resultado::falha('O vínculo fiscal já usa o CNPJ atual do restaurante.'); }
+            $sh = (new FiscalNextRepository($this->db))->ler()['dados']['cnpj'] ?? '';
+            if ($sh === $novo) { return Resultado::falha('O CNPJ da Software House não pode ser vinculado a um restaurante.'); }
+            $anterior = $r['cnpj'];
+            $r['cnpj'] = $novo;
+            $r['aprovado'] = false;
+            unset($r['dados']['token'], $r['dados']['software_house']);
+            $r['dados']['certificado'] = null;
+            $r['dados']['config_enviada'] = false;
+            $r['dados']['status'] = [];
+            $r['dados']['ambiente'] = 3;
+            self::prepararSimulacao($r['dados']);
+            $this->repo->substituirCnpj($this->id, $r);
+            Auditoria::registrar($this->usuario, 'Fiscal: vínculo refeito', 'Restaurante ' . $this->id . '; CNPJ final ' . substr($anterior, -4) . ' trocado por final ' . substr($novo, -4) . '. Nova aprovação necessária.');
+            return Resultado::sucesso('Vínculo refeito com o CNPJ atual. Confira os dados e aprove o vínculo novamente.');
+        });
+    }
+
     private function global(): array
     {
         $d = (new FiscalNextRepository($this->db))->ler()['dados'];
@@ -207,6 +272,18 @@ final class FiscalService
             && preg_match('/\A[0-9]{7}\z/', (string) ($e['ibge'] ?? '')) === 1;
     }
 
+    /** Explica em linguagem simples o que impede a homologação. */
+    public static function pendenciaEmpresa(array $e): string
+    {
+        if (($e['ie_situacao'] ?? '') === 'isento') {
+            return 'A NFC-e exige a inscrição estadual (CGF no Ceará) do restaurante. Confirme com o contador e informe o número em Dados fiscais da empresa.';
+        }
+        if (!preg_match('/\A[0-9]{2,20}\z/', (string) ($e['ie'] ?? ''))) {
+            return 'Informe a inscrição estadual (CGF no Ceará) em Dados fiscais da empresa antes da homologação.';
+        }
+        return 'Não foi possível identificar o município. Confira cidade, UF e CEP em Dados fiscais da empresa e salve de novo.';
+    }
+
     public function empresa(array $p): Resultado
     {
         $campos = ['razao' => 160, 'nome' => 120, 'cep' => 9, 'logradouro' => 120, 'numero' => 20, 'complemento' => 100, 'bairro' => 80, 'cidade' => 80, 'estado' => 2, 'crt' => 1, 'email' => 160];
@@ -243,7 +320,7 @@ final class FiscalService
             $r['dados']['empresa'] = $d;
             $r['dados']['config_enviada'] = false;
             $r['dados']['status'] = [];
-            return Resultado::sucesso(self::empresaPronta($d) ? 'Dados fiscais salvos.' : 'Dados fiscais salvos. Confira as pendências de inscrição estadual ou município antes da homologação.');
+            return Resultado::sucesso(self::empresaPronta($d) ? 'Dados fiscais salvos.' : 'Dados fiscais salvos. Antes da homologação: ' . lcfirst(self::pendenciaEmpresa($d)));
         });
     }
 
@@ -328,12 +405,16 @@ final class FiscalService
 
     public function configurar(array $p): Resultado
     {
-        $serie = filter_var(self::campo($p, 'serie'), FILTER_VALIDATE_INT, ['options'=>['min_range'=>0,'max_range'=>999]]);
+        // Séries 890 a 999 são reservadas (nota avulsa e contingência).
+        $serie = filter_var(self::campo($p, 'serie'), FILTER_VALIDATE_INT, ['options'=>['min_range'=>0,'max_range'=>889]]);
         $numero = filter_var(self::campo($p, 'numero'), FILTER_VALIDATE_INT, ['options'=>['min_range'=>1,'max_range'=>999999999]]);
         $id = self::campo($p, 'id_csc');
         $csc = self::campo($p, 'csc');
-        if ($serie === false || $numero === false || strlen($id) > 6 || ($id !== '' && !ctype_digit($id)) || strlen($csc) > 128 || ($csc !== '' && preg_match('/\A[\x21-\x7E]+\z/', $csc) !== 1)) {
-            return Resultado::falha('Confira série, próxima numeração e CSC.');
+        if ($serie === false) { return Resultado::falha('Série: use um número de 0 a 889 (as séries acima são reservadas).'); }
+        if ($numero === false) { return Resultado::falha('Próxima numeração: use um número inteiro a partir de 1.'); }
+        if (!preg_match('/\A[0-9]{1,6}\z/', $id)) { return Resultado::falha('ID do CSC: informe o número (até 6 dígitos) exibido no portal da SEFAZ junto com o código.'); }
+        if (strlen($csc) > 128 || ($csc !== '' && preg_match('/\A[\x21-\x7E]+\z/', $csc) !== 1)) {
+            return Resultado::falha('CSC: cole o código exatamente como aparece no portal da SEFAZ, sem espaços.');
         }
         return $this->operacao(function (array &$r) use ($serie, $numero, $id, $csc): Resultado {
             $amb = $r['dados']['ambiente'] ?? 3;
@@ -341,7 +422,12 @@ final class FiscalService
                 return Resultado::falha('Os parâmetros da simulação são automáticos. Selecione homologação para editar parâmetros fiscais.');
             }
             $old = $r['dados']['config'][$amb] ?? [];
-            $r['dados']['config'][$amb] = ['serie'=>$serie, 'numero'=>$numero, 'id_csc'=>$id, 'csc'=>$csc !== '' ? $csc : ($id === ($old['id_csc'] ?? '') ? ($old['csc'] ?? '') : '')];
+            $cscFinal = $csc !== '' ? $csc : ($id === ($old['id_csc'] ?? '') ? ($old['csc'] ?? '') : '');
+            if ($cscFinal === '') {
+                // NFC-e: CSC e ID do CSC são obrigatórios em homologação e produção (QR Code).
+                return Resultado::falha('CSC: informe o código de segurança do contribuinte. Ele é obrigatório na NFC-e e é gerado no portal da SEFAZ do estado.');
+            }
+            $r['dados']['config'][$amb] = ['serie'=>$serie, 'numero'=>$numero, 'id_csc'=>$id, 'csc'=>$cscFinal];
             if ($amb === 2) {
                 $r['dados']['config_enviada'] = false;
             }
@@ -364,7 +450,8 @@ final class FiscalService
             if (($r['dados']['ambiente'] ?? 3) !== 2 || !isset($r['dados']['empresa'], $r['dados']['config'][2])) {
                 return Resultado::falha('Selecione homologação e salve os parâmetros antes do certificado.');
             }
-            if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha('Regularize a inscrição estadual e o município antes da homologação.'); }
+            if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha(self::pendenciaEmpresa($r['dados']['empresa'] ?? [])); }
+            if (($r['dados']['config'][2]['csc'] ?? '') === '' || ($r['dados']['config'][2]['id_csc'] ?? '') === '') { return Resultado::falha('Salve o CSC e o ID do CSC nos parâmetros antes de enviar o certificado.'); }
             [$sh, $cnpj, $token] = $this->credenciais($r);
             try {
                 $meta = CertificadoA1::validar($bytes, $senha, $cnpj);
@@ -388,7 +475,8 @@ final class FiscalService
             if (($r['dados']['ambiente'] ?? 3) !== 2 || !isset($r['dados']['empresa'], $r['dados']['config'][2]) || ($r['dados']['certificado']['expira_em'] ?? 0) <= time()) {
                 return Resultado::falha('Configure homologação, parâmetros e certificado válido primeiro.');
             }
-            if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha('Regularize a inscrição estadual e o município antes da homologação.'); }
+            if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha(self::pendenciaEmpresa($r['dados']['empresa'] ?? [])); }
+            if (($r['dados']['config'][2]['csc'] ?? '') === '' || ($r['dados']['config'][2]['id_csc'] ?? '') === '') { return Resultado::falha('Salve o CSC e o ID do CSC nos parâmetros antes de enviar a configuração.'); }
             [$sh, $cnpj, $token] = $this->credenciais($r);
             $c = $r['dados']['config'][2]; $e = $r['dados']['empresa'];
             if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-config|' . $this->id)) { return Resultado::falha('Limite de envios atingido.'); }
@@ -404,9 +492,9 @@ final class FiscalService
         return $this->operacao(function (array &$r): Resultado {
             [$sh, $cnpj, $token] = $this->credenciais($r);
             $amb = $r['dados']['ambiente'] ?? 3;
-            if ($amb === 2 && (!self::empresaPronta($r['dados']['empresa'] ?? []) || !($r['dados']['config_enviada'] ?? false) || ($r['dados']['certificado']['expira_em'] ?? 0) <= time())) {
-                return Resultado::falha('Envie a configuração de homologação e confira o certificado antes do teste.');
-            }
+            if ($amb === 2 && !self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha(self::pendenciaEmpresa($r['dados']['empresa'] ?? [])); }
+            if ($amb === 2 && ($r['dados']['certificado']['expira_em'] ?? 0) <= time()) { return Resultado::falha('Envie um certificado A1 válido antes do teste em homologação.'); }
+            if ($amb === 2 && !($r['dados']['config_enviada'] ?? false)) { return Resultado::falha('Clique em "Enviar configuração" antes do teste em homologação.'); }
             if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-teste|' . $this->id)) {
                 return Resultado::falha('Limite de testes atingido.');
             }

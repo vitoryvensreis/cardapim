@@ -13,9 +13,10 @@ if ($crt==='4' && $selecionadoCfop==='' && empty($rascunho)) { $selecionadoCfop=
 <div class="painel-page fiscal-restaurante fiscal-produtos">
     <header class="painel-cabecalho"><div><h1><?= $perfil?'Editar perfil tributário':'Novo perfil tributário' ?></h1><p>Preencha com a orientação do responsável fiscal. Alterações geram uma versão nova.</p></div></header>
     <p><a href="<?= $e($url.'/perfis') ?>">Voltar aos perfis</a></p>
-    <section class="bloco"><p>Regime (CRT): <strong><?= $e($crt ?: 'Não cadastrado') ?></strong> · UF: <strong><?= $e($empresa['estado'] ?? 'Não cadastrada') ?></strong> · NFC-e (65)</p>
+    <?php $regimes=['1'=>'Simples Nacional','2'=>'Simples Nacional — excesso de sublimite','3'=>'Regime normal','4'=>'MEI']; ?>
+    <section class="bloco"><p>Regime tributário: <strong><?= $e($regimes[$crt] ?? 'não cadastrado na Central fiscal') ?></strong> · UF: <strong><?= $e($empresa['estado'] ?? 'não cadastrada') ?></strong> · Nota fiscal do consumidor (NFC-e)</p>
         <?php if (!empty($rascunho)): ?><p role="status">Os dados digitados foram recuperados. Corrija os campos e confirme novamente a revisão.</p><?php endif; ?>
-        <form method="post" action="<?= $e($url.'/perfis/salvar') ?>" class="fiscal-form" data-fiscal-perfil><?php $token(); ?>
+        <form method="post" action="<?= $e($url.'/perfis/salvar') ?>" class="fiscal-form" data-fiscal-perfil data-fiscal-erro="<?= $e($campoErro ?? '') ?>"><?php $token(); ?>
             <input type="hidden" name="id_perfil" value="<?= $e($perfil['id'] ?? '') ?>"><input type="hidden" name="versao" value="<?= $e($perfil['versao'] ?? '') ?>">
             <label for="fp-nome">Nome do perfil</label><input id="fp-nome" name="nome" required maxlength="120" value="<?= $v('nome') ?>">
             <label for="fp-op">Tipo de operação</label><select id="fp-op" name="operacao" required><option value="">Selecione</option><option value="producao" <?= ($dados['operacao'] ?? '')==='producao'?'selected':'' ?>>Produção própria</option><option value="revenda" <?= ($dados['operacao'] ?? '')==='revenda'?'selected':'' ?>>Revenda</option></select>
@@ -30,9 +31,9 @@ if ($crt==='4' && $selecionadoCfop==='' && empty($rascunho)) { $selecionadoCfop=
             <label for="fp-inicio">Vigência inicial</label><input id="fp-inicio" type="date" name="inicio" value="<?= $v('inicio') ?>">
             <details<?= !empty($rascunho)?' open':'' ?>><summary>Tributação avançada (quando aplicável)</summary><div class="fiscal-form">
                 <?php foreach (['cst_pis'=>'CST PIS','cst_cofins'=>'CST COFINS','cbenef'=>'Código de benefício fiscal','cst_ibs_cbs'=>'CST IBS/CBS','cclass_trib'=>'Classificação IBS/CBS (cClassTrib)','cst_is'=>'CST Imposto Seletivo','cclass_is'=>'Classificação Imposto Seletivo'] as $k=>$rot): ?>
-                    <label for="fp-<?= $e($k) ?>"><?= $e($rot) ?></label><input id="fp-<?= $e($k) ?>" name="<?= $e($k) ?>" maxlength="10" value="<?= $v($k) ?>">
+                    <label for="fp-<?= $e($k) ?>"><?= $e($rot) ?> <span class="texto-suave">(opcional)</span></label><input id="fp-<?= $e($k) ?>" name="<?= $e($k) ?>" maxlength="10" inputmode="<?= $k==='cbenef'?'text':'numeric' ?>" value="<?= $v($k) ?>">
                 <?php endforeach; ?>
-                <?php foreach (Validar::ALIQUOTAS as $k): if ($crt==='4' && in_array($k,['icms','st','fcp','reducao_icms'],true) && ($dados['aliq_'.$k] ?? '')==='') { continue; } ?><label for="fp-aliq-<?= $e($k) ?>"><?= $e(strtoupper(str_replace('_',' ',$k))) ?> (%)</label><input id="fp-aliq-<?= $e($k) ?>" name="aliq_<?= $e($k) ?>" inputmode="decimal" maxlength="10" value="<?= $v('aliq_'.$k) ?>"<?= in_array($k,['icms','st','fcp','reducao_icms'],true)?' data-fiscal-aliquota="'.$e($k).'"':'' ?>><?php endforeach; ?>
+                <?php foreach (Validar::ALIQUOTAS as $k): if ($crt==='4' && in_array($k,['icms','st','fcp','reducao_icms'],true) && ($dados['aliq_'.$k] ?? '')==='') { continue; } ?><label for="fp-aliq-<?= $e($k) ?>"><?= $e(\Cardapim\Modules\Fiscal\CampoFiscalInvalido::rotulo('aliq_'.$k)) ?> (%)</label><input id="fp-aliq-<?= $e($k) ?>" name="aliq_<?= $e($k) ?>" inputmode="decimal" maxlength="10" value="<?= $v('aliq_'.$k) ?>"<?= in_array($k,['icms','st','fcp','reducao_icms'],true)?' data-fiscal-aliquota="'.$e($k).'"':'' ?>><?php endforeach; ?>
                 <p class="texto-suave">Deixe em branco quando não aplicável. A validação completa dos grupos XML será feita antes da emissão.</p>
             </div></details>
             <label for="fp-ref">Referência da orientação fiscal</label><input id="fp-ref" name="referencia" maxlength="250" value="<?= $v('referencia') ?>" placeholder="Ex.: orientação do contador em 25/11">

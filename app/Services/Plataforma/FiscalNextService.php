@@ -150,6 +150,12 @@ final class FiscalNextService
         if ($e instanceof ErroHttp) {
             return 'Falha de comunicação com a NeXT.';
         }
+        if ($e instanceof \Cardapim\Modules\Integracoes\NextFiscalErro) {
+            return $e->paraUsuario();
+        }
+        if (get_class($e) === RuntimeException::class && preg_match('/\AA NeXT retornou erro HTTP [0-9]{3}\.\z/', $e->getMessage()) === 1) {
+            return $e->getMessage();
+        }
         if (get_class($e) === RuntimeException::class && in_array($e->getMessage(), [
             'A NeXT recusou a credencial ou a permissão administrativa.',
             'Limite de consultas da NeXT atingido.',
