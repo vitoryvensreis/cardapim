@@ -71,4 +71,5 @@ return static function (Router $router): void {
 
     // Nota fiscal da venda (so tem efeito com o modulo fiscal ligado)
     $router->post($c . '/fiscal/{id}/reenviar', [FiscalCaixaController::class, 'reenviar']);
+    $router->post($c . '/fiscal/{id}/imprimir', [FiscalCaixaController::class, 'imprimir']);
 };

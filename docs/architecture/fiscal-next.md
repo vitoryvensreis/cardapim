@@ -96,4 +96,26 @@ Base: auditoria do módulo e especificação OpenAPI oficial da NeXT (`https://w
 
 **Caixa**: campo opcional "CPF ou CNPJ na nota" ao receber (só com o módulo pronto, validado no servidor); etiqueta da nota na comanda fechada, no histórico de comandas e no pedido do delivery; "Tentar de novo" (`POST /{slug}/caixa/fiscal/{id}/reenviar`) para notas rejeitadas ou com pendência. Atualização pelo tempo real (`fiscal.documento` no canal `caixa`, tratado só por `caixa-fiscal.js`).
 
-**Pendente (etapas 06–08)**: DANFE NFC-e com QR Code na impressora, tela de notas emitidas (cancelamento, inutilização, exportação XML, e-mail), liberação de produção pelo superadmin.
+## Etapas 06 a 08 — DANFE, notas emitidas e produção (27/11/2026)
+
+Migration `20261128100000_fiscal_danfe_producao` (tag `[cardapim-fiscal-danfe-producao]`): `impressoes` aceita o tipo `nfce`; `fiscal_liberacoes` ganha `producao`, `producao_autor` e `producao_em` (produção começa bloqueada para todos).
+
+**DANFE NFC-e (etapa 06)**
+- `DanfeNfce::blocos()` monta o documento auxiliar na ordem do manual (emitente, itens, totais, pagamentos e troco, consulta pela chave em grupos de 4, consumidor, número/série/data, protocolo, QR Code). Homologação traz o aviso "sem valor fiscal".
+- QR Code gerado no próprio servidor por `App\Shared\QrCode` (ISO/IEC 18004, modo byte, correção M, versões 1 a 20, sem dependência externa) e desenhado pelo `CupomImagem` (bloco `qrcode`). Conferido com leitor de QR na imagem de 58 mm e 80 mm.
+- Impressão automática depois da autorização (opção "Imprimir a nota sozinha"), na impressora fiscal escolhida ou na padrão da conta do caixa. Sem Agent ligado a nota não é perdida: imprime-se depois pelo botão "Imprimir nota" (caixa: `POST /{slug}/caixa/fiscal/{pedido}/imprimir`).
+
+**Notas emitidas (etapa 07)** — Gerência > Nota fiscal > Notas emitidas (`/fiscal/notas`), serviço `GestaoNotas`:
+- lista por mês e situação, resumo e busca por número da nota/pedido; detalhe com itens, pagamentos, chave e histórico;
+- imprimir, ver PDF (NeXT `NFePDF`), baixar XML (arquivo guardado ou `NFeXML`), enviar por e-mail (`NFeEmailEnvio`);
+- cancelar (`Cancelamento`, justificativa de 15 a 255 caracteres; 135/155 = cancelada) com confirmação;
+- inutilizar faixa de números (`Inutilizacao`, 102 = homologada); notas rejeitadas na faixa perdem o número e recebem outro ao reenviar;
+- exportar ZIP do mês com os XMLs de produção (autorizadas e canceladas) e `eventos.csv` para o contador.
+- Plataforma: indicador de notas com valor fiscal no mês, testes e notas que precisam de atenção.
+
+**Produção (etapa 08)**
+- Só o superadmin libera, por restaurante (Painel > Fiscal > Liberação: "Liberar produção"). Sem liberação, `FiscalEmissao::pronto()` ignora o ambiente 1 e o emissor bloqueia notas de produção.
+- O restaurante só escolhe "Produção" depois do teste com a SEFAZ concluído ("Serviço em operação" em homologação) e com certificado válido; depois salva série, numeração e CSC de produção, envia certificado e configuração (`nfe/Config` com `X-Ambiente: 1`) e testa a conexão.
+- Bloquear a produção devolve o restaurante para homologação.
+
+**Pendências conhecidas**: envio pelo WhatsApp do link da nota; informação aproximada de tributos (Lei 12.741) no DANFE; contingência offline (tpEmis 9).

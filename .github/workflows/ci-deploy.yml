@@ -129,12 +129,14 @@ jobs:
           php tests/unit/fiscal-produtos.php
           php tests/unit/fiscal-importacao.php
           php tests/unit/fiscal-emissao.php
+          php tests/unit/fiscal-danfe.php
           node --check public/assets/js/caixa-fiscal.js
           bash -n deploy/scripts/apply-fiscal-restaurante.sh
           bash -n deploy/scripts/apply-fiscal-produtos.sh
           bash -n deploy/scripts/apply-fiscal-liberacoes.sh
           bash -n deploy/scripts/apply-fiscal-catalogos.sh
           bash -n deploy/scripts/apply-fiscal-documentos.sh
+          bash -n deploy/scripts/apply-fiscal-danfe-producao.sh
           bash -n deploy/scripts/install-fiscal-fila-cron.sh
           php -l bin/fiscal-fila.php
 
@@ -199,6 +201,7 @@ jobs:
           php database/verify-fiscal-liberacoes.php --verify
           php database/verify-fiscal-catalogos.php --verify
           php database/verify-fiscal-documentos.php --verify
+          php database/verify-fiscal-danfe-producao.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -734,6 +737,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-fiscal-documentos.sh'"
+
+      - name: Aplicar DANFE e liberacao de producao fiscal com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-fiscal-danfe-producao]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-fiscal-danfe-producao.sh'"
 
       - name: Aplicar permissoes do garcom com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-garcom-permissoes]') }}

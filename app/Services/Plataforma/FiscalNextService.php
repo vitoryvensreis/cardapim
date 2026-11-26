@@ -38,6 +38,22 @@ final class FiscalNextService
         }
     }
 
+    /** Notas do mês corrente em toda a plataforma (produção = consumo do contrato com a NeXT). @return array{producao:int,teste:int,atencao:int}|null */
+    public function consumo(): ?array
+    {
+        if (!\Cardapim\Shared\Esquema::tem($this->db, 'fiscal_documentos')) { return null; }
+        try {
+            $q = $this->db->prepare("SELECT SUM(ambiente = 1 AND status IN ('autorizada','cancelada')) AS producao, SUM(ambiente <> 1 AND status IN ('autorizada','cancelada')) AS teste,
+                SUM(status IN ('rejeitada','bloqueada')) AS atencao FROM fiscal_documentos WHERE criado_em >= ?");
+            $q->execute([date('Y-m-01 00:00:00')]);
+            $r = $q->fetch(\PDO::FETCH_ASSOC) ?: [];
+            return ['producao' => (int) ($r['producao'] ?? 0), 'teste' => (int) ($r['teste'] ?? 0), 'atencao' => (int) ($r['atencao'] ?? 0)];
+        } catch (Throwable $e) {
+            error_log('[Cardapim] Consumo fiscal indisponível (' . get_class($e) . ').');
+            return null;
+        }
+    }
+
     public function estado(): array
     {
         $d = $this->repo->ler()['dados'];

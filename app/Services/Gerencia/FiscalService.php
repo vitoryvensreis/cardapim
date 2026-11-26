@@ -58,7 +58,8 @@ final class FiscalService
             'certificado' => $d['certificado'] ?? null,
             'alerta' => CertificadoA1::alerta($d['certificado']['expira_em'] ?? null),
             'status' => $d['status'][$amb] ?? 'Não testado',
-            'config_enviada' => $d['config_enviada'] ?? false,
+            'config_enviada' => self::enviada($d, $amb),
+            'producao_liberada' => FiscalAcesso::producaoLiberada($this->db, $this->id),
             'impressora' => $this->impressora($r),
             'emissao' => \Cardapim\Services\Fiscal\FiscalEmissao::configuracao($d),
         ];
@@ -165,7 +166,7 @@ final class FiscalService
             $r['dados']['software_house'] = $g['cnpj'];
             // Certificado e configuração podem ter ido para outra credencial: precisam ser reenviados.
             $r['dados']['certificado'] = null;
-            $r['dados']['config_enviada'] = false;
+            $r['dados']['config_enviada'] = false; $r['dados']['config_enviada_1'] = false;
             $r['dados']['status'] = [];
             $this->repo->salvar($this->id, $r);
             Auditoria::registrar($this->usuario, 'Fiscal: credencial corrigida', 'Restaurante ' . $this->id . '; credencial substituída pela registrada na NeXT. Certificado e configuração devem ser reenviados.');
@@ -190,7 +191,7 @@ final class FiscalService
             $r['aprovado'] = false;
             unset($r['dados']['token'], $r['dados']['software_house']);
             $r['dados']['certificado'] = null;
-            $r['dados']['config_enviada'] = false;
+            $r['dados']['config_enviada'] = false; $r['dados']['config_enviada_1'] = false;
             $r['dados']['status'] = [];
             $r['dados']['ambiente'] = 3;
             self::prepararSimulacao($r['dados']);
@@ -319,7 +320,7 @@ final class FiscalService
             $d['ibge'] = $ibge ?? '';
             $d['ibge_verificado'] = $ibge !== null && $ibge !== '';
             $r['dados']['empresa'] = $d;
-            $r['dados']['config_enviada'] = false;
+            $r['dados']['config_enviada'] = false; $r['dados']['config_enviada_1'] = false;
             $r['dados']['status'] = [];
             return Resultado::sucesso(self::empresaPronta($d) ? 'Dados fiscais salvos.' : 'Dados fiscais salvos. Antes da homologação: ' . lcfirst(self::pendenciaEmpresa($d)));
         });
@@ -345,7 +346,7 @@ final class FiscalService
             $r['dados']['token'] = $token;
             $r['dados']['software_house'] = $g['cnpj'];
             $r['dados']['certificado'] = null;
-            $r['dados']['config_enviada'] = false;
+            $r['dados']['config_enviada'] = false; $r['dados']['config_enviada_1'] = false;
             $r['dados']['status'] = [];
             return Resultado::sucesso('Emitente conectado à NeXT com credencial protegida.');
         });
@@ -394,13 +395,24 @@ final class FiscalService
 
     public function ambiente(string $amb): Resultado
     {
-        if (!in_array($amb, ['2','3'], true)) {
-            return Resultado::falha('Produção bloqueada nesta etapa.');
+        if (!in_array($amb, ['1','2','3'], true)) {
+            return Resultado::falha('Escolha um modo válido.');
+        }
+        if ($amb === '1' && !FiscalAcesso::producaoLiberada($this->db, $this->id)) {
+            return Resultado::falha('A emissão com valor fiscal ainda não foi liberada pela plataforma para este restaurante.');
         }
         return $this->operacao(function (array &$r) use ($amb): Resultado {
+            if ($amb === '1') {
+                if (!str_starts_with((string) ($r['dados']['status'][2] ?? ''), 'Serviço em operação')) {
+                    return Resultado::falha('Antes da produção, conclua o teste com a SEFAZ (homologação): parâmetros, certificado, configuração e teste de conexão.');
+                }
+                if (($r['dados']['certificado']['expira_em'] ?? 0) <= time()) {
+                    return Resultado::falha('O certificado digital A1 está vencido ou não foi enviado.');
+                }
+            }
             $r['dados']['ambiente'] = (int) $amb;
             if ($amb === '3') { self::prepararSimulacao($r['dados']); }
-            return Resultado::sucesso('Ambiente selecionado.');
+            return Resultado::sucesso($amb === '1' ? 'Produção selecionada. Salve a série, a numeração e o CSC de produção, envie o certificado e a configuração e teste a conexão. Só então as notas terão valor fiscal.' : 'Ambiente selecionado.');
         });
     }
 
@@ -419,8 +431,8 @@ final class FiscalService
         }
         return $this->operacao(function (array &$r) use ($serie, $numero, $id, $csc): Resultado {
             $amb = $r['dados']['ambiente'] ?? 3;
-            if ($amb !== 2) {
-                return Resultado::falha('Os parâmetros da simulação são automáticos. Selecione homologação para editar parâmetros fiscais.');
+            if (!in_array($amb, [1, 2], true)) {
+                return Resultado::falha('Os parâmetros da simulação são automáticos. Selecione homologação ou produção para editar parâmetros fiscais.');
             }
             $old = $r['dados']['config'][$amb] ?? [];
             $cscFinal = $csc !== '' ? $csc : ($id === ($old['id_csc'] ?? '') ? ($old['csc'] ?? '') : '');
@@ -429,9 +441,7 @@ final class FiscalService
                 return Resultado::falha('CSC: informe o código de segurança do contribuinte. Ele é obrigatório na NFC-e e é gerado no portal da SEFAZ do estado.');
             }
             $r['dados']['config'][$amb] = ['serie'=>$serie, 'numero'=>$numero, 'id_csc'=>$id, 'csc'=>$cscFinal];
-            if ($amb === 2) {
-                $r['dados']['config_enviada'] = false;
-            }
+            self::marcarEnviada($r['dados'], $amb, false);
             unset($r['dados']['status'][$amb]);
             return Resultado::sucesso('Parâmetros fiscais salvos para este ambiente.');
         });
@@ -448,43 +458,46 @@ final class FiscalService
             return Resultado::falha('Não foi possível ler o certificado.');
         }
         return $this->operacao(function (array &$r) use ($bytes, $senha): Resultado {
-            if (($r['dados']['ambiente'] ?? 3) !== 2 || !isset($r['dados']['empresa'], $r['dados']['config'][2])) {
-                return Resultado::falha('Selecione homologação e salve os parâmetros antes do certificado.');
+            $amb = (int) ($r['dados']['ambiente'] ?? 3);
+            if (!in_array($amb, [1, 2], true) || !isset($r['dados']['empresa'], $r['dados']['config'][$amb])) {
+                return Resultado::falha('Selecione homologação ou produção e salve os parâmetros antes do certificado.');
             }
             if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha(self::pendenciaEmpresa($r['dados']['empresa'] ?? [])); }
-            if (($r['dados']['config'][2]['csc'] ?? '') === '' || ($r['dados']['config'][2]['id_csc'] ?? '') === '') { return Resultado::falha('Salve o CSC e o ID do CSC nos parâmetros antes de enviar o certificado.'); }
+            if (($r['dados']['config'][$amb]['csc'] ?? '') === '' || ($r['dados']['config'][$amb]['id_csc'] ?? '') === '') { return Resultado::falha('Salve o CSC e o ID do CSC nos parâmetros antes de enviar o certificado.'); }
             [$sh, $cnpj, $token] = $this->credenciais($r);
             try {
                 $meta = CertificadoA1::validar($bytes, $senha, $cnpj);
             } catch (RuntimeException $e) {
                 return Resultado::falha($e->getMessage());
             }
-            $c = $r['dados']['config'][2];
+            $c = $r['dados']['config'][$amb];
             $e = $r['dados']['empresa'];
             if (!RateLimiter::padrao(10, 3600)->permitir('fiscal-certificado|' . $this->id)) { return Resultado::falha('Limite de envios atingido.'); }
-            $this->api->certificadoUpload($sh, $cnpj, $token, $bytes, $senha, $e['razao'], $e['estado'], $c['csc'], $c['id_csc']);
+            $this->api->certificadoUpload($sh, $cnpj, $token, $bytes, $senha, $e['razao'], $e['estado'], $c['csc'], $c['id_csc'], $amb);
             $r['dados']['certificado'] = $meta;
-            $r['dados']['config_enviada'] = false;
-            unset($r['dados']['status'][2]);
-            return Resultado::sucesso('Certificado enviado à NeXT em homologação. Envie a configuração e teste a conexão fiscal pela NeXT.');
+            self::marcarEnviada($r['dados'], $amb, false);
+            unset($r['dados']['status'][$amb]);
+            return Resultado::sucesso('Certificado enviado ao emissor ' . ($amb === 1 ? 'em produção' : 'em homologação') . '. Agora envie a configuração e teste a conexão.');
         });
     }
 
     public function enviarConfig(): Resultado
     {
         return $this->operacao(function (array &$r): Resultado {
-            if (($r['dados']['ambiente'] ?? 3) !== 2 || !isset($r['dados']['empresa'], $r['dados']['config'][2]) || ($r['dados']['certificado']['expira_em'] ?? 0) <= time()) {
-                return Resultado::falha('Configure homologação, parâmetros e certificado válido primeiro.');
+            $amb = (int) ($r['dados']['ambiente'] ?? 3);
+            if (!in_array($amb, [1, 2], true) || !isset($r['dados']['empresa'], $r['dados']['config'][$amb]) || ($r['dados']['certificado']['expira_em'] ?? 0) <= time()) {
+                return Resultado::falha('Configure o modo, os parâmetros e um certificado válido primeiro.');
             }
+            if ($amb === 1 && !FiscalAcesso::producaoLiberada($this->db, $this->id)) { return Resultado::falha('A produção não está liberada para este restaurante.'); }
             if (!self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha(self::pendenciaEmpresa($r['dados']['empresa'] ?? [])); }
-            if (($r['dados']['config'][2]['csc'] ?? '') === '' || ($r['dados']['config'][2]['id_csc'] ?? '') === '') { return Resultado::falha('Salve o CSC e o ID do CSC nos parâmetros antes de enviar a configuração.'); }
+            if (($r['dados']['config'][$amb]['csc'] ?? '') === '' || ($r['dados']['config'][$amb]['id_csc'] ?? '') === '') { return Resultado::falha('Salve o CSC e o ID do CSC nos parâmetros antes de enviar a configuração.'); }
             [$sh, $cnpj, $token] = $this->credenciais($r);
-            $c = $r['dados']['config'][2]; $e = $r['dados']['empresa'];
+            $c = $r['dados']['config'][$amb]; $e = $r['dados']['empresa'];
             if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-config|' . $this->id)) { return Resultado::falha('Limite de envios atingido.'); }
-            $this->api->configHomologacao($sh, $cnpj, $token, $e['razao'], $e['estado'], $c['csc'], $c['id_csc']);
-            $r['dados']['config_enviada'] = true;
-            unset($r['dados']['status'][2]);
-            return Resultado::sucesso('Configuração enviada à NeXT em homologação.');
+            $this->api->configAmbiente($sh, $cnpj, $token, $e['razao'], $e['estado'], $c['csc'], $c['id_csc'], $amb);
+            self::marcarEnviada($r['dados'], $amb, true);
+            unset($r['dados']['status'][$amb]);
+            return Resultado::sucesso('Configuração enviada ao emissor ' . ($amb === 1 ? 'em produção.' : 'em homologação.'));
         });
     }
 
@@ -493,17 +506,29 @@ final class FiscalService
         return $this->operacao(function (array &$r): Resultado {
             [$sh, $cnpj, $token] = $this->credenciais($r);
             $amb = $r['dados']['ambiente'] ?? 3;
-            if ($amb === 2 && !self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha(self::pendenciaEmpresa($r['dados']['empresa'] ?? [])); }
-            if ($amb === 2 && ($r['dados']['certificado']['expira_em'] ?? 0) <= time()) { return Resultado::falha('Envie um certificado A1 válido antes do teste em homologação.'); }
-            if ($amb === 2 && !($r['dados']['config_enviada'] ?? false)) { return Resultado::falha('Clique em "Enviar configuração" antes do teste em homologação.'); }
+            $sefaz = in_array($amb, [1, 2], true);
+            if ($sefaz && !self::empresaPronta($r['dados']['empresa'] ?? [])) { return Resultado::falha(self::pendenciaEmpresa($r['dados']['empresa'] ?? [])); }
+            if ($sefaz && ($r['dados']['certificado']['expira_em'] ?? 0) <= time()) { return Resultado::falha('Envie um certificado A1 válido antes do teste.'); }
+            if ($sefaz && !self::enviada($r['dados'], $amb)) { return Resultado::falha('Clique em "Enviar configuração" antes do teste.'); }
             if (!RateLimiter::padrao(20, 3600)->permitir('fiscal-teste|' . $this->id)) {
                 return Resultado::falha('Limite de testes atingido.');
             }
             if ($amb === 3) { self::prepararSimulacao($r['dados']); }
             $cod = $this->api->statusCliente($sh, $cnpj, $token, $amb);
-            $r['dados']['status'][$amb] = ($cod === 107 ? 'Serviço em operação' : 'Status fiscal via NeXT ' . $cod) . ($amb === 3 ? ' (simulação)' : ' (homologação)');
+            $r['dados']['status'][$amb] = ($cod === 107 ? 'Serviço em operação' : 'Status fiscal via NeXT ' . $cod) . match ($amb) { 3 => ' (simulação)', 1 => ' (produção)', default => ' (homologação)' };
             return Resultado::sucesso('Consulta concluída: ' . $r['dados']['status'][$amb] . '. Nenhuma nota emitida.');
         });
+    }
+
+    /** Configuração enviada ao emissor no ambiente (homologação usa a chave antiga "config_enviada"). */
+    private static function enviada(array $d, int $amb): bool
+    {
+        return (bool) ($amb === 1 ? ($d['config_enviada_1'] ?? false) : ($d['config_enviada'] ?? false));
+    }
+
+    private static function marcarEnviada(array &$d, int $amb, bool $v): void
+    {
+        if ($amb === 1) { $d['config_enviada_1'] = $v; } elseif ($amb === 2) { $d['config_enviada'] = $v; }
     }
 
     /** Emissão automática por origem (mesa, balcão, delivery próprio, iFood) e impressão automática da nota. */

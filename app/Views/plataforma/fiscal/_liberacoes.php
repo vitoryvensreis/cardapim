@@ -20,13 +20,21 @@ use Cardapim\Core\Icon;
         <?php if ($liberacoes['mais']): ?><p>Mostrando os primeiros 100 resultados. Refine a busca para encontrar outro restaurante.</p><?php endif; ?>
         <?php foreach ($liberacoes['restaurantes'] as $r): ?>
             <article class="bloco">
-                <strong><?= $e($r['nome']) ?></strong><p><?= $e($r['slug']) ?> · <?= $r['permitido']?'Autorizado':'Não autorizado' ?><?= $r['permitido']&&!$liberacoes['global']?' (oculto globalmente)':'' ?></p>
+                <strong><?= $e($r['nome']) ?></strong><p><?= $e($r['slug']) ?> · <?= $r['permitido']?'Autorizado':'Não autorizado' ?><?= $r['permitido']&&!$liberacoes['global']?' (oculto globalmente)':'' ?><?= $r['permitido']?' · '.((int)$r['producao']===1?'Produção liberada (notas com valor fiscal)':'Somente testes'):'' ?></p>
                 <form method="post" action="<?= $e($url.'/liberar-restaurante') ?>" data-confirm="<?= $r['permitido']?'Ocultar a aba Fiscal deste restaurante? Os dados serão preservados.':'Liberar a aba Fiscal para este restaurante? A emissão real permanece bloqueada.' ?>">
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <input type="hidden" name="id_restaurante" value="<?= (int)$r['id'] ?>">
                     <input type="hidden" name="permitido" value="<?= $r['permitido']?'0':'1' ?>">
                     <button class="btn <?= $r['permitido']?'btn-outline':'btn-primary' ?> btn-sm" type="submit"><?= $r['permitido']?'Ocultar Fiscal':'Liberar Fiscal' ?></button>
                 </form>
+                <?php if ($r['permitido']): $prod=(int)$r['producao']===1; ?>
+                    <form method="post" action="<?= $e($url.'/producao') ?>" data-confirm="<?= $prod?'Bloquear a produção? O restaurante volta para homologação e nenhuma nota com valor fiscal será emitida.':'Liberar a produção? O restaurante poderá emitir NFC-e com valor fiscal depois de configurar série, numeração, CSC e certificado de produção.' ?>" data-confirm-titulo="<?= $prod?'Bloquear produção?':'Liberar produção?' ?>"<?= $prod?' data-confirm-perigo="1"':'' ?>>
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <input type="hidden" name="id_restaurante" value="<?= (int)$r['id'] ?>">
+                        <input type="hidden" name="producao" value="<?= $prod?'0':'1' ?>">
+                        <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg($prod?'lock':'circle-check','icon-sm') ?><?= $prod?'Bloquear produção':'Liberar produção' ?></button>
+                    </form>
+                <?php endif; ?>
             </article>
         <?php endforeach; ?>
         <?php if ($liberacoes['restaurantes']===[]): ?><p>Nenhum restaurante encontrado.</p><?php endif; ?>

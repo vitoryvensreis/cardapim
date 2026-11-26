@@ -27,7 +27,7 @@ $dataBr = static fn (?string $v): string => is_string($v) && preg_match('/\A(\d{
             <?php foreach ([
                 ['Emitentes na NeXT', $fiscal['quantidade'] ?? 'Não consultado', 'Última lista sincronizada'],
                 ['Restaurantes com fiscal ativo', $restaurantesFiscais === null ? 'Indisponível' : count(array_filter($restaurantesFiscais, static fn ($r) => $r['habilitado'])), 'Habilitados para configuração'],
-                ['Documentos e consumo', 'Aguardando emissão', $fiscal['limite'] === null ? 'Limite mensal não configurado' : 'Limite informado: ' . number_format($fiscal['limite'], 0, ',', '.')],
+                ['Notas com valor fiscal no mês', ($consumoFiscal ?? null) === null ? 'Indisponível' : number_format($consumoFiscal['producao'], 0, ',', '.'), ($fiscal['limite'] === null ? 'Limite mensal não configurado' : 'Limite informado: ' . number_format($fiscal['limite'], 0, ',', '.')) . (($consumoFiscal ?? null) !== null ? ' · testes: ' . $consumoFiscal['teste'] . ' · precisam de atenção: ' . $consumoFiscal['atencao'] : '')],
                 ['Vínculos aguardando aprovação', $restaurantesFiscais === null ? 'Indisponível' : count(array_filter($restaurantesFiscais, static fn ($r) => $r['habilitado'] && !$r['aprovado'])), 'Conferência administrativa do CNPJ'],
             ] as [$rotulo, $valor, $dica]): ?>
                 <section class="bloco fiscal-metrica"><h2><?= $e($rotulo) ?></h2><strong><?= $e($valor) ?></strong><p class="texto-suave"><?= $e($dica) ?></p></section>

@@ -106,6 +106,24 @@ try {
     if ((int) $q->fetchColumn() !== 0) { falha('número reservado para nota bloqueada.'); }
     if (!FiscalEmissao::reenviar($db, $id, $p1) || FiscalEmissao::situacao($db, $id, $p1)['status'] !== 'pendente') { falha('"Tentar de novo" não voltou a nota para a fila.'); }
 
+    // Notas emitidas (gerência): lista filtrada pelo restaurante; DANFE só de nota autorizada.
+    $admin = new \Cardapim\Services\Auth\UsuarioLogado(1, 'adm_master', 'CI', 'Fiscal', true, null, null, null, null);
+    $lista = (new \Cardapim\Services\Fiscal\GestaoNotas($db, $admin, $id))->lista([]);
+    if (!in_array($idDoc, array_map('intval', array_column($lista['notas'], 'id')), true)) { falha('nota não apareceu em Notas emitidas.'); }
+    if (\Cardapim\Services\Impressao\DanfeNfce::enfileirar($db, $id, $idDoc)->ok) { falha('DANFE de nota não autorizada foi para a impressora.'); }
+
+    // Produção: bloqueada por padrão; só o superadmin libera; ao bloquear, o restaurante volta para homologação.
+    if (\Cardapim\Services\Gerencia\FiscalAcesso::producaoLiberada($db, $id)) { falha('produção liberada por padrão.'); }
+    $gerente = new \Cardapim\Services\Auth\UsuarioLogado(1, 'gerente', 'CI', 'Gerente', true, null, null, null, null);
+    try { \Cardapim\Services\Gerencia\FiscalAcesso::alterarProducao($db, $gerente, $id, true); falha('gerente liberou a produção.'); } catch (RuntimeException $e) { if (str_starts_with($e->getMessage(), 'Fiscal emissão')) { throw $e; } }
+    $dadosProducao = $dadosBase; $dadosProducao['ambiente'] = 1;
+    $repo->serializar($id, static fn () => $repo->salvar($id, ['cnpj' => $cnpj, 'habilitado' => true, 'aprovado' => true, 'id_impressora' => null, 'dados' => $dadosProducao]));
+    if (FiscalEmissao::pronto($db, $id) !== null) { falha('produção sem liberação ficou pronta para emitir.'); }
+    \Cardapim\Services\Gerencia\FiscalAcesso::alterarProducao($db, $admin, $id, true);
+    if (!\Cardapim\Services\Gerencia\FiscalAcesso::producaoLiberada($db, $id) || (FiscalEmissao::pronto($db, $id)['ambiente'] ?? 0) !== 1) { falha('liberação de produção não teve efeito.'); }
+    \Cardapim\Services\Gerencia\FiscalAcesso::alterarProducao($db, $admin, $id, false);
+    if (\Cardapim\Services\Gerencia\FiscalAcesso::producaoLiberada($db, $id) || (int) ($repo->buscar($id)['dados']['ambiente'] ?? 0) !== 2) { falha('bloqueio da produção não voltou para homologação.'); }
+
     // Isolamento: outro restaurante não enxerga a nota.
     $outro = (int) $db->query('SELECT id FROM restaurantes WHERE id <> ' . $id . ' ORDER BY id LIMIT 1')->fetchColumn();
     if ($outro > 0 && (FiscalEmissao::situacao($db, $outro, $p1) !== null || FiscalEmissao::reenviar($db, $outro, $p1))) { falha('isolamento entre restaurantes.'); }
@@ -122,7 +140,7 @@ try {
     if ($liberacaoAntes === false) {
         $db->prepare('DELETE FROM fiscal_liberacoes WHERE id_restaurante = ?')->execute([$id]);
     } else {
-        $db->prepare('UPDATE fiscal_liberacoes SET permitido = ? WHERE id_restaurante = ?')->execute([(int) $liberacaoAntes, $id]);
+        $db->prepare('UPDATE fiscal_liberacoes SET permitido = ?, producao = 0 WHERE id_restaurante = ?')->execute([(int) $liberacaoAntes, $id]);
     }
     if ($visivelAntes !== false) {
         $db->prepare('UPDATE fiscal_visibilidade SET visivel = ? WHERE id = 1')->execute([(int) $visivelAntes]);

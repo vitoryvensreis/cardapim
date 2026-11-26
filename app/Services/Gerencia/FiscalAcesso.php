@@ -34,7 +34,8 @@ final class FiscalAcesso
         if (!self::disponivel($db)) { return null; }
         $global=(int)$db->query('SELECT visivel FROM fiscal_visibilidade WHERE id=1')->fetchColumn()===1;
         $busca=mb_substr(trim($busca),0,120);
-        $q=$db->prepare('SELECT r.id,r.nome,r.slug,COALESCE(l.permitido,0) AS permitido FROM restaurantes r LEFT JOIN fiscal_liberacoes l ON l.id_restaurante=r.id WHERE (LENGTH(?)=0 OR LOCATE(?,r.nome)>0 OR LOCATE(?,r.slug)>0) ORDER BY r.nome,r.id LIMIT 101');
+        $producao=Esquema::tem($db,'fiscal_producao') ? 'COALESCE(l.producao,0)' : '0';
+        $q=$db->prepare('SELECT r.id,r.nome,r.slug,COALESCE(l.permitido,0) AS permitido,'.$producao.' AS producao FROM restaurantes r LEFT JOIN fiscal_liberacoes l ON l.id_restaurante=r.id WHERE (LENGTH(?)=0 OR LOCATE(?,r.nome)>0 OR LOCATE(?,r.slug)>0) ORDER BY r.nome,r.id LIMIT 101');
         $q->execute([$busca,$busca,$busca]);
         $rows=$q->fetchAll(PDO::FETCH_ASSOC);
         return ['global'=>$global,'restaurantes'=>array_slice($rows,0,100),'mais'=>count($rows)>100,'busca'=>$busca];
@@ -56,6 +57,40 @@ final class FiscalAcesso
                 ->execute([$id,(int)$permitido,$autor->id]);
         });
         Auditoria::registrar($autor,'Fiscal: acesso administrativo','Restaurante '.$id.'; '.($permitido?'liberado':'ocultado').'. Dados preservados.');
+    }
+
+    /** Emissão com valor fiscal (ambiente de produção) liberada pelo superadmin para o restaurante? */
+    public static function producaoLiberada(PDO $db,int $id): bool
+    {
+        if (!Esquema::tem($db,'fiscal_producao') || !self::permitido($db,$id)) { return false; }
+        try {
+            $q=$db->prepare('SELECT producao FROM fiscal_liberacoes WHERE id_restaurante=?');
+            $q->execute([$id]);
+            return (int)$q->fetchColumn()===1;
+        } catch (Throwable) { return false; }
+    }
+
+    /**
+     * Libera ou bloqueia a produção. Exige o módulo liberado para o restaurante. Ao bloquear, um restaurante
+     * que estava em produção volta para homologação (nenhuma nota com valor fiscal sai depois disso).
+     */
+    public static function alterarProducao(PDO $db,UsuarioLogado $autor,int $id,bool $liberar): void
+    {
+        self::admin($db,$autor);
+        if (!Esquema::tem($db,'fiscal_producao')) { throw new RuntimeException('Atualização do banco pendente para a produção fiscal.'); }
+        $repo=new FiscalRepository($db);
+        $repo->serializar($id,static function () use ($db,$repo,$autor,$id,$liberar): void {
+            if ($liberar && !self::permitido($db,$id)) { throw new RuntimeException('Libere o módulo fiscal para o restaurante antes da produção.'); }
+            $db->prepare('UPDATE fiscal_liberacoes SET producao=?,producao_autor=?,producao_em=NOW() WHERE id_restaurante=?')->execute([(int)$liberar,$autor->id,$id]);
+            if (!$liberar) {
+                $r=$repo->buscar($id);
+                if ($r!==null && (int)($r['dados']['ambiente'] ?? 3)===1) {
+                    $r['dados']['ambiente']=2;
+                    $repo->salvar($id,$r);
+                }
+            }
+        });
+        Auditoria::registrar($autor,'Fiscal: produção','Restaurante '.$id.'; produção '.($liberar?'liberada':'bloqueada').'.');
     }
 
     public static function global(PDO $db,UsuarioLogado $autor,bool $visivel): void
