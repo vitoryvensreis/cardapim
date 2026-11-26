@@ -254,12 +254,14 @@ final class EventosIfood
         $formas = ['ifood' => 'ifood', 'dinheiro' => 'dinheiro', 'debito' => 'debito', 'credito' => 'credito', 'pix_entrega' => 'pix'];
         $caixa = (new CaixaRepository($this->db))->aberto($this->conta->idRestaurante);
         $agora = date('Y-m-d H:i:s');
+        $concluiu = false;
         $this->db->beginTransaction();
         try {
             $u = $this->db->prepare("UPDATE pedidos SET status = 'concluido', pagamento_status = 'pago', pago_em = COALESCE(pago_em, ?), concluido_em = ?, id_caixa = ?, atualizado_em = ?
                 WHERE id = ? AND id_restaurante = ? AND status NOT IN ('concluido', 'cancelado')");
             $u->execute([$agora, $agora, $caixa !== null ? (int) $caixa['id'] : null, $agora, (int) $p['id'], $this->conta->idRestaurante]);
-            if ($u->rowCount() === 1) {
+            $concluiu = $u->rowCount() === 1;
+            if ($concluiu) {
                 $forma = $formas[(string) $p['forma_pagamento']] ?? null;
                 if ($forma !== null && (float) $p['total'] > 0) {
                     $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, \'0.00\', NULL, ?)')
@@ -275,6 +277,10 @@ final class EventosIfood
         } catch (Throwable $erro) {
             $this->db->rollBack();
             throw $erro;
+        }
+        if ($concluiu) {
+            // iFood só emite se o restaurante ligar essa opção (desligada por padrão).
+            \Cardapim\Services\Fiscal\FiscalEmissao::solicitar($this->db, $this->conta->idRestaurante, (int) $p['id']);
         }
     }
 

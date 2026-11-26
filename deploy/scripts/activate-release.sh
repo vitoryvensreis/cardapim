@@ -26,7 +26,7 @@ shared="$root/shared"
 [[ -f "$release/public/index.php" ]] || { echo "Release sem front controller"; exit 1; }
 [[ -f "$shared/.env" ]] || { echo "Configure $shared/.env com permissoes 600"; exit 1; }
 
-mkdir -p "$shared"/storage/{cache,logs,uploads,exports} "$shared/backups"
+mkdir -p "$shared"/storage/{cache,logs,uploads,exports,fiscal} "$shared/backups"
 chmod 700 "$shared/backups"
 
 # Remove somente pastas auxiliares da nova release, nunca dados compartilhados.
@@ -150,6 +150,10 @@ echo "Deploy validado: $site_url (release $release_id)"
 # na conta do site, sem sudo; se a VPS bloquear crontab, registrar pendencia operacional.
 if ! bash "$root/current/deploy/scripts/install-expirar-pix-cron.sh" "$root"; then
   echo "ATENCAO: Cron Pix online nao confirmado. Configure a execucao a cada minuto no CloudPanel."
+fi
+# Fila de emissão de NFC-e: sem restaurante com módulo fiscal ativo, a rodada termina sem fazer nada.
+if [[ -f "$root/current/deploy/scripts/install-fiscal-fila-cron.sh" ]] && ! bash "$root/current/deploy/scripts/install-fiscal-fila-cron.sh" "$root"; then
+  echo "ATENCAO: Cron da fila fiscal nao confirmado. Configure a execucao a cada minuto no CloudPanel."
 fi
 # Conciliação seletiva da plataforma, independente do cron de Pix dos restaurantes.
 if ! bash "$root/current/deploy/scripts/install-conciliar-assinaturas-cron.sh" "$root"; then

@@ -190,6 +190,8 @@
 
     const evento = new CustomEvent("cardapim:tempo-real", { detail: msg, cancelable: true });
     const ninguemTratou = document.dispatchEvent(evento);
+    // Situação de nota fiscal não pede "Atualizar agora": só a tela da venda trata (caixa-fiscal.js).
+    if (msg.tipo.indexOf("fiscal.") === 0) return;
     if (ninguemTratou && canaisTela.indexOf(msg.canal) !== -1) mostrarAviso(textoDoEvento(msg));
   }
 

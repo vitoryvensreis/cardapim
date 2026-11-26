@@ -1,0 +1,19 @@
+/* Situação da nota fiscal (NFC-e) nas telas do caixa. Carregado só quando o restaurante emite nota. */
+.nota-fiscal-bloco {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem .75rem;
+  margin: 0 0 1rem;
+  padding: .75rem 1rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-white);
+}
+.nota-fiscal-bloco .etiqueta { flex: 0 0 auto; }
+.nota-fiscal-texto { flex: 1 1 16rem; margin: 0; color: var(--c-muted); font-size: .9rem; line-height: 1.4; }
+.nota-fiscal-bloco form { flex: 0 0 auto; margin: 0; }
+.nota-fiscal-bloco .btn { min-height: 2.75rem; }
+@media (max-width: 30rem) {
+  .nota-fiscal-bloco form, .nota-fiscal-bloco .btn { width: 100%; }
+}

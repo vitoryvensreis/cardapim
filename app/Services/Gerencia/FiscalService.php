@@ -60,6 +60,7 @@ final class FiscalService
             'status' => $d['status'][$amb] ?? 'Não testado',
             'config_enviada' => $d['config_enviada'] ?? false,
             'impressora' => $this->impressora($r),
+            'emissao' => \Cardapim\Services\Fiscal\FiscalEmissao::configuracao($d),
         ];
     }
 
@@ -502,6 +503,18 @@ final class FiscalService
             $cod = $this->api->statusCliente($sh, $cnpj, $token, $amb);
             $r['dados']['status'][$amb] = ($cod === 107 ? 'Serviço em operação' : 'Status fiscal via NeXT ' . $cod) . ($amb === 3 ? ' (simulação)' : ' (homologação)');
             return Resultado::sucesso('Consulta concluída: ' . $r['dados']['status'][$amb] . '. Nenhuma nota emitida.');
+        });
+    }
+
+    /** Emissão automática por origem (mesa, balcão, delivery próprio, iFood) e impressão automática da nota. */
+    public function emissao(array $p): Resultado
+    {
+        $c = [];
+        foreach (array_keys(\Cardapim\Services\Fiscal\FiscalEmissao::PADRAO) as $k) { $c[$k] = ($p[$k] ?? '') === '1'; }
+        return $this->operacao(function (array &$r) use ($c): Resultado {
+            $r['dados']['emissao'] = $c;
+            $ligadas = array_keys(array_filter(array_intersect_key($c, \Cardapim\Services\Fiscal\FiscalEmissao::ORIGENS)));
+            return Resultado::sucesso($ligadas === [] ? 'Emissão automática desligada. Nenhuma venda vai gerar nota sozinha.' : 'Emissão automática salva.');
         });
     }
 

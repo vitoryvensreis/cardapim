@@ -7,7 +7,7 @@ namespace Cardapim\Modules\Integracoes;
 use Cardapim\Shared\Http\ClienteHttp;
 use RuntimeException;
 
-/** Cadastro e configuração fiscal; nenhum método de emissão. */
+/** Cadastro, configuração e emissão de NFC-e pela API REST da NeXT (contrato conferido com a OpenAPI). */
 final class NextFiscalApi
 {
     private const BASE = 'https://www.apinext.com.br/ws/v1/';
@@ -139,6 +139,92 @@ final class NextFiscalApi
             throw new RuntimeException('A NeXT não retornou uma classificação de GTIN reconhecida.');
         }
         return ['descricao'=>$nome,'ncm'=>$ncm,'cest'=>preg_match('/\A[0-9]{7}\z/',$cest)?$cest:'','fonte'=>'NeXT / CCG (homologação)'];
+    }
+
+    /**
+     * Envia a NFC-e (INI como objeto) e devolve o envelope sem lançar exceção em rejeição da SEFAZ:
+     * a NeXT responde 200 com sucesso=false e os dados preenchidos (CodStatus/XMotivo).
+     * @param array<string,array<string,string>> $ini
+     * @return array{sucesso:bool,mensagem:string,dados:array}
+     */
+    public function enviarNfce(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente, string $uf, int $lote, array $ini, string $chave): array
+    {
+        self::ambienteEmissao($ambiente);
+        return $this->envelope('nfe/EnviarNFeTXTObj2', $sh, $token, $ambiente, $cliente, ['UF'=>$uf, 'IdLote'=>$lote, 'TXTNFe'=>$ini, 'ChNFe'=>$chave, 'DANFeTipo'=>4]);
+    }
+
+    /** @return array{sucesso:bool,mensagem:string,dados:array} */
+    public function consultarSituacao(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente, string $uf, string $chave): array
+    {
+        self::ambienteEmissao($ambiente);
+        return $this->envelope('nfe/ConsultaSituacao', $sh, $token, $ambiente, $cliente, ['UF'=>$uf, 'ChNFe'=>$chave]);
+    }
+
+    public function baixarXml(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente, string $chave): string
+    {
+        self::ambienteEmissao($ambiente);
+        $d = $this->consultar('nfe/NFeXML', $sh, $token, $ambiente, $cliente, ['ChNFe'=>$chave]);
+        return is_string($d['XMLNFe'] ?? null) ? $d['XMLNFe'] : '';
+    }
+
+    /** PDF do DANFE gerado pela NeXT (base64 na resposta). */
+    public function baixarPdf(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente, string $chave): string
+    {
+        self::ambienteEmissao($ambiente);
+        $d = $this->consultar('nfe/NFePDF', $sh, $token, $ambiente, $cliente, ['ChNFe'=>$chave, 'DANFeTipo'=>4, 'Regerar'=>false]);
+        $pdf = is_string($d['PDFNFe'] ?? null) ? base64_decode($d['PDFNFe'], true) : false;
+        return is_string($pdf) && str_starts_with($pdf, '%PDF') ? $pdf : '';
+    }
+
+    /** @return array{sucesso:bool,mensagem:string,dados:array} */
+    public function cancelar(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente, string $uf, string $chave, string $protocolo, string $justificativa, int $lote): array
+    {
+        self::ambienteEmissao($ambiente);
+        return $this->envelope('nfe/Cancelamento', $sh, $token, $ambiente, $cliente, ['UF'=>$uf, 'NProt'=>$protocolo, 'ChNFe'=>$chave, 'IdLote'=>$lote, 'NSeqEvento'=>1, 'XJust'=>$justificativa]);
+    }
+
+    /** @return array{sucesso:bool,mensagem:string,dados:array} */
+    public function inutilizar(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente, string $uf, int $serie, int $inicio, int $fim, string $justificativa): array
+    {
+        self::ambienteEmissao($ambiente);
+        return $this->envelope('nfe/Inutilizacao', $sh, $token, $ambiente, $cliente, ['UF'=>$uf, 'ModeloDFe'=>65, 'NNFIni'=>$inicio, 'NNFFin'=>$fim, 'Serie'=>$serie, 'XJust'=>$justificativa]);
+    }
+
+    public function enviarEmail(string $sh, string $cliente, #[\SensitiveParameter] string $token, int $ambiente, string $chave, string $email, string $titulo, string $mensagem): void
+    {
+        self::ambienteEmissao($ambiente);
+        $this->consultar('nfe/NFeEmailEnvio', $sh, $token, $ambiente, $cliente, ['ChNFe'=>$chave, 'EmailDestinatario'=>$email, 'TituloMensagem'=>$titulo, 'Mensagem'=>$mensagem]);
+    }
+
+    /** Produção (1) só é aceita quando a plataforma liberou o restaurante; a checagem fica no serviço. */
+    private static function ambienteEmissao(int $ambiente): void
+    {
+        if (!in_array($ambiente, [1, 2, 3], true)) { throw new RuntimeException('Ambiente fiscal inválido.'); }
+    }
+
+    /**
+     * Igual a consultar(), mas devolve sucesso=false com os dados em vez de lançar exceção.
+     * Erros fora do método (HTTP 4xx/5xx) continuam virando exceção.
+     * @return array{sucesso:bool,mensagem:string,dados:array}
+     */
+    private function envelope(string $metodo, string $cnpj, #[\SensitiveParameter] string $token, int $ambiente, string $cliente, #[\SensitiveParameter] array $corpo): array
+    {
+        $headers = ['X-CnpjSh'=>$cnpj, 'X-CnpjCliente'=>$cliente, 'X-Token'=>$token, 'X-Ambiente'=>(string) $ambiente];
+        $resposta = $this->http->enviar('POST', self::BASE . $metodo, $headers, $corpo);
+        $json = self::jsonSeguro($resposta->corpo);
+        if (!$resposta->ok()) {
+            $erro = is_array($json['erro'] ?? null) ? $json['erro'] : [];
+            $texto = self::textoFornecedor($erro['mensagem'] ?? null);
+            $campo = self::textoFornecedor($erro['campo'] ?? null, 60);
+            if ($texto !== '') { throw new NextFiscalErro($texto . ($campo !== '' ? ' (campo ' . $campo . ')' : ''), self::textoFornecedor($erro['codigo'] ?? null, 60)); }
+            throw new RuntimeException(match ($resposta->status) {
+                401, 403 => 'A NeXT recusou a credencial ou a permissão administrativa.',
+                429 => 'Limite de consultas da NeXT atingido.',
+                default => 'A NeXT retornou erro HTTP ' . $resposta->status . '.',
+            });
+        }
+        if (!is_bool($json['sucesso'] ?? null)) { throw new RuntimeException('A NeXT não confirmou a operação. Confira as credenciais e tente novamente.'); }
+        return ['sucesso'=>$json['sucesso'], 'mensagem'=>self::textoFornecedor($json['mensagem'] ?? null), 'dados'=>is_array($json['dados'] ?? null) ? $json['dados'] : []];
     }
 
     private function consultar(string $metodo, string $cnpj, #[\SensitiveParameter] string $token, ?int $ambiente, ?string $cliente = null, #[\SensitiveParameter] array $corpo = [], string $verbo = 'POST'): array

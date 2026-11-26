@@ -83,6 +83,13 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
                 <?php endif; endforeach; ?>
             </div>
 
+            <?php if (!empty($fiscalPronto)): ?>
+                <label class="campo-caixa campo-cpf-nota"><span>CPF ou CNPJ na nota <small>(opcional)</small></span>
+                    <input name="cpf_nota" inputmode="numeric" autocomplete="off" maxlength="18" placeholder="Só se o cliente pedir" value="<?= $e($enviado['cpf_nota'] ?? ($cpfNota ?? '')) ?>"<?= isset($erros['cpf_nota']) ? ' aria-invalid="true" aria-describedby="erro-cpf-nota"' : '' ?>>
+                </label>
+                <?php if (isset($erros['cpf_nota'])): ?><p class="campo-erro" id="erro-cpf-nota"><?= $e($erros['cpf_nota']) ?></p><?php endif; ?>
+            <?php endif; ?>
+
             <button class="btn btn-primary btn-lg btn-block" type="submit" data-pagar-enviar><?= Icon::svg('check', 'icon-sm') ?><span data-pagar-enviar-texto>Receber</span></button>
         </form>
     <?php endif; ?>

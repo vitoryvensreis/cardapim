@@ -74,3 +74,26 @@ Base: auditoria do módulo e especificação OpenAPI oficial da NeXT (`https://w
 - Conferência: CFOP e CST/CSOSN do escopo NFC-e já são listas fixas (MOC N12a-81/91, I08-150, N12-30) e não exigem catálogo importado em nenhum regime. Pendências em linguagem simples, com nome do produto em vez de ID.
 - Composição: a assinatura não inclui mais o preço das opções (assinaturas antigas continuam aceitas); opção "aplicar o mesmo tratamento" replica a regra para produtos cujas opções estão todas cobertas pela revisão.
 - Importação: CSV em Windows-1252 é convertido para UTF-8; erro de um item cita o nome do item; vínculo por seletor com o nome do produto; erro na prévia volta para a mesma tela sem pedir o arquivo de novo; aviso quando a unidade veio do fornecedor.
+
+## Etapas 04 e 05 — emissão de NFC-e e integração com o caixa (27/11/2026)
+
+**Regra de ouro:** com o módulo fiscal desligado para o restaurante (não liberado, não habilitado, não aprovado, sem token ou CNPJ divergente) nada muda: `FiscalEmissao::pronto()` devolve `null`, `solicitar()` não grava linha, nenhuma chamada à NeXT acontece e o caixa não mostra campo nem etiqueta. Todo gancho roda **depois do commit** da venda e nunca lança exceção.
+
+**Tabelas** (migration `20261127100000_fiscal_documentos`, aplicada com backup pela tag `[cardapim-fiscal-documentos]`):
+- `fiscal_documentos`: uma nota por pedido (`UNIQUE id_restaurante,id_pedido`), número único por restaurante/ambiente/série, chave única, situação (`pendente`, `enviando`, `incerta`, `autorizada`, `rejeitada`, `bloqueada`, `cancelada`), retentativas e foto fiscal (`dados`) usada no envio.
+- `fiscal_numeracao`: próximo número por restaurante/ambiente/série, reservado com `SELECT ... FOR UPDATE`.
+- `fiscal_eventos`: cancelamento e inutilização (usados na etapa 07).
+
+**Fluxo**
+1. A venda é concluída (`ComandaService::pagar`, Pix da mesa em `ComandaPix`, `DeliveryService::concluir`, `EventosIfood::concluir`).
+2. `FiscalEmissao::solicitar()` coloca a nota na fila com 20 s de folga (CPF na nota). Origens configuráveis em Gerência → Nota fiscal → Emissão automática: mesa, balcão e delivery próprio ligados; iFood desligado por padrão.
+3. O cron `bin/fiscal-fila.php` (instalado por `install-fiscal-fila-cron.sh`, a cada minuto, com `flock`) chama `EmissorFiscal::processar()`:
+   - pendência de cadastro (`FotoFiscal`) → `bloqueada`, sem número; reconfere a cada 30 min por até 24 h;
+   - reserva o número, gera a chave (`ChaveAcesso`, módulo 11), monta o INI ACBr (`MontadorNfce`) e envia em `nfe/EnviarNFeTXTObj2`;
+   - `100/150` → `autorizada` (XML salvo em `storage/fiscal/{restaurante}/{AAAA-MM}/`); rejeição → `rejeitada` mantendo o número; sem resposta ou lote em processamento → `incerta`, e a próxima rodada consulta `nfe/ConsultaSituacao` **antes** de reenviar (`217` = não consta, reenvia).
+   - Espera entre tentativas: 1, 3, 10, 30 e 60 min; credencial recusada não rejeita a nota.
+4. Valores em centavos inteiros (`RateioFiscal`): desconto e taxas (entrega/serviço, em `vOutro`) repartidos pelos maiores restos; soma dos pagamentos menos troco igual ao total da nota.
+
+**Caixa**: campo opcional "CPF ou CNPJ na nota" ao receber (só com o módulo pronto, validado no servidor); etiqueta da nota na comanda fechada, no histórico de comandas e no pedido do delivery; "Tentar de novo" (`POST /{slug}/caixa/fiscal/{id}/reenviar`) para notas rejeitadas ou com pendência. Atualização pelo tempo real (`fiscal.documento` no canal `caixa`, tratado só por `caixa-fiscal.js`).
+
+**Pendente (etapas 06–08)**: DANFE NFC-e com QR Code na impressora, tela de notas emitidas (cancelamento, inutilização, exportação XML, e-mail), liberação de produção pelo superadmin.

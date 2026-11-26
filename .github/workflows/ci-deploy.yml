@@ -128,10 +128,15 @@ jobs:
           php tests/unit/fiscal-cadastro.php
           php tests/unit/fiscal-produtos.php
           php tests/unit/fiscal-importacao.php
+          php tests/unit/fiscal-emissao.php
+          node --check public/assets/js/caixa-fiscal.js
           bash -n deploy/scripts/apply-fiscal-restaurante.sh
           bash -n deploy/scripts/apply-fiscal-produtos.sh
           bash -n deploy/scripts/apply-fiscal-liberacoes.sh
           bash -n deploy/scripts/apply-fiscal-catalogos.sh
+          bash -n deploy/scripts/apply-fiscal-documentos.sh
+          bash -n deploy/scripts/install-fiscal-fila-cron.sh
+          php -l bin/fiscal-fila.php
 
       - name: Interface sem emojis e sem estilos inline
         shell: bash
@@ -193,6 +198,7 @@ jobs:
           php database/verify-fiscal-produtos.php --verify
           php database/verify-fiscal-liberacoes.php --verify
           php database/verify-fiscal-catalogos.php --verify
+          php database/verify-fiscal-documentos.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -228,6 +234,8 @@ jobs:
           php tests/integration/relatorios.php
           php tests/integration/fiscal-restaurante.php
           php tests/integration/fiscal-produtos.php
+          php tests/integration/fiscal-emissao.php
+          php bin/fiscal-fila.php
           php tests/integration/peso.php
           php tests/integration/estoque-produto.php
           php -r '$d=new PDO("mysql:host=127.0.0.1;port=3306;dbname=cardapim_ci;charset=utf8mb4", "cardapim_ci", "cardapim_ci_only"); $n=$d->query("SELECT COUNT(*) FROM planos WHERE nome LIKE \"Demonstração %\"")->fetchColumn(); exit((int)$n===3 ? 0 : 1);'
@@ -713,6 +721,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-fiscal-catalogos.sh'"
+
+      - name: Aplicar documentos fiscais (NFC-e) com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-fiscal-documentos]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-fiscal-documentos.sh'"
 
       - name: Aplicar permissoes do garcom com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-garcom-permissoes]') }}

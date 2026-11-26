@@ -152,6 +152,22 @@ $dataBr = static fn (?string $iso): string => is_string($iso) && preg_match('/\A
                 <?php if (!$fiscal['registrado']): ?><p class="texto-suave" id="motivo-teste">Conecte o restaurante ao emissor primeiro.</p><?php endif; ?>
             </section>
 
+            <?php if ($fiscal['registrado']): $em = $fiscal['emissao']; ?>
+            <section class="bloco" id="emissao-automatica">
+                <div class="bloco-cabecalho"><h2><?= Icon::svg('receipt') ?>Emissão automática</h2><p>A nota é emitida sozinha quando o pagamento é confirmado. Se o emissor estiver fora do ar, a venda segue normalmente e a nota é reenviada depois.</p></div>
+                <form method="post" action="<?= $e($url . '/emissao') ?>" class="fiscal-form"><?php $tokenCsrf(); ?>
+                    <fieldset class="fiscal-opcoes"><legend>Emitir a nota automaticamente em</legend>
+                        <?php foreach (\Cardapim\Services\Fiscal\FiscalEmissao::ORIGENS as $k => $rot): ?>
+                            <label class="fiscal-check"><input type="checkbox" name="<?= $e($k) ?>" value="1" <?= $em[$k] ? 'checked' : '' ?>> <?= $e($rot) ?><?= $k === 'ifood' ? ' <span class="texto-suave">(confirme com o contador antes de ligar)</span>' : '' ?></label>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <label class="fiscal-check"><input type="checkbox" name="imprimir" value="1" <?= $em['imprimir'] ? 'checked' : '' ?>> Imprimir a nota sozinha depois de autorizada</label>
+                    <button class="btn btn-primary" type="submit"><?= Icon::svg('save','icon-sm') ?>Salvar emissão automática</button>
+                </form>
+                <?php if ($fiscal['ambiente'] !== 1): ?><p class="texto-suave">Neste modo de teste as notas não têm valor fiscal.</p><?php endif; ?>
+            </section>
+            <?php endif; ?>
+
             <section class="bloco">
                 <div class="bloco-cabecalho"><h2><?= Icon::svg('printer') ?>Impressora do cupom fiscal</h2><p><?= $e($fiscal['impressora']['destino'] ?? 'Nenhuma impressora escolhida ainda.') ?></p></div>
                 <a class="btn btn-outline" href="<?= $e($base . '/integracoes/impressoras#cupom-fiscal') ?>">Escolher impressora fiscal</a>

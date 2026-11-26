@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cardapim\Controllers\Caixa\CaixaController;
 use Cardapim\Controllers\Caixa\ComandaController;
 use Cardapim\Controllers\Caixa\DeliveryController;
+use Cardapim\Controllers\Caixa\FiscalCaixaController;
 use Cardapim\Controllers\Caixa\HistoricoComandasController;
 use Cardapim\Controllers\Caixa\IfoodController;
 use Cardapim\Controllers\Caixa\ImpressaoController;
@@ -67,4 +68,7 @@ return static function (Router $router): void {
     $router->get($c . '/delivery/fila', [DeliveryController::class, 'fila']);
     $router->get($c . '/delivery/{id}', [DeliveryController::class, 'ver']);
     $router->post($c . '/delivery/{id}/{acao}', [DeliveryController::class, 'acao']);
+
+    // Nota fiscal da venda (so tem efeito com o modulo fiscal ligado)
+    $router->post($c . '/fiscal/{id}/reenviar', [FiscalCaixaController::class, 'reenviar']);
 };

@@ -19,6 +19,10 @@ $fim = $d['fechamento'];
 $ativos = array_values(array_filter($d['itens'], static fn (array $i): bool => $i['cancelado_em'] === null));
 $cancelados = array_values(array_filter($d['itens'], static fn (array $i): bool => $i['cancelado_em'] !== null));
 $qtd = static fn (array $i): string => QuantidadeVenda::textoDoBanco((string) $i['quantidade'], (string) ($i['unidade'] ?? 'un'));
+if (!empty($notaFiscal)) {
+    $pageStyles = [...($pageStyles ?? []), 'css/caixa-fiscal.css'];
+    $pageScripts = [...($pageScripts ?? []), 'js/caixa-fiscal.js'];
+}
 ?>
 <div class="painel-page">
     <header class="painel-cabecalho">
@@ -31,6 +35,7 @@ $qtd = static fn (array $i): string => QuantidadeVenda::textoDoBanco((string) $i
             <a class="btn btn-outline btn-sm" href="<?= $e($base . '/comandas') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Comandas</a>
         </div>
     </header>
+    <?php $idPedido = (int) $d['pedido']['id']; $voltar = 'historico'; require __DIR__ . '/_nota-fiscal.php'; ?>
 
     <section class="bloco" aria-labelledby="titulo-quem">
         <div class="bloco-cabecalho"><h2 id="titulo-quem"><?= Icon::svg('clock') ?>Quem e quando</h2></div>

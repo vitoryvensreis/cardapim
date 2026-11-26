@@ -20,6 +20,7 @@ use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 use PDO;
+use Cardapim\Services\Fiscal\FiscalEmissao;
 use Throwable;
 
 /**
@@ -614,6 +615,10 @@ final class ComandaService
         } catch (Throwable $erro) {
             $this->db->rollBack();
             throw $erro;
+        }
+        if ($concluiu) {
+            // Nota fiscal: só entra na fila se o restaurante usa o módulo fiscal. Nunca interfere na venda.
+            FiscalEmissao::solicitar($this->db, $this->idRestaurante, $id);
         }
         $msg = self::FORMAS_PRESENCIAIS[$forma] . ' ' . Numero::reais(CaixaService::dec($centavos)) . ' recebido.' . ($troco > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco)) . '.' : '');
         if ($concluiu) {

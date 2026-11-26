@@ -35,6 +35,10 @@ $entregaIfood = $doIfood && $p['ifood_entregue_por'] === 'ifood';
 $cancelando = $doIfood && ($ifoodDados['cancelamento'] ?? null) === 'solicitado';
 $formaTexto = $doIfood && !empty($ifoodDados['pagamento']) ? (string) $ifoodDados['pagamento'] : StatusPedido::forma((string) $p['forma_pagamento'], (string) $p['tipo']);
 $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em'])) / 60));
+if (!empty($notaFiscal)) {
+    $pageStyles = [...($pageStyles ?? []), 'css/caixa-fiscal.css'];
+    $pageScripts = [...($pageScripts ?? []), 'js/caixa-fiscal.js'];
+}
 ?>
 <div class="painel-page delivery-pedido" data-regiao="pagina-pedido">
     <header class="painel-cabecalho">
@@ -47,6 +51,7 @@ $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em']
             <a class="btn btn-outline btn-sm" href="<?= $e($base . '/delivery') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Delivery</a>
         </div>
     </header>
+    <?php $idPedido = (int) $d['pedido']['id']; $voltar = 'delivery'; require __DIR__ . '/_nota-fiscal.php'; ?>
 
     <?php if ($status !== 'cancelado' && $status !== 'aguardando_pagamento'): ?>
         <ol class="etapas" aria-label="Situação do pedido">

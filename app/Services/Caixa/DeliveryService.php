@@ -235,6 +235,7 @@ final class DeliveryService
             $this->db->rollBack();
             throw $erro;
         }
+        \Cardapim\Services\Fiscal\FiscalEmissao::solicitar($this->db, $this->idRestaurante, $id);
         return Resultado::sucesso('Pedido #' . $p['numero'] . ' concluído.' . ($jaPago ? '' : ' Pagamento de ' . Numero::reais((string) $p['total']) . ' no caixa.'));
     }
 

@@ -9,7 +9,9 @@ use Cardapim\Repositories\Caixa\CaixaRepository;
 use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Services\Caixa\MesaService;
 use Cardapim\Services\Cardapio\CardapioPublico;
+use Cardapim\Services\Fiscal\FiscalEmissao;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Shared\Validation\Documento;
 
 /** Comanda da mesa ou do balcao: lancar itens, cancelar item, ajustes, transferir, receber e cancelar. */
 final class ComandaController extends BaseCaixa
@@ -45,6 +47,7 @@ final class ComandaController extends BaseCaixa
             'c' => $c,
             'cardapio' => $c['aberta'] ? (new CardapioPublico($this->db))->categorias($this->restaurante['id']) : ['categorias' => [], 'total' => 0],
             'livres' => $livres,
+            'notaFiscal' => $c['aberta'] ? null : FiscalEmissao::situacao($this->db, $this->restaurante['id'], (int) $id),
             'trocoAviso' => \Cardapim\Core\Session::flash('caixa_troco'),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'impressoras' => $this->impressoras('caixa_conta'),
@@ -147,6 +150,9 @@ final class ComandaController extends BaseCaixa
             'c' => $c,
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'trocoAviso' => \Cardapim\Core\Session::flash('caixa_troco'),
+            // Campo "CPF na nota" só aparece quando o restaurante emite nota fiscal.
+            'fiscalPronto' => FiscalEmissao::pronto($this->db, $this->restaurante['id']) !== null,
+            'cpfNota' => (string) (\Cardapim\Core\Session::get('cpf_nota_' . (int) $id) ?? ''),
         ]);
     }
 
@@ -158,9 +164,24 @@ final class ComandaController extends BaseCaixa
         if (self::id($id) === null) {
             return $this->voltar($this->url('mesas'), 'erro', 'Comanda não encontrada.');
         }
+        $cpf = Documento::somenteDigitos($this->post('cpf_nota'));
+        if ($cpf !== '' && !(strlen($cpf) === 11 && Documento::cpfValido($cpf)) && !(strlen($cpf) === 14 && Documento::cnpjValido($cpf))) {
+            return $this->responder(Resultado::falha('CPF ou CNPJ da nota inválido. Confira ou deixe em branco.', ['cpf_nota' => 'Confira o CPF ou CNPJ, ou deixe em branco.']), $this->url('comandas/' . (int) $id . '/pagar'));
+        }
         $res = $this->servico()->pagar((int) $id, $this->post('forma'), $this->post('valor'), $this->post('recebido'));
         $c = $this->servico()->detalhes((int) $id);
         $fechada = $c !== null && !$c['aberta'];
+        if ($res->ok) {
+            $cpf = $cpf !== '' ? $cpf : (string) (\Cardapim\Core\Session::get('cpf_nota_' . (int) $id) ?? '');
+            if ($fechada) {
+                \Cardapim\Core\Session::remover('cpf_nota_' . (int) $id);
+                if ($cpf !== '') {
+                    FiscalEmissao::informarDocumento($this->db, $this->restaurante['id'], (int) $id, $cpf);
+                }
+            } elseif ($cpf !== '') {
+                \Cardapim\Core\Session::set('cpf_nota_' . (int) $id, $cpf);
+            }
+        }
         // Teve troco? Mostra em destaque na proxima tela (valor grande para o caixa nao errar).
         $ultimo = $res->ok && $c !== null ? end($c['pagamentos']) : false;
         if (is_array($ultimo) && \Cardapim\Shared\Numero::centavos((string) $ultimo['troco']) > 0) {

@@ -50,6 +50,7 @@ final class DeliveryController extends BaseCaixa
         return $this->tela('caixa/delivery-ver', 'delivery', 'Pedido #' . $d['pedido']['numero'], [
             'd' => $d,
             'entregadores' => $s->entregadores(),
+            'notaFiscal' => \Cardapim\Services\Fiscal\FiscalEmissao::situacao($this->db, $this->restaurante['id'], (int) $d['pedido']['id']),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'gestor' => in_array($this->usuario->cargo, ['gerente', 'adm_master'], true),
             'impressoras' => $this->impressoras('caixa_delivery'),

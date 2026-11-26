@@ -24,6 +24,10 @@ $pessoas = (int) ($p['pessoas'] ?? 0);
 $desde = (int) strtotime((string) $p['criado_em']);
 $minutos = max(0, (int) floor((time() - $desde) / 60));
 $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT);
+if (!empty($notaFiscal)) {
+    $pageStyles = [...($pageStyles ?? []), 'css/caixa-fiscal.css'];
+    $pageScripts = [...($pageScripts ?? []), 'js/caixa-fiscal.js'];
+}
 ?>
 <div class="painel-page comanda-pagina" data-comanda>
     <header class="painel-cabecalho comanda-cabecalho">
@@ -42,6 +46,7 @@ $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pa
             <a class="btn btn-outline btn-sm" href="<?= $e($base . '/mesas') ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Mesas</a>
         </div>
     </header>
+    <?php $idPedido = (int) $p['id']; $voltar = 'comanda'; require __DIR__ . '/_nota-fiscal.php'; ?>
 
     <?php $novaComandaUrl = $base . '/mesas/' . (int) ($p['id_mesa'] ?? 0) . '/comandas'; require __DIR__ . '/_comandas-mesa.php'; ?>
 
