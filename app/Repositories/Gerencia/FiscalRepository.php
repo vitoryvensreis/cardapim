@@ -97,7 +97,8 @@ final class FiscalRepository
                 'cnpj_divergente' => $r['cnpj'] !== \Cardapim\Shared\Validation\Documento::somenteDigitos((string) $r['cnpj_atual']),
                 'testado' => $d['status'] ?? [],
                 'registrado' => isset($d['token']), 'validade' => $d['certificado']['validade'] ?? null,
-                'status' => $d['status'][2] ?? 'Aguardando homologação',
+                'modo' => match ((int) ($d['ambiente'] ?? 3)) { 1 => 'produção', 2 => 'homologação', default => 'simulação' },
+                'status' => $d['status'][(int) ($d['ambiente'] ?? 3)] ?? 'Não testado neste modo',
                 'alerta' => \Cardapim\Modules\Fiscal\CertificadoA1::alerta($d['certificado']['expira_em'] ?? null),
             ];
         }
