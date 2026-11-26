@@ -244,6 +244,8 @@ Documentação da API: `docs/api/v1.md`.
 
 **Efeito**: sem a tag, o código vai para a VPS, mas a migração não roda, e a função nova fica escondida (sem erro).
 
+**Depois do deploy**: quando o passo rodar com sucesso em produção, ele pode sair do `ci-deploy.yml` num PR de limpeza. O `apply-<nome>.sh` e o `verify-<nome>.php` ficam no repositório como histórico. Em 26/11/2026 saíram os 21 passos já aplicados (de `[cardapim-saudacoes]` a `[cardapim-garcom-permissoes]`) e o `[cardapim-agent-schema]`. O `[cardapim-mapa]` continua, porque é reutilizável.
+
 ---
 
 ## 7. Tempo real (WebSocket)
