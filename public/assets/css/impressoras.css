@@ -65,6 +65,7 @@
 .cupom-aparencia-status small { color: var(--c-muted); font-size: .85rem; }
 .cupom-aparencia-chips { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0; padding: 0; border: 0; }
 .cupom-aparencia-chips legend { width: 100%; margin-bottom: .35rem; padding: 0; color: var(--c-ink); font-weight: 700; }
+.cupom-aparencia-chips legend small { display: block; color: var(--c-muted); font-size: .82rem; font-weight: 400; }
 .cupom-aparencia-chips .chip-opcao { position: relative; display: inline-flex; }
 .cupom-aparencia-chips .chip-opcao input { position: absolute; opacity: 0; pointer-events: none; }
 .cupom-aparencia-chips .chip-opcao span {
@@ -111,3 +112,9 @@
   .cupom-aparencia-carregando .icon { animation: cupom-girar 1s linear infinite; }
 }
 @keyframes cupom-girar { to { transform: rotate(360deg); } }
+
+/* O que aparece no cupom (total do delivery, nome de quem atendeu) e margem lateral por impressora */
+.impressao-opcoes { display: grid; gap: .6rem; clear: both; }
+.impressao-laterais li { gap: .75rem; }
+.impressao-laterais label { color: var(--c-ink); cursor: pointer; }
+.impressao-laterais select { min-width: 9.5rem; min-height: 2.75rem; }

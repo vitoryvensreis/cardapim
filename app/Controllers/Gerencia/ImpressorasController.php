@@ -55,8 +55,10 @@ final class ImpressorasController extends BaseGerencia
             'logoCupom' => AssetUrl::asset('img/logo-preta.svg'),
             // Aviso de cancelamento: null = recurso ainda nao liberado.
             'cancelamentoAtivo' => Esquema::tem($this->db, 'complemento_qtd') ? $repo->cancelamentoAtivo($this->restaurante['id']) : null,
-            // Papel informado pelo Agent de cada impressora (cupom em imagem).
+            // Papel informado pelo Agent e margem lateral de cada impressora (cupom em imagem).
             'formatos' => $ativo ? $this->formatos() : [],
+            // Total no delivery aceito e nome de quem atendeu: null = recurso ainda nao liberado.
+            'cupomOpcoes' => Esquema::tem($this->db, 'cupom_opcoes') ? $repo->opcoesCupom($this->restaurante['id']) : null,
             // Aparencia do cupom: null = recurso ainda nao liberado (migracao) ou servidor sem GD.
             'aparencia' => Esquema::tem($this->db, 'cupom_aparencia') && CupomImagem::disponivel()
                 ? AparenciaCupom::doRestaurante($this->db, $this->restaurante['id']) : null,
@@ -92,7 +94,7 @@ final class ImpressorasController extends BaseGerencia
         }
     }
 
-    /** @return array<int,array{chave:string,id_dispositivo:int,papel:int,logo:bool,margem:int,informado:bool}> */
+    /** @return array<int,array{chave:string,id_dispositivo:int,papel:int,logo:bool,margem:int,informado:bool,lateral:?float}> */
     private function formatos(): array
     {
         return (new ImpressoraRepository($this->db))->formatos($this->restaurante['id'],
@@ -226,8 +228,8 @@ final class ImpressorasController extends BaseGerencia
             if (!is_array($c['blocos'] ?? null)) {
                 continue;
             }
-            $f = $formatos[(int) ($c['id'] ?? 0)] ?? ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO, 'informado' => false];
-            $c['imagem'] = 'data:image/png;base64,' . base64_encode(CupomImagem::png($c['blocos'], $f['papel'], $f['margem'], $f['logo'], $aparencia));
+            $f = $formatos[(int) ($c['id'] ?? 0)] ?? ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO, 'informado' => false, 'lateral' => null];
+            $c['imagem'] = 'data:image/png;base64,' . base64_encode(CupomImagem::png($c['blocos'], $f['papel'], $f['margem'], $f['logo'], $aparencia, $f['lateral'] ?? null));
             $c['papel'] = $f['papel'];
             $c['papel_informado'] = $f['informado'];
         }
@@ -251,11 +253,29 @@ final class ImpressorasController extends BaseGerencia
         if ($producao !== null && Esquema::tem($this->db, 'impressao_produto')) {
             $config['producao'] = ['ids' => [$producao], 'padrao' => $producao];
         }
+        $laterais = null;
+        if (($_POST['laterais_enviado'] ?? '') === '1') {
+            $laterais = self::laterais($_POST['lateral'] ?? null);
+            if ($laterais === null) {
+                return $this->voltar($volta, 'erro', 'Escolha a margem lateral entre 0 e 8 mm.');
+            }
+        }
         // Pontos antigos (pedido novo do delivery, garcom ao lancar) ficam vazios: sairam da tela.
         $repo = new ImpressoraRepository($this->db);
         $repo->salvarPontos($this->restaurante['id'], $config);
         if (($_POST['cancelamento_enviado'] ?? '') === '1') {
             $repo->salvarCancelamento($this->restaurante['id'], ($_POST['cancelamento'] ?? '') === '1');
+        }
+        if (($_POST['opcoes_enviado'] ?? '') === '1') {
+            $atual = $repo->opcoesCupom($this->restaurante['id']);
+            $repo->salvarOpcoesCupom($this->restaurante['id'], [
+                'mostrar_atendente' => ($_POST['mostrar_atendente'] ?? '') === '1',
+                // Sem a impressao por produto o campo nao aparece na tela: mantem o que estava gravado.
+                'delivery_com_preco' => Esquema::tem($this->db, 'impressao_produto') ? ($_POST['delivery_com_preco'] ?? '') === '1' : $atual['delivery_com_preco'],
+            ]);
+        }
+        if ($laterais !== null) {
+            $repo->salvarLaterais($this->restaurante['id'], $laterais);
         }
         Auditoria::registrar($this->usuario, 'Impressoras salvas', 'Configuração das impressoras do Agent atualizada.');
         return $this->voltar($volta, 'sucesso', 'Impressoras salvas.');
@@ -278,6 +298,31 @@ final class ImpressorasController extends BaseGerencia
             $lista[] = ['id' => $m[1], 'quantidade' => $m[2]];
         }
         return Complementos::formato($lista);
+    }
+
+    /**
+     * Margem lateral de cada impressora vinda da tela: id => mm (vazio = padrao). null = algum valor invalido.
+     * @return array<int,?float>|null
+     */
+    private static function laterais(mixed $lista): ?array
+    {
+        $saida = [];
+        foreach (is_array($lista) ? $lista : [] as $id => $valor) {
+            $id = self::idPost((string) $id);
+            if ($id === null || !is_string($valor)) {
+                return null;
+            }
+            if ($valor === '') {
+                $saida[$id] = null;
+                continue;
+            }
+            $mm = ImpressoraRepository::lateral($valor);
+            if ($mm === null) {
+                return null;
+            }
+            $saida[$id] = $mm;
+        }
+        return $saida;
     }
 
     /** @return list<int> */

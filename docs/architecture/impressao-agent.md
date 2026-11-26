@@ -21,11 +21,26 @@ Ele só converte em ESC/POS (GS v 0 em faixas de 128 linhas) e corta.
 - O Agent 0.9.0+ se atualiza sozinho (Releases do GitHub, SHA-256 conferido, instala com o Agent parado). Desde a 0.9.1
   o instalador usa a pasta do Agent (PyInstaller onedir), sem descompactar no Temp.
 - **Aparência do cupom por loja** (Gerência > Impressoras > "Aparência do cupom"): fonte (Roboto Mono, padrão, ou Poppins),
-  peso do texto, peso dos destaques (itens, títulos e total) e tamanho da letra (Pequena, Normal, Grande), com prévia em
+  peso do texto, peso dos destaques (itens, títulos e total) e tamanho da letra (Pequena, Normal, Grande, Extra grande), com prévia em
   tempo real (`POST .../integracoes/impressoras/aparencia/previa`, mesmo desenho da impressão) e "Voltar ao padrão".
   Regras em `AparenciaCupom` (fonte única); tabela `restaurante_cupom_aparencia` (sem linha = padrão do sistema).
 - Cada impressora mostra o papel informado pelo Agent (`impressoras.papel_informado`); o "Testar impressão" desenha no
   papel de cada impressora e respeita o aviso de cancelamento desligado e os produtos "só no local" no delivery.
+- **Margem lateral por impressora** (Gerência > Impressoras > "Margem lateral"): de 0 a 8 mm, de 0,5 em 0,5, para quando o
+  texto corta nas laterais. Coluna `impressoras.margem_lateral_mm` (NULL = padrão de 6 pontos, cerca de 0,8 mm), gravada só
+  pela tela (o Agent não mexe nela). `CupomImagem::png(..., $lateralMm)` converte com 8 pontos por mm (203 dpi). Só vale
+  para o cupom em imagem.
+
+## O que aparece no cupom (Gerência > Impressoras)
+
+- **Mostrar o total no pedido do delivery** (`restaurante_impressao_config.delivery_com_preco`, padrão **desligado**): no
+  aceite do delivery (caixa, iFood ou aceite automático), a via de produção ganha o resumo de valores
+  (`CupomImpressao::resumoPedido`: itens, entrega, desconto, TOTAL, forma de pagamento e troco, o mesmo do cupom completo).
+  Com o pedido dividido em várias impressoras, o resumo sai só na via da impressora padrão da produção (ou na primeira,
+  se nenhum item saiu nela). O valor de cada item continua saindo como antes, ligado ou desligado.
+- **Imprimir o nome de quem atendeu** (`restaurante_impressao_config.mostrar_atendente`, padrão **ligado**): desligado, o
+  nome do garçom, do caixa ou de quem aceitou some de todos os cupons (vias de produção, cancelamento, itens novos,
+  pré-conta e conta). Regra única em `FilaImpressao::quem()`; o "Testar impressão" segue as duas opções.
 
 ## Regra (uma só para 1, 2 ou várias impressoras)
 
@@ -126,8 +141,11 @@ impressora desenhado como no papel e o motivo de cada item estar ali. Impressora
 - `20261122500000_aparencia_cupom.php` (`impressoras.papel_informado`, `restaurante_cupom_aparencia`),
   `database/verify-aparencia-cupom.php`, `deploy/scripts/apply-aparencia-cupom.sh` (gatilho `[cardapim-aparencia-cupom]`;
   `Esquema::tem('cupom_aparencia')`).
+- `20261129100000_impressao_opcoes_cupom.php` (`impressoras.margem_lateral_mm`, `restaurante_impressao_config.mostrar_atendente`
+  e `delivery_com_preco`), `database/verify-opcoes-cupom.php`, `deploy/scripts/apply-impressao-opcoes-cupom.sh` (gatilho
+  `[cardapim-impressao-opcoes-cupom]`; `Esquema::tem('cupom_opcoes')`).
 
-Testes: `tests/unit/impressao.php`, `tests/unit/cupom-imagem.php`, `tests/unit/aparencia-cupom.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
+Testes: `tests/unit/impressao.php`, `tests/unit/cupom-imagem.php`, `tests/unit/aparencia-cupom.php`, `tests/unit/opcoes-cupom.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
 `tests/http/impressao-produto.sh`, `desktop-agent/tests/test_printer_list.py`.
 
 ## Fluxo

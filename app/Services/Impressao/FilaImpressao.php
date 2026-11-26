@@ -23,6 +23,8 @@ use PDO;
 final class FilaImpressao
 {
     private readonly ImpressaoRepository $repo;
+    /** @var array{mostrar_atendente:bool,delivery_com_preco:bool}|null */
+    private ?array $opcoesCupom = null;
 
     public function __construct(
         private readonly PDO $db,
@@ -58,7 +60,7 @@ final class FilaImpressao
             return Resultado::falha('Comanda não encontrada.');
         }
         $desde = $modo === 'itens_novos' ? $this->repo->ultimoItemImpresso($this->idRestaurante, $idPedido) : 0;
-        $cupom = CupomImpressao::comanda($c, $this->restaurante, $modo, $desde, $this->autor->nome);
+        $cupom = CupomImpressao::comanda($c, $this->restaurante, $modo, $desde, $this->quem());
         if ($cupom['itens'] === 0) {
             return Resultado::falha($modo === 'itens_novos' ? 'Nenhum item novo desde a última impressão.' : 'A comanda ainda não tem itens.');
         }
@@ -172,12 +174,14 @@ final class FilaImpressao
      * Grava um cupom por estacao, todos no mesmo lote.
      * @param list<array<string,mixed>> $itens
      * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
+     * @param list<array<string,mixed>> $resumo valores do pedido (so na via da impressora padrao)
      * @return array<string,int>|Resultado apelido => id do cupom
      */
-    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas): array|Resultado
+    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas, array $resumo = []): array|Resultado
     {
         // Mesma regra do "Testar impressao": cada item na impressora do produto, sem marcacao na padrao, "Nao imprime" fora.
-        $rota = RotaProducao::dividir($this->db, $this->idRestaurante, $itens, $this->opcoes('producao')[0]['id']);
+        $padrao = $this->opcoes('producao')[0]['id'];
+        $rota = RotaProducao::dividir($this->db, $this->idRestaurante, $itens, $padrao);
         $grupos = $rota['grupos'];
         if ($grupos === [] && $rota['fora'] !== []) {
             return []; // so itens marcados "Nao imprime": nada a imprimir
@@ -203,13 +207,16 @@ final class FilaImpressao
         if ($grupos === []) {
             return Resultado::falha('Nenhuma impressora de produção disponível. Confira em Integrações > Impressoras.');
         }
+        // Resumo de valores (delivery com o total ligado): so em uma via, a da impressora padrao da producao
+        // (ou a primeira, se nenhum item do pedido saiu nela).
+        $comResumo = isset($grupos[$padrao]) ? $padrao : array_key_first($grupos);
         $lote = bin2hex(random_bytes(8));
         $ids = [];
         $this->db->beginTransaction();
         try {
             foreach ($grupos as $idImp => $itensDaEstacao) {
                 $apelido = $impressoras[$idImp]['apelido'];
-                $blocos = CupomImpressao::producao($cabeca, $apelido, $itensDaEstacao, $this->autor->nome);
+                $blocos = CupomImpressao::producao($cabeca, $apelido, $itensDaEstacao, $this->quem(), $idImp === $comResumo ? $resumo : []);
                 $ids[$apelido] = $this->repo->criar($this->idRestaurante, $idPedido, $tipo, 'PRODUÇÃO · ' . $apelido . ' · ' . $rotulo,
                     $blocos, $ateItem, $this->autor->id > 0 ? $this->autor->id : null, $idImp, $lote);
             }
@@ -240,7 +247,8 @@ final class FilaImpressao
             if ($itens === []) {
                 return;
             }
-            $res = $this->enviarProducao($idPedido, 'producao', $itens, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], null, false);
+            $resumo = $this->opcoesCupom()['delivery_com_preco'] ? CupomImpressao::resumoPedido($p) : [];
+            $res = $this->enviarProducao($idPedido, 'producao', $itens, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], null, false, $resumo);
             if ($res instanceof Resultado) {
                 error_log('[Cardapim] Producao do pedido nao enviada: ' . $res->mensagem);
             }
@@ -317,7 +325,7 @@ final class FilaImpressao
                     }
                     $apelido = $impressoras[$idImp]['apelido'];
                     $this->repo->criar($this->idRestaurante, $idPedido, 'cancelamento', mb_substr('CANCELADO · ' . $apelido . ' · ' . $rotulo, 0, 80),
-                        CupomImpressao::cancelamento($cabeca, $apelido, $lista, $motivo, $idsItens === null, $this->autor->nome),
+                        CupomImpressao::cancelamento($cabeca, $apelido, $lista, $motivo, $idsItens === null, $this->quem()),
                         null, $this->autor->id > 0 ? $this->autor->id : null, $idImp, $lote);
                 }
                 $this->db->commit();
@@ -342,6 +350,29 @@ final class FilaImpressao
     {
         $ultimo = array_pop($nomes);
         return $nomes === [] ? (string) $ultimo : implode(', ', $nomes) . ' e ' . $ultimo;
+    }
+
+    /**
+     * Opcoes do cupom do restaurante (nome de quem atendeu e total no delivery). Falha = padrao.
+     * @return array{mostrar_atendente:bool,delivery_com_preco:bool}
+     */
+    public function opcoesCupom(): array
+    {
+        if ($this->opcoesCupom === null) {
+            try {
+                $this->opcoesCupom = (new ImpressoraRepository($this->db))->opcoesCupom($this->idRestaurante);
+            } catch (\Throwable $e) {
+                error_log('[Cardapim] Opcoes do cupom indisponiveis (' . get_class($e) . ').');
+                $this->opcoesCupom = ['mostrar_atendente' => true, 'delivery_com_preco' => false];
+            }
+        }
+        return $this->opcoesCupom;
+    }
+
+    /** Nome de quem atendeu no cupom (garcom, caixa ou quem aceitou), ou vazio se o restaurante desligou. */
+    public function quem(): string
+    {
+        return $this->opcoesCupom()['mostrar_atendente'] ? $this->autor->nome : '';
     }
 
     /**

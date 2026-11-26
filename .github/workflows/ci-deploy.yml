@@ -123,6 +123,7 @@ jobs:
           php tests/unit/agrupador-itens-comanda.php
           php tests/unit/cupom-imagem.php
           php tests/unit/aparencia-cupom.php
+          php tests/unit/opcoes-cupom.php
           php tests/unit/fiscal-restaurante.php
           php tests/unit/fiscal-next-contrato.php
           php tests/unit/fiscal-cadastro.php
@@ -137,6 +138,7 @@ jobs:
           bash -n deploy/scripts/apply-fiscal-catalogos.sh
           bash -n deploy/scripts/apply-fiscal-documentos.sh
           bash -n deploy/scripts/apply-fiscal-danfe-producao.sh
+          bash -n deploy/scripts/apply-impressao-opcoes-cupom.sh
           bash -n deploy/scripts/install-fiscal-fila-cron.sh
           php -l bin/fiscal-fila.php
 
@@ -202,6 +204,7 @@ jobs:
           php database/verify-fiscal-catalogos.php --verify
           php database/verify-fiscal-documentos.php --verify
           php database/verify-fiscal-danfe-producao.php --verify
+          php database/verify-opcoes-cupom.php --verify
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --apply
           php database/seed-demo-planos.php --verify
@@ -672,6 +675,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-aparencia-cupom.sh'"
+
+      - name: Aplicar opcoes do cupom com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-impressao-opcoes-cupom]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-impressao-opcoes-cupom.sh'"
 
       - name: Aplicar fiscal por restaurante com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-fiscal-restaurante]') }}

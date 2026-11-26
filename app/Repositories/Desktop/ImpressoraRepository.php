@@ -21,6 +21,8 @@ final class ImpressoraRepository
         'producao' => 'Impressão por produto (padrão)',
     ];
     public const MAX_POR_AGENT = 50;
+    /** Maior margem lateral aceita (mm). */
+    public const LATERAL_MAX = 8.0;
 
     public function __construct(private readonly PDO $db)
     {
@@ -66,12 +68,14 @@ final class ImpressoraRepository
      * Papel, logo e espaco antes do corte de cada impressora ativa (cupom em imagem), por id.
      * Sem a migracao ou sem informacao do Agent: 80 mm, com logo, espaco normal.
      * informado = o Agent 0.9.0+ ja mandou o papel ($comInformado: migracao da aparencia do cupom aplicada).
-     * @return array<int,array{chave:string,id_dispositivo:int,papel:int,logo:bool,margem:int,informado:bool}>
+     * lateral = margem de cada lado em mm escolhida na tela de Impressoras (null = padrao do Deliveryzim).
+     * @return array<int,array{chave:string,id_dispositivo:int,papel:int,logo:bool,margem:int,informado:bool,lateral:?float}>
      */
     public function formatos(int $idRestaurante, bool $comPapel, ?int $idDispositivo = null, bool $comInformado = false): array
     {
         $colunas = $comPapel ? 'papel, logo, margem_corte' : '80 AS papel, 1 AS logo, 4 AS margem_corte';
         $colunas .= $comPapel && $comInformado ? ', papel_informado' : ', 0 AS papel_informado';
+        $colunas .= \Cardapim\Shared\Esquema::tem($this->db, 'cupom_opcoes') ? ', margem_lateral_mm' : ', NULL AS margem_lateral_mm';
         $sql = 'SELECT id, chave, id_dispositivo, ' . $colunas . ' FROM impressoras WHERE id_restaurante = ? AND ativo = 1';
         $params = [$idRestaurante];
         if ($idDispositivo !== null) {
@@ -87,6 +91,7 @@ final class ImpressoraRepository
                 'papel' => (int) $r['papel'] === 58 ? 58 : 80, 'logo' => (int) $r['logo'] === 1,
                 'margem' => max(0, min(20, (int) $r['margem_corte'])),
                 'informado' => (int) $r['papel_informado'] === 1,
+                'lateral' => self::lateral($r['margem_lateral_mm']),
             ];
         }
         return $saida;
@@ -206,5 +211,64 @@ final class ImpressoraRepository
         }
         $this->db->prepare('INSERT INTO restaurante_impressao_config (id_restaurante, cancelamento) VALUES (?, ?)
             ON DUPLICATE KEY UPDATE cancelamento = VALUES(cancelamento)')->execute([$idRestaurante, $ativo ? 1 : 0]);
+    }
+
+    /** Margem lateral valida (0 a 8 mm, de 0,5 em 0,5) ou null (padrao). */
+    public static function lateral(mixed $valor): ?float
+    {
+        if ($valor === null || $valor === '') {
+            return null;
+        }
+        $mm = is_numeric($valor) ? (float) $valor : (is_string($valor) && is_numeric(str_replace(',', '.', $valor)) ? (float) str_replace(',', '.', $valor) : null);
+        if ($mm === null || $mm < 0 || $mm > self::LATERAL_MAX || fmod($mm * 2, 1.0) !== 0.0) {
+            return null;
+        }
+        return $mm;
+    }
+
+    /**
+     * Grava a margem lateral de cada impressora (id => mm ou null = padrao). Ids de outro restaurante sao ignorados.
+     * @param array<int,?float> $porImpressora
+     */
+    public function salvarLaterais(int $idRestaurante, array $porImpressora): void
+    {
+        if (!\Cardapim\Shared\Esquema::tem($this->db, 'cupom_opcoes') || $porImpressora === []) {
+            return;
+        }
+        $grava = $this->db->prepare('UPDATE impressoras SET margem_lateral_mm = ? WHERE id = ? AND id_restaurante = ?');
+        foreach ($porImpressora as $id => $mm) {
+            $grava->execute([$mm === null ? null : number_format($mm, 1, '.', ''), (int) $id, $idRestaurante]);
+        }
+    }
+
+    /**
+     * Opcoes do cupom do restaurante. Sem configuracao (ou recurso ainda nao liberado): nome impresso e delivery
+     * sem o resumo de valores (como ja funcionava).
+     * @return array{mostrar_atendente:bool,delivery_com_preco:bool}
+     */
+    public function opcoesCupom(int $idRestaurante): array
+    {
+        $padrao = ['mostrar_atendente' => true, 'delivery_com_preco' => false];
+        if (!\Cardapim\Shared\Esquema::tem($this->db, 'cupom_opcoes')) {
+            return $padrao;
+        }
+        $q = $this->db->prepare('SELECT mostrar_atendente, delivery_com_preco FROM restaurante_impressao_config WHERE id_restaurante = ?');
+        $q->execute([$idRestaurante]);
+        $r = $q->fetch(PDO::FETCH_ASSOC);
+        return $r === false ? $padrao : [
+            'mostrar_atendente' => (int) $r['mostrar_atendente'] === 1,
+            'delivery_com_preco' => (int) $r['delivery_com_preco'] === 1,
+        ];
+    }
+
+    /** @param array{mostrar_atendente:bool,delivery_com_preco:bool} $opcoes */
+    public function salvarOpcoesCupom(int $idRestaurante, array $opcoes): void
+    {
+        if (!\Cardapim\Shared\Esquema::tem($this->db, 'cupom_opcoes')) {
+            return;
+        }
+        $this->db->prepare('INSERT INTO restaurante_impressao_config (id_restaurante, mostrar_atendente, delivery_com_preco) VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE mostrar_atendente = VALUES(mostrar_atendente), delivery_com_preco = VALUES(delivery_com_preco)')
+            ->execute([$idRestaurante, $opcoes['mostrar_atendente'] ? 1 : 0, $opcoes['delivery_com_preco'] ? 1 : 0]);
     }
 }

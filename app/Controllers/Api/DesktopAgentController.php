@@ -211,13 +211,13 @@ final class DesktopAgentController
         } catch (Throwable) {
             $porChave = [];
         }
-        $padrao = ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO];
+        $padrao = ['papel' => 80, 'logo' => true, 'margem' => CupomImagem::MARGEM_PADRAO, 'lateral' => null];
         $aparencia = AparenciaCupom::doRestaurante($db, (int) $dispositivo['id_restaurante']);
         foreach ($cupons as &$c) {
             $chave = (string) ($c['impressora'] ?? '') !== '' ? (string) $c['impressora'] : $principal;
             $f = $porChave[$chave] ?? $padrao;
             try {
-                $c['imagem'] = base64_encode(CupomImagem::png($c['blocos'] ?? [], $f['papel'], $f['margem'], $f['logo'], $aparencia));
+                $c['imagem'] = base64_encode(CupomImagem::png($c['blocos'] ?? [], $f['papel'], $f['margem'], $f['logo'], $aparencia, $f['lateral'] ?? null));
                 $c['papel'] = $f['papel'];
             } catch (Throwable $e) {
                 error_log('[Cardapim] Desktop: cupom em imagem indisponivel (' . get_class($e) . ').');

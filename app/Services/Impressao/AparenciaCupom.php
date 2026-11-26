@@ -38,7 +38,8 @@ final class AparenciaCupom
         600 => 'Seminegrito', 700 => 'Negrito', 800 => 'Extra negrito', 900 => 'Ultra negrito'];
 
     /** Tamanho da letra: rotulo e multiplicador do tamanho base. */
-    public const TAMANHOS = ['pequena' => ['Pequena', 0.86], 'normal' => ['Normal', 1.0], 'grande' => ['Grande', 1.2]];
+    public const TAMANHOS = ['pequena' => ['Pequena', 0.86], 'normal' => ['Normal', 1.0], 'grande' => ['Grande', 1.2],
+        'extra' => ['Extra grande', 1.4]];
 
     /** Pesos abaixo disso podem sair apagados no papel termico (a tela avisa). */
     public const PESO_FRACO = 300;
