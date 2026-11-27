@@ -34,6 +34,11 @@ $ifoodDados = $ifood['dados'] ?? [];
 $entregaIfood = $doIfood && $p['ifood_entregue_por'] === 'ifood';
 $cancelando = $doIfood && ($ifoodDados['cancelamento'] ?? null) === 'solicitado';
 $formaTexto = $doIfood && !empty($ifoodDados['pagamento']) ? (string) $ifoodDados['pagamento'] : StatusPedido::forma((string) $p['forma_pagamento'], (string) $p['tipo']);
+$doCaixa = StatusPedido::doCaixa($p);
+if ($doCaixa && $p['pagamento_status'] === 'pago') {
+    // Pago no caixa na hora: o entregador nao cobra nada.
+    $formaTexto = 'Pago no caixa (' . (['pix_entrega' => 'Pix', 'dinheiro' => 'Dinheiro', 'debito' => 'Débito', 'credito' => 'Crédito'][(string) $p['forma_pagamento']] ?? 'pago') . ')';
+}
 $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em'])) / 60));
 if (!empty($notaFiscal)) {
     $pageStyles = [...($pageStyles ?? []), 'css/caixa-fiscal.css'];
@@ -44,7 +49,7 @@ if (!empty($notaFiscal)) {
     <header class="painel-cabecalho">
         <div>
             <h1>Pedido #<?= (int) $p['numero'] ?></h1>
-            <p><?php if ($doIfood): ?><span class="etiqueta etiqueta-ifood"><?= Icon::svg('shopping-bag') ?>iFood<?= $p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '' ?></span> <?php endif; ?><?= $entrega ? ($entregaIfood ? 'Entrega pelo iFood' : 'Entrega') : 'Retirada no local' ?> · feito às <?= $e(date('H:i', (int) strtotime((string) $p['criado_em']))) ?><?= $emAndamento ? ' (' . ($minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT)) . ')' : '' ?></p>
+            <p><?php if ($doIfood): ?><span class="etiqueta etiqueta-ifood"><?= Icon::svg('shopping-bag') ?>iFood<?= $p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '' ?></span> <?php endif; ?><?php if ($doCaixa): ?><span class="etiqueta etiqueta-ifood selo-caixa"><?= Icon::svg('monitor') ?>Feito no caixa</span> <?php endif; ?><?= $entrega ? ($entregaIfood ? 'Entrega pelo iFood' : 'Entrega') : 'Retirada no local' ?> · feito às <?= $e(date('H:i', (int) strtotime((string) $p['criado_em']))) ?><?= $emAndamento ? ' (' . ($minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT)) . ')' : '' ?></p>
         </div>
         <div class="painel-acoes">
             <?php $acaoImprimir = $base . '/imprimir/pedido/' . (int) $p['id']; $rotuloImprimir = 'Imprimir'; require __DIR__ . '/_imprimir.php'; ?>
@@ -221,7 +226,7 @@ if (!empty($notaFiscal)) {
             <?php if ($entrega): ?><tr><td>Entrega</td><td><?= $e(Numero::reais((string) $p['taxa_entrega'])) ?></td></tr><?php endif; ?>
             <tr class="impressao-total"><td>Total</td><td><?= $e(Numero::reais((string) $p['total'])) ?></td></tr>
         </table>
-        <p><?= $e($formaTexto) ?><?= $p['pagamento_status'] === 'pago' && !$doIfood ? ' (PAGO)' : '' ?><?= $troco > 0 ? ' · troco para ' . $e(Numero::reais((string) $p['troco_para'])) : '' ?></p>
+        <p><?= $e($formaTexto) ?><?= $p['pagamento_status'] === 'pago' && !$doIfood && !$doCaixa ? ' (PAGO)' : '' ?><?= $troco > 0 ? ' · troco para ' . $e(Numero::reais((string) $p['troco_para'])) : '' ?></p>
         <?php if ($p['observacao']): ?><p>Obs.: <?= $e((string) $p['observacao']) ?></p><?php endif; ?>
     </div>
 </div>

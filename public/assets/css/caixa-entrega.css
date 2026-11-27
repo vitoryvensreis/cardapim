@@ -1,0 +1,52 @@
+/* Venda no balcao -> entrega: aba "Entrega" da Conta e popup "Preparar pedido" (caixa-entrega.js). Mobile-first. */
+.conta-totais div[hidden], .entrega-resumo div[hidden] { display: none; }
+
+.entrega-corpo .alternador { margin-bottom: .85rem; }
+.entrega-campos[hidden] { display: none; }
+.entrega-campos .campo-caixa small { color: var(--c-muted); font-weight: 400; }
+
+.entrega-telefone { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .6rem; }
+.entrega-telefone .btn { min-height: 2.9rem; margin-bottom: .85rem; }
+
+.entrega-bairros { margin: -.25rem 0 .85rem; padding: .7rem .8rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-cream); }
+.entrega-bairros[hidden] { display: none; }
+.entrega-bairros p { margin: 0 0 .5rem; color: var(--c-ink); font-size: .85rem; font-weight: 700; }
+.entrega-bairros-opcoes { display: flex; flex-wrap: wrap; gap: .4rem; }
+.entrega-bairros-opcoes .chip { min-height: 2.75rem; }
+
+.entrega-status {
+  display: flex; align-items: flex-start; gap: .45rem; margin: 0 0 .85rem; padding: .65rem .8rem;
+  border: 1px solid var(--c-line); border-left-width: 4px; border-radius: var(--r-md); background: var(--c-white);
+  color: var(--c-ink); font-size: .88rem; line-height: 1.4;
+}
+.entrega-status[hidden] { display: none; }
+.entrega-status[data-tipo="ok"] { border-color: #9fd3b4; border-left-color: var(--c-success); background: var(--c-success-bg); }
+.entrega-status[data-tipo="aviso"] { border-left-color: var(--c-orange); background: var(--c-cream); }
+.entrega-status[data-tipo="erro"] { border-color: #f1b8b8; border-left-color: var(--c-danger); background: #fdf1f1; color: var(--c-danger); font-weight: 700; }
+.entrega-status[data-tipo="carregando"] { color: var(--c-muted); }
+
+.entrega-resumo { margin: 0; padding: .75rem .9rem; border-radius: var(--r-md); background: var(--c-blush); }
+.entrega-resumo[hidden] { display: none; }
+.entrega-resumo div { display: flex; justify-content: space-between; gap: 1rem; padding: .15rem 0; color: var(--c-ink); font-size: .92rem; }
+.entrega-resumo dd { margin: 0; font-variant-numeric: tabular-nums; }
+.entrega-resumo-total { margin-top: .3rem; padding-top: .4rem !important; border-top: 1px dashed var(--c-wine-400); font: 700 1.05rem/1.3 var(--f-head) !important; }
+
+/* Popup */
+.preparar-total {
+  display: grid; justify-items: center; gap: .15rem; padding: 1rem; border-radius: var(--r-xl);
+  background: linear-gradient(160deg, var(--c-wine) 0%, var(--c-wine-800) 100%); color: var(--c-white); text-align: center;
+}
+.preparar-total span { font-weight: 700; opacity: .85; }
+.preparar-total strong { font: 700 2rem/1.1 var(--f-head); font-variant-numeric: tabular-nums; }
+.preparar-total small { max-width: 24rem; font-size: .82rem; opacity: .9; }
+.preparar-total small:empty { display: none; }
+.preparar-pedido .formas-grade { margin-bottom: .25rem; }
+.preparar-pedido .forma-opcao span { gap: .45rem; }
+.preparar-pedido [data-preparar-dinheiro][hidden] { display: none; }
+.preparar-pedido .troco-ao-vivo[hidden] { display: none; }
+.preparar-pedido .troco-ao-vivo.is-falta { border-color: #f1b8b8; background: #fdf1f1; color: var(--c-danger); }
+.preparar-pedido .campo-erro[hidden] { display: none; }
+
+@media (min-width: 40rem) {
+  .preparar-pedido .preparar-formas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

@@ -24,6 +24,12 @@ $pessoas = (int) ($p['pessoas'] ?? 0);
 $desde = (int) strtotime((string) $p['criado_em']);
 $minutos = max(0, (int) floor((time() - $desde) / 60));
 $tempo = $minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT);
+// Venda no balcao aberta: aba "Entrega" e popup "Preparar pedido".
+$entregaBalcao = $c['aberta'] && $p['tipo'] === 'balcao';
+if ($entregaBalcao) {
+    $pageStyles = [...($pageStyles ?? []), 'css/caixa-entrega.css'];
+    $pageScripts = [...($pageScripts ?? []), 'js/caixa-entrega.js'];
+}
 if (!empty($notaFiscal)) {
     $pageStyles = [...($pageStyles ?? []), 'css/caixa-fiscal.css'];
     $pageScripts = [...($pageScripts ?? []), 'js/caixa-fiscal.js'];
@@ -203,7 +209,8 @@ if (!empty($notaFiscal)) {
                     <div><dt>Itens (<?= (int) $qtdItens ?>)</dt><dd><?= $e($r($c['subtotal'])) ?></dd></div>
                     <?php if ($servicoLigado || $c['servico'] > 0): ?><div><dt>Serviço (<?= $e(rtrim(rtrim(number_format((float) $p['servico_percentual'], 2, ',', ''), '0'), ',')) ?>%)</dt><dd><?= $e($r($c['servico'])) ?></dd></div><?php endif; ?>
                     <?php if ($c['desconto'] > 0): ?><div class="conta-desconto"><dt>Desconto<?= $p['motivo_desconto'] ? ' · ' . $e((string) $p['motivo_desconto']) : '' ?></dt><dd>−<?= $e($r($c['desconto'])) ?></dd></div><?php endif; ?>
-                    <div class="conta-total"><dt>Total</dt><dd><?= $e($r($c['total'])) ?></dd></div>
+                    <div data-conta-taxa-entrega hidden><dt>Taxa de entrega</dt><dd data-conta-taxa-valor></dd></div>
+                    <div class="conta-total"><dt>Total</dt><dd data-conta-total data-total-normal="<?= $e($r($c['total'])) ?>"><?= $e($r($c['total'])) ?></dd></div>
                     <?php if ($pessoas > 1 && $c['total'] > 0): ?><div class="conta-divisao"><dt>Dividido por <?= $pessoas ?></dt><dd><?= $e($r(intdiv($c['total'] + $pessoas - 1, $pessoas))) ?> cada</dd></div><?php endif; ?>
                     <?php if ($c['pago'] > 0): ?>
                         <div><dt>Já pago</dt><dd><?= $e($r($c['pago'])) ?></dd></div>
@@ -212,8 +219,8 @@ if (!empty($notaFiscal)) {
                 </dl>
 
                 <?php if ($c['aberta']): ?>
-                    <a class="btn btn-primary btn-lg btn-block conta-receber<?= $c['total'] > 0 ? '' : ' is-desligado' ?>" href="<?= $e($url . '/pagar') ?>"<?= $c['total'] > 0 ? '' : ' aria-disabled="true" tabindex="-1"' ?>>
-                        <?= Icon::svg('wallet', 'icon-sm') ?>Receber e fechar conta
+                    <a class="btn btn-primary btn-lg btn-block conta-receber<?= $c['total'] > 0 ? '' : ' is-desligado' ?>" href="<?= $e($url . '/pagar') ?>"<?= $c['total'] > 0 ? '' : ' aria-disabled="true" tabindex="-1"' ?> data-conta-receber>
+                        <?= Icon::svg('wallet', 'icon-sm') ?><span data-receber-texto data-texto-normal="Receber e fechar conta">Receber e fechar conta</span>
                     </a>
                     <?php if (!$caixaAberto): ?><p class="conta-aviso"><?= Icon::svg('lock', 'icon-sm') ?>O caixa está fechado. <a href="<?= $e($base) ?>">Abra o caixa</a> para receber.</p><?php endif; ?>
 
@@ -228,6 +235,7 @@ if (!empty($notaFiscal)) {
                                 <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('save', 'icon-sm') ?>Salvar observação</button>
                             </form>
                         </details>
+                        <?php require __DIR__ . '/_entrega-balcao.php'; ?>
                     <?php endif; ?>
 
                     <details class="conta-mais"<?= isset($erros['desconto']) || isset($erros['motivo_desconto']) || isset($erros['pessoas']) ? ' open' : '' ?>>
@@ -291,9 +299,11 @@ if (!empty($notaFiscal)) {
 
     <?php if ($c['aberta']): ?>
         <div class="comanda-barra" data-regiao="barra">
-            <div><small><?= (int) $qtdItens ?> <?= $qtdItens === 1 ? 'item' : 'itens' ?></small><strong><?= $e($r($c['restante'] > 0 || $c['pago'] > 0 ? $c['restante'] : $c['total'])) ?></strong></div>
-            <a class="btn btn-primary<?= $c['total'] > 0 ? '' : ' is-desligado' ?>" href="<?= $e($url . '/pagar') ?>"<?= $c['total'] > 0 ? '' : ' aria-disabled="true" tabindex="-1"' ?>><?= Icon::svg('wallet', 'icon-sm') ?>Receber</a>
+            <div><small><?= (int) $qtdItens ?> <?= $qtdItens === 1 ? 'item' : 'itens' ?></small><strong data-barra-total data-total-normal="<?= $e($r($c['restante'] > 0 || $c['pago'] > 0 ? $c['restante'] : $c['total'])) ?>"><?= $e($r($c['restante'] > 0 || $c['pago'] > 0 ? $c['restante'] : $c['total'])) ?></strong></div>
+            <a class="btn btn-primary<?= $c['total'] > 0 ? '' : ' is-desligado' ?>" href="<?= $e($url . '/pagar') ?>"<?= $c['total'] > 0 ? '' : ' aria-disabled="true" tabindex="-1"' ?> data-conta-receber><?= Icon::svg('wallet', 'icon-sm') ?><span data-receber-texto data-texto-normal="Receber">Receber</span></a>
         </div>
+
+        <?php if ($entregaBalcao) { require __DIR__ . '/_preparar-pedido.php'; } ?>
 
         <dialog class="folha" data-dialogo-produto aria-labelledby="produto-titulo">
             <form method="post" action="<?= $e($url . '/itens') ?>" class="folha-caixa" data-ajax data-form-produto>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Cardapim\Controllers\Caixa\CaixaController;
 use Cardapim\Controllers\Caixa\ComandaController;
 use Cardapim\Controllers\Caixa\DeliveryController;
+use Cardapim\Controllers\Caixa\EntregaBalcaoController;
 use Cardapim\Controllers\Caixa\FiscalCaixaController;
 use Cardapim\Controllers\Caixa\HistoricoComandasController;
 use Cardapim\Controllers\Caixa\IfoodController;
@@ -56,6 +57,11 @@ return static function (Router $router): void {
     $router->post($c . '/comandas/{id}/pagamentos', [ComandaController::class, 'pagamento']);
     $router->post($c . '/comandas/{id}/pagamentos/{pagamento}/remover', [ComandaController::class, 'removerPagamento']);
     $router->post($c . '/comandas/{id}/cancelar', [ComandaController::class, 'cancelar']);
+    // Venda no balcao que vira entrega (aba "Entrega" e "Preparar pedido")
+    $router->post($c . '/comandas/{id}/entrega/telefone', [EntregaBalcaoController::class, 'telefone']);
+    $router->post($c . '/comandas/{id}/entrega/bairro', [EntregaBalcaoController::class, 'bairro']);
+    $router->post($c . '/comandas/{id}/entrega/calcular', [EntregaBalcaoController::class, 'calcular']);
+    $router->post($c . '/comandas/{id}/entrega', [EntregaBalcaoController::class, 'preparar']);
 
     // Imprimir pelo Deliveryzim Agent do computador (conta, pedido do delivery e resumo do caixa) e situacao do cupom
     $router->post($c . '/imprimir/comanda/{id}', [ImpressaoController::class, 'comanda']);

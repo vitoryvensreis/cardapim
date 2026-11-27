@@ -366,7 +366,8 @@ final class CupomImpressao
         $ifood = ($p['origem'] ?? '') === 'ifood';
         return [
             'titulo' => 'PEDIDO #' . (int) $p['numero'],
-            'linha' => ($p['tipo'] === 'entrega' ? 'ENTREGA' : 'RETIRADA') . ($ifood ? ' · iFood' . (!empty($p['ifood_display_id']) ? ' #' . $p['ifood_display_id'] : '') : ''),
+            'linha' => ($p['tipo'] === 'entrega' ? 'ENTREGA' : 'RETIRADA') . ($ifood ? ' · iFood' . (!empty($p['ifood_display_id']) ? ' #' . $p['ifood_display_id'] : '') : '')
+                . (StatusPedido::doCaixa($p) ? ' · FEITO NO CAIXA' : ''),
             'detalhe' => trim((string) ($p['cliente_nome'] ?? '')) !== '' ? 'Cliente: ' . trim((string) $p['cliente_nome']) : 'Delivery',
             'observacao' => (string) ($p['observacao'] ?? ''),
         ];

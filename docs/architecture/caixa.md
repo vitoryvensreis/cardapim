@@ -55,6 +55,36 @@ Gerente: `/gerencia/mesas` leva ao cadastro de mesas e `/entregas` ao Delivery d
   (caixa aberto/fechado, entrada/saida, mesa criada/editada/excluida, item cancelado, desconto, conta fechada,
   pedido despachado/cancelado). Eventos no outbox: `caixa.*`, `comanda.*`, `mesa.*`, `pedido.atualizado`, `entrega.despachada`.
 
+## Entrega feita no caixa (venda no balcão que vira entrega)
+
+Na venda no balcão aberta, a Conta tem a aba **Entrega** logo depois de "Adicionar observação ao pedido"
+(`Views/caixa/_entrega-balcao.php`, `public/assets/js/caixa-entrega.js`, `css/caixa-entrega.css`). Nunca aparece em mesa.
+
+- Caixinha **Pedido para entrega**. Desmarcada, a venda funciona como sempre. Marcada, aparecem telefone (com **Buscar**),
+  nome, rua, número, bairro e complemento, e o botão "Receber e fechar conta" vira **Preparar pedido**.
+- **Buscar** pelo telefone: nome e último endereço desse número **neste restaurante** (`PedidoRepository::ultimoDoTelefone`).
+- Ao terminar rua e número, o bairro e o CEP são buscados na cidade do restaurante (`Geocodificador::ruas`, ViaCEP
+  `/ws/UF/Cidade/Rua/json/`, cache de 30 dias). Rua com mais de um bairro mostra os bairros para escolher; sem resultado,
+  o operador digita o bairro. Trocar o bairro recalcula a taxa.
+- Taxa pela mesma regra do cardápio online (`VerificadorEntrega`). **Fora da área bloqueia o envio**; abaixo do pedido
+  mínimo só avisa.
+- Popup **Preparar pedido** (`_preparar-pedido.php`): pagamento **agora** (entra no caixa na hora e o pedido vai como pago)
+  ou **na entrega** (entra no "Entregue e recebido"); dinheiro com troco, Pix, crédito ou débito.
+- `EntregaBalcaoService::preparar` (em transação, com a venda travada) exige caixa aberto, venda sem pagamento e sem Pix
+  pendente, recalcula taxa e total (itens − desconto + taxa; serviço zerado), grava endereço e área, deixa o pedido
+  `entrega` / `em_preparo` com `origem = 'balcao'`, registra o pagamento (se agora), avisa a fila em tempo real e o
+  WhatsApp do cliente (eventos ligados no restaurante). A cozinha recebe só os itens que ainda não tinham saído
+  (`FilaImpressao::producaoEntregaBalcao`). Não precisa de migration.
+- `DeliveryService::concluir` não registra de novo o pagamento já feito no caixa. Cancelar um pedido pago no caixa avisa
+  para devolver o valor e registrar a saída. Estoque: baixado item a item no lançamento; cancelar devolve.
+- O pedido aparece com o selo **Caixa** na fila, "Feito no caixa" no pedido e "FEITO NO CAIXA" na comanda da cozinha.
+- O que foi digitado fica guardado na aba do navegador (`sessionStorage`), porque a Conta é redesenhada a cada item lançado
+  (`caixa.js` avisa com o evento `cardapim:regioes-trocadas`).
+
+Rotas (POST, CSRF, acesso do caixa): `/comandas/{id}/entrega/telefone`, `/entrega/bairro`, `/entrega/calcular` (JSON) e
+`/comandas/{id}/entrega` (Preparar pedido). Testes: `tests/unit/entrega-balcao.php` e a seção "Entrega feita no caixa"
+de `tests/http/caixa.sh`.
+
 ## Tabelas (migration `20261110140000_create_caixa_mesas.php`)
 
 - `mesas`: numero (unico por restaurante; NULL quando excluida com historico), apelido, lugares, ativo, excluida_em.

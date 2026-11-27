@@ -218,7 +218,8 @@ final class DeliveryService
                 $this->db->rollBack();
                 return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
             }
-            if ($total > 0 && isset(self::FORMA_CAIXA[$forma])) {
+            // Pago no caixa na hora (entrega feita no balcao): o valor ja entrou no caixa, nao registra de novo.
+            if ($total > 0 && isset(self::FORMA_CAIXA[$forma]) && ComandaService::totalPago($this->db, $this->idRestaurante, $id) === 0) {
                 $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
                     ->execute([$id, $this->idRestaurante, $caixa !== null ? (int) $caixa['id'] : null, self::FORMA_CAIXA[$forma], (string) $p['total'],
                         CaixaService::dec($troco), $this->autor->id, $agora]);
@@ -256,7 +257,9 @@ final class DeliveryService
             return Resultado::falha('Este pedido já foi concluído ou cancelado.');
         }
         $aviso = $p['origem'] === 'ifood' ? ' Cancele também no Gestor de Pedidos do iFood (a integração está desligada).'
-            : ($p['pagamento_status'] === 'pago' ? ' Ele já estava pago: devolva o valor ao cliente pelo Asaas.' : '');
+            : ($p['pagamento_status'] === 'pago' ? (ComandaService::totalPago($this->db, $this->idRestaurante, $id) > 0
+                ? ' Ele já estava pago no caixa: devolva o valor ao cliente e registre a saída em Entradas e saídas.'
+                : ' Ele já estava pago: devolva o valor ao cliente pelo Asaas.') : '');
         Auditoria::registrar($this->autor, 'Pedido cancelado', sprintf('Pedido #%d (%s). Motivo: %s. Estoque devolvido.%s', (int) $p['numero'], Numero::reais((string) $p['total']), $motivo, $aviso));
         return Resultado::sucesso('Pedido #' . $p['numero'] . ' cancelado. O estoque foi devolvido.' . $aviso);
     }
