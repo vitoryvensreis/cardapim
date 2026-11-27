@@ -7,6 +7,7 @@ use Cardapim\Controllers\Gerencia\CozinhaController;
 use Cardapim\Controllers\Gerencia\CuponsController;
 use Cardapim\Controllers\Gerencia\EntregaPagamentoController;
 use Cardapim\Controllers\Gerencia\FidelidadeController;
+use Cardapim\Controllers\Gerencia\PopupController;
 use Cardapim\Controllers\Gerencia\EquipeController;
 use Cardapim\Controllers\Gerencia\EstoqueController;
 use Cardapim\Controllers\Gerencia\FinanceiroController;
@@ -113,6 +114,9 @@ return static function (Router $router): void {
     $router->post($g . '/cupons/{id}/excluir', [CuponsController::class, 'excluir']);
     $router->get($g . '/fidelidade', [FidelidadeController::class, 'mostrar']);
     $router->post($g . '/fidelidade', [FidelidadeController::class, 'salvar']);
+    $router->get($g . '/popup', [PopupController::class, 'mostrar']);
+    $router->post($g . '/popup', [PopupController::class, 'salvar']);
+    $router->post($g . '/popup/imagem/remover', [PopupController::class, 'removerImagem']);
 
     $router->get($g . '/entrega-pagamento', [EntregaPagamentoController::class, 'mostrar']);
     $router->post($g . '/entrega-pagamento', [EntregaPagamentoController::class, 'salvar']);

@@ -370,6 +370,7 @@ Fluxo de trabalho: branch → PR → CI verde → merge autorizado → deploy au
 | Mudar o que aparece no cardápio do cliente | `Services/Cardapio/CardapioPublico.php`, `Views/restaurante/`, `cardapio.css/js` | Disponibilidade: `Modules/Inventory/DisponibilidadeProdutos.php` |
 | Mudar a criação do pedido online | `Services/Pedidos/CriarPedido.php`, `LinhasSacola.php`, `CheckoutPublico.php` | Estoque (`BaixaEstoque`), descontos, tempo real, Agent |
 | Mudar status do pedido | `Services/Pedidos/StatusPedido.php` | Avisos de WhatsApp, iFood (`IfoodAcoes`), tempo real |
+| Popup do cardápio (banner 1:1 ou texto) | `Services/Gerencia/PopupService.php`, `Modules/Restaurante/PopupUpload.php` | Tela em `Views/gerencia/popup.php`; no cardápio `Views/restaurante/_popup.php` e `js/cardapio-popup.js`; doc em `docs/architecture/cupons-fidelidade.md` |
 | Mexer no caixa/comandas | `Services/Caixa/*`, `Controllers/Caixa/*`, `Views/caixa/` | Garçom usa o mesmo `ComandaService` |
 | Mexer na integração iFood | `Services/Ifood/*`, `Modules/Integracoes/IfoodApi.php` | `bin/ifood.php`, `tests/unit/ifood*.php` |
 | Mensagens de WhatsApp | `Services/Pedidos/AvisosWhatsApp.php`, `SaudacaoWhatsApp.php` | Webhook `EvolutionWebhookController`, `DiagnosticoSaudacao` |

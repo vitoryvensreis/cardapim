@@ -54,3 +54,24 @@ fica guardado para o próximo pedido; sem cupom, o prêmio entra sozinho.
 | GET/POST | `/{slug}/gerencia/fidelidade` | Configuração do programa |
 
 Testes: `tests/http/cupons.sh`.
+
+## Popup do cardápio (Gerência > Clientes > Popup do cardápio)
+
+Banner quadrado (1:1) ou texto que abre quando o cliente entra no link de pedidos (`/{slug}`).
+
+- Tela: `Controllers/Gerencia/PopupController.php`, `Views/gerencia/popup.php` (prévia ao vivo em `js/popup-gerencia.js`,
+  `css/popup-gerencia.css`). Rotas: `GET|POST /{slug}/gerencia/popup` e `POST /{slug}/gerencia/popup/imagem/remover`.
+- Regras em `Services/Gerencia/PopupService.php`: ligado/desligado, tipo imagem ou texto (título até 60 letras, mensagem
+  até 300), período opcional (início e fim, datas inclusivas). Ligado sem imagem (ou sem título e mensagem) é recusado.
+- Imagem: `Modules/Restaurante/PopupUpload.php` confere tipo real e tamanho (PNG, JPG ou WebP até 5 MB, a partir de
+  200 x 200), recorta o centro em quadrado e reduz para no máximo 1080 x 1080 (WebP, sem metadados). Fica em
+  `storage/uploads/popups` e é servida por `/midia/popups/{arquivo}` (`MidiaUrl` sem extensão). Trocar ou remover
+  apaga o arquivo antigo.
+- Banco: `restaurante_popup` (migration `20261130100000_popup_cardapio.php`, `database/verify-popup-cardapio.php`,
+  `deploy/scripts/apply-popup-cardapio.sh`, gatilho `[cardapim-popup-cardapio]`, `Esquema::tem('popup_cardapio')`).
+  Cada salvamento sobe `versao`.
+- Cardápio: `RestauranteController::cardapio` usa `PopupService::paraCardapio` (nunca derruba a página) e a view inclui
+  `restaurante/_popup.php` com `css/cardapio-popup.css` e `js/cardapio-popup.js`. Abre uma vez por visita (a chave
+  `slug:versao` fica no `sessionStorage`), não abre por cima de outra janela do cardápio e fecha pelo X, por
+  "Ver cardápio", Esc ou toque fora.
+- Testes: `tests/unit/popup-cardapio.php` e `tests/http/popup-cardapio.sh`.

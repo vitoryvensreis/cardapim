@@ -41,6 +41,8 @@ final class Esquema
         'cupom_aparencia' => ['restaurante_cupom_aparencia', 'tamanho'],
         // Margem lateral por impressora, nome de quem atendeu e resumo de valores no delivery aceito.
         'cupom_opcoes' => ['restaurante_impressao_config', 'delivery_com_preco'],
+        // Popup do cardapio online (banner 1:1 ou texto).
+        'popup_cardapio' => ['restaurante_popup', 'versao'],
         'fiscal_restaurante' => ['restaurante_fiscal', 'dados'],
         'fiscal_produtos' => ['fiscal_produtos', 'dados'],
         'fiscal_visibilidade' => ['fiscal_visibilidade', 'visivel'],

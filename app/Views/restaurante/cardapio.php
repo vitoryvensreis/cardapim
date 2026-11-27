@@ -1,6 +1,6 @@
 <?php
 /**
- * Cardapio publico. Espera: $restaurante, $logo, $iniciais, $categorias (id, nome, produtos), $totalProdutos, $info.
+ * Cardapio publico. Espera: $restaurante, $logo, $iniciais, $categorias (id, nome, produtos), $totalProdutos, $info, $popup (opcional).
  * Os produtos levam data-* com id, nome, descricao e preco em centavos: o JS monta a sacola sem script inline.
  */
 use Cardapim\Core\Icon;
@@ -10,6 +10,12 @@ $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBS
 $aberto = $info['aberto'];
 $status = !$info['horario_informado'] ? ['neutro', 'clock', 'Horário não informado'] : ($aberto ? ['aberto', 'circle-check', 'Aberto agora'] : ['fechado', 'clock', 'Fechado agora']);
 $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
+$popup ??= null;
+if ($popup !== null) {
+    // Popup do cardapio: CSS e JS proprios, mantendo os scripts padrao do cardapio.
+    $pageStyles = [...($pageStyles ?? []), 'css/cardapio-popup.css'];
+    $pageScripts = [...($pageScripts ?? ['js/cardapio.js', 'js/cardapio-status.js']), 'js/cardapio-popup.js'];
+}
 ?>
 <section class="cd-hero" aria-labelledby="cd-nome">
     <div class="cd-capa" aria-hidden="true"></div>
@@ -150,3 +156,4 @@ $telefone = preg_replace('/\D/', '', (string) $info['telefone']) ?? '';
 <?php endif; ?>
 
 <p class="cd-toast" role="status" aria-live="polite" data-toast hidden></p>
+<?php if ($popup !== null) { require __DIR__ . '/_popup.php'; } ?>

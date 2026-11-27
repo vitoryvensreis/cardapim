@@ -8,6 +8,7 @@ use Cardapim\Core\Response;
 use Cardapim\Modules\Catalog\ImagemCardapio;
 use Cardapim\Modules\Marca\MarcaUpload;
 use Cardapim\Modules\Restaurante\LogoUpload;
+use Cardapim\Modules\Restaurante\PopupUpload;
 
 /**
  * Serve as logos enviadas pelos restaurantes e as da plataforma (guardadas em storage/, fora da pasta publica).
@@ -20,6 +21,12 @@ final class MidiaController
     public function logo(string $arquivo): Response
     {
         return $this->servir(LogoUpload::arquivoDe(LogoUpload::PREFIXO_URL . $arquivo));
+    }
+
+    /** Banner do popup do cardapio online. */
+    public function popup(string $arquivo): Response
+    {
+        return $this->servir(PopupUpload::arquivoDe(PopupUpload::PREFIXO_URL . $arquivo));
     }
 
     /** Fotos de produtos e complementos do cardapio. */
