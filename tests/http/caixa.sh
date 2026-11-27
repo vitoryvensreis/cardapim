@@ -467,17 +467,17 @@ esperar "mesa fechada com as taxas" "$(banco 'SELECT status, taxa_pagamento, tot
 r="$(enviar "$cx" "$c/balcao" nome=)"
 te="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
 enviar "$cx" "$c/comandas/$te/itens" produto="$produto" quantidade=1 >/dev/null
-base=$((preco + 500)); tx3=$(( (base * 350 + 5000) / 10000 ))
+ebase=$((preco + 500)); tx3=$(( (ebase * 350 + 5000) / 10000 ))
 jpost "$c/comandas/$te/entrega/calcular" logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" >/dev/null
 esperar "calculo da entrega traz a taxa do credito" "$(json "$tmp/j.json" taxas_pagamento.credito.centavos)" "$tx3"
-esperar "calculo da entrega traz o total com a taxa" "$(json "$tmp/j.json" taxas_pagamento.credito.total_centavos)" "$((base + tx3))"
+esperar "calculo da entrega traz o total com a taxa" "$(json "$tmp/j.json" taxas_pagamento.credito.total_centavos)" "$((ebase + tx3))"
 esperar "dinheiro sem taxa na entrega" "$(json "$tmp/j.json" taxas_pagamento.dinheiro)" "null"
 enviar "$cx" "$c/comandas/$te/entrega" nome=Dani logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" quando=agora forma=credito taxa_vista=1 >/dev/null
 esperar "taxa diferente na entrega recusada" "$(aviso "$cx" "$c/comandas/$te")" "A taxa da forma de pagamento mudou. Confira o total na aba Entrega e envie de novo."
 r="$(enviar "$cx" "$c/comandas/$te/entrega" nome=Dani logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" quando=agora forma=credito "taxa_vista=$tx3")"
 case "$(aviso "$cx" "$c/delivery/$te")" in *"recebido (inclui taxa de $(rs "$tx3"))."*) ok "entrega paga agora no credito com taxa";; *) falha "aviso da entrega com taxa ($(aviso "$cx" "$c/delivery/$te"))";; esac
-esperar "pedido de entrega com a taxa no total" "$(banco 'SELECT tipo, pagamento_status, taxa_pagamento, taxa_pagamento_rotulo, total FROM pedidos WHERE id = ?' "$te")" "entrega|pago|$(dec "$tx3")|Taxa do crédito (3,5%)|$(dec $((base + tx3)))"
-esperar "pagamento da entrega com a taxa" "$(banco 'SELECT COUNT(*), SUM(valor), SUM(taxa) FROM pedido_pagamentos WHERE id_pedido = ?' "$te")" "1|$(dec $((base + tx3)))|$(dec "$tx3")"
+esperar "pedido de entrega com a taxa no total" "$(banco 'SELECT tipo, pagamento_status, taxa_pagamento, taxa_pagamento_rotulo, total FROM pedidos WHERE id = ?' "$te")" "entrega|pago|$(dec "$tx3")|Taxa do crédito (3,5%)|$(dec $((ebase + tx3)))"
+esperar "pagamento da entrega com a taxa" "$(banco 'SELECT COUNT(*), SUM(valor), SUM(taxa) FROM pedido_pagamentos WHERE id_pedido = ?' "$te")" "1|$(dec $((ebase + tx3)))|$(dec "$tx3")"
 enviar "$cx" "$c/delivery/$te/despachar" entregador="$entregador" >/dev/null
 enviar "$cx" "$c/delivery/$te/concluir" >/dev/null
 esperar "concluir a entrega paga nao cobra de novo" "$(banco 'SELECT status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$te")" "concluido|1"
@@ -485,7 +485,7 @@ r="$(enviar "$cx" "$c/balcao" nome=)"
 te2="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
 enviar "$cx" "$c/comandas/$te2/itens" produto="$produto" quantidade=1 >/dev/null
 enviar "$cx" "$c/comandas/$te2/entrega" nome=Edu logradouro="Rua Haddock Lobo" numero=300 "bairro=Cerqueira César" quando=entrega forma=debito taxa_vista=100 >/dev/null
-esperar "na entrega no debito: total ja com a taxa" "$(banco 'SELECT pagamento_status, forma_pagamento, taxa_pagamento, total FROM pedidos WHERE id = ?' "$te2")" "pendente|debito|1.00|$(dec $((base + 100)))"
+esperar "na entrega no debito: total ja com a taxa" "$(banco 'SELECT pagamento_status, forma_pagamento, taxa_pagamento, total FROM pedidos WHERE id = ?' "$te2")" "pendente|debito|1.00|$(dec $((ebase + 100)))"
 enviar "$cx" "$c/delivery/$te2/cancelar" "motivo=Teste da taxa" >/dev/null
 php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("DELETE FROM restaurante_taxas_pagamento WHERE id_restaurante = ?")->execute([$argv[1]]);' "$rid"
 vendidas="$(php -r "echo (int) round($estoque_taxa - $(estoque));")"
@@ -544,8 +544,6 @@ contem "filtro de canceladas marcado" "$tmp/hist.html" 'status=canceladas" aria-
 esperar "comanda de outro restaurante ou inexistente" "$(curl -s -o /dev/null -b "$cx" -w '%{http_code}' "$c/comandas/999999999/detalhes")" "303"
 
 echo "Limpeza"
-printf '  painel do WhatsApp: %s\n' "$(curl -s -o "$tmp/painel.html" -b "$aj" -w '%{http_code} %{redirect_url}' "$base/painel/integracoes/whatsapp")"
-grep -o '<title>[^<]*\|data-flash>[^<]*<p>[^<]*' "$tmp/painel.html" | head -3 || true
 t="$(token "$aj" "$base/painel/integracoes/whatsapp")"
 curl -s -o /dev/null -c "$aj" -b "$aj" --data-urlencode "_csrf=$t" "$base/painel/integracoes/whatsapp/desconectar"
 ok "WhatsApp de teste desligado"
