@@ -55,3 +55,7 @@
 @media (min-width: 36rem) {
   .preparar-pedido .preparar-formas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+/* Taxa da forma de pagamento no popup "Preparar pedido". */
+.preparar-pedido .forma-opcao .forma-taxa { margin-left: .25rem; }
+.preparar-taxa { color: var(--c-white); font-weight: 700; opacity: .95; }
+.preparar-taxa[hidden] { display: none; }

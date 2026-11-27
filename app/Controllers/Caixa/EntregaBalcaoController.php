@@ -65,6 +65,7 @@ final class EntregaBalcaoController extends BaseCaixa
         $res = $this->servico()->preparar((int) $id, $this->endereco() + [
             'nome' => $this->post('nome'), 'telefone' => $this->post('telefone'),
             'quando' => $this->post('quando'), 'forma' => $this->post('forma'), 'valor' => mb_substr($this->post('valor'), 0, 20),
+            'taxa_vista' => mb_substr($this->post('taxa_vista'), 0, 12),
         ]);
         if (!$res->ok) {
             return $this->voltar($volta, 'erro', $res->mensagem);

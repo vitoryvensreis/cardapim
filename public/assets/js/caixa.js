@@ -497,19 +497,37 @@
     const trocoRotulo = $("[data-pagar-troco-rotulo]", pagar);
     const trocoValor = $("[data-pagar-troco-valor]", pagar);
     const textoEnviar = $("[data-pagar-enviar-texto]", pagar);
+    // Taxa por forma de pagamento (regras vindas do servidor). So mostra: o servidor confere pelo taxa_vista.
+    let taxas = {};
+    try { taxas = JSON.parse(pagar.dataset.pagarTaxas || "{}") || {}; } catch (e) { taxas = {}; }
+    const blocoTaxa = $("[data-pagar-taxa]", pagar);
+    const taxaVista = $("[data-pagar-taxa-vista]", pagar);
+    const taxaDe = (base, regra) => (window.Cardapim && window.Cardapim.taxaDe ? window.Cardapim.taxaDe(base, regra) : 0);
     const forma = () => ($("[data-pagar-forma]:checked", pagar) || {}).value || "dinheiro";
     const desenhar = () => {
       const dinheiro = forma() === "dinheiro";
       campoRecebido.hidden = !dinheiro;
       if (notas) notas.hidden = !dinheiro;
-      const v = Math.min(paraCentavos(valor.value), restante);
+      const digitado = valor.value.trim() === "" ? restante : paraCentavos(valor.value);
+      const v = Math.min(digitado, restante);
+      const regra = dinheiro ? null : (taxas[forma()] || null);
+      const taxa = taxaDe(v, regra);
+      if (taxaVista) taxaVista.value = String(taxa);
+      if (blocoTaxa) {
+        blocoTaxa.hidden = taxa <= 0;
+        if (taxa > 0) {
+          $("[data-pagar-taxa-rotulo]", blocoTaxa).textContent = regra.rotulo || "Taxa";
+          $("[data-pagar-taxa-valor]", blocoTaxa).textContent = reais(taxa);
+          $("[data-pagar-taxa-cobrar]", blocoTaxa).textContent = reais(v + taxa);
+        }
+      }
       const r = dinheiro ? paraCentavos(recebido.value) : 0;
       // Mostra enquanto digita: troco (verde, grande) ou quanto ainda falta (vermelho).
       troco.hidden = !dinheiro || r <= 0;
       troco.classList.toggle("is-falta", r > 0 && r < v);
       trocoRotulo.textContent = r >= v ? "Troco" : "Ainda falta";
       trocoValor.textContent = reais(r >= v ? r - v : v - r);
-      textoEnviar.textContent = v > 0 ? `Receber ${reais(v)}${v >= restante ? " e fechar a conta" : ""}` : "Receber";
+      textoEnviar.textContent = v > 0 ? `Receber ${reais(v + taxa)}${v >= restante ? " e fechar a conta" : ""}` : "Receber";
     };
     pagar.addEventListener("input", desenhar);
     pagar.addEventListener("change", desenhar);

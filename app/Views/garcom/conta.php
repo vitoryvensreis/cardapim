@@ -2,11 +2,14 @@
 /**
  * Fechar a conta: total com os 10% (liga/desliga), dividir, forma de pagamento e troco.
  * Pix com QR Code aparece quando o restaurante tem o Asaas conectado. Conta paga = "Pago, mesa liberada".
+ * Taxa por forma de pagamento (se cadastrada): aparece ao lado da forma, no bloco "Cobrar do cliente" e no valor do QR.
+ * So quem pode fechar a conta recebe; sem a permissao, a tela so mostra os valores (regra do gerente, sem mudanca).
  * Espera: $c, $caixaAberto, $pixDisponivel, $podeFecharConta, $troco (flash), $erros, $enviado, $base, $csrf.
  */
 use Cardapim\Controllers\GarcomController;
 use Cardapim\Core\Icon;
 use Cardapim\Services\Caixa\CaixaService;
+use Cardapim\Services\Pedidos\TaxaPagamento;
 use Cardapim\Shared\Numero;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -15,6 +18,8 @@ $p = $c['pedido'];
 $url = $base . '/comandas/' . (int) $p['id'];
 $servicoLigado = $c['servico'] > 0 || (float) $p['servico_percentual'] > 0;
 $formaEscolhida = (string) ($enviado['forma'] ?? ($pixDisponivel ? 'pix_qr' : 'dinheiro'));
+$taxas = is_array($c['taxas'] ?? null) ? $c['taxas'] : [];
+$taxaPixQr = TaxaPagamento::calcularTela((int) $c['restante'], $taxas['pix_online'] ?? null);
 $formas = [
     'dinheiro' => ['Dinheiro', 'banknote', null],
     'debito' => ['Débito', 'credit-card', null],
@@ -54,6 +59,7 @@ $formas = [
     <section class="gc-total" aria-label="Valores da conta">
         <dl class="gc-linhas">
             <div><dt>Itens</dt><dd><?= $e($r($c['subtotal'])) ?></dd></div>
+            <?php if (($c['taxa_pagamento'] ?? 0) > 0): ?><div><dt><?= $e((string) ($c['taxa_pagamento_rotulo'] ?: 'Taxas de pagamento')) ?></dt><dd><?= $e($r((int) $c['taxa_pagamento'])) ?></dd></div><?php endif; ?>
             <div class="gc-servico">
                 <dt>
                     <?php if (isset($podeFecharConta) && !$podeFecharConta): ?>10% serviço<?php else: ?>
@@ -90,7 +96,7 @@ $formas = [
     <?php if (isset($podeFecharConta) && !$podeFecharConta && $c['aberta']): ?>
         <div class="notice notice-info" role="status">
             <?= Icon::svg('info') ?>
-            <div><strong>Quem fecha a conta é o caixa</strong><p>Mostre o total ao cliente e chame o caixa para receber.</p></div>
+            <div><strong>Quem fecha a conta é o caixa</strong><p>Mostre o total ao cliente e chame o caixa para receber.<?= $taxas !== [] ? ' Cartão e Pix podem ter taxa na hora de pagar.' : '' ?></p></div>
         </div>
     <?php elseif (!$caixaAberto): ?>
         <div class="notice notice-warning" role="alert">
@@ -103,13 +109,13 @@ $formas = [
             <?php if ($pixDisponivel): ?>
                 <label class="gc-forma is-destaque">
                     <input type="radio" name="forma_tela" value="pix_qr"<?= $formaEscolhida === 'pix_qr' ? ' checked' : '' ?> data-forma>
-                    <span><?= Icon::svg('qr-code') ?><b>QR Code Pix</b><small>na tela</small></span>
+                    <span><?= Icon::svg('qr-code') ?><b>QR Code Pix</b><small><?= isset($taxas['pix_online']) ? $e((string) $taxas['pix_online']['texto']) : 'na tela' ?></small></span>
                 </label>
             <?php endif; ?>
             <?php foreach ($formas as $chave => [$rotulo, $icone, $dica]): ?>
                 <label class="gc-forma">
                     <input type="radio" name="forma_tela" value="<?= $e($chave) ?>"<?= $formaEscolhida === $chave ? ' checked' : '' ?> data-forma>
-                    <span><?= Icon::svg($icone) ?><b><?= $e($rotulo) ?></b><?php if ($dica): ?><small><?= $e($dica) ?></small><?php endif; ?></span>
+                    <span><?= Icon::svg($icone) ?><b><?= $e($rotulo) ?></b><?php if (isset($taxas[$chave])): ?><small class="forma-taxa"><?= $e((string) $taxas[$chave]['texto']) ?></small><?php elseif ($dica): ?><small><?= $e($dica) ?></small><?php endif; ?></span>
                 </label>
             <?php endforeach; ?>
         </fieldset>
@@ -118,12 +124,14 @@ $formas = [
             <form method="post" action="<?= $e($url . '/pix') ?>" class="gc-pagar" data-painel-forma="pix_qr"<?= $formaEscolhida === 'pix_qr' ? '' : ' hidden' ?>>
                 <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                 <p class="gc-dica"><?= Icon::svg('smartphone', 'icon-sm') ?>O cliente aponta a câmera do app do banco para o QR Code. Quando pagar, a conta fecha sozinha.</p>
-                <button class="btn btn-primary btn-lg btn-block" type="submit"><?= Icon::svg('qr-code') ?>Mostrar QR Code · <?= $e($r($c['restante'])) ?></button>
+                <?php if ($taxaPixQr > 0): ?><p class="gc-dica"><?= Icon::svg('percent', 'icon-sm') ?><?= $e((string) $taxas['pix_online']['rotulo']) ?>: + <?= $e($r($taxaPixQr)) ?> (já no valor do QR Code)</p><?php endif; ?>
+                <button class="btn btn-primary btn-lg btn-block" type="submit"><?= Icon::svg('qr-code') ?>Mostrar QR Code · <?= $e($r($c['restante'] + $taxaPixQr)) ?></button>
             </form>
         <?php endif; ?>
 
-        <form method="post" action="<?= $e($url . '/pagamentos') ?>" class="gc-pagar" novalidate data-pagar-garcom data-painel-forma="presencial"<?= $formaEscolhida === 'pix_qr' ? ' hidden' : '' ?>>
+        <form method="post" action="<?= $e($url . '/pagamentos') ?>" class="gc-pagar" novalidate data-pagar-garcom data-taxas="<?= $e((string) json_encode($taxas, JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT)) ?>" data-painel-forma="presencial"<?= $formaEscolhida === 'pix_qr' ? ' hidden' : '' ?>>
             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+            <input type="hidden" name="taxa_vista" value="<?= $e((string) ($erros['taxa_vista'] ?? '')) ?>" data-taxa-vista>
             <input type="hidden" name="forma" value="<?= $e($formaEscolhida === 'pix_qr' ? 'dinheiro' : $formaEscolhida) ?>" data-forma-campo>
             <label class="campo-valor">
                 <span>Valor</span>
@@ -148,6 +156,10 @@ $formas = [
                     <strong data-troco-valor>R$ 0,00</strong>
                 </div>
             </div>
+            <div class="pagar-taxa" data-taxa aria-live="polite" hidden>
+                <p class="pagar-taxa-linha"><?= Icon::svg('percent', 'icon-sm') ?><span data-taxa-rotulo>Taxa</span><strong>+ <span data-taxa-valor></span></strong></p>
+                <p class="pagar-taxa-cobrar"><span>Cobrar do cliente</span><strong data-taxa-cobrar></strong></p>
+            </div>
             <?php foreach (['valor', 'recebido', 'forma'] as $campo): if (isset($erros[$campo])): ?><p class="campo-erro"><?= $e((string) $erros[$campo]) ?></p><?php endif; endforeach; ?>
             <button class="btn btn-wine btn-lg btn-block" type="submit" data-pagar-enviar><?= Icon::svg('check') ?><span data-pagar-texto>Recebi <?= $e($r($c['restante'])) ?></span></button>
         </form>
@@ -158,7 +170,7 @@ $formas = [
             <h2 id="titulo-pagos"><?= Icon::svg('receipt-text', 'icon-sm') ?>Já recebido</h2>
             <ul>
                 <?php foreach ($c['pagamentos'] as $pg): ?>
-                    <li><span><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?> · <?= $e(date('H:i', (int) strtotime((string) $pg['criado_em']))) ?></span><strong><?= $e(Numero::reais((string) $pg['valor'])) ?></strong></li>
+                    <li><span><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?> · <?= $e(date('H:i', (int) strtotime((string) $pg['criado_em']))) ?><?= Numero::centavos((string) ($pg['taxa'] ?? '0')) > 0 ? ' · inclui taxa de ' . $e(Numero::reais((string) $pg['taxa'])) : '' ?></span><strong><?= $e(Numero::reais((string) $pg['valor'])) ?></strong></li>
                 <?php endforeach; ?>
             </ul>
         </section>

@@ -45,6 +45,8 @@ final class Esquema
         'cupom_contato' => ['restaurante_impressao_config', 'delivery_com_telefone'],
         // Taxa opcional por forma de pagamento no cardapio online (tabela criada no fim da migracao).
         'taxas_pagamento' => ['restaurante_taxas_pagamento', 'valor'],
+        // Taxa por forma de pagamento em cada pagamento das contas (mesa, balcao, garcom, Pix da mesa).
+        'taxas_contas' => ['pedido_pagamentos', 'taxa_rotulo'],
         // Popup do cardapio online (banner 1:1 ou texto).
         'popup_cardapio' => ['restaurante_popup', 'versao'],
         // Produto especial Meio a Meio (sabores com fracao do estoque).

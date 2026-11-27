@@ -90,7 +90,8 @@ de `tests/http/caixa.sh`.
 - `mesas`: numero (unico por restaurante; NULL quando excluida com historico), apelido, lugares, ativo, excluida_em.
 - `caixas`: status, aberto_em/por, valor_abertura, fechado_em/por, dinheiro_esperado, dinheiro_contado, diferenca, resumo, observacao.
 - `caixa_movimentos`: tipo (entrada/saida), categoria, descricao, valor, quem, quando.
-- `pedido_pagamentos`: forma (dinheiro, debito, credito, pix, pix_online), valor, troco, caixa, quem.
+- `pedido_pagamentos`: forma (dinheiro, debito, credito, pix, pix_online), valor, troco, caixa, quem; `taxa` e
+  `taxa_rotulo` (taxa da forma de pagamento ja incluida no valor; ver `pedidos.md`, "A mesma taxa em todo fechamento").
 - `pedidos` (+): status `aberto`, forma `misto` e opcional na comanda, `id_mesa`, `id_entregador`, `id_caixa`,
   `servico_percentual`, `taxa_servico` (entra no CHECK do total), `motivo_desconto`, `pessoas`, `despachado_em`.
 - `pedido_itens` (+): `id_user` (quem lancou), `consumo_estoque`, `cancelado_em`, `motivo_cancelamento`, `id_user_cancelou`.

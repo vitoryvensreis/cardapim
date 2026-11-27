@@ -50,6 +50,26 @@ Verificacao: `php database/verify-pedidos.php --verify`.
   (gatilho `[cardapim-taxas-pagamento]`; `Esquema::tem('taxas_pagamento')`). Testes: `tests/unit/taxa-pagamento.php` e
   o bloco "Taxa por forma de pagamento" de `tests/http/pedidos.sh`.
 
+### A mesma taxa em todo fechamento de conta (caixa, mesa, balcao, garcom, entrega do caixa)
+
+- **Sem interruptor**: taxa cadastrada vale em toda conta. Mapa da forma do caixa para a regra
+  (`TaxaPagamento::FORMAS_CONTA`): debito -> debito, credito -> credito, pix (so registra) -> pix_entrega,
+  pix_online (QR do garcom) -> pix_online. Dinheiro nunca tem taxa.
+- **Taxa por pagamento**: cada pagamento guarda `pedido_pagamentos.taxa` e `taxa_rotulo`; o `valor` ja inclui a taxa
+  (bate com a maquininha). O pedido soma as taxas em `taxa_pagamento` (rotulo "Taxas de pagamento" quando ha formas
+  diferentes) e o total e refeito no mesmo UPDATE (`ComandaService::atualizarTaxaDaConta`), respeitando o CHECK.
+  Como total e pago sobem juntos, o "falta pagar" continua igual a conta sem taxa. Remover o pagamento tira a taxa.
+- **Taxa vista**: a tela manda `taxa_vista` (o que mostrou); o servidor confere (`ComandaService::conferirTaxa`). Sem
+  JavaScript ou com regra mudada, nada e gravado e a mensagem diz quanto cobrar; o segundo toque ja leva a taxa certa.
+- Pix do garcom (`comanda_pix.taxa`): o QR cobra o que falta + taxa do Pix pelo app; ao confirmar, o pagamento entra
+  com a taxa. Entrega feita no caixa: taxa da forma no total do pedido (paga agora ou na entrega); o calculo da aba
+  Entrega devolve `taxas_pagamento` por forma. Concluir a entrega no caixa grava a taxa do pedido no pagamento.
+- Cupom da comanda: linha da taxa antes do TOTAL e "Cartão e Pix podem ter taxa na hora de pagar." enquanto falta pagar.
+- Migration `20261204100000_taxas_pagamento_contas`, `database/verify-taxas-contas.php`,
+  `deploy/scripts/apply-taxas-contas.sh` (gatilho `[cardapim-taxas-contas]`; `Esquema::tem('taxas_contas')` — antes
+  da migration o codigo funciona sem taxa nas contas). Testes: `tests/unit/taxa-pagamento.php` e o bloco "Taxa por
+  forma de pagamento nas contas" de `tests/http/caixa.sh`.
+
 ## Areas de entrega e geolocalizacao (sem custo)
 
 Regra (a mesma no cardapio, no servidor e no "Testar um endereco" do gerente):

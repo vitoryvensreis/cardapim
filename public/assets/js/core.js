@@ -5,7 +5,14 @@
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  window.Cardapim = Object.freeze({ reducedMotion, finePointer });
+  // Taxa por forma de pagamento: a MESMA conta do servidor (TaxaPagamento::calcular), so para mostrar na tela.
+  // regra = {tipo: "percentual"|"fixo", valor}: porcentagem em centesimos de ponto (3,5% = 350), fixo em centavos.
+  // Arredonda meio centavo para cima. O servidor sempre confere.
+  const taxaDe = (base, regra) => {
+    if (!regra || !(base > 0)) return 0;
+    return regra.tipo === "fixo" ? Math.max(0, regra.valor) : Math.max(0, Math.floor((base * regra.valor + 5000) / 10000));
+  };
+  window.Cardapim = Object.freeze({ reducedMotion, finePointer, taxaDe });
 
   /* Cabecalho: fundo ao rolar */
   const header = document.querySelector("[data-site-header]");

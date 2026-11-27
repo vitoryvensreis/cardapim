@@ -89,6 +89,10 @@ final class CupomImpressao
             if ((int) $c['desconto'] > 0) {
                 $blocos[] = ['t' => 'valor', 'rotulo' => 'Desconto', 'valor' => '-' . self::reais((int) $c['desconto'])];
             }
+            if ((int) ($c['taxa_pagamento'] ?? 0) > 0) {
+                $rotuloTaxa = trim((string) ($c['taxa_pagamento_rotulo'] ?? ''));
+                $blocos[] = ['t' => 'valor', 'rotulo' => $rotuloTaxa !== '' ? $rotuloTaxa : 'Taxas de pagamento', 'valor' => self::reais((int) $c['taxa_pagamento'])];
+            }
             $blocos[] = ['t' => 'valor', 'rotulo' => 'TOTAL', 'valor' => self::reais((int) $c['total']), 'forte' => true];
             $pessoas = (int) ($p['pessoas'] ?? 0);
             if ($pessoas > 1 && (int) $c['total'] > 0) {
@@ -99,6 +103,10 @@ final class CupomImpressao
                 if ((int) $c['restante'] > 0) {
                     $blocos[] = ['t' => 'valor', 'rotulo' => 'Falta pagar', 'valor' => self::reais((int) $c['restante']), 'forte' => true];
                 }
+            }
+            // Conta ainda em aberto e restaurante com taxa no cartao ou no Pix: o cliente fica sabendo antes de pagar.
+            if ((int) ($c['restante'] ?? 0) > 0 && ($c['taxas'] ?? []) !== []) {
+                $blocos[] = ['t' => 'texto', 'texto' => 'Cartão e Pix podem ter taxa na hora de pagar.'];
             }
             $blocos[] = ['t' => 'linha'];
             $blocos[] = ['t' => 'centro', 'texto' => 'Não é documento fiscal.'];

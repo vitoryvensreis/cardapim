@@ -15,7 +15,9 @@ use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Impressao\FilaImpressao;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\Endereco;
+use Cardapim\Services\Pedidos\TaxaPagamento;
 use Cardapim\Services\Pedidos\VerificadorEntrega;
+use Cardapim\Shared\Esquema;
 use Cardapim\Modules\Entrega\TextoLocal;
 use Cardapim\Shared\Numero;
 use PDO;
@@ -187,7 +189,13 @@ final class EntregaBalcaoService
         if (!$calc['entrega']) {
             return Resultado::falha((string) $calc['mensagem'] . ' O pedido não foi enviado.');
         }
-        $total = (int) $calc['total_centavos'];
+        // Taxa da forma de pagamento (Gerencia > Entrega e pagamento) sobre itens + entrega - desconto, como no cardapio online.
+        $taxaPag = $forma === 'dinheiro' ? ['centavos' => 0, 'rotulo' => null] : TaxaPagamento::daConta($this->regrasTaxa(), $forma, (int) $calc['total_centavos']);
+        $vista = trim(is_string($dados['taxa_vista'] ?? null) ? $dados['taxa_vista'] : '');
+        if ($vista !== '' && (!ctype_digit($vista) || (int) $vista !== $taxaPag['centavos'])) {
+            return Resultado::falha('A taxa da forma de pagamento mudou. Confira o total na aba Entrega e envie de novo.', ['forma' => 'Confira a taxa.']);
+        }
+        $total = (int) $calc['total_centavos'] + $taxaPag['centavos'];
         $troco = self::troco(is_string($dados['valor'] ?? null) ? $dados['valor'] : '', $total);
         if ($forma === 'dinheiro' && !$troco['ok']) {
             return Resultado::falha(($quando === 'agora' ? 'Cliente entregou: ' : 'Troco para: ') . $troco['mensagem'], ['valor' => $troco['mensagem']]);
@@ -215,7 +223,7 @@ final class EntregaBalcaoService
                 WHERE id = ? AND id_restaurante = ? AND tipo = 'balcao' AND status = 'aberto'");
             $u->execute([
                 self::FORMA_PEDIDO[$forma], $pagoAgora ? 'pago' : 'pendente', $trocoPara,
-                CaixaService::dec((int) $calc['subtotal_centavos']), CaixaService::dec((int) $calc['taxa_centavos']), CaixaService::dec((int) $calc['desconto_centavos']), CaixaService::dec($total),
+                CaixaService::dec((int) $calc['subtotal_centavos']), CaixaService::dec((int) $calc['taxa_centavos']), CaixaService::dec((int) $calc['desconto_centavos']), CaixaService::dec((int) $calc['total_centavos']),
                 $nome, $tel, $e['cep'] !== '' ? $e['cep'] : null, $e['logradouro'], $e['numero'], $e['complemento'] !== '' ? $e['complemento'] : null,
                 $e['bairro'], $e['cidade'], $e['estado'], $calc['latitude'], $calc['longitude'], $calc['distancia_km'],
                 $calc['area_id'], mb_substr((string) $calc['area'], 0, 140), $config['entrega_minutos_min'], $config['entrega_minutos_max'],
@@ -226,10 +234,14 @@ final class EntregaBalcaoService
                 $this->db->rollBack();
                 return Resultado::falha('Esta venda mudou enquanto você preenchia. Confira na tela.');
             }
+            if (Esquema::tem($this->db, 'taxas_pagamento')) {
+                // Taxa e total no mesmo UPDATE: o CHECK do banco confere total = itens + entrega + taxa - desconto.
+                $this->db->prepare('UPDATE pedidos SET taxa_pagamento = ?, taxa_pagamento_rotulo = ?, total = ? WHERE id = ? AND id_restaurante = ?')
+                    ->execute([CaixaService::dec($taxaPag['centavos']), $taxaPag['rotulo'], CaixaService::dec($total), $idPedido, $this->idRestaurante]);
+            }
             if ($pagoAgora) {
-                $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-                    ->execute([$idPedido, $this->idRestaurante, (int) $caixa['id'], $forma, CaixaService::dec($total),
-                        CaixaService::dec($forma === 'dinheiro' ? $troco['troco'] : 0), $this->autor->id, $agora]);
+                ComandaService::registrarPagamento($this->db, $this->idRestaurante, $idPedido, (int) $caixa['id'], $forma, (int) $calc['total_centavos'],
+                    $taxaPag['centavos'], $taxaPag['rotulo'], $forma === 'dinheiro' ? $troco['troco'] : 0, $this->autor->id, $agora);
             }
             $this->pedidos->registrarEvento($this->idRestaurante, $idPedido, 'em_preparo', 'Pedido de entrega feito no caixa por ' . $this->autor->nome
                 . ($pagoAgora ? ' (pago na hora: ' . self::FORMAS[$forma] . ').' : ' (pagamento na entrega: ' . self::FORMAS[$forma] . ').') . ' Em preparo.', $this->autor->id);
@@ -249,13 +261,39 @@ final class EntregaBalcaoService
         // Cozinha: so os itens que ainda nao tinham saido. Nunca desfaz o pedido.
         (new FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoEntregaBalcao($idPedido);
         $valor = Numero::reais(CaixaService::dec($total));
-        Auditoria::registrar($this->autor, 'Entrega feita no caixa', sprintf('Pedido #%d para %s (%s, %s). Total %s, %s.', (int) $p['numero'], $nome,
+        $comTaxa = $taxaPag['centavos'] > 0 ? ' (inclui taxa de ' . Numero::reais(CaixaService::dec($taxaPag['centavos'])) . ')' : '';
+        Auditoria::registrar($this->autor, 'Entrega feita no caixa', sprintf('Pedido #%d para %s (%s, %s). Total %s' . $comTaxa . ', %s.', (int) $p['numero'], $nome,
             $e['bairro'], $calc['taxa_centavos'] > 0 ? 'taxa ' . Numero::reais(CaixaService::dec((int) $calc['taxa_centavos'])) : 'entrega grátis',
             $valor, $pagoAgora ? 'pago agora em ' . self::FORMAS[$forma] : 'pagamento na entrega em ' . self::FORMAS[$forma]));
         $msg = 'Pedido #' . (int) $p['numero'] . ' enviado para a cozinha e para o delivery. ' . ($pagoAgora
-            ? self::FORMAS[$forma] . ' ' . $valor . ' recebido.' . ($forma === 'dinheiro' && $troco['troco'] > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco['troco'])) . '.' : '')
-            : 'O entregador recebe ' . $valor . ' em ' . self::FORMAS[$forma] . ($trocoPara !== null ? ' (troco para ' . Numero::reais($trocoPara) . ')' : '') . '.');
+            ? self::FORMAS[$forma] . ' ' . $valor . ' recebido' . $comTaxa . '.' . ($forma === 'dinheiro' && $troco['troco'] > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco['troco'])) . '.' : '')
+            : 'O entregador recebe ' . $valor . $comTaxa . ' em ' . self::FORMAS[$forma] . ($trocoPara !== null ? ' (troco para ' . Numero::reais($trocoPara) . ')' : '') . '.');
         return Resultado::sucesso($msg, $idPedido);
+    }
+
+    /** @var array<string,array{tipo:string,valor:string}>|null */
+    private ?array $regrasTaxa = null;
+
+    /** @return array<string,array{tipo:string,valor:string}> */
+    private function regrasTaxa(): array
+    {
+        return $this->regrasTaxa ??= ComandaService::regrasDasContas($this->db, $this->idRestaurante);
+    }
+
+    /** @return array<string,array{centavos:int,rotulo:string,total_centavos:int}> forma => taxa (so as formas com taxa) */
+    private function taxasDasFormas(int $total): array
+    {
+        $saida = [];
+        foreach (array_keys(self::FORMAS) as $forma) {
+            if ($forma === 'dinheiro') {
+                continue;
+            }
+            $t = TaxaPagamento::daConta($this->regrasTaxa(), $forma, $total);
+            if ($t['centavos'] > 0) {
+                $saida[$forma] = ['centavos' => $t['centavos'], 'rotulo' => (string) $t['rotulo'], 'total_centavos' => $total + $t['centavos']];
+            }
+        }
+        return $saida;
     }
 
     /**
@@ -301,6 +339,8 @@ final class EntregaBalcaoService
             'latitude' => $v['latitude'], 'longitude' => $v['longitude'], 'distancia_km' => $v['distancia_km'],
             'taxa_centavos' => $taxa, 'subtotal_centavos' => $t['subtotal'], 'desconto_centavos' => $t['desconto'], 'total_centavos' => $t['total'],
             'taxa' => $taxa === 0 ? 'Grátis' : $r($taxa), 'subtotal' => $r($t['subtotal']), 'desconto' => $r($t['desconto']), 'total' => $r($t['total']),
+            // Taxa de cada forma de pagamento sobre este total (a tela mostra ao escolher a forma; o envio confere de novo).
+            'taxas_pagamento' => $this->taxasDasFormas($t['total']),
             'endereco' => ['cep' => $e['cep'], 'logradouro' => $e['logradouro'], 'numero' => $e['numero'], 'complemento' => $e['complemento'],
                 'bairro' => $e['bairro'], 'cidade' => $e['cidade'], 'estado' => $e['estado']],
         ];

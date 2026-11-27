@@ -3,6 +3,8 @@
  * Popup "Preparar pedido" (venda no balcao marcada para entrega): quando o cliente paga (agora ou na entrega),
  * a forma e o troco. Os dados da aba "Entrega" vao em campos escondidos preenchidos pelo caixa-entrega.js.
  * Envio normal (sem fetch): o servidor recalcula taxa e total e leva para o pedido na fila do delivery.
+ * Taxa da forma de pagamento (se o restaurante cadastrou): o caixa-entrega.js mostra ao escolher a forma e envia o valor
+ * visto em taxa_vista; o servidor confere.
  * Espera: $url, $csrf, $e.
  */
 use Cardapim\Core\Icon;
@@ -13,6 +15,7 @@ $iconesForma = ['dinheiro' => 'banknote', 'pix' => 'qr-code', 'credito' => 'cred
 <dialog class="folha preparar-pedido" data-dialogo-preparar aria-labelledby="preparar-titulo">
     <form method="post" action="<?= $e($url . '/entrega') ?>" class="folha-caixa" novalidate data-form-preparar>
         <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+        <input type="hidden" name="taxa_vista" value="" data-preparar-taxa-vista>
         <?php foreach (['nome', 'telefone', 'cep', 'logradouro', 'numero', 'bairro', 'complemento'] as $campo): ?>
             <input type="hidden" name="<?= $e($campo) ?>" value="" data-preparar-campo="<?= $e($campo) ?>">
         <?php endforeach; ?>
@@ -23,6 +26,7 @@ $iconesForma = ['dinheiro' => 'banknote', 'pix' => 'qr-code', 'credito' => 'cred
         <div class="preparar-total">
             <span>Total com a entrega</span>
             <strong data-preparar-total>R$ 0,00</strong>
+            <small class="preparar-taxa" data-preparar-taxa hidden></small>
             <small data-preparar-destino></small>
         </div>
 
@@ -35,7 +39,7 @@ $iconesForma = ['dinheiro' => 'banknote', 'pix' => 'qr-code', 'credito' => 'cred
         <fieldset class="formas-grade preparar-formas">
             <legend>Forma de pagamento</legend>
             <?php foreach (EntregaBalcaoService::FORMAS as $chave => $rotulo): ?>
-                <label class="forma-opcao"><input type="radio" name="forma" value="<?= $e($chave) ?>" data-preparar-forma><span><?= Icon::svg($iconesForma[$chave]) ?><?= $e($rotulo) ?></span></label>
+                <label class="forma-opcao"><input type="radio" name="forma" value="<?= $e($chave) ?>" data-preparar-forma><span><?= Icon::svg($iconesForma[$chave]) ?><?= $e($rotulo) ?><small class="forma-taxa" data-preparar-forma-taxa="<?= $e($chave) ?>" hidden></small></span></label>
             <?php endforeach; ?>
         </fieldset>
 

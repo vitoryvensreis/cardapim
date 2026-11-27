@@ -32,24 +32,12 @@
     travarPix();
   }
 
-  // Taxa por forma de pagamento: a linha aparece so para a forma marcada; o campo de valor so com taxa escolhida.
+  // Taxa por forma de pagamento: todas as linhas ficam visiveis (a taxa vale tambem na mesa, no balcao e no garcom,
+  // mesmo que a forma esteja desligada no cardapio online). O campo de valor so aparece com uma taxa escolhida.
   var blocoTaxas = document.querySelector('[data-taxas]');
   if (blocoTaxas) {
-    var vazio = blocoTaxas.querySelector('[data-taxas-vazio]');
     var linhas = Array.prototype.slice.call(blocoTaxas.querySelectorAll('[data-taxa-linha]'));
-    var mostrarLinhas = function () {
-      var visiveis = 0;
-      linhas.forEach(function (linha) {
-        var caixa = document.querySelector('input[name="' + linha.getAttribute('data-taxa-linha') + '"]');
-        var ligada = !!caixa && caixa.checked && !caixa.disabled;
-        linha.hidden = !ligada;
-        if (ligada) { visiveis += 1; }
-      });
-      if (vazio) { vazio.hidden = visiveis > 0; }
-    };
     linhas.forEach(function (linha) {
-      var caixa = document.querySelector('input[name="' + linha.getAttribute('data-taxa-linha') + '"]');
-      if (caixa) { caixa.addEventListener('change', mostrarLinhas); }
       var tipo = linha.querySelector('[data-taxa-tipo]');
       var valorCaixa = linha.querySelector('[data-taxa-valor-caixa]');
       var prefixo = linha.querySelector('[data-taxa-prefixo]');
@@ -64,8 +52,6 @@
         }
       });
     });
-    if (pixApp) { pixApp.addEventListener('change', mostrarLinhas); }
-    mostrarLinhas();
   }
 
   // "Usar a localizacao deste aparelho"

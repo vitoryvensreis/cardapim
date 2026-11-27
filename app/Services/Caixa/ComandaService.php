@@ -15,6 +15,8 @@ use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Pedidos\CancelarPedido;
+use Cardapim\Services\Pedidos\TaxaPagamento;
+use Cardapim\Repositories\Gerencia\TaxaPagamentoRepository;
 use Cardapim\Modules\Catalog\Combo;
 use Cardapim\Modules\Catalog\Complementos;
 use Cardapim\Shared\Esquema;
@@ -30,8 +32,11 @@ use Throwable;
  *
  * - Cada item lancado baixa o estoque NA HORA (ficha tecnica) e guarda o que baixou no proprio item.
  *   Item cancelado devolve exatamente esse consumo. Comanda cancelada devolve tudo.
- * - Total = itens + taxa de servico (percentual) - desconto (com motivo). Recalculado no servidor a cada mudanca.
+ * - Total = itens + taxa de servico (percentual) + taxas de pagamento - desconto (com motivo). Recalculado no servidor a cada mudanca.
  * - Pagamento em uma ou varias formas, sempre no caixa aberto. Pagou tudo: comanda concluida e mesa livre.
+ * - Taxa por forma de pagamento (Gerencia > Entrega e pagamento): cobrada em CADA pagamento, sobre a parte da conta paga
+ *   naquela forma (dinheiro nunca). O pagamento guarda valor = parte da conta + taxa; o pedido soma a taxa no total.
+ *   Assim o "falta pagar" (total - pago) continua sendo so a conta, e o fechamento do caixa bate com a maquininha.
  */
 final class ComandaService
 {
@@ -41,6 +46,9 @@ final class ComandaService
     public const FORMAS_PRESENCIAIS = ['dinheiro' => 'Dinheiro', 'debito' => 'Débito', 'credito' => 'Crédito', 'pix' => 'Pix'];
 
     private readonly PedidoRepository $pedidos;
+
+    /** @var array<string,array{tipo:string,valor:string}>|null */
+    private ?array $regrasTaxa = null;
 
     public function __construct(private readonly PDO $db, private readonly int $idRestaurante, private readonly UsuarioLogado $autor)
     {
@@ -261,6 +269,10 @@ final class ComandaService
             'pago' => $pago,
             'restante' => max(0, Numero::centavos((string) $p['total']) - $pago),
             'aberta' => $p['status'] === 'aberto',
+            // Taxas por forma de pagamento: ja cobradas nesta conta e as regras de cada forma (a tela so mostra; o servidor confere).
+            'taxa_pagamento' => Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')),
+            'taxa_pagamento_rotulo' => (string) ($p['taxa_pagamento_rotulo'] ?? ''),
+            'taxas' => TaxaPagamento::paraConta($this->regrasTaxa()),
         ];
     }
 
@@ -495,19 +507,22 @@ final class ComandaService
         $percentual = $servico ? self::SERVICO_PADRAO : '0.00';
         $subtotal = Numero::centavos((string) $comanda['subtotal']);
         $taxa = self::servico($subtotal, $percentual);
+        // Taxas de pagamento ja cobradas ficam fora do desconto e da comparacao com o que foi pago (os dois lados sem taxa).
+        $taxasPagamento = Numero::centavos((string) ($comanda['taxa_pagamento'] ?? '0'));
+        $entrega = Numero::centavos((string) ($comanda['taxa_entrega'] ?? '0'));
         if (Numero::centavos((string) $desconto) > $subtotal + $taxa) {
             return Resultado::falha('O desconto não pode ser maior que a conta.', ['desconto' => 'Máximo ' . Numero::reais(CaixaService::dec($subtotal + $taxa)) . '.']);
         }
-        if ($subtotal + $taxa - Numero::centavos((string) $desconto) < $this->somaPagamentos($id)) {
+        if ($subtotal + $taxa - Numero::centavos((string) $desconto) < $this->somaPagamentos($id) - $taxasPagamento) {
             return Resultado::falha('A conta ficaria menor que o que já foi pago. Remova um pagamento antes.');
         }
         $this->db->beginTransaction();
         try {
-            // Tudo num UPDATE so: o banco confere "total = itens + servico - desconto" (CHECK) a cada comando.
+            // Tudo num UPDATE so: o banco confere "total = itens + entrega + servico + taxas de pagamento - desconto" (CHECK) a cada comando.
             $descontoCent = Numero::centavos((string) $desconto);
             $this->db->prepare('UPDATE pedidos SET servico_percentual = ?, taxa_servico = ?, desconto = ?, total = ?, motivo_desconto = ?, pessoas = ?, atualizado_em = ?
                 WHERE id = ? AND id_restaurante = ?')
-                ->execute([$percentual, CaixaService::dec($taxa), CaixaService::dec($descontoCent), CaixaService::dec($subtotal + $taxa - $descontoCent),
+                ->execute([$percentual, CaixaService::dec($taxa), CaixaService::dec($descontoCent), CaixaService::dec($subtotal + $entrega + $taxa + $taxasPagamento - $descontoCent),
                     $descontoCent > 0 ? $motivo : null, $pessoas, date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
             $this->recalcular($id);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.atualizada', ['id' => $id]);
@@ -561,9 +576,12 @@ final class ComandaService
 
     /**
      * Recebe um pagamento. Dinheiro: "recebido" pode ser maior que o valor e a diferenca vira troco.
+     * Cartao e Pix: a taxa da forma (se o restaurante cadastrou) e somada ao valor desta parte da conta.
+     * $taxaVistaTexto: taxa em centavos que a tela mostrou. Se nao bate com a do servidor (tela sem JavaScript ou regra
+     * trocada no meio), nada e gravado e a mensagem mostra a taxa certa para o caixa cobrar e confirmar.
      * Quando a conta fica paga, a comanda e concluida (a mesa fica livre se nao houver outra comanda nela).
      */
-    public function pagar(int $id, string $forma, string $valorTexto, string $recebidoTexto): Resultado
+    public function pagar(int $id, string $forma, string $valorTexto, string $recebidoTexto, string $taxaVistaTexto = ''): Resultado
     {
         $comanda = $this->aberta($id);
         if ($comanda instanceof Resultado) {
@@ -605,13 +623,32 @@ final class ComandaService
         if ($troco > 100_000) {
             return Resultado::falha('Troco muito alto. Confira o valor recebido.', ['recebido' => 'Confira o valor recebido.']);
         }
+        $taxa = $forma === 'dinheiro' ? ['centavos' => 0, 'rotulo' => null] : TaxaPagamento::daConta($this->regrasTaxa(), $forma, $centavos);
+        $aviso = self::conferirTaxa($forma, $centavos, $taxa['centavos'], $taxaVistaTexto);
+        if ($aviso !== null) {
+            return $aviso;
+        }
         $agora = date('Y-m-d H:i:s');
         $concluiu = false;
         $this->db->beginTransaction();
         try {
-            $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-                ->execute([$id, $this->idRestaurante, (int) $caixa['id'], $forma, CaixaService::dec($centavos), CaixaService::dec($troco), $this->autor->id, $agora]);
-            if ($this->somaPagamentos($id) >= $total) {
+            // Trava a conta: dois aparelhos recebendo ao mesmo tempo nao passam do total.
+            if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+                $this->db->prepare('SELECT id FROM pedidos WHERE id = ? AND id_restaurante = ? FOR UPDATE')->execute([$id, $this->idRestaurante]);
+            }
+            $atual = $this->pedidos->buscar($this->idRestaurante, $id);
+            if ($atual === null || $atual['status'] !== 'aberto') {
+                $this->db->rollBack();
+                return Resultado::falha('Esta comanda já foi fechada.');
+            }
+            $falta = Numero::centavos((string) $atual['total']) - $this->somaPagamentos($id);
+            if ($centavos > $falta) {
+                $this->db->rollBack();
+                return Resultado::falha('A conta mudou enquanto você recebia. Confira o valor que falta pagar.');
+            }
+            self::registrarPagamento($this->db, $this->idRestaurante, $id, (int) $caixa['id'], $forma, $centavos, $taxa['centavos'], $taxa['rotulo'],
+                $troco, $this->autor->id, $agora);
+            if ($falta - $centavos <= 0) {
                 $concluiu = $this->concluir($id, (int) $caixa['id'], $agora);
             }
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', $concluiu ? 'comanda.fechada' : 'comanda.atualizada', ['id' => $id]);
@@ -625,9 +662,14 @@ final class ComandaService
             // Nota fiscal: só entra na fila se o restaurante usa o módulo fiscal. Nunca interfere na venda.
             FiscalEmissao::solicitar($this->db, $this->idRestaurante, $id);
         }
-        $msg = self::FORMAS_PRESENCIAIS[$forma] . ' ' . Numero::reais(CaixaService::dec($centavos)) . ' recebido.' . ($troco > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco)) . '.' : '');
+        $msg = self::FORMAS_PRESENCIAIS[$forma] . ' ' . Numero::reais(CaixaService::dec($centavos + $taxa['centavos'])) . ' recebido'
+            . ($taxa['centavos'] > 0 ? ' (inclui taxa de ' . Numero::reais(CaixaService::dec($taxa['centavos'])) . ').' : '.')
+            . ($troco > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco)) . '.' : '');
         if ($concluiu) {
-            Auditoria::registrar($this->autor, 'Conta fechada', sprintf('%s: pedido #%d, total %s.', $this->rotulo($comanda), (int) $comanda['numero'], Numero::reais((string) $comanda['total'])));
+            $fechada = $this->pedidos->buscar($this->idRestaurante, $id) ?? $comanda;
+            Auditoria::registrar($this->autor, 'Conta fechada', sprintf('%s: pedido #%d, total %s%s.', $this->rotulo($comanda), (int) $comanda['numero'],
+                Numero::reais((string) $fechada['total']), Numero::centavos((string) ($fechada['taxa_pagamento'] ?? '0')) > 0
+                    ? ' (com ' . Numero::reais((string) $fechada['taxa_pagamento']) . ' de taxas de pagamento)' : ''));
             $outras = $comanda['tipo'] === 'mesa' ? count((new MesaRepository($this->db))->comandasAbertas($this->idRestaurante, (int) $comanda['id_mesa'])) : 0;
             $fim = $comanda['tipo'] !== 'mesa' ? '.' : ($outras > 0 ? '. A mesa continua com ' . $outras . ($outras === 1 ? ' comanda aberta.' : ' comandas abertas.') : ' e mesa liberada.');
             return Resultado::sucesso($msg . ' Conta fechada' . $fim, $id);
@@ -641,16 +683,28 @@ final class ComandaService
         if ($comanda instanceof Resultado) {
             return $comanda;
         }
-        $q = $this->db->prepare('SELECT forma, valor FROM pedido_pagamentos WHERE id = ? AND id_pedido = ? AND id_restaurante = ?');
+        $taxaCol = Esquema::tem($this->db, 'taxas_contas') ? 'taxa' : "'0.00' AS taxa";
+        $q = $this->db->prepare("SELECT forma, valor, $taxaCol FROM pedido_pagamentos WHERE id = ? AND id_pedido = ? AND id_restaurante = ?");
         $q->execute([$idPagamento, $id, $this->idRestaurante]);
         $pg = $q->fetch(PDO::FETCH_ASSOC);
         if ($pg === false) {
             return Resultado::falha('Pagamento não encontrado.');
         }
-        $this->db->prepare('DELETE FROM pedido_pagamentos WHERE id = ? AND id_pedido = ? AND id_restaurante = ?')->execute([$idPagamento, $id, $this->idRestaurante]);
+        // Pagamento e taxa saem juntos: a taxa daquele pagamento deixa a conta no mesmo comando.
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare('DELETE FROM pedido_pagamentos WHERE id = ? AND id_pedido = ? AND id_restaurante = ?')->execute([$idPagamento, $id, $this->idRestaurante]);
+            self::atualizarTaxaDaConta($this->db, $this->idRestaurante, $id, date('Y-m-d H:i:s'));
+            $this->db->commit();
+        } catch (Throwable $erro) {
+            $this->db->rollBack();
+            throw $erro;
+        }
         TempoReal::publicar($this->idRestaurante, 'caixa', 'caixa.pagamento', ['pedido' => $id]);
-        Auditoria::registrar($this->autor, 'Pagamento removido', sprintf('%s: %s %s.', $this->rotulo($comanda), self::FORMAS_PRESENCIAIS[$pg['forma']] ?? $pg['forma'], Numero::reais((string) $pg['valor'])));
-        return Resultado::sucesso('Pagamento removido.');
+        $taxaPg = Numero::centavos((string) $pg['taxa']);
+        Auditoria::registrar($this->autor, 'Pagamento removido', sprintf('%s: %s %s%s.', $this->rotulo($comanda), self::FORMAS_PRESENCIAIS[$pg['forma']] ?? $pg['forma'],
+            Numero::reais((string) $pg['valor']), $taxaPg > 0 ? ' (taxa de ' . Numero::reais(CaixaService::dec($taxaPg)) . ' devolvida)' : ''));
+        return Resultado::sucesso($taxaPg > 0 ? 'Pagamento removido. A taxa de ' . Numero::reais(CaixaService::dec($taxaPg)) . ' saiu da conta.' : 'Pagamento removido.');
     }
 
     public function cancelar(int $id, string $motivo): Resultado
@@ -679,8 +733,9 @@ final class ComandaService
     /** @return list<array<string,mixed>> */
     public function pagamentos(int $id): array
     {
+        $taxa = Esquema::tem($this->db, 'taxas_contas') ? 'pg.taxa, pg.taxa_rotulo' : "'0.00' AS taxa, NULL AS taxa_rotulo";
         $q = $this->db->prepare(
-            "SELECT pg.id, pg.forma, pg.valor, pg.troco, pg.criado_em, u.nome AS autor
+            "SELECT pg.id, pg.forma, pg.valor, $taxa, pg.troco, pg.criado_em, u.nome AS autor
              FROM pedido_pagamentos pg LEFT JOIN `user` u ON u.id = pg.id_user
              WHERE pg.id_pedido = ? AND pg.id_restaurante = ? ORDER BY pg.id"
         );
@@ -775,6 +830,93 @@ final class ComandaService
         return true;
     }
 
+    /**
+     * Grava um pagamento da conta com a taxa (quando houver) e soma a taxa no pedido. Roda DENTRO da transacao de quem chama.
+     * $base = parte da conta paga nesta forma; o pagamento fica com valor = base + taxa (o que passou na maquininha / no Pix).
+     * Usado pelo caixa, pelo garcom e pela confirmacao do Pix da mesa.
+     */
+    public static function registrarPagamento(PDO $db, int $idRestaurante, int $idPedido, ?int $idCaixa, string $forma, int $base, int $taxa, ?string $rotulo,
+        int $troco, ?int $idUser, string $agora): void
+    {
+        $comTaxa = Esquema::tem($db, 'taxas_contas');
+        if (!$comTaxa || $forma === 'dinheiro') {
+            $taxa = 0;
+        }
+        if ($comTaxa) {
+            $db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, taxa, taxa_rotulo, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                ->execute([$idPedido, $idRestaurante, $idCaixa, $forma, CaixaService::dec($base + $taxa), CaixaService::dec($taxa), $taxa > 0 ? $rotulo : null,
+                    CaixaService::dec($troco), $idUser, $agora]);
+        } else {
+            $db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+                ->execute([$idPedido, $idRestaurante, $idCaixa, $forma, CaixaService::dec($base), CaixaService::dec($troco), $idUser, $agora]);
+        }
+        if ($taxa > 0) {
+            self::atualizarTaxaDaConta($db, $idRestaurante, $idPedido, $agora);
+        }
+    }
+
+    /**
+     * Taxa de pagamento da comanda = soma das taxas dos pagamentos; total refeito no mesmo UPDATE (o CHECK do banco confere).
+     * Rotulo: o da unica taxa, ou "Taxas de pagamento" quando ha formas diferentes.
+     */
+    public static function atualizarTaxaDaConta(PDO $db, int $idRestaurante, int $idPedido, string $agora): void
+    {
+        if (!Esquema::tem($db, 'taxas_contas')) {
+            return;
+        }
+        $q = $db->prepare('SELECT taxa, taxa_rotulo FROM pedido_pagamentos WHERE id_pedido = ? AND id_restaurante = ?');
+        $q->execute([$idPedido, $idRestaurante]);
+        $soma = 0;
+        $rotulos = [];
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $pg) {
+            $t = Numero::centavos((string) $pg['taxa']);
+            if ($t > 0) {
+                $soma += $t;
+                $rotulos[] = $pg['taxa_rotulo'] !== null ? (string) $pg['taxa_rotulo'] : null;
+            }
+        }
+        $dec = CaixaService::dec($soma);
+        $db->prepare('UPDATE pedidos SET taxa_pagamento = ?, taxa_pagamento_rotulo = ?, total = subtotal + taxa_entrega + taxa_servico + ? - desconto, atualizado_em = ?
+            WHERE id = ? AND id_restaurante = ?')
+            ->execute([$dec, TaxaPagamento::rotuloDaConta($rotulos), $dec, $agora, $idPedido, $idRestaurante]);
+    }
+
+    /**
+     * Regras de taxa usadas nas contas do restaurante (vazio antes da migracao: tudo como antes, sem taxa).
+     * @return array<string,array{tipo:string,valor:string}>
+     */
+    public static function regrasDasContas(PDO $db, int $idRestaurante): array
+    {
+        return Esquema::tem($db, 'taxas_contas') ? (new TaxaPagamentoRepository($db))->regras($idRestaurante) : [];
+    }
+
+    /**
+     * Confere a taxa que a tela mostrou. null = pode gravar. Senao, a falha traz a taxa certa em erros['taxa_vista']
+     * (a tela reenvia esse valor ao tocar em Receber de novo).
+     */
+    public static function conferirTaxa(string $forma, int $base, int $taxa, string $vistaTexto): ?Resultado
+    {
+        $vista = trim($vistaTexto);
+        if ($taxa === 0 && ($vista === '' || $vista === '0')) {
+            return null;
+        }
+        if ($vista !== '' && ctype_digit($vista) && strlen($vista) <= 9 && (int) $vista === $taxa) {
+            return null;
+        }
+        if ($taxa === 0) {
+            return Resultado::falha('A taxa desta forma de pagamento mudou. Confira o valor e toque em Receber de novo.', ['taxa_vista' => '0']);
+        }
+        $nome = self::FORMAS_PRESENCIAIS[$forma] ?? 'Esta forma';
+        return Resultado::falha(sprintf('%s tem taxa de %s. Cobre %s do cliente e toque em Receber de novo.', $nome,
+            Numero::reais(CaixaService::dec($taxa)), Numero::reais(CaixaService::dec($base + $taxa))), ['taxa_vista' => (string) $taxa]);
+    }
+
+    /** @return array<string,array{tipo:string,valor:string}> */
+    private function regrasTaxa(): array
+    {
+        return $this->regrasTaxa ??= self::regrasDasContas($this->db, $this->idRestaurante);
+    }
+
     /** Soma do que ja foi pago na comanda, em centavos. */
     public static function totalPago(PDO $db, int $idRestaurante, int $id): int
     {
@@ -794,8 +936,10 @@ final class ComandaService
         $p = $this->pedidos->buscar($this->idRestaurante, $id);
         $taxa = self::servico($subtotal, (string) $p['servico_percentual']);
         $desconto = min(Numero::centavos((string) $p['desconto']), $subtotal + $taxa);
+        // Taxas de pagamento ja cobradas continuam na conta (o CHECK do banco exige o total com elas).
+        $extras = Numero::centavos((string) ($p['taxa_entrega'] ?? '0')) + Numero::centavos((string) ($p['taxa_pagamento'] ?? '0'));
         $this->db->prepare('UPDATE pedidos SET subtotal = ?, taxa_servico = ?, desconto = ?, total = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ?')
-            ->execute([CaixaService::dec($subtotal), CaixaService::dec($taxa), CaixaService::dec($desconto), CaixaService::dec($subtotal + $taxa - $desconto),
+            ->execute([CaixaService::dec($subtotal), CaixaService::dec($taxa), CaixaService::dec($desconto), CaixaService::dec($subtotal + $taxa + $extras - $desconto),
                 date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
     }
 

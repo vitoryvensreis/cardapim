@@ -406,6 +406,92 @@ esperar "na entrega: nada entra no caixa ainda" "$(banco 'SELECT COUNT(*) FROM p
 enviar "$cx" "$c/delivery/$eb2/cancelar" "motivo=Cliente desistiu da entrega" >/dev/null
 esperar "ESTOQUE: cancelar a entrega do caixa devolve" "$(estoque)" "$antes"
 
+echo "Taxa por forma de pagamento nas contas (caixa, mesa e balcao que vira entrega)"
+# So cartao e Pix aqui: o dinheiro da gaveta e conferido logo abaixo, no fechamento.
+rs() { php -r 'echo "R$ " . number_format($argv[1] / 100, 2, ",", ".");' "$1"; }
+dec() { php -r 'echo number_format($argv[1] / 100, 2, ".", "");' "$1"; }
+campo_valor() { php -r 'echo number_format($argv[1] / 100, 2, ",", "");' "$1"; }
+rid="$(banco 'SELECT id FROM restaurantes WHERE slug = ?' "$slug")"
+php -r 'require "bootstrap/app.php"; $d = \Cardapim\Core\Database::connect(); $d->prepare("DELETE FROM restaurante_taxas_pagamento WHERE id_restaurante = ?")->execute([$argv[1]]); $i = $d->prepare("INSERT INTO restaurante_taxas_pagamento (id_restaurante, forma, tipo, valor) VALUES (?, ?, ?, ?)"); foreach ([["credito", "percentual", "3.50"], ["debito", "fixo", "1.00"], ["pix_entrega", "percentual", "1.00"]] as $r) { $i->execute([$argv[1], ...$r]); }' "$rid"
+estoque_taxa="$(estoque)"
+r="$(enviar "$cx" "$c/balcao" nome=Taxa)"
+tb="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+enviar "$cx" "$c/comandas/$tb/itens" produto="$produto" quantidade=2 >/dev/null
+tconta=$((preco * 2))
+pagina "$cx" "$c/comandas/$tb/pagar" >/dev/null
+contem "taxa do credito ao lado da forma" "$tmp/pagina.html" '+ 3,5%'
+contem "taxa do debito ao lado da forma" "$tmp/pagina.html" '+ R$ 1,00'
+contem "regras da taxa para a tela" "$tmp/pagina.html" 'data-pagar-taxas='
+contem "bloco Cobrar do cliente" "$tmp/pagina.html" 'Cobrar do cliente'
+parte=$((tconta / 2)); tx=$(( (parte * 350 + 5000) / 10000 ))
+enviar "$cx" "$c/comandas/$tb/pagamentos" forma=credito "valor=$(campo_valor "$parte")" >/dev/null
+esperar "sem a taxa vista: avisa a taxa e nao grava" "$(aviso "$cx" "$c/comandas/$tb/pagar")" "Crédito tem taxa de $(rs "$tx"). Cobre $(rs $((parte + tx))) do cliente e toque em Receber de novo."
+contem "o segundo toque ja leva a taxa certa" "$tmp/aviso.html" "name=\"taxa_vista\" value=\"$tx\""
+esperar "nada gravado antes de confirmar a taxa" "$(banco 'SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = ?' "$tb")" "0"
+enviar "$cx" "$c/comandas/$tb/pagamentos" forma=credito "valor=$(campo_valor "$parte")" taxa_vista=1 >/dev/null
+case "$(aviso "$cx" "$c/comandas/$tb/pagar")" in "Crédito tem taxa de "*) ok "taxa diferente da tela recusada";; *) falha "taxa diferente da tela aceita";; esac
+enviar "$cx" "$c/comandas/$tb/pagamentos" forma=credito "valor=$(campo_valor "$parte")" "taxa_vista=$tx" >/dev/null
+esperar "credito com taxa recebido" "$(aviso "$cx" "$c/comandas/$tb/pagar")" "Crédito $(rs $((parte + tx))) recebido (inclui taxa de $(rs "$tx"))."
+contem "falta pagar continua sem a taxa" "$tmp/aviso.html" "data-pagar-restante=\"$((tconta - parte))\""
+contem "ja recebido mostra a taxa" "$tmp/aviso.html" "inclui taxa de $(rs "$tx")"
+esperar "pagamento guarda valor com taxa e o rotulo" "$(banco 'SELECT valor, taxa, taxa_rotulo FROM pedido_pagamentos WHERE id_pedido = ?' "$tb")" "$(dec $((parte + tx)))|$(dec "$tx")|Taxa do crédito (3,5%)"
+esperar "conta soma a taxa no total" "$(banco 'SELECT subtotal, taxa_pagamento, total FROM pedidos WHERE id = ?' "$tb")" "$(dec "$tconta")|$(dec "$tx")|$(dec $((tconta + tx)))"
+pg="$(banco 'SELECT id FROM pedido_pagamentos WHERE id_pedido = ?' "$tb")"
+enviar "$cx" "$c/comandas/$tb/pagamentos/$pg/remover" >/dev/null
+esperar "remover o pagamento devolve a taxa" "$(aviso "$cx" "$c/comandas/$tb/pagar")" "Pagamento removido. A taxa de $(rs "$tx") saiu da conta."
+esperar "conta volta sem taxa" "$(banco 'SELECT taxa_pagamento, total FROM pedidos WHERE id = ?' "$tb")" "0.00|$(dec "$tconta")"
+enviar "$cx" "$c/comandas/$tb/pagamentos" forma=credito "valor=$(campo_valor "$parte")" "taxa_vista=$tx" >/dev/null
+resto=$((tconta - parte))
+enviar "$cx" "$c/comandas/$tb/pagamentos" forma=debito valor= taxa_vista=100 >/dev/null
+esperar "debito com taxa fixa fecha a conta" "$(aviso "$cx" "$c/comandas/$tb")" "Débito $(rs $((resto + 100))) recebido (inclui taxa de R\$ 1,00). Conta fechada."
+esperar "conta fechada com as duas taxas" "$(banco 'SELECT status, taxa_pagamento, taxa_pagamento_rotulo, total FROM pedidos WHERE id = ?' "$tb")" "concluido|$(dec $((tx + 100)))|Taxas de pagamento|$(dec $((tconta + tx + 100)))"
+esperar "pagamentos fecham com o total (nota fiscal)" "$(banco 'SELECT SUM(valor) FROM pedido_pagamentos WHERE id_pedido = ?' "$tb")" "$(dec $((tconta + tx + 100)))"
+
+r="$(enviar "$cx" "$c/mesas/$m1/abrir")"
+tm="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+enviar "$cx" "$c/comandas/$tm/itens" produto="$produto" quantidade=1 >/dev/null
+serv=$(( (preco * 1000 + 5000) / 10000 ))
+enviar "$cx" "$c/comandas/$tm/pagamentos" forma=pix valor=5,00 taxa_vista=5 >/dev/null
+esperar "Pix registrado usa a taxa do Pix no caixa" "$(aviso "$cx" "$c/comandas/$tm/pagar")" "Pix R\$ 5,05 recebido (inclui taxa de R\$ 0,05)."
+enviar "$cx" "$c/comandas/$tm/ajustes" servico=1 desconto=1,00 "motivo_desconto=Cliente da casa" >/dev/null
+esperar "desconto depois de um pagamento com taxa" "$(aviso "$cx" "$c/comandas/$tm")" "Conta atualizada."
+esperar "total = itens + 10% + taxa - desconto" "$(banco 'SELECT total FROM pedidos WHERE id = ?' "$tm")" "$(dec $((preco + serv + 5 - 100)))"
+contem "linha da taxa na conta da comanda" "$tmp/aviso.html" 'Taxa do Pix (1%)'
+enviar "$cx" "$c/comandas/$tm/ajustes" servico=0 desconto=1,00 "motivo_desconto=Cliente da casa" >/dev/null
+esperar "tirar os 10% mantem a taxa" "$(banco 'SELECT total FROM pedidos WHERE id = ?' "$tm")" "$(dec $((preco + 5 - 100)))"
+resto=$((preco - 100 - 500)); tx2=$(( (resto * 350 + 5000) / 10000 ))
+enviar "$cx" "$c/comandas/$tm/pagamentos" forma=credito valor= "taxa_vista=$tx2" >/dev/null
+case "$(aviso "$cx" "$c/comandas/$tm")" in *"Conta fechada e mesa liberada."*) ok "resto no credito com taxa fecha a mesa";; *) falha "mesa com taxa nao fechou";; esac
+esperar "mesa fechada com as taxas" "$(banco 'SELECT status, taxa_pagamento, total FROM pedidos WHERE id = ?' "$tm")" "concluido|$(dec $((5 + tx2)))|$(dec $((preco - 100 + 5 + tx2)))"
+
+r="$(enviar "$cx" "$c/balcao" nome=)"
+te="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+enviar "$cx" "$c/comandas/$te/itens" produto="$produto" quantidade=1 >/dev/null
+ebase=$((preco + 500)); tx3=$(( (ebase * 350 + 5000) / 10000 ))
+jpost "$c/comandas/$te/entrega/calcular" logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" >/dev/null
+esperar "calculo da entrega traz a taxa do credito" "$(json "$tmp/j.json" taxas_pagamento.credito.centavos)" "$tx3"
+esperar "calculo da entrega traz o total com a taxa" "$(json "$tmp/j.json" taxas_pagamento.credito.total_centavos)" "$((ebase + tx3))"
+esperar "dinheiro sem taxa na entrega" "$(json "$tmp/j.json" taxas_pagamento.dinheiro)" "null"
+enviar "$cx" "$c/comandas/$te/entrega" nome=Dani logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" quando=agora forma=credito taxa_vista=1 >/dev/null
+esperar "taxa diferente na entrega recusada" "$(aviso "$cx" "$c/comandas/$te")" "A taxa da forma de pagamento mudou. Confira o total na aba Entrega e envie de novo."
+r="$(enviar "$cx" "$c/comandas/$te/entrega" nome=Dani logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" quando=agora forma=credito "taxa_vista=$tx3")"
+case "$(aviso "$cx" "$c/delivery/$te")" in *"recebido (inclui taxa de $(rs "$tx3"))."*) ok "entrega paga agora no credito com taxa";; *) falha "aviso da entrega com taxa ($(aviso "$cx" "$c/delivery/$te"))";; esac
+esperar "pedido de entrega com a taxa no total" "$(banco 'SELECT tipo, pagamento_status, taxa_pagamento, taxa_pagamento_rotulo, total FROM pedidos WHERE id = ?' "$te")" "entrega|pago|$(dec "$tx3")|Taxa do crédito (3,5%)|$(dec $((ebase + tx3)))"
+esperar "pagamento da entrega com a taxa" "$(banco 'SELECT COUNT(*), SUM(valor), SUM(taxa) FROM pedido_pagamentos WHERE id_pedido = ?' "$te")" "1|$(dec $((ebase + tx3)))|$(dec "$tx3")"
+enviar "$cx" "$c/delivery/$te/despachar" entregador="$entregador" >/dev/null
+enviar "$cx" "$c/delivery/$te/concluir" >/dev/null
+esperar "concluir a entrega paga nao cobra de novo" "$(banco 'SELECT status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$te")" "concluido|1"
+r="$(enviar "$cx" "$c/balcao" nome=)"
+te2="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+enviar "$cx" "$c/comandas/$te2/itens" produto="$produto" quantidade=1 >/dev/null
+enviar "$cx" "$c/comandas/$te2/entrega" nome=Edu logradouro="Rua Haddock Lobo" numero=300 "bairro=Cerqueira César" quando=entrega forma=debito taxa_vista=100 >/dev/null
+esperar "na entrega no debito: total ja com a taxa" "$(banco 'SELECT pagamento_status, forma_pagamento, taxa_pagamento, total FROM pedidos WHERE id = ?' "$te2")" "pendente|debito|1.00|$(dec $((ebase + 100)))"
+enviar "$cx" "$c/delivery/$te2/cancelar" "motivo=Teste da taxa" >/dev/null
+php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("DELETE FROM restaurante_taxas_pagamento WHERE id_restaurante = ?")->execute([$argv[1]]);' "$rid"
+vendidas="$(php -r "echo (int) round($estoque_taxa - $(estoque));")"
+[[ "$vendidas" -gt 0 ]] && enviar "$gj" "$g/estoque/insumos/$insumo/repor" "quantidade=$vendidas" >/dev/null
+esperar "estoque reposto depois dos testes da taxa" "$(estoque)" "$estoque_taxa"
+
 echo "Fechar o caixa (contagem cega)"
 pagina "$cx" "$c" >/dev/null
 contem "resumo mostra vendas em dinheiro" "$tmp/pagina.html" 'Dinheiro na gaveta'

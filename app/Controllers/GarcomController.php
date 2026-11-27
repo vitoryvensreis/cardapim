@@ -326,7 +326,7 @@ final class GarcomController
         $idComanda = (int) self::id($id);
         $volta = $this->url('comandas/' . $idComanda . '/conta');
         $forma = $this->post('forma');
-        $res = $this->comandas()->pagar($idComanda, $forma, $this->post('valor'), $forma === 'dinheiro' ? $this->post('recebido') : '');
+        $res = $this->comandas()->pagar($idComanda, $forma, $this->post('valor'), $forma === 'dinheiro' ? $this->post('recebido') : '', $this->post('taxa_vista'));
         if (!$res->ok) {
             if ($res->erros !== []) {
                 Session::set('garcom_erros', $res->erros);

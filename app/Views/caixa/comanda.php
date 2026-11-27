@@ -209,6 +209,7 @@ if (!empty($notaFiscal)) {
                     <div><dt>Itens (<?= (int) $qtdItens ?>)</dt><dd><?= $e($r($c['subtotal'])) ?></dd></div>
                     <?php if ($servicoLigado || $c['servico'] > 0): ?><div><dt>Serviço (<?= $e(rtrim(rtrim(number_format((float) $p['servico_percentual'], 2, ',', ''), '0'), ',')) ?>%)</dt><dd><?= $e($r($c['servico'])) ?></dd></div><?php endif; ?>
                     <?php if ($c['desconto'] > 0): ?><div class="conta-desconto"><dt>Desconto<?= $p['motivo_desconto'] ? ' · ' . $e((string) $p['motivo_desconto']) : '' ?></dt><dd>−<?= $e($r($c['desconto'])) ?></dd></div><?php endif; ?>
+                    <?php if (($c['taxa_pagamento'] ?? 0) > 0): ?><div class="conta-taxa-pagamento"><dt><?= $e((string) ($c['taxa_pagamento_rotulo'] ?: 'Taxas de pagamento')) ?></dt><dd><?= $e($r((int) $c['taxa_pagamento'])) ?></dd></div><?php endif; ?>
                     <div data-conta-taxa-entrega hidden><dt>Taxa de entrega</dt><dd data-conta-taxa-valor></dd></div>
                     <div class="conta-total"><dt>Total</dt><dd data-conta-total data-total-normal="<?= $e($r($c['total'])) ?>"><?= $e($r($c['total'])) ?></dd></div>
                     <?php if ($pessoas > 1 && $c['total'] > 0): ?><div class="conta-divisao"><dt>Dividido por <?= $pessoas ?></dt><dd><?= $e($r(intdiv($c['total'] + $pessoas - 1, $pessoas))) ?> cada</dd></div><?php endif; ?>
@@ -367,6 +368,7 @@ if (!empty($notaFiscal)) {
             <tr class="impressao-linha"><td>Itens</td><td><?= $e($r($c['subtotal'])) ?></td></tr>
             <?php if ($c['servico'] > 0): ?><tr><td>Serviço</td><td><?= $e($r($c['servico'])) ?></td></tr><?php endif; ?>
             <?php if ($c['desconto'] > 0): ?><tr><td>Desconto</td><td>−<?= $e($r($c['desconto'])) ?></td></tr><?php endif; ?>
+            <?php if (($c['taxa_pagamento'] ?? 0) > 0): ?><tr><td><?= $e((string) ($c['taxa_pagamento_rotulo'] ?: 'Taxas de pagamento')) ?></td><td><?= $e($r((int) $c['taxa_pagamento'])) ?></td></tr><?php endif; ?>
             <tr class="impressao-total"><td>Total</td><td><?= $e($r($c['total'])) ?></td></tr>
             <?php if ($pessoas > 1 && $c['total'] > 0): ?><tr><td>Por pessoa (<?= $pessoas ?>)</td><td><?= $e($r(intdiv($c['total'] + $pessoas - 1, $pessoas))) ?></td></tr><?php endif; ?>
         </table>

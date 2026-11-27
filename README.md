@@ -170,6 +170,10 @@ Correção NCM: pesquisa direta por código/descrição na BrasilAPI, somente po
 
 - Relatórios: sugestões automáticas de produtos a partir de dois caracteres, busca com debounce de 250 ms, até 20 sugestões por consulta, seleção pelo ID e pesquisa livre preservada. Apenas o catálogo do restaurante autenticado é consultado, inclusive itens inativos com histórico. Sem mudanças no banco.
 
+## Taxa por forma de pagamento em todas as contas
+
+A taxa cadastrada em Gerência → Entrega e pagamento (débito, crédito e Pix; dinheiro nunca tem) vale em **todo** fechamento de conta: cardápio online, caixa, mesa, balcão, garçom e entrega feita no caixa. Não há interruptor: cadastrou, vale. Cada pagamento guarda a taxa que cobrou (`pedido_pagamentos.taxa`), o pedido soma em `taxa_pagamento` e o total já sai com a taxa; o "falta pagar" continua o valor da conta. A tela mostra "Cobrar do cliente" antes de receber e o servidor confere a taxa vista. A regra de o garçom fechar a conta só com permissão continua igual. Migration `20261204100000_taxas_pagamento_contas` (tag `[cardapim-taxas-contas]`). Detalhes em [docs/architecture/pedidos.md](docs/architecture/pedidos.md).
+
 ## Fechamento temporário do link
 
 Em Gerência → Perfil → Horário de funcionamento, feche ou reabra a próxima ocorrência de cada dia. A exceção por data é salva imediatamente, sem alterar os turnos semanais ou sincronizar o iFood. Bloqueia novos pedidos pelo link, inclusive no backend; pedidos anteriores seguem normalmente. A data seguinte respeita os horários, exceto a continuação de um turno cancelado na véspera. Também funciona no modo 24 horas. A rota POST `/{slug}/gerencia/perfil/horarios/fechamento` usa sessão, CSRF e os campos `data` (AAAA-MM-DD) e `fechado` (0/1). A coluna `restaurantes.fechamentos_temporarios` guarda as datas por loja; deploy com backup pela tag `[cardapim-fechamento-temporario]`.
