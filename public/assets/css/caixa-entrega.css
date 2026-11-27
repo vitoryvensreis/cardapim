@@ -31,7 +31,8 @@
 .entrega-resumo dd { margin: 0; font-variant-numeric: tabular-nums; }
 .entrega-resumo-total { margin-top: .3rem; padding-top: .4rem !important; border-top: 1px dashed var(--c-wine-400); font: 700 1.05rem/1.3 var(--f-head) !important; }
 
-/* Popup */
+/* Popup: mais largo que as outras folhas, para as opcoes caberem numa linha so */
+.folha.preparar-pedido { width: min(100%, 38rem); }
 .preparar-total {
   display: grid; justify-items: center; gap: .15rem; padding: 1rem; border-radius: var(--r-xl);
   background: linear-gradient(160deg, var(--c-wine) 0%, var(--c-wine-800) 100%); color: var(--c-white); text-align: center;
@@ -47,6 +48,10 @@
 .preparar-pedido .troco-ao-vivo.is-falta { border-color: #f1b8b8; background: #fdf1f1; color: var(--c-danger); }
 .preparar-pedido .campo-erro[hidden] { display: none; }
 
-@media (min-width: 40rem) {
+/* "Quando paga" tem 2 opcoes: sempre 2 colunas (a grade padrao do caixa vira 4 colunas e quebrava "Na entrega"). */
+.preparar-pedido .preparar-quando { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.preparar-pedido .preparar-formas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.preparar-pedido .forma-opcao span { padding: .75rem .6rem; white-space: nowrap; }
+@media (min-width: 36rem) {
   .preparar-pedido .preparar-formas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
