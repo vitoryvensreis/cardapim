@@ -83,6 +83,9 @@ final class CheckoutPublico
             (string) $p['entrega_logradouro'], (string) $p['entrega_numero'], (string) ($p['entrega_complemento'] ?? ''),
         ]))) . ' · ' . trim(implode(' · ', array_filter([(string) $p['entrega_bairro'], (string) $p['entrega_cidade']]))) : '';
         $alcancados = array_column($eventos, 'criado_em', 'status');
+        // Pedido que voltou de etapa: so contam as etapas ate a atual (o evento antigo de "pronto" continua no historico).
+        $ordemEtapas = StatusPedido::etapas($tipo);
+        $etapaAtual = array_search((string) $p['status'], $ordemEtapas, true);
         return [
             'id' => (int) $p['id'],
             'numero' => (int) $p['numero'],
@@ -93,8 +96,9 @@ final class CheckoutPublico
             'etapas' => array_map(static fn (string $s): array => [
                 'status' => $s,
                 'rotulo' => StatusPedido::rotulo($s, $tipo),
-                'em' => isset($alcancados[$s]) ? substr((string) $alcancados[$s], 11, 5) : null,
-            ], StatusPedido::etapas($tipo)),
+                'em' => isset($alcancados[$s]) && ($etapaAtual === false || array_search($s, $ordemEtapas, true) <= $etapaAtual)
+                    ? substr((string) $alcancados[$s], 11, 5) : null,
+            ], $ordemEtapas),
             'forma_pagamento' => StatusPedido::forma((string) $p['forma_pagamento'], $tipo),
             'forma' => (string) $p['forma_pagamento'],
             'pagamento_status' => (string) $p['pagamento_status'],

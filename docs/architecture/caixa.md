@@ -9,7 +9,7 @@ abrir e fechar o caixa, entradas e saidas de dinheiro e historico de fechamentos
 | --- | --- | --- |
 | Caixa | `/caixa` | Abrir (troco inicial) ou resumo do turno: vendas, dinheiro na gaveta, ticket medio, por forma, atalhos |
 | Mesas e comandas | `/caixa/mesas` | Mapa desenhado (tampo + cadeiras pelo numero de lugares): livre (toque abre a comanda) ou ocupada (total, itens, tempo); ultimo quadro "+ Nova mesa" cria a proxima; vendas de balcao em aberto |
-| Delivery | `/caixa/delivery` | Pedidos do cardapio online por etapa; detalhe com aceitar, pronto, despachar, entregue, cancelar |
+| Delivery | `/caixa/delivery` | Pedidos do cardapio online por etapa; detalhe com aceitar, pronto, despachar, entregue, voltar etapa, cancelar |
 | Entradas e saidas | `/caixa/movimentos` | Reforco de troco, sangria, despesa, fornecedor, entregador, vale |
 | Fechamentos | `/caixa/historico` | Cada caixa: vendas por forma, esperado x contado, entradas/saidas e recebimentos |
 | Cadastro de mesas | `/caixa/mesas/gerenciar` | Criar uma ou varias (1 a 15), editar numero/nome/lugares, pausar, excluir |
@@ -100,6 +100,33 @@ Verificacao: `php database/verify-caixa.php --verify`.
 
 Delivery: `POST /{slug}/caixa/delivery/{id}/forma` = "Trocar forma de pagamento" (mesmo popup do motoboy, sem QR; ver
 `entregas.md`). `POST /{slug}/caixa/delivery/{id}/confirmar-pix` = "Confirmei o Pix, aceitar" do Pix pela chave.
+
+### Voltar etapa (desfazer)
+
+`POST /{slug}/caixa/delivery/{id}/voltar` (campo `motivo` opcional, ate 140 caracteres, so a equipe ve) =
+"Voltar para ..." logo abaixo da barra de etapas (`DeliveryService::voltar`, `opcaoVoltar`, `etapaAnterior`).
+
+| Agora | Volta para | Efeito extra |
+|---|---|---|
+| Em preparo | Recebido | - |
+| Pronto | Em preparo | - |
+| Saiu para entrega | Pronto | limpa `id_entregador` e `despachado_em`; tempo real `entregas: entrega.retirada`; apaga a posicao do motoboy se ele nao leva mais nada |
+| Entregue | Saiu para entrega | desfaz o recebimento (abaixo) |
+| Retirado | Pronto | desfaz o recebimento (abaixo) |
+
+- Desfazer o recebimento (so gerente/adm_master, conferido no servidor): numa transacao com o caixa aberto travado
+  (`FOR UPDATE`), apaga de `pedido_pagamentos` so o pagamento lancado NA conclusao, volta `pagamento_status` para
+  `pendente` (continua `pago` se ja estava pago antes: Pix pelo app, Pix pela chave conferido, pago na hora no balcao),
+  limpa `concluido_em` e tira a nota da fila (`fiscal_documentos` ainda `pendente`/`bloqueada`/`rejeitada` sem numero).
+- Como saber o pagamento da conclusao: o texto da linha do tempo de `concluir` termina com
+  "Pagamento registrado no caixa: R$ X." ou "Pagamento já estava no caixa.". Pedido concluido antes dessa marca: vale o
+  horario (`pedido_pagamentos.criado_em >= concluido_em`).
+- Bloqueios: pedido do iFood com a integracao ligada (o iFood nao aceita voltar), entregue pelo entregador do iFood,
+  caixa do recebimento ja fechado, nota fiscal ja emitida, recebido/cancelado/aguardando Pix (sem etapa anterior).
+- Nao mexe no estoque e nao manda WhatsApp (o aviso de cada etapa sai uma vez so; avancar de novo nao repete).
+- Linha do tempo: "Voltou para Pronto (desfeito por Fulano). Motivo: ..."; Auditoria "Pedido voltou de etapa" com o
+  valor tirado do caixa. O acompanhamento do cliente (`CheckoutPublico::pedidoParaCliente`) so marca as etapas ate a atual.
+- Testes: bloco "Voltar etapa do pedido" em `tests/http/caixa.sh` e `DeliveryService::etapaAnterior` em `tests/unit/caixa.php`.
 
 Varias comandas por mesa (migration `20261113100000_pedidos_varias_comandas.php`): `pedidos.comanda_nome` e o indice
 de `mesa_aberta` deixa de ser unico (`idx_pedidos_mesa_aberta`). Verificacao: `php database/verify-comandas.php --verify`.

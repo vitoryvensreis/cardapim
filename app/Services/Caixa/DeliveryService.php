@@ -9,12 +9,14 @@ use Cardapim\Repositories\Caixa\CaixaRepository;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
+use Cardapim\Services\Fiscal\FiscalEmissao;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Ifood\DadosPedidoIfood;
 use Cardapim\Services\Ifood\IfoodAcoes;
 use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\CancelarPedido;
+use Cardapim\Services\Pedidos\StatusPedido;
 use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 use PDO;
@@ -27,6 +29,7 @@ use Throwable;
  * Retirada: Pronto -> Entregue ao cliente. O estoque ja foi baixado quando o cliente fez o pedido
  * (nao baixa de novo no despacho); cancelar devolve. Ao concluir, o pagamento entra no caixa aberto.
  * Pedido do iFood: aceitar, pronto, despachar e cancelar tambem vao para o iFood (fila IfoodAcoes).
+ * Voltar etapa: cada etapa volta para a anterior (concluido desfaz o recebimento no caixa; so o gerente).
  */
 final class DeliveryService
 {
@@ -38,9 +41,31 @@ final class DeliveryService
         'pronto' => [['recebido', 'em_preparo'], 'pronto', 'Pedido pronto.'],
     ];
 
+    /**
+     * Fim do texto da linha do tempo ao concluir: diz se o pagamento entrou no caixa NA conclusao.
+     * "Voltar etapa" usa isso para tirar do caixa so esse pagamento (o pago antes, no balcao, fica).
+     */
+    private const MARCA_PAGO_NA_CONCLUSAO = 'Pagamento registrado no caixa';
+    private const MARCA_JA_NO_CAIXA = 'Pagamento já estava no caixa.';
+
+    /** Status atual => etapa anterior ("Voltar etapa"). O concluido depende do tipo (etapaAnterior). */
+    private const ANTERIOR = ['em_preparo' => 'recebido', 'pronto' => 'em_preparo', 'saiu_entrega' => 'pronto'];
+
     /** Forma do pedido online -> forma registrada no caixa. */
     private const FORMA_CAIXA = ['pix_entrega' => 'pix', 'debito' => 'debito', 'credito' => 'credito', 'dinheiro' => 'dinheiro', 'pix_online' => 'pix_online', 'ifood' => 'ifood',
         'pix_comprovante' => 'pix'];
+
+    /** Para onde o pedido volta em "Voltar etapa" (null: nao tem etapa anterior). @param array<string,mixed> $p */
+    public static function etapaAnterior(array $p): ?string
+    {
+        if (!in_array($p['tipo'] ?? '', ['entrega', 'retirada'], true)) {
+            return null;
+        }
+        if (($p['status'] ?? '') === 'concluido') {
+            return $p['tipo'] === 'entrega' ? 'saiu_entrega' : 'pronto';
+        }
+        return self::ANTERIOR[$p['status'] ?? ''] ?? null;
+    }
 
     /** Pix pela chave do restaurante com o comprovante ainda nao conferido. @param array<string,mixed> $p */
     public static function pixParaConferir(array $p): bool
@@ -259,7 +284,10 @@ final class DeliveryService
                 return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
             }
             // Pago no caixa na hora (entrega feita no balcao): o valor ja entrou no caixa, nao registra de novo.
-            if ($total > 0 && isset(self::FORMA_CAIXA[$forma]) && ComandaService::totalPago($this->db, $this->idRestaurante, $id) === 0) {
+            $registrou = false;
+            $jaNoCaixa = ComandaService::totalPago($this->db, $this->idRestaurante, $id) > 0;
+            if ($total > 0 && isset(self::FORMA_CAIXA[$forma]) && !$jaNoCaixa) {
+                $registrou = true;
                 // O total ja traz a taxa da forma (cardapio online ou balcao que virou entrega): o pagamento guarda quanto dele e taxa.
                 $taxaPedido = min(Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')), max(0, $total - 1));
                 if (Esquema::tem($this->db, 'taxas_contas') && $taxaPedido > 0 && self::FORMA_CAIXA[$forma] !== 'dinheiro') {
@@ -272,7 +300,8 @@ final class DeliveryService
                             CaixaService::dec($troco), $this->autor->id, $agora]);
                 }
             }
-            $texto = $p['tipo'] === 'entrega' ? 'Pedido entregue.' : 'Pedido retirado pelo cliente.';
+            $texto = ($p['tipo'] === 'entrega' ? 'Pedido entregue.' : 'Pedido retirado pelo cliente.')
+                . ($registrou ? ' ' . self::MARCA_PAGO_NA_CONCLUSAO . ': ' . Numero::reais((string) $p['total']) . '.' : ($jaNoCaixa ? ' ' . self::MARCA_JA_NO_CAIXA : ''));
             $this->pedidos->registrarEvento($this->idRestaurante, $id, 'concluido', $texto, $this->autor->id);
             AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, $id, 'concluido');
             TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => (int) $p['numero'], 'status' => 'concluido']);
@@ -310,6 +339,202 @@ final class DeliveryService
                 : ' Ele já estava pago: devolva o valor ao cliente pelo Asaas.') : '');
         Auditoria::registrar($this->autor, 'Pedido cancelado', sprintf('Pedido #%d (%s). Motivo: %s. Estoque devolvido.%s', (int) $p['numero'], Numero::reais((string) $p['total']), $motivo, $aviso));
         return Resultado::sucesso('Pedido #' . $p['numero'] . ' cancelado. O estoque foi devolvido.' . $aviso);
+    }
+
+    /**
+     * Botao "Voltar etapa" da tela: para onde volta, o aviso do que acontece e, se nao puder, o porque.
+     * @param array<string,mixed> $p
+     * @return array{para:string, rotulo:string, bloqueio:?string, aviso:?string}|null
+     */
+    public function opcaoVoltar(array $p): ?array
+    {
+        $para = self::etapaAnterior($p);
+        if ($para === null) {
+            return null;
+        }
+        $aviso = null;
+        if ($p['status'] === 'concluido') {
+            $valor = array_sum(array_map(static fn (array $pg): int => Numero::centavos((string) $pg['valor']), $this->pagamentosDaConclusao($p)));
+            $aviso = $valor > 0
+                ? 'O pagamento de ' . Numero::reais(CaixaService::dec($valor)) . ' sai do caixa e o pedido volta a ficar a receber.'
+                : 'O pedido volta para ' . mb_strtolower(StatusPedido::rotulo($para, (string) $p['tipo'])) . '.';
+        } elseif ($p['status'] === 'saiu_entrega') {
+            $aviso = 'O pedido sai do painel do entregador e volta para Pronto.';
+        }
+        return ['para' => $para, 'rotulo' => StatusPedido::rotulo($para, (string) $p['tipo']), 'bloqueio' => $this->bloqueioVoltar($p), 'aviso' => $aviso];
+    }
+
+    /** "Voltar etapa": o pedido volta para a etapa anterior. Motivo opcional, so para a equipe (fica na linha do tempo). */
+    public function voltar(int $id, string $motivo): Resultado
+    {
+        $p = $this->pedidos->buscar($this->idRestaurante, $id);
+        if ($p === null || !in_array($p['tipo'], ['entrega', 'retirada'], true)) {
+            return Resultado::falha('Pedido não encontrado.');
+        }
+        $para = self::etapaAnterior($p);
+        if ($para === null) {
+            return Resultado::falha('Este pedido não tem etapa para voltar.');
+        }
+        $bloqueio = $this->bloqueioVoltar($p);
+        if ($bloqueio !== null) {
+            return Resultado::falha($bloqueio);
+        }
+        $motivo = mb_substr(trim((string) preg_replace('/\s+/u', ' ', $motivo)), 0, 140);
+        $tipo = (string) $p['tipo'];
+        $rotulo = StatusPedido::rotulo($para, $tipo);
+        $texto = 'Voltou para ' . $rotulo . ' (desfeito por ' . $this->autor->nome . ').' . ($motivo !== '' ? ' Motivo: ' . $motivo : '');
+        if ($p['status'] === 'concluido') {
+            return $this->desfazerConclusao($p, $para, $texto, $motivo);
+        }
+        $extra = $p['status'] === 'saiu_entrega' ? ['id_entregador' => null, 'despachado_em' => null] : [];
+        try {
+            $this->mudar($p, [(string) $p['status']], $para, $texto, $extra, null, false);
+        } catch (\RuntimeException) {
+            return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
+        }
+        if ($p['status'] === 'saiu_entrega' && $p['id_entregador'] !== null) {
+            $this->liberarEntregador((int) $p['id_entregador'], $id);
+        }
+        Auditoria::registrar($this->autor, 'Pedido voltou de etapa', sprintf('Pedido #%d: de %s para %s.%s', (int) $p['numero'],
+            StatusPedido::rotulo((string) $p['status'], $tipo), $rotulo, $motivo !== '' ? ' Motivo: ' . $motivo : ''));
+        return Resultado::sucesso('Pedido #' . $p['numero'] . ' voltou para ' . mb_strtolower($rotulo) . '.');
+    }
+
+    /** Por que o pedido nao pode voltar de etapa (null: pode). @param array<string,mixed> $p */
+    private function bloqueioVoltar(array $p): ?string
+    {
+        if ($this->ifoodAtivo($p)) {
+            return 'O iFood não aceita voltar a etapa. Ajuste no Gestor de Pedidos do iFood.';
+        }
+        if ($p['origem'] === 'ifood' && ($p['ifood_entregue_por'] ?? null) === 'ifood' && in_array($p['status'], ['saiu_entrega', 'concluido'], true)) {
+            return 'Este pedido foi levado pelo entregador do iFood. Não dá para voltar a etapa.';
+        }
+        if ($p['status'] !== 'concluido') {
+            return null;
+        }
+        if (!in_array($this->autor->cargo, ['gerente', 'adm_master'], true)) {
+            return 'Só o gerente pode desfazer um pedido já ' . ($p['tipo'] === 'entrega' ? 'entregue' : 'retirado') . ', porque mexe no dinheiro do caixa.';
+        }
+        $nota = FiscalEmissao::situacao($this->db, $this->idRestaurante, (int) $p['id']);
+        if ($nota !== null && ($nota['numero'] !== null || !in_array($nota['status'], ['pendente', 'bloqueada', 'rejeitada'], true))) {
+            return 'A nota fiscal deste pedido já foi emitida. Não dá para voltar a etapa.';
+        }
+        $caixa = (new CaixaRepository($this->db))->aberto($this->idRestaurante);
+        foreach ($this->pagamentosDaConclusao($p) as $pg) {
+            if ($pg['id_caixa'] !== null && ($caixa === null || (int) $pg['id_caixa'] !== (int) $caixa['id'])) {
+                return 'O caixa em que este pedido foi recebido já foi fechado. Faça o ajuste em Entradas e saídas.';
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Pagamentos lancados no caixa quando o pedido foi concluido (o pagamento feito antes, no balcao, nao entra).
+     * @param array<string,mixed> $p @return list<array<string,mixed>>
+     */
+    private function pagamentosDaConclusao(array $p, bool $travar = false): array
+    {
+        if (($p['concluido_em'] ?? null) === null) {
+            return [];
+        }
+        // A linha do tempo da conclusao diz se o pagamento entrou no caixa nela. Pedido concluido antes dessa marca:
+        // vale o horario (pagamento lancado no momento da conclusao ou depois).
+        $q = $this->db->prepare("SELECT descricao FROM pedido_eventos WHERE id_pedido = ? AND id_restaurante = ? AND status = 'concluido' ORDER BY id DESC LIMIT 1");
+        $q->execute([(int) $p['id'], $this->idRestaurante]);
+        if (str_contains((string) $q->fetchColumn(), self::MARCA_JA_NO_CAIXA)) {
+            return [];
+        }
+        $q = $this->db->prepare('SELECT id, id_caixa, forma, valor FROM pedido_pagamentos WHERE id_pedido = ? AND id_restaurante = ? AND criado_em >= ?' . ($travar ? ' FOR UPDATE' : ''));
+        $q->execute([(int) $p['id'], $this->idRestaurante, $p['concluido_em']]);
+        return $q->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Entregue/retirado volta uma etapa: tira do caixa o pagamento lancado na conclusao e tira a nota da fila
+     * (se ainda nao saiu). Tudo numa transacao, com o caixa travado para nao fechar no meio. @param array<string,mixed> $p
+     */
+    private function desfazerConclusao(array $p, string $para, string $texto, string $motivo): Resultado
+    {
+        $id = (int) $p['id'];
+        $tipo = (string) $p['tipo'];
+        $pagamentos = [];
+        $idCaixa = false;
+        $this->db->beginTransaction();
+        try {
+            $c = $this->db->prepare("SELECT id FROM caixas WHERE id_restaurante = ? AND status = 'aberto' ORDER BY id DESC LIMIT 1 FOR UPDATE");
+            $c->execute([$this->idRestaurante]);
+            $idCaixa = $c->fetchColumn();
+            $pagamentos = $this->pagamentosDaConclusao($p, true);
+            foreach ($pagamentos as $pg) {
+                if ($pg['id_caixa'] !== null && ($idCaixa === false || (int) $pg['id_caixa'] !== (int) $idCaixa)) {
+                    $this->db->rollBack();
+                    return Resultado::falha('O caixa em que este pedido foi recebido já foi fechado. Faça o ajuste em Entradas e saídas.');
+                }
+            }
+            $ids = array_map(static fn (array $pg): int => (int) $pg['id'], $pagamentos);
+            if ($ids !== []) {
+                $marcadores = implode(',', array_fill(0, count($ids), '?'));
+                $this->db->prepare("DELETE FROM pedido_pagamentos WHERE id_restaurante = ? AND id_pedido = ? AND id IN ($marcadores)")
+                    ->execute([$this->idRestaurante, $id, ...$ids]);
+            }
+            // Ja estava pago antes de concluir (Pix pelo app e Pix conferido sao pagos antes; pago no balcao): continua pago.
+            $pagoAntes = $p['pago_em'] !== null && (in_array($p['forma_pagamento'], ['pix_online', 'pix_comprovante', 'ifood'], true)
+                || (string) $p['pago_em'] < (string) $p['concluido_em']);
+            $sobrou = ComandaService::totalPago($this->db, $this->idRestaurante, $id) > 0;
+            $pago = $pagoAntes || $sobrou;
+            $u = $this->db->prepare("UPDATE pedidos SET status = ?, concluido_em = NULL, pagamento_status = ?, pago_em = ?, id_caixa = ?, atualizado_em = ?
+                WHERE id = ? AND id_restaurante = ? AND status = 'concluido'");
+            $u->execute([$para, $pago ? 'pago' : 'pendente', $pago ? $p['pago_em'] : null, $sobrou ? $p['id_caixa'] : null,
+                date('Y-m-d H:i:s'), $id, $this->idRestaurante]);
+            if ($u->rowCount() !== 1) {
+                throw new \RuntimeException('Pedido mudou de situacao.');
+            }
+            if (Esquema::tem($this->db, 'fiscal_documentos')) {
+                // Nota ainda na fila sai junto; ao concluir de novo ela entra outra vez. Nota emitida impede a volta.
+                $this->db->prepare("DELETE FROM fiscal_documentos WHERE id_restaurante = ? AND id_pedido = ? AND numero IS NULL AND status IN ('pendente', 'bloqueada', 'rejeitada')")
+                    ->execute([$this->idRestaurante, $id]);
+                $resta = $this->db->prepare('SELECT 1 FROM fiscal_documentos WHERE id_restaurante = ? AND id_pedido = ?');
+                $resta->execute([$this->idRestaurante, $id]);
+                if ($resta->fetchColumn() !== false) {
+                    $this->db->rollBack();
+                    return Resultado::falha('A nota fiscal deste pedido já foi emitida. Não dá para voltar a etapa.');
+                }
+            }
+            $this->pedidos->registrarEvento($this->idRestaurante, $id, $para, $texto, $this->autor->id);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => (int) $p['numero'], 'status' => $para]);
+            if ($idCaixa !== false) {
+                TempoReal::registrar($this->db, $this->idRestaurante, 'caixa', 'caixa.pagamento', ['caixa' => (int) $idCaixa]);
+            }
+            $this->db->commit();
+        } catch (\RuntimeException) {
+            $this->db->rollBack();
+            return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
+        } catch (Throwable $erro) {
+            $this->db->rollBack();
+            throw $erro;
+        }
+        if ($para === 'saiu_entrega' && $p['id_entregador'] !== null) {
+            TempoReal::publicar($this->idRestaurante, 'entregas', 'entrega.despachada', ['id' => $id, 'entregador' => (int) $p['id_entregador']]);
+        }
+        $valor = array_sum(array_map(static fn (array $pg): int => Numero::centavos((string) $pg['valor']), $pagamentos));
+        $rotulo = StatusPedido::rotulo($para, $tipo);
+        Auditoria::registrar($this->autor, 'Pedido voltou de etapa', sprintf('Pedido #%d: de %s para %s. %s%s', (int) $p['numero'],
+            StatusPedido::rotulo('concluido', $tipo), $rotulo,
+            $valor > 0 ? 'Pagamento de ' . Numero::reais(CaixaService::dec($valor)) . ' removido do caixa.' : 'Nenhum pagamento removido do caixa.',
+            $motivo !== '' ? ' Motivo: ' . $motivo : ''));
+        return Resultado::sucesso('Pedido #' . $p['numero'] . ' voltou para ' . mb_strtolower($rotulo) . '.'
+            . ($valor > 0 ? ' O pagamento de ' . Numero::reais(CaixaService::dec($valor)) . ' saiu do caixa.' : ''));
+    }
+
+    /** O pedido saiu do motoboy: atualiza o painel dele e apaga a posicao se ele nao leva mais nada (LGPD). */
+    private function liberarEntregador(int $idEntregador, int $idPedido): void
+    {
+        TempoReal::publicar($this->idRestaurante, 'entregas', 'entrega.retirada', ['id' => $idPedido, 'entregador' => $idEntregador]);
+        $q = $this->db->prepare("SELECT COUNT(*) FROM pedidos WHERE id_restaurante = ? AND id_entregador = ? AND status = 'saiu_entrega'");
+        $q->execute([$this->idRestaurante, $idEntregador]);
+        if ((int) $q->fetchColumn() === 0) {
+            $this->db->prepare('DELETE FROM entregador_posicoes WHERE id_user = ? AND id_restaurante = ?')->execute([$idEntregador, $this->idRestaurante]);
+        }
     }
 
     /** Pedido do iFood com a integracao ligada: as mudancas tambem vao para o iFood. @param array<string,mixed> $p */
@@ -373,8 +598,9 @@ final class DeliveryService
      * @param list<string> $de
      * @param array<string,mixed> $extra colunas extras (id_entregador, despachado_em)
      * @param (callable():void)|null $naTransacao gravado junto (ex.: fila de acoes do iFood)
+     * @param bool $avisarCliente false em "Voltar etapa": nao manda WhatsApp
      */
-    private function mudar(array $p, array $de, string $para, string $texto, array $extra, ?callable $naTransacao = null): void
+    private function mudar(array $p, array $de, string $para, string $texto, array $extra, ?callable $naTransacao = null, bool $avisarCliente = true): void
     {
         $sets = 'status = ?, atualizado_em = ?';
         $valores = [$para, date('Y-m-d H:i:s')];
@@ -394,7 +620,9 @@ final class DeliveryService
             if ($naTransacao !== null) {
                 $naTransacao();
             }
-            AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], $para);
+            if ($avisarCliente) {
+                AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], $para);
+            }
             TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => (int) $p['numero'], 'status' => $para]);
             $this->db->commit();
         } catch (Throwable $erro) {

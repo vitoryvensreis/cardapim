@@ -14,7 +14,7 @@ use Cardapim\Services\Ifood\DadosPedidoIfood;
 use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Pedidos\TrocarFormaPagamento;
 
-/** Pedidos do cardapio online no caixa: fila, ver o pedido, aceitar, pronto, despachar, entregue e cancelar. */
+/** Pedidos do cardapio online no caixa: fila, ver o pedido, aceitar, pronto, despachar, entregue, voltar etapa e cancelar. */
 final class DeliveryController extends BaseCaixa
 {
     public function lista(string $slug): Response
@@ -51,6 +51,7 @@ final class DeliveryController extends BaseCaixa
         return $this->tela('caixa/delivery-ver', 'delivery', 'Pedido #' . $d['pedido']['numero'], [
             'd' => $d,
             'entregadores' => $s->entregadores(),
+            'voltar' => $s->opcaoVoltar($d['pedido']),
             'notaFiscal' => \Cardapim\Services\Fiscal\FiscalEmissao::situacao($this->db, $this->restaurante['id'], (int) $d['pedido']['id']),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'gestor' => in_array($this->usuario->cargo, ['gerente', 'adm_master'], true),
@@ -83,6 +84,8 @@ final class DeliveryController extends BaseCaixa
                 explode('|', $this->post('escolha') . '|')[0], explode('|', $this->post('escolha') . '|')[1], $this->post('troco_para')),
             $acao === 'despachar' => $s->despachar($pedido, self::id($this->post('entregador')) ?? 0),
             $acao === 'concluir' => $s->concluir($pedido),
+            // "Voltar etapa": volta para a etapa anterior (concluido so o gerente; regras no servico).
+            $acao === 'voltar' => $s->voltar($pedido, $this->post('motivo')),
             $acao === 'cancelar' => $s->cancelar($pedido, $this->post('motivo'), $this->post('motivo_ifood')),
             default => Resultado::falha('Ação desconhecida.'),
         };
