@@ -106,6 +106,7 @@ jobs:
           php tests/unit/cliente.php
           php tests/unit/entrega.php
           php tests/unit/caixa.php
+          php tests/unit/entrega-balcao.php
           php tests/unit/ifood.php
           php tests/unit/smtp.php
           php tests/unit/recuperar-senha.php

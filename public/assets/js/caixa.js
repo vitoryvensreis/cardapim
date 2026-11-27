@@ -99,6 +99,8 @@
       }
     });
     if (window.CardapimMascaras) window.CardapimMascaras(document);
+    // Partes trocadas: quem guarda estado na tela (ex.: aba Entrega do balcao) religa.
+    document.dispatchEvent(new CustomEvent("cardapim:regioes-trocadas"));
   };
   let atualizando = false;
   let pendente = false;

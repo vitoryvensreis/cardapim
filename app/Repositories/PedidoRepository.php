@@ -40,6 +40,32 @@ final class PedidoRepository
         return $p === false ? null : $p;
     }
 
+    /**
+     * Nome e ultimo endereco de entrega usados por um telefone NESTE restaurante (entrega no balcao do caixa).
+     * Nunca consulta outros restaurantes nem o cadastro global de clientes.
+     * @return array{nome:string,endereco:?array<string,string>}|null
+     */
+    public function ultimoDoTelefone(int $idRestaurante, string $telefone): ?array
+    {
+        $q = $this->db->prepare("SELECT cliente_nome, tipo, entrega_cep, entrega_logradouro, entrega_numero, entrega_complemento, entrega_bairro,
+                entrega_cidade, entrega_estado, entrega_referencia
+            FROM pedidos WHERE id_restaurante = ? AND cliente_whatsapp = ? AND status <> 'cancelado'
+            ORDER BY (tipo = 'entrega' AND entrega_logradouro IS NOT NULL) DESC, id DESC LIMIT 1");
+        $q->execute([$idRestaurante, $telefone]);
+        $r = $q->fetch(PDO::FETCH_ASSOC);
+        if ($r === false) {
+            return null;
+        }
+        $endereco = null;
+        if ($r['tipo'] === 'entrega' && trim((string) $r['entrega_logradouro']) !== '') {
+            $endereco = [];
+            foreach (['cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'referencia'] as $campo) {
+                $endereco[$campo] = (string) ($r['entrega_' . $campo] ?? '');
+            }
+        }
+        return ['nome' => (string) ($r['cliente_nome'] ?? ''), 'endereco' => $endereco];
+    }
+
     /** @return array<string,mixed>|null */
     public function porCobranca(int $idRestaurante, string $idCobranca): ?array
     {

@@ -36,6 +36,12 @@ final class StatusPedido
             : ['recebido', 'em_preparo', 'pronto', 'concluido'];
     }
 
+    /** Pedido de entrega feito no caixa (venda do balcao que virou entrega). @param array<string,mixed> $p */
+    public static function doCaixa(array $p): bool
+    {
+        return ($p['origem'] ?? '') === 'balcao' && in_array($p['tipo'] ?? '', ['entrega', 'retirada'], true);
+    }
+
     public static function rotulo(string $status, string $tipo = 'entrega'): string
     {
         if ($status === 'pronto' && $tipo === 'retirada') {

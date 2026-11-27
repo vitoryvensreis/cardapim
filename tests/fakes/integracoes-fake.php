@@ -258,6 +258,22 @@ if (preg_match('~\A/viacep/ws/(\d{8})/json/\z~', $caminho, $m)) {
     $d = $enderecos[$m[1]] ?? null;
     $responder(200, $d === null ? ['erro' => 'true'] : ['cep' => $m[1], 'logradouro' => $d[0], 'bairro' => $d[1], 'localidade' => 'São Paulo', 'uf' => 'SP']);
 }
+// Busca de rua na cidade (ViaCEP /ws/UF/Cidade/Rua/json/): a entrega feita no caixa preenche o bairro pela rua.
+// "Rua Augusta" passa por dois bairros (o caixa escolhe); as ruas da lista acima, por um.
+if (preg_match('~\A/viacep/ws/([A-Z]{2})/([^/]+)/([^/]+)/json/\z~', $caminho, $m)) {
+    $rua = mb_strtolower(rawurldecode($m[3]));
+    $achados = [];
+    if (str_contains('rua augusta', $rua)) {
+        $achados[] = ['cep' => '01305-000', 'logradouro' => 'Rua Augusta', 'bairro' => 'Consolação', 'localidade' => 'São Paulo', 'uf' => 'SP'];
+        $achados[] = ['cep' => '01412-000', 'logradouro' => 'Rua Augusta', 'bairro' => 'Cerqueira César', 'localidade' => 'São Paulo', 'uf' => 'SP'];
+    }
+    foreach ($enderecos as $cep => $d) {
+        if (str_contains(mb_strtolower($d[0]), $rua)) {
+            $achados[] = ['cep' => substr((string) $cep, 0, 5) . '-' . substr((string) $cep, 5), 'logradouro' => $d[0], 'bairro' => $d[1], 'localidade' => 'São Paulo', 'uf' => 'SP'];
+        }
+    }
+    $responder(200, $achados);
+}
 if ($caminho === '/nominatim/search') {
     if (!str_contains($cab('User-Agent'), 'Cardapim')) {
         $responder(403, []);

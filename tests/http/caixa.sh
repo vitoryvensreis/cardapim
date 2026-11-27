@@ -323,6 +323,89 @@ enviar "$cx" "$c/delivery/$pedido2/cancelar" "motivo=Acabou a cerveja gelada" >/
 esperar "pedido cancelado pelo caixa" "$(aviso "$cx" "$c/delivery/$pedido2")" "Pedido #$(php -r 'echo (int) $argv[1] + 0;' "$((numero + 1))") cancelado. O estoque foi devolvido."
 esperar "ESTOQUE: cancelar pedido devolve" "$(php -r "echo $(estoque) - $antes;")" "1"
 
+echo "Entrega feita no caixa (venda no balcao vira pedido de entrega)"
+jpost() { # url [campo=valor ...] -> codigo; resposta em $tmp/j.json
+  local url="$1" t args=()
+  shift
+  t="$(token "$cx" "$c/historico")"
+  for campo in "$@"; do args+=(--data-urlencode "$campo"); done
+  curl -s -o "$tmp/j.json" -c "$cx" -b "$cx" -w '%{http_code}' -H 'Accept: application/json' --data-urlencode "_csrf=$t" "${args[@]}" "$url"
+}
+banco() { php -r 'require "bootstrap/app.php"; $d = \Cardapim\Core\Database::connect(); $q = $d->prepare($argv[1]); $q->execute(array_slice($argv, 2)); echo implode("|", (array) $q->fetch(PDO::FETCH_NUM));' "$@"; }
+r="$(enviar "$cx" "$c/balcao" nome=)"
+eb="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+[[ -n "$eb" ]] && ok "venda no balcao para entrega aberta ($eb)" || falha "balcao para entrega nao abriu"
+antes="$(estoque)"
+enviar "$cx" "$c/comandas/$eb/itens" produto="$produto" quantidade=2 >/dev/null
+pagina "$cx" "$c/comandas/$eb" >/dev/null
+contem "aba Entrega na venda do balcao" "$tmp/pagina.html" 'data-entrega-ativo'
+contem "caixinha Pedido para entrega" "$tmp/pagina.html" 'Pedido para entrega'
+contem "popup Preparar pedido na tela" "$tmp/pagina.html" 'data-dialogo-preparar'
+contem "carrega o script da entrega" "$tmp/pagina.html" '/assets/js/caixa-entrega.js'
+r="$(enviar "$cx" "$c/mesas/${mesas[3]}/abrir")"
+em="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+pagina "$cx" "$c/comandas/$em" >/dev/null
+nao_contem "comanda de mesa nao tem a aba Entrega" "$tmp/pagina.html" 'data-entrega-ativo'
+enviar "$cx" "$c/comandas/$em/entrega" nome=Teste logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" quando=agora forma=pix >/dev/null
+esperar "mesa nao vira entrega" "$(aviso "$cx" "$c/comandas/$em")" "A entrega só pode ser feita a partir de uma venda no balcão."
+enviar "$cx" "$c/comandas/$em/cancelar" >/dev/null
+
+esperar "buscar telefone conhecido" "$(jpost "$c/comandas/$eb/entrega/telefone" telefone='(85) 97777-0001')" "200"
+esperar "telefone puxa o ultimo endereco" "$(json "$tmp/j.json" endereco.logradouro)" "Rua Haddock Lobo"
+esperar "telefone puxa o nome" "$(json "$tmp/j.json" encontrado)" "true"
+jpost "$c/comandas/$eb/entrega/telefone" telefone=123 >/dev/null
+esperar "telefone sem DDD recusado" "$(json "$tmp/j.json" ok)" "false"
+jpost "$c/comandas/$eb/entrega/telefone" telefone='85 90000-0000' >/dev/null
+esperar "telefone novo: cliente novo" "$(json "$tmp/j.json" encontrado)" "false"
+esperar "telefone sem CSRF recusado" "$(curl -s -o /dev/null -b "$cx" -w '%{http_code}' -H 'Accept: application/json' -d telefone=85977770001 "$c/comandas/$eb/entrega/telefone")" "401"
+esperar "motoqueiro nao usa a entrega do caixa" "$(curl -s -o /dev/null -b "$mj" -w '%{http_code}' -H 'Accept: application/json' -d telefone=85977770001 "$c/comandas/$eb/entrega/telefone")" "401"
+
+jpost "$c/comandas/$eb/entrega/bairro" logradouro="Rua Haddock Lobo" >/dev/null
+esperar "rua com um bairro: preenche" "$(json "$tmp/j.json" bairros.0.bairro)" "Cerqueira César"
+esperar "rua com um bairro: CEP junto" "$(json "$tmp/j.json" bairros.0.cep)" "01414000"
+jpost "$c/comandas/$eb/entrega/bairro" logradouro="Rua Augusta" >/dev/null
+esperar "rua com dois bairros: caixa escolhe" "$(php -r 'echo count(json_decode(file_get_contents($argv[1]), true)["bairros"] ?? []);' "$tmp/j.json")" "2"
+jpost "$c/comandas/$eb/entrega/bairro" logradouro="Rua Que Nao Existe" >/dev/null
+esperar "rua desconhecida: digitar o bairro" "$(php -r 'echo count(json_decode(file_get_contents($argv[1]), true)["bairros"] ?? [1]);' "$tmp/j.json")" "0"
+
+esperar "calcular dentro da area" "$(jpost "$c/comandas/$eb/entrega/calcular" logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César")" "200"
+esperar "taxa do bairro configurada" "$(json "$tmp/j.json" taxa_centavos)" "500"
+esperar "total = itens + taxa" "$(json "$tmp/j.json" total_centavos)" "$((preco * 2 + 500))"
+jpost "$c/comandas/$eb/entrega/calcular" logradouro="Avenida Brigadeiro Faria Lima" numero=3000 "bairro=Itaim Bibi" >/dev/null
+esperar "fora da area: sem entrega" "$(json "$tmp/j.json" entrega)" "false"
+enviar "$cx" "$c/comandas/$eb/entrega" nome=Bia logradouro="Avenida Brigadeiro Faria Lima" numero=3000 "bairro=Itaim Bibi" quando=agora forma=pix >/dev/null
+case "$(aviso "$cx" "$c/comandas/$eb")" in *'O pedido não foi enviado.'*) ok "fora da area bloqueia o envio";; *) falha "fora da area enviou";; esac
+enviar "$cx" "$c/comandas/$eb/entrega" nome=Bia logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" forma=pix >/dev/null
+esperar "sem escolher quando paga recusado" "$(aviso "$cx" "$c/comandas/$eb")" "Escolha quando o cliente paga: agora ou na entrega."
+enviar "$cx" "$c/comandas/$eb/entrega" nome=Bia logradouro="Rua Haddock Lobo" numero=100 "bairro=Cerqueira César" quando=entrega forma=dinheiro valor=1,00 >/dev/null
+case "$(aviso "$cx" "$c/comandas/$eb")" in *'Troco para:'*) ok "troco menor que o total recusado";; *) falha "troco menor aceito";; esac
+esperar "ainda e venda de balcao" "$(banco 'SELECT tipo FROM pedidos WHERE id = ?' "$eb")" "balcao"
+
+r="$(enviar "$cx" "$c/comandas/$eb/entrega" nome=Bia telefone='(85) 97777-0002' logradouro="Rua Haddock Lobo" numero=100 complemento="apto 2" "bairro=Cerqueira César" cep=01414000 quando=agora forma=pix)"
+case "$r" in *"/caixa/delivery/$eb"*) ok "preparar pedido leva ao pedido do delivery";; *) falha "preparar pedido ($r)";; esac
+case "$(aviso "$cx" "$c/delivery/$eb")" in *'enviado para a cozinha e para o delivery'*'Pix'*'recebido'*) ok "aviso: enviado e Pix recebido";; *) falha "aviso do preparar ($(aviso "$cx" "$c/delivery/$eb"))";; esac
+contem "pedido marcado Feito no caixa" "$tmp/aviso.html" 'Feito no caixa'
+contem "pedido mostra pago no caixa" "$tmp/aviso.html" 'Pago no caixa (Pix)'
+esperar "pedido de entrega em preparo, pago, taxa e endereco" "$(banco 'SELECT tipo, status, pagamento_status, forma_pagamento, taxa_entrega, taxa_servico, entrega_bairro, origem FROM pedidos WHERE id = ?' "$eb")" "entrega|em_preparo|pago|pix_entrega|5.00|0.00|Cerqueira César|balcao"
+esperar "pagamento entrou no caixa uma vez" "$(banco 'SELECT COUNT(*), SUM(valor) FROM pedido_pagamentos WHERE id_pedido = ?' "$eb")" "1|$(php -r 'echo number_format(((int) $argv[1] * 2 + 500) / 100, 2, ".", "");' "$preco")"
+esperar "ESTOQUE: baixado so no lancamento (2)" "$(php -r "echo $antes - $(estoque);")" "2"
+pagina "$cx" "$c/delivery" >/dev/null
+contem "fila do delivery com selo Caixa" "$tmp/pagina.html" 'selo-caixa'
+enviar "$cx" "$c/delivery/$eb/despachar" entregador="$entregador" >/dev/null
+enviar "$cx" "$c/delivery/$eb/concluir" >/dev/null
+esperar "pago na hora: conclui sem cobrar de novo" "$(aviso "$cx" "$c/delivery/$eb")" "Pedido #$(banco 'SELECT numero FROM pedidos WHERE id = ?' "$eb") concluído."
+esperar "pagamento continua uma vez so" "$(banco 'SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = ?' "$eb")" "1"
+
+r="$(enviar "$cx" "$c/balcao" nome=)"
+eb2="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+antes="$(estoque)"
+enviar "$cx" "$c/comandas/$eb2/itens" produto="$produto" quantidade=1 >/dev/null
+enviar "$cx" "$c/comandas/$eb2/entrega" nome=Caio logradouro="Rua Haddock Lobo" numero=200 "bairro=Cerqueira César" quando=entrega forma=debito >/dev/null
+esperar "na entrega: a receber em debito" "$(banco 'SELECT status, pagamento_status, forma_pagamento, total FROM pedidos WHERE id = ?' "$eb2")" "em_preparo|pendente|debito|$(php -r 'echo number_format(((int) $argv[1] + 500) / 100, 2, ".", "");' "$preco")"
+esperar "na entrega: nada entra no caixa ainda" "$(banco 'SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = ?' "$eb2")" "0"
+enviar "$cx" "$c/delivery/$eb2/cancelar" "motivo=Cliente desistiu da entrega" >/dev/null
+esperar "ESTOQUE: cancelar a entrega do caixa devolve" "$(estoque)" "$antes"
+
 echo "Fechar o caixa (contagem cega)"
 pagina "$cx" "$c" >/dev/null
 contem "resumo mostra vendas em dinheiro" "$tmp/pagina.html" 'Dinheiro na gaveta'

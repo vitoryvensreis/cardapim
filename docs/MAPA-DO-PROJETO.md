@@ -157,7 +157,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | `Cadastro/CadastroRestaurante` | Cadastro público: restaurante + gerente + assinatura | `/cadastro` |
 | `Cardapio/CardapioPublico` | O que o cliente vê em `/{slug}`: categorias, preços, disponibilidade, “onde vende” | Cardápio online, sacola |
 | `Pedidos/` | `CriarPedido` (pedido online), `CheckoutPublico`, `LinhasSacola`, `StatusPedido`, `CancelarPedido`, `PixPedido`, `VerificadorEntrega`, `AvisosWhatsApp`, `SaudacaoWhatsApp`, `HistoricoCliente` | Cardápio, caixa, garçom, WhatsApp, Agent |
-| `Caixa/` | `CaixaService` (abrir/fechar e gaveta), `ComandaService` (mesa/balcão), `MesaService`, `DeliveryService`, `HistoricoComandas` | Modo caixa e garçom |
+| `Caixa/` | `CaixaService` (abrir/fechar e gaveta), `ComandaService` (mesa/balcão), `MesaService`, `DeliveryService`, `EntregaBalcaoService` (venda no balcão que vira entrega), `HistoricoComandas` | Modo caixa e garçom |
 | `Garcom/` | `PermissoesGarcom` (remover item, cancelar, fechar conta), `ComandaPix` | Painel do garçom |
 | `Cozinha/PainelCozinha` | Fila do KDS | Tela da cozinha |
 | `Impressao/` | `CupomImpressao` (blocos do cupom), `RotaProducao` (**regra única** de qual impressora recebe cada item), `FilaImpressao` (grava na fila do Agent), `TesteImpressao` (simulador) | Agent, caixa, garçom, gerência > Impressoras |

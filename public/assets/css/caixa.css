@@ -421,6 +421,7 @@
 .pedido-info { display: flex; align-items: flex-start; gap: .35rem; }
 .pedido-info .icon { flex: none; margin-top: .2rem; }
 .selo-ifood, .etiqueta-ifood { display: inline-flex; align-items: center; gap: .25rem; padding: .05rem .4rem; border-radius: var(--r-pill); background: var(--c-wine); color: var(--c-white); font: 700 .66rem/1.5 var(--f-head); letter-spacing: .02em; vertical-align: 2px; white-space: nowrap; }
+.selo-caixa { background: var(--c-white); color: var(--c-wine); box-shadow: inset 0 0 0 1.5px var(--c-orange); }
 .etiqueta-ifood { padding: .15rem .5rem; font-size: .72rem; margin-right: .25rem; vertical-align: 0; }
 .etiqueta-ifood .icon { width: .8rem; height: .8rem; }
 .ifood-entrega { display: grid; gap: .6rem; padding: 1rem; border: 1px solid var(--c-line); border-radius: var(--r-lg); background: var(--c-white); }

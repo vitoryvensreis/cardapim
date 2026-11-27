@@ -86,6 +86,55 @@ class Geocodificador
             $temCoord ? (float) $lat : null, $temCoord ? (float) $lon : null);
     }
 
+    /**
+     * Procura uma rua na cidade (ViaCEP: /ws/UF/Cidade/Rua/json/) e devolve os bairros por onde ela passa, com o CEP.
+     * Usado na entrega feita no caixa: o operador digita a rua e o sistema preenche o bairro. Lista vazia = nao achou.
+     * @return list<array{cep:string,logradouro:string,bairro:string,cidade:string,estado:string}>
+     */
+    public function ruas(string $rua, string $cidade, string $estado): array
+    {
+        $rua = TextoLocal::limpo($rua, 150);
+        $cidade = TextoLocal::limpo($cidade, 100);
+        $estado = strtoupper(TextoLocal::limpo($estado, 2));
+        if (mb_strlen($rua) < 3 || mb_strlen($cidade) < 3 || preg_match('/\A[A-Z]{2}\z/', $estado) !== 1) {
+            return [];
+        }
+        $chave = 'rua-' . hash('sha256', TextoLocal::chave($rua . '|' . $cidade . '|' . $estado));
+        $cache = $this->cache($chave);
+        if ($cache !== null) {
+            return is_array($cache['lista'] ?? null) ? $cache['lista'] : [];
+        }
+        $url = rtrim(Config::get('GEO_VIACEP_URL', 'https://viacep.com.br/ws'), '/') . '/' . rawurlencode($estado) . '/'
+            . rawurlencode($cidade) . '/' . rawurlencode($rua) . '/json/';
+        $d = $this->json($url);
+        if (!is_array($d) || ($d['erro'] ?? false)) {
+            return []; // falha de rede nao vai para o cache: tenta de novo na proxima
+        }
+        $lista = [];
+        $vistos = [];
+        foreach (array_slice(array_values(array_filter($d, 'is_array')), 0, 50) as $r) {
+            $bairro = TextoLocal::limpo((string) ($r['bairro'] ?? ''), 100);
+            $cep = (string) preg_replace('/\D/', '', (string) ($r['cep'] ?? ''));
+            $chaveBairro = TextoLocal::chave($bairro);
+            if ($bairro === '' || isset($vistos[$chaveBairro])) {
+                continue;
+            }
+            $vistos[$chaveBairro] = true;
+            $lista[] = [
+                'cep' => preg_match('/\A[0-9]{8}\z/', $cep) === 1 ? $cep : '',
+                'logradouro' => TextoLocal::limpo((string) ($r['logradouro'] ?? $rua), 150),
+                'bairro' => $bairro,
+                'cidade' => TextoLocal::limpo((string) ($r['localidade'] ?? $cidade), 100),
+                'estado' => strtoupper(TextoLocal::limpo((string) ($r['uf'] ?? $estado), 2)),
+            ];
+            if (count($lista) >= 8) {
+                break;
+            }
+        }
+        $this->guardar($chave, ['lista' => $lista], $lista === [] ? 1 : self::CACHE_DIAS);
+        return $lista;
+    }
+
     /** @return array<string,mixed>|null */
     private function viaCep(string $cep): ?array
     {

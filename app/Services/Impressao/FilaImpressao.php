@@ -257,6 +257,39 @@ final class FilaImpressao
         }
     }
 
+    /**
+     * Venda do balcao que virou entrega no caixa: manda para a producao so os itens que ainda nao tinham saido
+     * (o "Novos itens" do balcao pode ja ter impresso parte). Cabecalho de pedido de entrega e, com "Mostrar o total"
+     * ligado, o resumo de valores. Nunca impede o pedido: qualquer falha so vai para o log.
+     */
+    public function producaoEntregaBalcao(int $idPedido): void
+    {
+        try {
+            if (!$this->disponivel() || !$this->producaoAtiva()) {
+                return;
+            }
+            $pedidos = new PedidoRepository($this->db);
+            $p = $pedidos->buscar($this->idRestaurante, $idPedido);
+            if ($p === null || $p['tipo'] !== 'entrega') {
+                return;
+            }
+            $desde = $this->repo->ultimoItemImpresso($this->idRestaurante, $idPedido);
+            $ativos = array_values(array_filter($pedidos->itens($this->idRestaurante, $idPedido), static fn (array $i): bool => ($i['cancelado_em'] ?? null) === null));
+            $novos = array_values(array_filter($ativos, static fn (array $i): bool => (int) $i['id'] > $desde));
+            if ($novos === []) {
+                return;
+            }
+            $ateItem = max(array_map(static fn (array $i): int => (int) $i['id'], $ativos));
+            $resumo = $this->opcoesCupom()['delivery_com_preco'] ? CupomImpressao::resumoPedido($p) : [];
+            $res = $this->enviarProducao($idPedido, 'producao', $novos, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], $ateItem, false, $resumo);
+            if ($res instanceof Resultado) {
+                error_log('[Cardapim] Producao da entrega do balcao nao enviada: ' . $res->mensagem);
+            }
+        } catch (\Throwable $e) {
+            error_log('[Cardapim] Producao da entrega do balcao indisponivel (' . get_class($e) . ').');
+        }
+    }
+
     /** Vias de producao quando o aceite nao vem de uma pessoa (iFood aceito la ou aceite automatico). */
     public static function producaoDoSistema(PDO $db, int $idRestaurante, int $idPedido): void
     {
@@ -293,7 +326,8 @@ final class FilaImpressao
                 $cabeca = CupomImpressao::cabecaComanda($c);
                 $rotulo = $p['tipo'] === 'mesa' ? (string) $c['rotulo'] : 'Balcão';
             } else {
-                if (!$this->repo->temProducao($this->idRestaurante, $idPedido)) {
+                // Vias do aceite ja enviadas (ou, na entrega feita no caixa, itens impressos ainda no balcao).
+                if (!$this->repo->temProducao($this->idRestaurante, $idPedido) && $this->repo->ultimoItemImpresso($this->idRestaurante, $idPedido) === 0) {
                     return;
                 }
                 $itens = array_map(static fn (array $i): array => ['cancelado_em' => null] + $i, $pedidos->itens($this->idRestaurante, $idPedido));
