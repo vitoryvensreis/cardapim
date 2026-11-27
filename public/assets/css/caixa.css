@@ -308,6 +308,17 @@
 .troco-ao-vivo span { font: 700 1rem/1.2 var(--f-head); }
 .troco-ao-vivo strong { font: 700 2rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
 .troco-ao-vivo.is-falta { border-color: #f1c3be; background: var(--c-danger-bg); color: #7a1f17; }
+/* Taxa por forma de pagamento (caixa e garcom): "+ 3,5%" ao lado da forma e o bloco "Cobrar do cliente". */
+.forma-taxa { color: var(--c-wine); font: 700 .78rem/1.2 var(--f-body, inherit); font-variant-numeric: tabular-nums; }
+.pagar-taxa { display: grid; gap: .35rem; margin: -.25rem 0 1rem; padding: .85rem 1.1rem; border: 2px solid var(--c-orange); border-radius: var(--r-lg); background: var(--c-cream); color: var(--c-ink); }
+.pagar-taxa[hidden] { display: none; }
+.pagar-taxa p { display: flex; align-items: center; gap: .5rem; margin: 0; }
+.pagar-taxa-linha { color: var(--c-muted); font-size: .92rem; }
+.pagar-taxa-linha strong { margin-left: auto; color: var(--c-ink); font-variant-numeric: tabular-nums; }
+.pagar-taxa-cobrar { justify-content: space-between; font: 700 1rem/1.2 var(--f-head); }
+.pagar-taxa-cobrar strong { color: var(--c-wine); font: 700 1.6rem/1 var(--f-head); font-variant-numeric: tabular-nums; }
+.conta-taxa-pagamento dd { color: var(--c-ink); }
+.pix-taxa { margin: .1rem 0 .4rem; color: var(--c-muted); font-size: .88rem; text-align: center; }
 .troco-destaque { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; padding: 1.1rem 1.35rem; border: 2px solid #9fd3b4; border-radius: var(--r-xl); background: var(--c-success-bg); color: #14532d; animation: troco-aparece var(--t-slow) var(--ease-spring); }
 .troco-destaque > .icon { flex: 0 0 auto; width: 3rem; height: 3rem; padding: .6rem; border-radius: .2rem; background: var(--c-white); color: var(--c-success); }
 .troco-destaque span { display: block; font: 700 .95rem/1.2 var(--f-head); }

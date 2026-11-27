@@ -96,10 +96,7 @@
   // Taxa da forma de pagamento (opcional): a MESMA conta do servidor (TaxaPagamento::calcular), so para mostrar.
   // Porcentagem em centesimos de ponto (3,5% = 350), arredondada meio para cima; base = itens + entrega - desconto.
   const regraTaxa = () => (estado.forma && config.taxas ? config.taxas[estado.forma] || null : null);
-  const taxaDe = (base, regra) => {
-    if (!regra || base <= 0) return 0;
-    return regra.tipo === "fixo" ? regra.valor : Math.floor((base * regra.valor + 5000) / 10000);
-  };
+  const taxaDe = (base, regra) => window.Cardapim.taxaDe(base, regra); // conta unica em core.js
   const taxaPagamento = () => (temItens() ? taxaDe(Math.max(0, subtotal() + taxa() - descontoAtual()), regraTaxa()) : 0);
   const total = () => (temItens() ? Math.max(0, subtotal() + taxa() - descontoAtual()) + taxaPagamento() : 0);
 

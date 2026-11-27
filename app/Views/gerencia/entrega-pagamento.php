@@ -193,7 +193,7 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
                 // Taxa de cada forma: o que foi enviado (erro) ou o salvo.
                 $taxaFormas = [
                     'pix_online' => ['Pix pelo app', 'smartphone', 'pag_pix_online'],
-                    'pix_entrega' => ['Pix na entrega', 'qr-code', 'pag_pix_entrega'],
+                    'pix_entrega' => ['Pix na entrega ou no caixa', 'qr-code', 'pag_pix_entrega'],
                     'debito' => ['Cartão de débito', 'credit-card', 'pag_debito'],
                     'credito' => ['Cartão de crédito', 'credit-card', 'pag_credito'],
                 ];
@@ -219,7 +219,7 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
                 <details class="taxas-forma" data-taxas<?= $taxas !== [] || $temErroTaxa ? ' open' : '' ?>>
                     <summary><?= Icon::svg('percent', 'icon-sm') ?>Cobrar taxa por forma de pagamento <span class="field-optional">(opcional)</span></summary>
                     <input type="hidden" name="taxas_enviado" value="1">
-                    <p class="taxas-ajuda">A taxa é somada ao total do pedido. O cliente vê o valor ao lado da forma de pagamento antes de fazer o pedido. Dinheiro nunca tem taxa.</p>
+                    <p class="taxas-ajuda">A taxa vale para todos os pedidos: cardápio online, mesa, balcão e garçom. É somada ao valor pago naquela forma, e o cliente vê a taxa antes de pagar. Dinheiro nunca tem taxa.</p>
                     <div class="taxas-lista">
                         <?php foreach ($taxaFormas as $forma => [$rotulo, $icone, $campoForma]):
                             $tipo = $taxaTipo($forma);
@@ -243,7 +243,6 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
                             </div>
                         <?php endforeach; ?>
                     </div>
-                    <p class="taxas-vazio" data-taxas-vazio hidden>Marque cartão ou Pix acima para escolher uma taxa.</p>
                 </details>
             <?php endif; ?>
         </section>

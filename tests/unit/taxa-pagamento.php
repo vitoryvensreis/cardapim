@@ -6,6 +6,7 @@ declare(strict_types=1);
 // php tests/unit/taxa-pagamento.php
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
+use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Services\Impressao\CupomImpressao;
 use Cardapim\Services\Pedidos\TaxaPagamento;
 
@@ -57,6 +58,57 @@ $ok(!in_array('Taxa do crédito (3,5%)', $semTaxa, true), 'cupom sem taxa nao mo
 $antigo = $pedido;
 unset($antigo['taxa_pagamento'], $antigo['taxa_pagamento_rotulo']);
 $ok(count(CupomImpressao::resumoPedido($antigo)) === 4, 'pedido de antes da migracao continua igual');
+
+// Contas de mesa e balcao (caixa e garcom): forma do caixa -> regra, taxa de cada pagamento e rotulo da conta
+$regras = ['credito' => $pct, 'debito' => $fixo, 'pix_entrega' => ['tipo' => 'percentual', 'valor' => '1.00'], 'pix_online' => ['tipo' => 'fixo', 'valor' => '0.99']];
+$ok(TaxaPagamento::regraDaConta($regras, 'credito') === $pct && TaxaPagamento::regraDaConta($regras, 'debito') === $fixo, 'cartao do caixa usa as taxas do cartao');
+$ok(TaxaPagamento::regraDaConta($regras, 'pix') === $regras['pix_entrega'], 'Pix registrado no caixa usa a taxa do Pix na entrega ou no caixa');
+$ok(TaxaPagamento::regraDaConta($regras, 'pix_online') === $regras['pix_online'], 'Pix com QR do Asaas usa a taxa do Pix pelo app');
+$ok(TaxaPagamento::regraDaConta($regras, 'dinheiro') === null, 'dinheiro nunca tem regra');
+$ok(TaxaPagamento::daConta($regras, 'credito', 5000) === ['centavos' => 175, 'rotulo' => 'Taxa do crédito (3,5%)'], '3,5% de R$ 50,00 no credito');
+$ok(TaxaPagamento::daConta($regras, 'debito', 3000) === ['centavos' => 100, 'rotulo' => 'Taxa do débito (R$ 1,00)'], 'debito com valor fixo');
+$ok(TaxaPagamento::daConta($regras, 'dinheiro', 3000) === ['centavos' => 0, 'rotulo' => null], 'dinheiro sem taxa');
+$ok(TaxaPagamento::daConta([], 'credito', 3000) === ['centavos' => 0, 'rotulo' => null], 'restaurante sem taxa: tudo como antes');
+$ok(TaxaPagamento::rotuloDaConta([]) === null, 'conta sem taxa nao tem rotulo');
+$ok(TaxaPagamento::rotuloDaConta(['Taxa do crédito (3,5%)', 'Taxa do crédito (3,5%)']) === 'Taxa do crédito (3,5%)', 'duas vezes a mesma taxa = rotulo dela');
+$ok(TaxaPagamento::rotuloDaConta(['Taxa do crédito (3,5%)', 'Taxa do débito (R$ 1,00)']) === TaxaPagamento::ROTULO_VARIAS, 'taxas diferentes = Taxas de pagamento');
+$tela = TaxaPagamento::paraConta($regras);
+$ok(array_keys($tela) === ['debito', 'credito', 'pix', 'pix_online'], 'regras da tela pelas formas do caixa');
+$ok($tela['credito']['texto'] === '+ 3,5%' && $tela['pix']['rotulo'] === 'Taxa do Pix (1%)', 'texto e rotulo na tela');
+$ok(TaxaPagamento::calcularTela(5000, $tela['credito']) === TaxaPagamento::calcular(5000, $pct), 'conta da tela igual a do servidor (porcentagem)');
+$ok(TaxaPagamento::calcularTela(5000, $tela['debito']) === 100 && TaxaPagamento::calcularTela(5000, null) === 0, 'conta da tela (fixo e sem regra)');
+$iguais = true;
+foreach ([1, 99, 4290, 4300, 12345, 99999] as $base) {
+    $iguais = $iguais && TaxaPagamento::calcularTela($base, $tela['credito']) === TaxaPagamento::calcular($base, $pct);
+}
+$ok($iguais, 'conta da tela igual a do servidor em varios valores');
+
+// Conferencia da taxa que a tela mostrou (caixa e garcom)
+$ok(ComandaService::conferirTaxa('credito', 5000, 175, '175') === null, 'taxa vista igual: grava');
+$ok(ComandaService::conferirTaxa('dinheiro', 5000, 0, '') === null && ComandaService::conferirTaxa('debito', 5000, 0, '0') === null, 'sem taxa e nada visto: grava');
+$sem = ComandaService::conferirTaxa('credito', 5000, 175, '');
+$ok($sem !== null && !$sem->ok && $sem->erros['taxa_vista'] === '175', 'sem JavaScript: volta com a taxa certa para confirmar');
+$ok($sem !== null && $sem->mensagem === 'Crédito tem taxa de R$ 1,75. Cobre R$ 51,75 do cliente e toque em Receber de novo.', 'mensagem com a taxa e o valor a cobrar');
+$mudou = ComandaService::conferirTaxa('credito', 5000, 175, '150');
+$ok($mudou !== null && $mudou->erros['taxa_vista'] === '175', 'taxa mudou no meio: nao grava');
+$tirada = ComandaService::conferirTaxa('credito', 5000, 0, '175');
+$ok($tirada !== null && $tirada->erros['taxa_vista'] === '0', 'taxa tirada no meio: nao grava');
+$ok(ComandaService::conferirTaxa('credito', 5000, 175, 'abc') !== null, 'taxa vista invalida recusada');
+
+// Conta impressa da comanda: linha das taxas antes do TOTAL e aviso enquanto falta pagar
+$comanda = [
+    'pedido' => ['tipo' => 'balcao', 'numero' => 7, 'servico_percentual' => '0.00', 'pessoas' => null, 'observacao' => null],
+    'itens' => [['id' => 1, 'nome' => 'Suco', 'quantidade' => '1.000', 'unidade' => 'un', 'preco_unitario' => '50.00', 'total' => '50.00', 'observacao' => null, 'cancelado_em' => null]],
+    'rotulo' => 'Balcão', 'rotulo_mesa' => 'Balcão', 'nome' => '',
+    'subtotal' => 5000, 'servico' => 0, 'desconto' => 0, 'total' => 5175, 'pago' => 5175, 'restante' => 0,
+    'taxa_pagamento' => 175, 'taxa_pagamento_rotulo' => 'Taxa do crédito (3,5%)', 'taxas' => $tela,
+];
+$linhas = array_column(CupomImpressao::comanda($comanda, 'Restaurante', 'conta')['blocos'], 'rotulo');
+$ok(in_array('Taxa do crédito (3,5%)', $linhas, true), 'conta impressa mostra a taxa cobrada');
+$textos = array_column(CupomImpressao::comanda(['pago' => 0, 'restante' => 5000, 'total' => 5000, 'taxa_pagamento' => 0] + $comanda, 'Restaurante', 'pre_conta')['blocos'], 'texto');
+$ok(in_array('Cartão e Pix podem ter taxa na hora de pagar.', $textos, true), 'pre-conta avisa que cartao e Pix podem ter taxa');
+$textos = array_column(CupomImpressao::comanda(['pago' => 0, 'restante' => 5000, 'total' => 5000, 'taxa_pagamento' => 0, 'taxas' => []] + $comanda, 'Restaurante', 'pre_conta')['blocos'], 'texto');
+$ok(!in_array('Cartão e Pix podem ter taxa na hora de pagar.', $textos, true), 'restaurante sem taxa: pre-conta sem o aviso');
 
 if ($falhas > 0) {
     echo "$falhas falha(s).\n";

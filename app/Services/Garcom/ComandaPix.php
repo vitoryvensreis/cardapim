@@ -13,7 +13,9 @@ use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Caixa\CaixaService;
 use Cardapim\Services\Caixa\ComandaService;
+use Cardapim\Services\Pedidos\TaxaPagamento;
 use Cardapim\Services\Gerencia\Resultado;
+use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 use PDO;
 use Throwable;
@@ -60,13 +62,16 @@ final class ComandaPix
             return Resultado::falha('O caixa está fechado. Peça para abrir o caixa antes de receber.');
         }
         $idPedido = (int) $c['pedido']['id'];
-        $valor = CaixaService::dec($restante);
+        // Taxa do Pix pelo app (se o restaurante cadastrou): somada ao QR. A conta continua sendo o que falta pagar.
+        $taxa = TaxaPagamento::daConta(ComandaService::regrasDasContas($this->db, $this->idRestaurante), 'pix_online', $restante);
+        $total = $restante + $taxa['centavos'];
+        $valor = CaixaService::dec($total);
 
         // Ja existe um Pix esperando com o mesmo valor: mostra o mesmo QR (o cliente pode ja ter escaneado).
         $q = $this->db->prepare("SELECT id, valor, cobranca_id, expira_em FROM comanda_pix WHERE id_restaurante = ? AND id_pedido = ? AND status = 'pendente' ORDER BY id DESC");
         $q->execute([$this->idRestaurante, $idPedido]);
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
-            if (Numero::centavos((string) $p['valor']) === $restante && strtotime((string) $p['expira_em']) > time() + 60) {
+            if (Numero::centavos((string) $p['valor']) === $total && strtotime((string) $p['expira_em']) > time() + 60) {
                 return Resultado::sucesso('', (int) $p['id']);
             }
             $this->cancelar((int) $p['id']); // valor mudou (item novo, 10% tirado...): o QR antigo nao vale mais
@@ -90,10 +95,17 @@ final class ComandaPix
             return Resultado::falha('Não deu para gerar o Pix agora. Receba de outra forma.');
         }
         $agora = date('Y-m-d H:i:s');
-        $this->db->prepare('INSERT INTO comanda_pix (id_restaurante, id_pedido, id_caixa, id_user, cobranca_id, ambiente, valor, copia_cola, status, criado_em, expira_em)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'pendente\', ?, ?)')
-            ->execute([$this->idRestaurante, $idPedido, (int) $caixa['id'], $idUser, $idCobranca, $ambiente, $valor, $qr['payload'], $agora,
-                date('Y-m-d H:i:s', time() + self::PRAZO_MINUTOS * 60)]);
+        $expira = date('Y-m-d H:i:s', time() + self::PRAZO_MINUTOS * 60);
+        if (Esquema::tem($this->db, 'taxas_contas')) {
+            $this->db->prepare('INSERT INTO comanda_pix (id_restaurante, id_pedido, id_caixa, id_user, cobranca_id, ambiente, valor, taxa, taxa_rotulo, copia_cola, status, criado_em, expira_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendente\', ?, ?)')
+                ->execute([$this->idRestaurante, $idPedido, (int) $caixa['id'], $idUser, $idCobranca, $ambiente, $valor, CaixaService::dec($taxa['centavos']), $taxa['rotulo'],
+                    $qr['payload'], $agora, $expira]);
+        } else {
+            $this->db->prepare('INSERT INTO comanda_pix (id_restaurante, id_pedido, id_caixa, id_user, cobranca_id, ambiente, valor, copia_cola, status, criado_em, expira_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'pendente\', ?, ?)')
+                ->execute([$this->idRestaurante, $idPedido, (int) $caixa['id'], $idUser, $idCobranca, $ambiente, $valor, $qr['payload'], $agora, $expira]);
+        }
         $q = $this->db->prepare('SELECT id FROM comanda_pix WHERE cobranca_id = ? AND id_restaurante = ?');
         $q->execute([$idCobranca, $this->idRestaurante]);
         (new PedidoRepository($this->db))->registrarEvento($this->idRestaurante, $idPedido, 'aberto', 'Pix de ' . Numero::reais($valor) . ' gerado na mesa.', $idUser);
@@ -187,23 +199,29 @@ final class ComandaPix
             $restante = $pedido !== null && $pedido['status'] === 'aberto'
                 ? max(0, Numero::centavos((string) $pedido['total']) - ComandaService::totalPago($this->db, $this->idRestaurante, $idPedido))
                 : 0;
-            $entra = min($centavos, $restante);
+            // O QR traz conta + taxa do Pix. So a parte da conta abate o que falta; a taxa vai junto quando algo entra.
+            $taxa = min(Numero::centavos((string) ($pix['taxa'] ?? '0')), $centavos);
+            $conta = $centavos - $taxa;
+            $entra = min($conta, $restante);
+            $taxaEntra = $entra > 0 ? $taxa : 0;
             $resultado = 'confirmado';
             if ($entra > 0) {
                 $caixa = (new CaixaRepository($this->db))->aberto($this->idRestaurante);
                 $idCaixa = $caixa !== null ? (int) $caixa['id'] : (int) $pix['id_caixa'];
-                $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, \'pix_online\', ?, \'0.00\', ?, ?)')
-                    ->execute([$idPedido, $this->idRestaurante, $idCaixa, CaixaService::dec($entra), $pix['id_user'] !== null ? (int) $pix['id_user'] : null, $agora]);
-                $repo->registrarEvento($this->idRestaurante, $idPedido, 'aberto', 'Pix de ' . Numero::reais(CaixaService::dec($entra)) . ' confirmado' . ($origem === 'webhook' ? ' pelo Asaas.' : '.'));
-                if (ComandaService::totalPago($this->db, $this->idRestaurante, $idPedido) >= Numero::centavos((string) $pedido['total'])
+                ComandaService::registrarPagamento($this->db, $this->idRestaurante, $idPedido, $idCaixa, 'pix_online', $entra, $taxaEntra,
+                    isset($pix['taxa_rotulo']) ? (string) $pix['taxa_rotulo'] : null, 0, $pix['id_user'] !== null ? (int) $pix['id_user'] : null, $agora);
+                $repo->registrarEvento($this->idRestaurante, $idPedido, 'aberto', 'Pix de ' . Numero::reais(CaixaService::dec($entra + $taxaEntra)) . ' confirmado'
+                    . ($taxaEntra > 0 ? ' (inclui taxa de ' . Numero::reais(CaixaService::dec($taxaEntra)) . ')' : '') . ($origem === 'webhook' ? ' pelo Asaas.' : '.'));
+                if ($restante - $entra <= 0
                     && ComandaService::fecharPaga($this->db, $this->idRestaurante, $idPedido, $idCaixa, $agora, null, 'Conta paga com Pix pelo app e fechada.')) {
                     $resultado = 'fechou';
                 }
                 TempoReal::registrar($this->db, $this->idRestaurante, 'caixa', 'caixa.pagamento', ['caixa' => $idCaixa]);
             }
-            if ($entra < $centavos) {
+            $sobra = $centavos - $entra - $taxaEntra;
+            if ($sobra > 0) {
                 $repo->registrarEvento($this->idRestaurante, $idPedido, $pedido['status'] ?? 'concluido',
-                    'Pix de ' . Numero::reais(CaixaService::dec($centavos - $entra)) . ' pago a mais (a conta já estava paga). Devolva ao cliente pelo Asaas.');
+                    'Pix de ' . Numero::reais(CaixaService::dec($sobra)) . ' pago a mais (a conta já estava paga). Devolva ao cliente pelo Asaas.');
                 $resultado = $entra > 0 ? $resultado : 'sobrou';
             }
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', $resultado === 'fechou' ? 'comanda.fechada' : 'comanda.atualizada', ['id' => $idPedido, 'pix' => (int) $pix['id']]);

@@ -328,10 +328,29 @@
     trocar();
   }
 
+  // Taxa por forma de pagamento (regras vindas do servidor). So mostra: o servidor confere pelo taxa_vista.
+  let taxasGarcom = {};
+  try { taxasGarcom = pagar ? (JSON.parse(pagar.dataset.taxas || "{}") || {}) : {}; } catch (e) { taxasGarcom = {}; }
+  const taxaDe = (base, regra) => (window.Cardapim && window.Cardapim.taxaDe ? window.Cardapim.taxaDe(base, regra) : 0);
+
   function atualizarPagamento() {
     if (!pagar) return;
     const valor = centavos($("[data-valor]", pagar).value);
-    const dinheiro = $("[data-forma-campo]", pagar).value === "dinheiro";
+    const formaAtual = $("[data-forma-campo]", pagar).value;
+    const dinheiro = formaAtual === "dinheiro";
+    const regra = dinheiro ? null : (taxasGarcom[formaAtual] || null);
+    const taxa = taxaDe(Math.min(valor, restante), regra);
+    const vista = $("[data-taxa-vista]", pagar);
+    if (vista) vista.value = String(taxa);
+    const bloco = $("[data-taxa]", pagar);
+    if (bloco) {
+      bloco.hidden = taxa <= 0;
+      if (taxa > 0) {
+        $("[data-taxa-rotulo]", bloco).textContent = regra.rotulo || "Taxa";
+        $("[data-taxa-valor]", bloco).textContent = reais(taxa);
+        $("[data-taxa-cobrar]", bloco).textContent = reais(Math.min(valor, restante) + taxa);
+      }
+    }
     const recebido = centavos(($("[data-recebido]", pagar) || {}).value);
     const troco = $("[data-troco]", pagar);
     const enviar = $("[data-pagar-texto]", pagar);
@@ -344,7 +363,7 @@
     } else if (troco) {
       troco.hidden = true;
     }
-    enviar.textContent = valor > 0 ? `Recebi ${reais(dinheiro ? Math.min(valor, restante) : valor)}` : "Digite o valor";
+    enviar.textContent = valor > 0 ? `Recebi ${reais((dinheiro ? Math.min(valor, restante) : valor) + taxa)}` : "Digite o valor";
   }
   if (pagar) {
     pagar.addEventListener("input", atualizarPagamento);

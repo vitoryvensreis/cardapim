@@ -78,7 +78,6 @@
 .taxa-valor[hidden] { display: none; }
 .taxa-prefixo { min-width: 1.6rem; color: var(--c-muted); font-weight: 700; text-align: center; }
 .taxa-erro { grid-column: 1 / -1; margin: 0; color: var(--c-orange-700); }
-.taxas-vazio { margin: .5rem 0 0; color: var(--c-muted); font-size: .88rem; }
 @media (min-width: 40rem) {
   .taxa-linha { grid-template-columns: minmax(0, 1fr) 12rem 9rem; }
 }

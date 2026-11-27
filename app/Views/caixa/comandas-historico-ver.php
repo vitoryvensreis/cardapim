@@ -67,6 +67,7 @@ if (!empty($notaFiscal)) {
                 <div class="caixa-forma"><dt>Itens</dt><dd><?= $e($r($d['subtotal'])) ?></dd></div>
                 <?php if ($d['servico'] > 0): ?><div class="caixa-forma"><dt>Serviço</dt><dd><?= $e($r($d['servico'])) ?></dd></div><?php endif; ?>
                 <?php if ($d['desconto'] > 0): ?><div class="caixa-forma"><dt>Desconto<?= !empty($p['motivo_desconto']) ? ' (' . $e((string) $p['motivo_desconto']) . ')' : '' ?></dt><dd class="valor-menos">−<?= $e($r($d['desconto'])) ?></dd></div><?php endif; ?>
+                <?php if (($d['taxa_pagamento'] ?? 0) > 0): ?><div class="caixa-forma"><dt><?= $e((string) ($d['taxa_pagamento_rotulo'] ?: 'Taxas de pagamento')) ?></dt><dd><?= $e($r((int) $d['taxa_pagamento'])) ?></dd></div><?php endif; ?>
                 <div class="caixa-forma caixa-forma-total"><dt>Total</dt><dd><?= $e($r($d['total'])) ?></dd></div>
             </dl>
         </section>
@@ -78,7 +79,7 @@ if (!empty($notaFiscal)) {
             <?php else: ?>
                 <ul class="caixa-linhas">
                     <?php foreach ($d['pagamentos'] as $pg): ?>
-                        <li><span><strong><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?></strong><small><?= $e(date('d/m H:i', (int) strtotime((string) $pg['criado_em']))) ?><?= $pg['autor'] ? ' · ' . $e((string) $pg['autor']) : '' ?><?= Numero::centavos((string) $pg['troco']) > 0 ? ' · troco ' . $e(Numero::reais((string) $pg['troco'])) : '' ?></small></span><strong><?= $e(Numero::reais((string) $pg['valor'])) ?></strong></li>
+                        <li><span><strong><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?></strong><small><?= $e(date('d/m H:i', (int) strtotime((string) $pg['criado_em']))) ?><?= $pg['autor'] ? ' · ' . $e((string) $pg['autor']) : '' ?><?= Numero::centavos((string) ($pg['taxa'] ?? '0')) > 0 ? ' · inclui taxa de ' . $e(Numero::reais((string) $pg['taxa'])) : '' ?><?= Numero::centavos((string) $pg['troco']) > 0 ? ' · troco ' . $e(Numero::reais((string) $pg['troco'])) : '' ?></small></span><strong><?= $e(Numero::reais((string) $pg['valor'])) ?></strong></li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>

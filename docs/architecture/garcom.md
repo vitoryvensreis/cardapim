@@ -17,7 +17,7 @@ Acesso: cargo `garcom` e `gerente` do restaurante (ou `adm_master`), conferido n
 | Remover item | `POST .../comandas/{id}/itens/{item}/cancelar` | Só com a permissão "Remover itens já lançados" (ver Perfil garçom). Motivo por chip (Lancei errado, Cliente desistiu, Demorou). Estoque devolvido, log de auditoria. |
 | Cancelar comanda | `POST .../comandas/{id}/cancelar` | Só com a permissão "Cancelar comanda" (ver Perfil garçom). Botão discreto "Cancelar comanda" na conta: motivo por chip (Abri por engano, Cliente foi embora, Cliente desistiu) e confirmação. Devolve o estoque de todos os itens, libera a mesa e registra no log (`Comanda cancelada`, com o nome do garçom). Conta com pagamento não pode ser cancelada pelo garçom: só o caixa remove pagamentos. Conta cancelada aberta de novo volta às mesas com aviso. |
 | Fechar conta | `GET .../comandas/{id}/conta` | Itens, chave **10% serviço** (`POST .../servico`), total, dividir por pessoas (só na tela), formas de pagamento em blocos grandes, valor, "Cliente deu" com notas rápidas e troco ao vivo. Conta paga: tela "Conta paga, mesa livre" com o troco. |
-| Receber | `POST .../comandas/{id}/pagamentos` | Dinheiro, débito, crédito ou Pix (chave/maquininha). Mesmas regras do caixa (`ComandaService::pagar`): precisa de caixa aberto. |
+| Receber | `POST .../comandas/{id}/pagamentos` | Dinheiro, débito, crédito ou Pix (chave/maquininha). Mesmas regras do caixa (`ComandaService::pagar`): precisa de caixa aberto. Cartão e Pix cobram a taxa da forma, se o restaurante cadastrou (a tela mostra "Cobrar do cliente" e envia `taxa_vista`). |
 | QR Code Pix | `POST .../comandas/{id}/pix`, `GET /{slug}/garcom/pix/{id}` | Só aparece com o Asaas do restaurante conectado. QR Code grande, copia e cola, "Esperando o pagamento". A tela consulta a cada 3 s (JSON com `Accept: application/json`) e fecha sozinha quando pago. |
 | Trocar forma | `POST /{slug}/garcom/pix/{id}/cancelar` | Cancela o Pix (remove a cobrança no Asaas). |
 | Cardápio | `GET /{slug}/garcom/cardapio` | Consulta: preço, "Tem / Restam N / Acabou / Pausado", busca por nome ou preço e filtro Tem/Em falta. |
@@ -48,6 +48,7 @@ Regras:
 - Gerar de novo com o mesmo valor mostra o mesmo QR; se o valor mudou (item novo, 10% tirado), o QR antigo é cancelado.
 - Confirmação pelo aviso do Asaas (`WebhookController`, `PAYMENT_RECEIVED/CONFIRMED`) ou pela consulta da tela (no máximo a cada 5 s).
   Idempotente: `UNIQUE cobranca_id` + `UPDATE ... WHERE status <> 'pago'`.
+- Taxa do Pix pelo app (se cadastrada) entra no valor do QR (`comanda_pix.taxa`, `taxa_rotulo`) e no pagamento confirmado.
 - Confirmado = pagamento `pix_online` ("Pix pelo app") no caixa aberto; pagou tudo = conta fechada e mesa livre (`ComandaService::fecharPaga`).
 - Pago depois de trocar a forma: entra se ainda faltar; o que sobrar fica na linha do tempo do pedido para devolver pelo Asaas.
 

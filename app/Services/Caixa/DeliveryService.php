@@ -15,6 +15,7 @@ use Cardapim\Services\Ifood\IfoodAcoes;
 use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Pedidos\AvisosWhatsApp;
 use Cardapim\Services\Pedidos\CancelarPedido;
+use Cardapim\Shared\Esquema;
 use Cardapim\Shared\Numero;
 use PDO;
 use Throwable;
@@ -220,9 +221,17 @@ final class DeliveryService
             }
             // Pago no caixa na hora (entrega feita no balcao): o valor ja entrou no caixa, nao registra de novo.
             if ($total > 0 && isset(self::FORMA_CAIXA[$forma]) && ComandaService::totalPago($this->db, $this->idRestaurante, $id) === 0) {
-                $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-                    ->execute([$id, $this->idRestaurante, $caixa !== null ? (int) $caixa['id'] : null, self::FORMA_CAIXA[$forma], (string) $p['total'],
-                        CaixaService::dec($troco), $this->autor->id, $agora]);
+                // O total ja traz a taxa da forma (cardapio online ou balcao que virou entrega): o pagamento guarda quanto dele e taxa.
+                $taxaPedido = min(Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')), max(0, $total - 1));
+                if (Esquema::tem($this->db, 'taxas_contas') && $taxaPedido > 0 && self::FORMA_CAIXA[$forma] !== 'dinheiro') {
+                    $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, taxa, taxa_rotulo, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                        ->execute([$id, $this->idRestaurante, $caixa !== null ? (int) $caixa['id'] : null, self::FORMA_CAIXA[$forma], (string) $p['total'],
+                            CaixaService::dec($taxaPedido), $p['taxa_pagamento_rotulo'] ?? null, CaixaService::dec($troco), $this->autor->id, $agora]);
+                } else {
+                    $this->db->prepare('INSERT INTO pedido_pagamentos (id_pedido, id_restaurante, id_caixa, forma, valor, troco, id_user, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+                        ->execute([$id, $this->idRestaurante, $caixa !== null ? (int) $caixa['id'] : null, self::FORMA_CAIXA[$forma], (string) $p['total'],
+                            CaixaService::dec($troco), $this->autor->id, $agora]);
+                }
             }
             $texto = $p['tipo'] === 'entrega' ? 'Pedido entregue.' : 'Pedido retirado pelo cliente.';
             $this->pedidos->registrarEvento($this->idRestaurante, $id, 'concluido', $texto, $this->autor->id);

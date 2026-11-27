@@ -1,6 +1,9 @@
 <?php
 /**
  * Receber a conta: uma ou varias formas, troco calculado na hora e divisao por pessoa.
+ * Taxa por forma de pagamento (se cadastrada): aparece ao lado da forma e, ao escolher, o bloco "Cobrar do cliente".
+ * O caixa.js calcula so para mostrar e envia o valor visto em taxa_vista; o servidor confere (sem JavaScript, a primeira
+ * tentativa volta com a taxa na mensagem e o segundo toque em Receber confirma).
  * Espera: $c (ComandaService::detalhes), $caixaAberto, $base, $csrf, $erros, $enviado.
  */
 use Cardapim\Core\Icon;
@@ -16,6 +19,7 @@ $pessoas = (int) ($p['pessoas'] ?? 0);
 $porPessoa = $pessoas > 1 ? intdiv($c['total'] + $pessoas - 1, $pessoas) : 0;
 $forma = (string) ($enviado['forma'] ?? 'dinheiro');
 $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'credit-card', 'pix' => 'qr-code'];
+$taxas = is_array($c['taxas'] ?? null) ? $c['taxas'] : [];
 ?>
 <div class="painel-page painel-page-form pagar-pagina">
     <header class="painel-cabecalho">
@@ -36,7 +40,7 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
     <div class="pagar-falta" role="status">
         <span>Falta pagar</span>
         <strong data-pagar-restante="<?= (int) $c['restante'] ?>"><?= $e($r($c['restante'])) ?></strong>
-        <small>Total da conta <?= $e($r($c['total'])) ?><?= $c['pago'] > 0 ? ' · já pago ' . $e($r($c['pago'])) : '' ?><?= $porPessoa > 0 ? ' · ' . $pessoas . ' pessoas, ' . $e($r($porPessoa)) . ' cada' : '' ?></small>
+        <small>Total da conta <?= $e($r($c['total'])) ?><?= $c['pago'] > 0 ? ' · já pago ' . $e($r($c['pago'])) : '' ?><?= $porPessoa > 0 ? ' · ' . $pessoas . ' pessoas, ' . $e($r($porPessoa)) . ' cada' : '' ?><?= ($c['taxa_pagamento'] ?? 0) > 0 ? ' · inclui ' . $e($r((int) $c['taxa_pagamento'])) . ' de taxas de pagamento' : '' ?></small>
     </div>
 
     <?php if (!$caixaAberto): ?>
@@ -45,14 +49,15 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
             <div><strong>O caixa está fechado</strong><p>Abra o caixa para receber. <a href="<?= $e($base) ?>">Abrir caixa</a></p></div>
         </div>
     <?php else: ?>
-        <form method="post" action="<?= $e($url . '/pagamentos') ?>" class="bloco pagar-form" novalidate data-pagar>
+        <form method="post" action="<?= $e($url . '/pagamentos') ?>" class="bloco pagar-form" novalidate data-pagar data-pagar-taxas="<?= $e((string) json_encode($taxas, JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT)) ?>">
             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+            <input type="hidden" name="taxa_vista" value="<?= $e((string) ($erros['taxa_vista'] ?? '')) ?>" data-pagar-taxa-vista>
             <fieldset class="formas-grade">
                 <legend>Como o cliente vai pagar?</legend>
                 <?php foreach (ComandaService::FORMAS_PRESENCIAIS as $chave => $rotulo): ?>
                     <label class="forma-opcao">
                         <input type="radio" name="forma" value="<?= $e($chave) ?>"<?= $forma === $chave ? ' checked' : '' ?> data-pagar-forma>
-                        <span><?= Icon::svg($icones[$chave]) ?><?= $e($rotulo) ?></span>
+                        <span><?= Icon::svg($icones[$chave]) ?><?= $e($rotulo) ?><?php if (isset($taxas[$chave])): ?><small class="forma-taxa"><?= $e((string) $taxas[$chave]['texto']) ?></small><?php endif; ?></span>
                     </label>
                 <?php endforeach; ?>
             </fieldset>
@@ -66,6 +71,10 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
                 </label>
             </div>
             <?php foreach (['valor', 'recebido', 'forma'] as $campo): if (isset($erros[$campo])): ?><p class="campo-erro"><?= $e($erros[$campo]) ?></p><?php endif; endforeach; ?>
+            <div class="pagar-taxa" data-pagar-taxa aria-live="polite" hidden>
+                <p class="pagar-taxa-linha"><?= Icon::svg('percent', 'icon-sm') ?><span data-pagar-taxa-rotulo>Taxa</span><strong>+ <span data-pagar-taxa-valor></span></strong></p>
+                <p class="pagar-taxa-cobrar"><span>Cobrar do cliente</span><strong data-pagar-taxa-cobrar></strong></p>
+            </div>
             <div class="troco-ao-vivo" data-pagar-troco aria-live="polite" hidden>
                 <span data-pagar-troco-rotulo>Troco</span>
                 <strong data-pagar-troco-valor>R$ 0,00</strong>
@@ -101,7 +110,7 @@ $icones = ['dinheiro' => 'banknote', 'debito' => 'credit-card', 'credito' => 'cr
                 <?php foreach ($c['pagamentos'] as $pg): ?>
                     <li>
                         <span><strong><?= $e(CaixaService::FORMAS[$pg['forma']] ?? (string) $pg['forma']) ?></strong>
-                            <small><?= $e(date('H:i', (int) strtotime((string) $pg['criado_em']))) ?><?= Numero::centavos((string) $pg['troco']) > 0 ? ' · troco ' . $e(Numero::reais((string) $pg['troco'])) : '' ?><?= $pg['autor'] ? ' · ' . $e((string) $pg['autor']) : '' ?></small></span>
+                            <small><?= $e(date('H:i', (int) strtotime((string) $pg['criado_em']))) ?><?= Numero::centavos((string) ($pg['taxa'] ?? '0')) > 0 ? ' · inclui taxa de ' . $e(Numero::reais((string) $pg['taxa'])) : '' ?><?= Numero::centavos((string) $pg['troco']) > 0 ? ' · troco ' . $e(Numero::reais((string) $pg['troco'])) : '' ?><?= $pg['autor'] ? ' · ' . $e((string) $pg['autor']) : '' ?></small></span>
                         <span class="caixa-linha-fim">
                             <span class="caixa-valor"><?= $e(Numero::reais((string) $pg['valor'])) ?></span>
                             <form method="post" action="<?= $e($url . '/pagamentos/' . (int) $pg['id'] . '/remover') ?>" data-confirm="O valor volta para o que falta pagar." data-confirm-titulo="Remover este pagamento?" data-confirm-acao="Remover" data-confirm-perigo="1">

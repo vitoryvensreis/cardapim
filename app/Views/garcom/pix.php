@@ -12,6 +12,9 @@ $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBS
     <section class="pix-cartao" data-pix-esperando>
         <p class="pix-instrucao"><?= Icon::svg('smartphone', 'icon-sm') ?>Mostre para o cliente pagar</p>
         <strong class="pix-valor"><?= $e(Numero::reais((string) $pix['valor'])) ?></strong>
+        <?php if (Numero::centavos((string) ($pix['taxa'] ?? '0')) > 0): ?>
+            <p class="pix-taxa">Conta <?= $e(Numero::reais(\Cardapim\Services\Caixa\CaixaService::dec(Numero::centavos((string) $pix['valor']) - Numero::centavos((string) $pix['taxa'])))) ?> + <?= $e((string) ($pix['taxa_rotulo'] ?? 'Taxa do Pix')) ?> <?= $e(Numero::reais((string) $pix['taxa'])) ?></p>
+        <?php endif; ?>
         <div class="pix-qr" data-qr="<?= $e((string) $pix['copia_cola']) ?>" role="img" aria-label="QR Code do Pix de <?= $e(Numero::reais((string) $pix['valor'])) ?>">
             <noscript><p>Ative o JavaScript para ver o QR Code. Use o código abaixo.</p></noscript>
         </div>

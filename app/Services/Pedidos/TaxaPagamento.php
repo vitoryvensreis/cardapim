@@ -28,6 +28,69 @@ final class TaxaPagamento
     public const MAX_FIXO = 5000;       // R$ 50,00
 
     /**
+     * Forma registrada no caixa (pedido_pagamentos.forma) => regra de taxa usada nas contas de mesa e balcao.
+     * Pix so registrado (maquininha ou chave, conferido por fora) usa a taxa do Pix na entrega ou no caixa;
+     * o QR Code do Asaas na mesa usa a taxa do Pix pelo app. Dinheiro nunca tem taxa.
+     */
+    public const FORMAS_CONTA = ['debito' => 'debito', 'credito' => 'credito', 'pix' => 'pix_entrega', 'pix_online' => 'pix_online'];
+
+    /** Nome da linha quando a conta tem taxas de formas diferentes. */
+    public const ROTULO_VARIAS = 'Taxas de pagamento';
+
+    /**
+     * Regra de taxa de uma forma do caixa, a partir das regras do restaurante.
+     * @param array<string,array{tipo:string,valor:string}> $regras TaxaPagamentoRepository::regras
+     * @return array{tipo:string,valor:string}|null
+     */
+    public static function regraDaConta(array $regras, string $formaCaixa): ?array
+    {
+        $chave = self::FORMAS_CONTA[$formaCaixa] ?? null;
+        return $chave !== null ? ($regras[$chave] ?? null) : null;
+    }
+
+    /**
+     * Taxa de um pagamento da conta: valor em centavos e o rotulo (foto da regra). Sem regra = zero e sem rotulo.
+     * @param array<string,array{tipo:string,valor:string}> $regras
+     * @return array{centavos:int,rotulo:?string}
+     */
+    public static function daConta(array $regras, string $formaCaixa, int $baseCentavos): array
+    {
+        $regra = self::regraDaConta($regras, $formaCaixa);
+        $centavos = self::calcular($baseCentavos, $regra);
+        return ['centavos' => $centavos, 'rotulo' => $centavos > 0 && $regra !== null ? self::rotulo(self::FORMAS_CONTA[$formaCaixa], $regra) : null];
+    }
+
+    /**
+     * Rotulo da taxa no pedido a partir dos rotulos de cada pagamento: um so = ele mesmo; varios diferentes = "Taxas de pagamento".
+     * @param list<?string> $rotulos
+     */
+    public static function rotuloDaConta(array $rotulos): ?string
+    {
+        $unicos = array_values(array_unique(array_filter($rotulos, static fn (?string $r): bool => $r !== null && $r !== '')));
+        return match (count($unicos)) {
+            0 => null,
+            1 => $unicos[0],
+            default => self::ROTULO_VARIAS,
+        };
+    }
+
+    /**
+     * Regras das formas do caixa no formato da tela (o JS so mostra; o servidor confere).
+     * @param array<string,array{tipo:string,valor:string}> $regras
+     * @return array<string,array<string,mixed>> forma do caixa => {tipo, valor, texto, rotulo}
+     */
+    public static function paraConta(array $regras): array
+    {
+        $saida = [];
+        foreach (self::FORMAS_CONTA as $formaCaixa => $chave) {
+            if (isset($regras[$chave])) {
+                $saida[$formaCaixa] = self::paraCheckout($regras[$chave]) + ['rotulo' => self::rotulo($chave, $regras[$chave])];
+            }
+        }
+        return $saida;
+    }
+
+    /**
      * Valor da taxa em centavos.
      * @param array{tipo:string,valor:string}|null $regra
      */
@@ -41,6 +104,19 @@ final class TaxaPagamento
             return max(0, $valor);
         }
         return max(0, intdiv($baseCentavos * $valor + 5000, 10000));
+    }
+
+    /**
+     * Mesma conta de calcular(), a partir do formato da tela (paraCheckout / paraConta: valor em centavos ou centesimos de ponto).
+     * @param array<string,mixed>|null $tela
+     */
+    public static function calcularTela(int $baseCentavos, ?array $tela): int
+    {
+        if ($tela === null || $baseCentavos <= 0) {
+            return 0;
+        }
+        $valor = (int) ($tela['valor'] ?? 0);
+        return ($tela['tipo'] ?? '') === 'fixo' ? max(0, $valor) : max(0, intdiv($baseCentavos * $valor + 5000, 10000));
     }
 
     /** "+ 3,5%" ou "+ R$ 1,00" (ao lado da forma no checkout). @param array{tipo:string,valor:string} $regra */

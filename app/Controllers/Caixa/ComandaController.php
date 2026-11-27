@@ -168,7 +168,7 @@ final class ComandaController extends BaseCaixa
         if ($cpf !== '' && !(strlen($cpf) === 11 && Documento::cpfValido($cpf)) && !(strlen($cpf) === 14 && Documento::cnpjValido($cpf))) {
             return $this->responder(Resultado::falha('CPF ou CNPJ da nota inválido. Confira ou deixe em branco.', ['cpf_nota' => 'Confira o CPF ou CNPJ, ou deixe em branco.']), $this->url('comandas/' . (int) $id . '/pagar'));
         }
-        $res = $this->servico()->pagar((int) $id, $this->post('forma'), $this->post('valor'), $this->post('recebido'));
+        $res = $this->servico()->pagar((int) $id, $this->post('forma'), $this->post('valor'), $this->post('recebido'), $this->post('taxa_vista'));
         $c = $this->servico()->detalhes((int) $id);
         $fechada = $c !== null && !$c['aberta'];
         if ($res->ok) {

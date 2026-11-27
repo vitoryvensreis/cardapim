@@ -278,7 +278,20 @@
   const desenharPopup = () => {
     const quando = $('input[name="quando"]:checked', dialogo)?.value || "";
     const forma = $('input[name="forma"]:checked', dialogo)?.value || "";
-    const total = estado.calculo ? estado.calculo.total_centavos : 0;
+    // Taxa da forma de pagamento (calculada pelo servidor no calculo da entrega; o envio confere de novo).
+    const taxas = (estado.calculo && estado.calculo.taxas_pagamento) || {};
+    $$("[data-preparar-forma-taxa]", dialogo).forEach((el) => {
+      const t = taxas[el.dataset.prepararFormaTaxa];
+      el.hidden = !t;
+      el.textContent = t ? `+ ${reais(t.centavos)}` : "";
+    });
+    const taxa = taxas[forma] || null;
+    const total = estado.calculo ? (taxa ? taxa.total_centavos : estado.calculo.total_centavos) : 0;
+    const linhaTaxa = $("[data-preparar-taxa]", dialogo);
+    linhaTaxa.hidden = !taxa;
+    linhaTaxa.textContent = taxa ? `${taxa.rotulo}: + ${reais(taxa.centavos)} (já no total)` : "";
+    if (estado.calculo) $("[data-preparar-total]", dialogo).textContent = reais(total);
+    $("[data-preparar-taxa-vista]", dialogo).value = forma === "" ? "" : String(taxa ? taxa.centavos : 0);
     const blocoDinheiro = $("[data-preparar-dinheiro]", dialogo);
     blocoDinheiro.hidden = forma !== "dinheiro" || quando === "";
     $("[data-preparar-valor-rotulo]", dialogo).textContent = quando === "agora" ? "Cliente entregou" : "Troco para quanto?";
