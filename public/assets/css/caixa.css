@@ -346,6 +346,17 @@
 .etapas li.is-feito::before { background: var(--c-wine-400); }
 .etapas li.is-agora { color: var(--c-wine); }
 .etapas li.is-agora::before { background: var(--c-orange); }
+/* Voltar etapa: discreto, logo abaixo das etapas, sem competir com a acao principal. */
+.etapa-voltar { display: flex; justify-content: flex-end; margin: -.5rem 0 1.25rem; }
+.etapa-voltar-form { display: flex; flex-wrap: wrap; gap: .5rem; width: 100%; }
+.etapa-voltar-form input { flex: 1 1 12rem; min-height: 2.75rem; padding: 0 .75rem; border: 1px solid var(--c-line); border-radius: var(--r-md); font: inherit; font-size: .9rem; background: var(--c-white); }
+.etapa-voltar-form .btn { flex: 1 1 100%; min-height: 2.75rem; }
+.etapa-voltar-bloqueio { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .85rem; }
+@media (min-width: 40rem) {
+  .etapa-voltar-form { width: auto; flex-wrap: nowrap; }
+  .etapa-voltar-form input { width: 14rem; flex: 0 1 14rem; }
+  .etapa-voltar-form .btn { flex: 0 0 auto; }
+}
 .delivery-colunas-detalhe { display: grid; gap: 0 1.25rem; }
 .delivery-acao { display: grid; gap: .75rem; align-content: start; }
 .delivery-acao form { margin: 0; }

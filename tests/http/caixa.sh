@@ -406,6 +406,53 @@ esperar "na entrega: nada entra no caixa ainda" "$(banco 'SELECT COUNT(*) FROM p
 enviar "$cx" "$c/delivery/$eb2/cancelar" "motivo=Cliente desistiu da entrega" >/dev/null
 esperar "ESTOQUE: cancelar a entrega do caixa devolve" "$(estoque)" "$antes"
 
+echo "Voltar etapa do pedido (desfazer)"
+valor_pedido="$(php -r "echo 'R\$ ' . number_format(($preco * 2 + 500) / 100, 2, ',', '.');")"
+estoque_voltar="$(estoque)"
+avisos_antes="$(banco 'SELECT COUNT(*) FROM pedido_avisos WHERE id_pedido = ?' "$pedido")"
+pagina "$cx" "$c/delivery/$pedido" >/dev/null
+contem "entregue: caixa ve que so o gerente desfaz" "$tmp/pagina.html" 'Só o gerente pode desfazer'
+enviar "$cx" "$c/delivery/$pedido/voltar" >/dev/null
+esperar "caixa nao desfaz pedido entregue" "$(aviso "$cx" "$c/delivery/$pedido")" "Só o gerente pode desfazer um pedido já entregue, porque mexe no dinheiro do caixa."
+esperar "gerente de outro restaurante nao volta etapa (403)" "$(curl -s -o /dev/null -b "$oj" -w '%{http_code}' -X POST "$c/delivery/$pedido/voltar")" "403"
+pagina "$gj" "$c/delivery/$pedido" >/dev/null
+contem "gerente ve Voltar para Saiu para entrega" "$tmp/pagina.html" 'Voltar para Saiu para entrega'
+contem "confirmacao avisa que o pagamento sai do caixa" "$tmp/pagina.html" "O pagamento de $valor_pedido sai do caixa"
+enviar "$gj" "$c/delivery/$pedido/voltar" "motivo=Cliente nao recebeu" >/dev/null
+esperar "gerente desfaz o entregue" "$(aviso "$gj" "$c/delivery/$pedido")" "Pedido #$numero voltou para saiu para entrega. O pagamento de $valor_pedido saiu do caixa."
+esperar "volta a receber, sem pagamento no caixa, entregador mantido" "$(banco 'SELECT status, pagamento_status, concluido_em IS NULL, id_entregador IS NOT NULL, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$pedido")" "saiu_entrega|pendente|1|1|0"
+esperar "linha do tempo guarda quem desfez e o motivo" "$(banco "SELECT COUNT(*) FROM pedido_eventos WHERE id_pedido = ? AND descricao LIKE 'Voltou para Saiu para entrega (desfeito por %Motivo: Cliente nao recebeu'" "$pedido")" "1"
+pagina "$cx" "$c/delivery/fila" >/dev/null
+contem "pedido desfeito volta para a fila" "$tmp/pagina.html" "data-fila-id=\"$pedido\""
+enviar "$cx" "$c/delivery/$pedido/voltar" >/dev/null
+esperar "saiu para entrega volta para pronto" "$(aviso "$cx" "$c/delivery/$pedido")" "Pedido #$numero voltou para pronto."
+esperar "entregador sai do pedido" "$(banco 'SELECT status, id_entregador IS NULL, despachado_em IS NULL FROM pedidos WHERE id = ?' "$pedido")" "pronto|1|1"
+curl -s -b "$cj" -o "$tmp/r.json" "$base/api/v1/pedidos/$pedido"
+esperar "cliente ve pronto de novo" "$(json "$tmp/r.json" status)" "pronto"
+esperar "cliente: etapa saiu sem horario depois de voltar" "$(json "$tmp/r.json" etapas.3.em)" "null"
+[[ "$(json "$tmp/r.json" etapas.2.em)" != "null" ]] && ok "cliente: etapa pronto continua com horario" || falha "cliente: etapa pronto sem horario"
+enviar "$cx" "$c/delivery/$pedido/voltar" >/dev/null
+esperar "pronto volta para em preparo" "$(aviso "$cx" "$c/delivery/$pedido")" "Pedido #$numero voltou para em preparo."
+enviar "$cx" "$c/delivery/$pedido/voltar" >/dev/null
+esperar "em preparo volta para recebido" "$(aviso "$cx" "$c/delivery/$pedido")" "Pedido #$numero voltou para pedido recebido."
+nao_contem "recebido nao mostra voltar etapa" "$tmp/aviso.html" 'etapa-voltar'
+enviar "$cx" "$c/delivery/$pedido/voltar" >/dev/null
+esperar "recebido nao tem etapa para voltar" "$(aviso "$cx" "$c/delivery/$pedido")" "Este pedido não tem etapa para voltar."
+esperar "ESTOQUE: voltar etapa NAO mexe no estoque" "$(estoque)" "$estoque_voltar"
+esperar "voltar etapa NAO manda WhatsApp" "$(banco 'SELECT COUNT(*) FROM pedido_avisos WHERE id_pedido = ?' "$pedido")" "$avisos_antes"
+enviar "$cx" "$c/delivery/$pedido/aceitar" >/dev/null
+enviar "$cx" "$c/delivery/$pedido/pronto" >/dev/null
+enviar "$cx" "$c/delivery/$pedido/despachar" entregador="$entregador" >/dev/null
+enviar "$cx" "$c/delivery/$pedido/concluir" >/dev/null
+esperar "avanca de novo e recebe no caixa" "$(aviso "$cx" "$c/delivery/$pedido")" "Pedido #$numero concluído. Pagamento de $valor_pedido no caixa."
+esperar "pagamento entra uma vez so de novo" "$(banco 'SELECT status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$pedido")" "concluido|1"
+esperar "WhatsApp nao repete as etapas ao avancar de novo" "$(banco 'SELECT COUNT(*) FROM pedido_avisos WHERE id_pedido = ?' "$pedido")" "$avisos_antes"
+enviar "$gj" "$c/delivery/$eb/voltar" >/dev/null
+esperar "pago na hora no balcao: gerente desfaz o entregue" "$(aviso "$gj" "$c/delivery/$eb")" "Pedido #$(banco 'SELECT numero FROM pedidos WHERE id = ?' "$eb") voltou para saiu para entrega."
+esperar "pago na hora: pagamento do balcao fica e continua pago" "$(banco 'SELECT status, pagamento_status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$eb")" "saiu_entrega|pago|1"
+enviar "$cx" "$c/delivery/$eb/concluir" >/dev/null
+esperar "pago na hora: conclui de novo sem cobrar" "$(banco 'SELECT status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$eb")" "concluido|1"
+
 echo "Taxa por forma de pagamento nas contas (caixa, mesa e balcao que vira entrega)"
 # So cartao e Pix aqui: o dinheiro da gaveta e conferido logo abaixo, no fechamento.
 rs() { php -r 'echo "R$ " . number_format($argv[1] / 100, 2, ",", ".");' "$1"; }

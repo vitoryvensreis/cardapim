@@ -7,6 +7,7 @@ require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
 use Cardapim\Services\Caixa\CaixaService;
 use Cardapim\Services\Caixa\ComandaService;
+use Cardapim\Services\Caixa\DeliveryService;
 use Cardapim\Services\Caixa\MesaService;
 
 $falhas = 0;
@@ -23,6 +24,19 @@ $ok(ComandaService::servico(1995, '10.00') === 200, '10% de 19,95 = 2,00 (1,995 
 $ok(ComandaService::servico(1994, '10.00') === 199, '10% de 19,94 = 1,99');
 $ok(ComandaService::servico(5000, '0.00') === 0, 'sem servico');
 $ok(ComandaService::servico(3333, '12.50') === 417, '12,5% de 33,33');
+
+// Voltar etapa do delivery: cada etapa volta para a anterior; concluido depende do tipo.
+$etapa = static fn (string $tipo, string $status): ?string => DeliveryService::etapaAnterior(['tipo' => $tipo, 'status' => $status]);
+$ok($etapa('entrega', 'em_preparo') === 'recebido', 'voltar: em preparo -> recebido');
+$ok($etapa('entrega', 'pronto') === 'em_preparo', 'voltar: pronto -> em preparo');
+$ok($etapa('entrega', 'saiu_entrega') === 'pronto', 'voltar: saiu -> pronto');
+$ok($etapa('entrega', 'concluido') === 'saiu_entrega', 'voltar: entregue -> saiu para entrega');
+$ok($etapa('retirada', 'concluido') === 'pronto', 'voltar: retirado -> pronto');
+$ok($etapa('retirada', 'pronto') === 'em_preparo', 'voltar: retirada pronto -> em preparo');
+$ok($etapa('entrega', 'recebido') === null, 'voltar: recebido nao volta');
+$ok($etapa('entrega', 'cancelado') === null, 'voltar: cancelado nao volta');
+$ok($etapa('entrega', 'aguardando_pagamento') === null, 'voltar: aguardando Pix nao volta');
+$ok($etapa('balcao', 'pronto') === null, 'voltar: so delivery e retirada');
 
 // Centavos para decimal do banco.
 $ok(CaixaService::dec(0) === '0.00', 'zero');
