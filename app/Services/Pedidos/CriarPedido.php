@@ -156,7 +156,9 @@ final class CriarPedido
         $regraTaxa = $taxasRepo->regras($idRest)[$forma] ?? null;
         $taxaPagamento = TaxaPagamento::calcular($subtotal + $taxa - $desconto['centavos'], $regraTaxa);
         $esperada = $e['taxa_pagamento_centavos'] ?? null;
-        if (is_int($esperada) && $esperada !== $taxaPagamento) {
+        // Clientes antigos sem taxa continuam funcionando. Uma taxa positiva exige
+        // a confirmacao do valor exibido, inclusive se o campo veio ausente ou invalido.
+        if (($taxaPagamento > 0 || $esperada !== null) && (!is_int($esperada) || $esperada !== $taxaPagamento)) {
             return self::erro(409, 'A taxa da forma de pagamento mudou. Confira o total e tente de novo.', 'forma_pagamento') + ['taxa_pagamento_centavos' => $taxaPagamento];
         }
         $total = $subtotal + $taxa - $desconto['centavos'] + $taxaPagamento;
@@ -203,8 +205,19 @@ final class CriarPedido
                     return self::erro(409, $agoraDesconto['ok'] ? 'O desconto mudou. Confira o total e tente de novo.' : (string) $agoraDesconto['mensagem'], 'cupom');
                 }
             }
-            // A taxa tambem e conferida sob a trava (o gerente pode ter salvo outra agora).
-            if (TaxaPagamento::calcular($subtotal + $taxa - $desconto['centavos'], $taxasRepo->regras($idRest)[$forma] ?? null) !== $taxaPagamento) {
+            // A gerencia usa a mesma trava para salvar configuracao e taxas.
+            $configAtual = (new EntregaPagamentoRepository($this->db))->config($idRest);
+            if ($configAtual[self::FORMAS[$forma]] !== 1
+                || ($forma === 'pix_entrega' && $configAtual['pag_pix_online'] === 1 && $this->pix->disponivel($idRest))) {
+                $this->db->rollBack();
+                return self::erro(409, 'A forma de pagamento mudou. Confira as opções e tente de novo.', 'forma_pagamento');
+            }
+            if ($configAtual[$tipo === 'entrega' ? 'aceita_entrega' : 'aceita_retirada'] !== 1) {
+                $this->db->rollBack();
+                return self::erro(409, 'A opção de entrega ou retirada mudou. Confira e tente de novo.', 'tipo');
+            }
+            $regraAtual = $taxasRepo->regras($idRest)[$forma] ?? null;
+            if ($regraAtual !== $regraTaxa || TaxaPagamento::calcular($subtotal + $taxa - $desconto['centavos'], $regraAtual) !== $taxaPagamento) {
                 $this->db->rollBack();
                 return self::erro(409, 'A taxa da forma de pagamento mudou. Confira o total e tente de novo.', 'forma_pagamento');
             }
