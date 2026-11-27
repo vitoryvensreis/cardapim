@@ -276,7 +276,7 @@ esperar "Pix pela chave espera o pagamento" "$(json "$tmp/r.json" status)" "agua
 esperar "modo chave na tela" "$(json "$tmp/r.json" pix.modo)" "chave"
 esperar "total com a taxa do Pix pela chave" "$(json "$tmp/r.json" total_centavos)" "$((preco + 100))"
 contem "copia e cola com a chave do restaurante" "$tmp/r.json" '0014br.gov.bcb.pix0120pix@restaurante.test'
-contem "link do WhatsApp do comprovante" "$tmp/r.json" 'https:\\/\\/wa.me\\/5585988887777?text='
+contem "link do WhatsApp do comprovante" "$tmp/r.json" 'wa.me.\{1,2\}5585988887777?text=Ol'
 esperar "restaurante ainda nao ve o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc1")" "aguardando_pagamento"
 esperar "outro cliente nao envia comprovante do pedido (404)" "$(post "$cj2" "$(sessao "$cj2")" "/api/v1/pedidos/$pc1/comprovante" '{}')" "404"
 esperar "enviar comprovante" "$(post "$cj3" "$csrf3" "/api/v1/pedidos/$pc1/comprovante" '{}')" "200"

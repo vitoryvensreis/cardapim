@@ -92,7 +92,7 @@ final class EntregaPagamentoService
         if ($comChave && ($e['pix_chave_enviado'] ?? '') === '1') {
             $pixChave = $this->lerPixChave($e, $c['pag_pix_comprovante'] === 1, $erros);
         }
-        if ($c['pag_pix_comprovante'] === 1 && $pixChave === null && !$this->repo->pixChave($this->idRestaurante)['pronto']) {
+        if ($c['pag_pix_comprovante'] === 1 && ($e['pix_chave_enviado'] ?? '') !== '1' && !$this->repo->pixChave($this->idRestaurante)['pronto']) {
             $erros['pix_chave'] = 'Preencha a chave Pix para ligar o Pix pela chave.';
         }
         if ($c['pag_pix_online'] === 1 && $c['pag_pix_comprovante'] === 1) {
