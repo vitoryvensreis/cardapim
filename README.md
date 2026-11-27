@@ -178,6 +178,10 @@ A taxa cadastrada em Gerência → Entrega e pagamento (débito, crédito e Pix;
 
 Em Gerência → Entrega e pagamento, o restaurante escolhe **um** jeito de receber Pix com QR Code: pelo Asaas (confirma sozinho) ou pela **chave Pix** dele (o sistema monta o QR Code e o copia e cola pelo padrão do Banco Central, sem custo e sem confirmação automática). No cardápio, o cliente paga e toca em "Já paguei: enviar comprovante", que abre o WhatsApp do restaurante; o caixa confere e toca em "Confirmei o Pix, aceitar" (ou "Recusar"). Na mesa, o garçom mostra o QR e toca em "Recebi o Pix". O caixa continua só registrando o Pix. Sem comprovante em 60 minutos o pedido é cancelado. Migration `20261205100000_pix_chave` (tag `[cardapim-pix-chave]`). Detalhes em [docs/architecture/pedidos.md](docs/architecture/pedidos.md).
 
+## Trocar forma de pagamento na entrega
+
+Se o cliente vai pagar de outro jeito na entrega ou na retirada, o motoboy (no painel de entregas) ou o caixa (no pedido do Delivery) toca em **Trocar forma de pagamento**: o popup mostra a taxa de cada forma e quanto receber, e o pedido fica com a forma, a taxa e o total novos. O "Entreguei" continua sem nenhuma pergunta. Com o Asaas conectado, o motoboy pode gerar o QR Code do Pix na hora (confirmado pelo aviso do Asaas); no caixa o Pix só registra. Sem migration nova. Detalhes em [docs/architecture/entregas.md](docs/architecture/entregas.md).
+
 ## Fechamento temporário do link
 
 Em Gerência → Perfil → Horário de funcionamento, feche ou reabra a próxima ocorrência de cada dia. A exceção por data é salva imediatamente, sem alterar os turnos semanais ou sincronizar o iFood. Bloqueia novos pedidos pelo link, inclusive no backend; pedidos anteriores seguem normalmente. A data seguinte respeita os horários, exceto a continuação de um turno cancelado na véspera. Também funciona no modo 24 horas. A rota POST `/{slug}/gerencia/perfil/horarios/fechamento` usa sessão, CSRF e os campos `data` (AAAA-MM-DD) e `fechado` (0/1). A coluna `restaurantes.fechamentos_temporarios` guarda as datas por loja; deploy com backup pela tag `[cardapim-fechamento-temporario]`.

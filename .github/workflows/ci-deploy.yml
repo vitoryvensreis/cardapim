@@ -127,6 +127,7 @@ jobs:
           php tests/unit/opcoes-cupom.php
           php tests/unit/taxa-pagamento.php
           php tests/unit/pix-copia-e-cola.php
+          php tests/unit/trocar-forma.php
           php tests/unit/popup-cardapio.php
           php tests/unit/meio-a-meio.php
           php tests/unit/fiscal-restaurante.php

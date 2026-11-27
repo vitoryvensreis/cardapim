@@ -10,6 +10,8 @@ Cardapim (PMTiles na VPS, ver `docs/architecture/mapa.md`) e o OpenStreetMap pub
 |---|---|---|---|
 | GET | `/{slug}/entregas` | motoqueiro | Painel. Gerente e redirecionado para `/{slug}/caixa/delivery`; outros cargos recebem 403 |
 | POST | `/{slug}/entregas/{id}/entregue` | motoqueiro | Confirma a entrega (CSRF de formulario) |
+| POST | `/{slug}/entregas/{id}/forma` | motoqueiro | "Trocar forma de pagamento" (popup): `escolha = forma|taxa vista`, `troco_para?`, `cpf?`. Pix por QR Code (so com Asaas) troca para `pix_online`, gera a cobranca e redireciona para o QR |
+| GET | `/{slug}/entregas/{id}/pix` | motoqueiro | QR Code do Pix da entrega; com `Accept: application/json` devolve `{status: pago|pendente|sem_qr}` (consulta o Asaas, reserva do aviso) |
 | POST | `/{slug}/entregas/localizacao` | motoqueiro | JSON `{latitude, longitude, precisao?, direcao?, velocidade?}`, cabecalho `X-CSRF-Token`, ate 2 KB, 40 por minuto |
 | POST | `/{slug}/entregas/localizacao/parar` | motoqueiro | Apaga a posicao e avisa em tempo real (`entregador.parou`) |
 | GET | `/api/v1/pedidos/{id}/rastreio` | cliente dono do pedido | Posicao do entregador, distancia e minutos estimados (`Cache-Control: no-store`) |
@@ -79,6 +81,21 @@ Retirada: recebido, em preparo, pronto, retirado.
 - A mesma migration cria as 5 mesas iniciais para restaurantes sem mesa (ver `caixa.md`).
 - Verificacao: `php8.4 database/verify-entregas.php --verify`. Aplicacao na VPS: `deploy/scripts/apply-entregas.sh`
   (backup MySQL antes).
+
+## Trocar forma de pagamento na entrega (`TrocarFormaPagamento`, `trocar-forma.js`)
+
+- Sem pergunta no caminho normal: o motoboy toca em "Entreguei" e vale a forma do pedido. O botao "Trocar forma de
+  pagamento" (entrega com ele, pagamento pendente, fora do iFood) abre um popup com Dinheiro, Debito, Credito, Pix e,
+  com o Asaas conectado, Pix por QR Code. Cada opcao mostra a taxa e o "Receber" calculados pelo servidor (regras do
+  PR 1, base = itens + entrega - desconto). Dinheiro aceita "Troco para". A tela envia a taxa vista; se mudou, nada e
+  gravado. Forma, taxa, rotulo, total e troco mudam no mesmo UPDATE, com o pedido travado; evento na linha do tempo,
+  auditoria e tempo real (`pedidos`, `entregas`). Sem aviso de WhatsApp ao cliente.
+- Pix por QR Code: `PixPedido::gerarNaEntrega` cria a cobranca no Asaas do restaurante com o total (taxa `pix_online`
+  se houver), referencia `entrega:{id}`, QR valido por 30 min (gera de novo pelo popup). Sem CPF salvo, o popup pede o
+  CPF. Confirmado pelo aviso (`WebhookController`, `PixPedido::confirmarEntrega`) ou pela consulta da tela; o pedido
+  segue em rota com o pagamento `pago`. Enquanto nao cai, o "Entreguei" (e o "Concluir" do caixa) avisa para esperar
+  ou trocar a forma. Falha do Asaas volta a forma de antes. `bin/expirar-pix.php` nunca cancela esses pedidos.
+- O mesmo popup fica no caixa (Delivery > pedido), sem o QR: no caixa o Pix so registra.
 
 ## Testes
 

@@ -74,6 +74,9 @@ final class EntregadorService
         if ($p['status'] !== 'saiu_entrega') {
             return Resultado::falha('Esta entrega já foi concluída ou cancelada.');
         }
+        if ($p['forma_pagamento'] === 'pix_online' && $p['pagamento_status'] !== 'pago') {
+            return Resultado::falha('O Pix por QR Code ainda não caiu. Espere a confirmação na tela do Pix ou troque a forma de pagamento.');
+        }
         if ($p['pagamento_status'] !== 'pago' && (new CaixaRepository($this->db))->aberto($this->idRestaurante) === null) {
             return Resultado::falha('O caixa do restaurante está fechado. Peça para abrirem o caixa e toque em "Entreguei" de novo.');
         }

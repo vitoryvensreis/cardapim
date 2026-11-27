@@ -79,6 +79,8 @@ $router->get('/{slug}/entregas', [\Cardapim\Controllers\EntregadorController::cl
 $router->post('/{slug}/entregas/localizacao', [\Cardapim\Controllers\EntregadorController::class, 'localizacao']);
 $router->post('/{slug}/entregas/localizacao/parar', [\Cardapim\Controllers\EntregadorController::class, 'pararLocalizacao']);
 $router->post('/{slug}/entregas/{id}/entregue', [\Cardapim\Controllers\EntregadorController::class, 'entregue']);
+$router->post('/{slug}/entregas/{id}/forma', [\Cardapim\Controllers\EntregadorController::class, 'trocarForma']);
+$router->get('/{slug}/entregas/{id}/pix', [\Cardapim\Controllers\EntregadorController::class, 'pix']);
 
 // API JSON versionada.
 (require __DIR__ . '/api.php')($router);

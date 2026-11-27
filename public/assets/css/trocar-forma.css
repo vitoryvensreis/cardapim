@@ -1,0 +1,71 @@
+/* "Trocar forma de pagamento" (motoboy e caixa) e a tela do Pix por QR Code na entrega. Usa os tokens de core.css. */
+.troca-abrir { margin-top: .6rem; }
+.troca-forma {
+  width: min(100%, 30rem); max-width: 100%; max-height: 92vh; margin: auto auto 0; padding: 0; border: 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0; background: var(--c-white); color: var(--c-ink); box-shadow: var(--sh-lg);
+}
+.troca-forma::backdrop { background: rgb(30 6 12 / 55%); }
+.troca-forma[open] { animation: troca-sobe var(--t-med) var(--ease-out); }
+@keyframes troca-sobe { from { transform: translateY(100%); } }
+.troca-forma .folha-caixa { display: grid; gap: 1rem; padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom)); }
+.troca-forma .folha-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.troca-forma .folha-topo h2 { margin: 0; font: 700 1.2rem/1.3 var(--f-head); }
+.troca-forma .folha-fechar {
+  display: grid; place-items: center; flex: 0 0 auto; width: 2.75rem; height: 2.75rem; border: 0; border-radius: 50%;
+  background: #f3ecee; color: var(--c-ink); cursor: pointer;
+}
+.troca-atual { margin: 0; color: var(--c-muted); }
+.troca-atual strong { color: var(--c-ink); }
+.troca-opcoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin: 0; padding: 0; border: 0; }
+.troca-opcoes legend { margin-bottom: .6rem; color: var(--c-ink); font: 700 .95rem/1.3 var(--f-head); }
+.troca-opcao { position: relative; }
+.troca-opcao input { position: absolute; opacity: 0; pointer-events: none; }
+.troca-opcao span {
+  display: grid; justify-items: center; gap: .2rem; min-height: 4.25rem; padding: .7rem .5rem; border: 1.5px solid var(--c-line);
+  border-radius: var(--r-lg); background: var(--c-white); text-align: center; cursor: pointer;
+}
+.troca-opcao span .icon { color: var(--c-wine); }
+.troca-opcao strong { font: 700 .95rem/1.2 var(--f-head); }
+.troca-opcao small { color: var(--c-muted); font-size: .8rem; }
+.troca-opcao input:checked + span { border-color: var(--c-wine); box-shadow: inset 0 0 0 1.5px var(--c-wine); background: #fbf6f7; }
+.troca-opcao input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.troca-opcao.is-atual span { opacity: .55; cursor: not-allowed; }
+.troca-resumo { display: grid; gap: .35rem; padding: .9rem 1rem; border-radius: var(--r-lg); background: var(--c-cream); }
+.troca-resumo[hidden], .troca-forma [hidden] { display: none !important; }
+.troca-linha { margin: 0; color: var(--c-orange-700); font-weight: 700; }
+.troca-receber { display: flex; align-items: baseline; justify-content: space-between; margin: 0; }
+.troca-receber strong { color: var(--c-wine); font: 700 1.5rem/1.1 var(--f-head); font-variant-numeric: tabular-nums; }
+.troca-dica { display: flex; align-items: flex-start; gap: .4rem; margin: 0; color: var(--c-muted); font-size: .88rem; }
+.troca-forma .campo-caixa { display: grid; gap: .35rem; }
+.troca-forma .campo-caixa span { font-weight: 700; font-size: .9rem; }
+.troca-forma .campo-caixa input { min-height: 3rem; padding: .6rem .8rem; border: 1.5px solid var(--c-line); border-radius: var(--r-md); font-size: 1rem; }
+.troca-forma [data-troca-enviar][aria-busy="true"] { opacity: .7; pointer-events: none; }
+
+/* Tela do Pix por QR Code na entrega (motoboy) */
+.entrega-pix { display: grid; gap: 1rem; }
+.pix-entrega-cartao, .pix-entrega-pago {
+  display: grid; justify-items: center; gap: .75rem; padding: 1.25rem; border-radius: var(--r-xl); background: var(--c-white);
+  text-align: center; box-shadow: var(--sh-md);
+}
+.pix-entrega-cartao[hidden], .pix-entrega-pago[hidden] { display: none; }
+.pix-entrega-titulo { display: inline-flex; align-items: center; gap: .35rem; margin: 0; color: var(--c-muted); font-weight: 700; }
+.pix-entrega-valor { color: var(--c-wine); font: 700 2.2rem/1.1 var(--f-head); font-variant-numeric: tabular-nums; }
+.pix-entrega-taxa { margin: 0; color: var(--c-muted); font-size: .88rem; }
+.pix-entrega-qr { width: min(17rem, 80vw); padding: .5rem; border-radius: var(--r-md); background: var(--c-white); }
+.pix-entrega-qr svg { display: block; width: 100%; height: auto; }
+.pix-entrega-status { display: inline-flex; align-items: center; gap: .5rem; margin: 0; font-weight: 700; }
+.pix-entrega-status .pix-girando {
+  width: 1.1rem; height: 1.1rem; border: 3px solid #ffd2c1; border-top-color: var(--c-orange); border-radius: 50%;
+  animation: troca-gira 900ms linear infinite;
+}
+@keyframes troca-gira { to { transform: rotate(360deg); } }
+.pix-entrega-codigo { width: 100%; }
+.pix-entrega-codigo summary { display: inline-flex; align-items: center; gap: .35rem; min-height: 2.75rem; color: var(--c-wine); font-weight: 700; cursor: pointer; }
+.pix-entrega-codigo p { margin: .25rem 0 .6rem; padding: .6rem; border-radius: var(--r-md); background: var(--c-cream); overflow-wrap: anywhere; font-size: .78rem; text-align: left; }
+.pix-entrega-validade { display: inline-flex; align-items: center; gap: .35rem; margin: 0; color: var(--c-muted); font-size: .85rem; }
+.pix-entrega-ok { display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: 50%; background: var(--c-success-bg); color: var(--c-success); }
+.pix-entrega-pago h1 { margin: 0; font: 700 1.5rem/1.2 var(--f-head); }
+
+@media (prefers-reduced-motion: reduce) {
+  .troca-forma[open], .pix-entrega-status .pix-girando { animation: none !important; }
+}
