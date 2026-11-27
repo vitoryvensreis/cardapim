@@ -124,6 +124,18 @@ $lista = static function (string $campo, array $cfg, array $impressoras) use ($e
                                     <small>Na impressão automática ao aceitar o pedido, sai também o total, a taxa de entrega, o desconto, a forma de pagamento e o troco. Se o pedido sair em mais de uma impressora, o total vai só na impressora padrão.</small></span>
                                 <input type="checkbox" name="delivery_com_preco" value="1"<?= $cupomOpcoes['delivery_com_preco'] ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
                             </label>
+                            <?php if ($cupomContato ?? false): ?>
+                                <label class="alternador">
+                                    <span><strong>Mostrar o endereço no pedido do delivery</strong>
+                                        <small>Na impressão automática ao aceitar o pedido, sai também o endereço do cliente e o ponto de referência. Só em pedidos de entrega. Se o pedido sair em mais de uma impressora, o endereço vai só na impressora padrão.</small></span>
+                                    <input type="checkbox" name="delivery_com_endereco" value="1"<?= $cupomOpcoes['delivery_com_endereco'] ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                                </label>
+                                <label class="alternador">
+                                    <span><strong>Mostrar o telefone no pedido do delivery</strong>
+                                        <small>Na impressão automática ao aceitar o pedido, sai também o telefone do cliente. Se o pedido sair em mais de uma impressora, o telefone vai só na impressora padrão.</small></span>
+                                    <input type="checkbox" name="delivery_com_telefone" value="1"<?= $cupomOpcoes['delivery_com_telefone'] ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                                </label>
+                            <?php endif; ?>
                         <?php endif; ?>
                         <label class="alternador">
                             <span><strong>Imprimir o nome de quem atendeu</strong>

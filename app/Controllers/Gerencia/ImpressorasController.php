@@ -59,6 +59,7 @@ final class ImpressorasController extends BaseGerencia
             'formatos' => $ativo ? $this->formatos() : [],
             // Total no delivery aceito e nome de quem atendeu: null = recurso ainda nao liberado.
             'cupomOpcoes' => Esquema::tem($this->db, 'cupom_opcoes') ? $repo->opcoesCupom($this->restaurante['id']) : null,
+            'cupomContato' => Esquema::tem($this->db, 'cupom_contato'),
             // Aparencia do cupom: null = recurso ainda nao liberado (migracao) ou servidor sem GD.
             'aparencia' => Esquema::tem($this->db, 'cupom_aparencia') && CupomImagem::disponivel()
                 ? AparenciaCupom::doRestaurante($this->db, $this->restaurante['id']) : null,
@@ -268,10 +269,14 @@ final class ImpressorasController extends BaseGerencia
         }
         if (($_POST['opcoes_enviado'] ?? '') === '1') {
             $atual = $repo->opcoesCupom($this->restaurante['id']);
+            // Sem a impressao por produto os campos do delivery nao aparecem na tela: mantem o que estava gravado.
+            $delivery = Esquema::tem($this->db, 'impressao_produto');
+            $campo = static fn (string $nome): bool => $delivery ? ($_POST[$nome] ?? '') === '1' : $atual[$nome];
             $repo->salvarOpcoesCupom($this->restaurante['id'], [
                 'mostrar_atendente' => ($_POST['mostrar_atendente'] ?? '') === '1',
-                // Sem a impressao por produto o campo nao aparece na tela: mantem o que estava gravado.
-                'delivery_com_preco' => Esquema::tem($this->db, 'impressao_produto') ? ($_POST['delivery_com_preco'] ?? '') === '1' : $atual['delivery_com_preco'],
+                'delivery_com_preco' => $campo('delivery_com_preco'),
+                'delivery_com_endereco' => $campo('delivery_com_endereco'),
+                'delivery_com_telefone' => $campo('delivery_com_telefone'),
             ]);
         }
         if ($laterais !== null) {

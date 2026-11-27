@@ -23,7 +23,7 @@ use PDO;
 final class FilaImpressao
 {
     private readonly ImpressaoRepository $repo;
-    /** @var array{mostrar_atendente:bool,delivery_com_preco:bool}|null */
+    /** @var array{mostrar_atendente:bool,delivery_com_preco:bool,delivery_com_endereco:bool,delivery_com_telefone:bool}|null */
     private ?array $opcoesCupom = null;
 
     public function __construct(
@@ -177,7 +177,7 @@ final class FilaImpressao
      * @param list<array<string,mixed>> $resumo valores do pedido (so na via da impressora padrao)
      * @return array<string,int>|Resultado apelido => id do cupom
      */
-    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas, array $resumo = []): array|Resultado
+    private function enviarProducao(int $idPedido, string $tipo, array $itens, array $cabeca, string $rotulo, ?int $ateItem, bool $exigirLigadas, array $resumo = [], array $contato = []): array|Resultado
     {
         // Mesma regra do "Testar impressao": cada item na impressora do produto, sem marcacao na padrao, "Nao imprime" fora.
         $padrao = $this->opcoes('producao')[0]['id'];
@@ -207,8 +207,8 @@ final class FilaImpressao
         if ($grupos === []) {
             return Resultado::falha('Nenhuma impressora de produção disponível. Confira em Integrações > Impressoras.');
         }
-        // Resumo de valores (delivery com o total ligado): so em uma via, a da impressora padrao da producao
-        // (ou a primeira, se nenhum item do pedido saiu nela).
+        // Resumo de valores e contato do cliente (delivery com as opcoes ligadas): so em uma via, a da impressora
+        // padrao da producao (ou a primeira, se nenhum item do pedido saiu nela).
         $comResumo = isset($grupos[$padrao]) ? $padrao : array_key_first($grupos);
         $lote = bin2hex(random_bytes(8));
         $ids = [];
@@ -216,7 +216,7 @@ final class FilaImpressao
         try {
             foreach ($grupos as $idImp => $itensDaEstacao) {
                 $apelido = $impressoras[$idImp]['apelido'];
-                $blocos = CupomImpressao::producao($cabeca, $apelido, $itensDaEstacao, $this->quem(), $idImp === $comResumo ? $resumo : []);
+                $blocos = CupomImpressao::producao($cabeca, $apelido, $itensDaEstacao, $this->quem(), $idImp === $comResumo ? $resumo : [], $idImp === $comResumo ? $contato : []);
                 $ids[$apelido] = $this->repo->criar($this->idRestaurante, $idPedido, $tipo, 'PRODUÇÃO · ' . $apelido . ' · ' . $rotulo,
                     $blocos, $ateItem, $this->autor->id > 0 ? $this->autor->id : null, $idImp, $lote);
             }
@@ -248,7 +248,7 @@ final class FilaImpressao
                 return;
             }
             $resumo = $this->opcoesCupom()['delivery_com_preco'] ? CupomImpressao::resumoPedido($p) : [];
-            $res = $this->enviarProducao($idPedido, 'producao', $itens, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], null, false, $resumo);
+            $res = $this->enviarProducao($idPedido, 'producao', $itens, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], null, false, $resumo, $this->contatoPedido($p));
             if ($res instanceof Resultado) {
                 error_log('[Cardapim] Producao do pedido nao enviada: ' . $res->mensagem);
             }
@@ -284,7 +284,7 @@ final class FilaImpressao
             }
             $ateItem = max(array_map(static fn (array $i): int => (int) $i['id'], $ativos));
             $resumo = $this->opcoesCupom()['delivery_com_preco'] ? CupomImpressao::resumoPedido($p) : [];
-            $res = $this->enviarProducao($idPedido, 'producao', $novos, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], $ateItem, false, $resumo);
+            $res = $this->enviarProducao($idPedido, 'producao', $novos, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], $ateItem, false, $resumo, $this->contatoPedido($p));
             if ($res instanceof Resultado) {
                 error_log('[Cardapim] Producao da entrega do balcao nao enviada: ' . $res->mensagem);
             }
@@ -390,8 +390,8 @@ final class FilaImpressao
     }
 
     /**
-     * Opcoes do cupom do restaurante (nome de quem atendeu e total no delivery). Falha = padrao.
-     * @return array{mostrar_atendente:bool,delivery_com_preco:bool}
+     * Opcoes do cupom do restaurante (nome de quem atendeu; total, endereco e telefone no delivery). Falha = padrao.
+     * @return array{mostrar_atendente:bool,delivery_com_preco:bool,delivery_com_endereco:bool,delivery_com_telefone:bool}
      */
     public function opcoesCupom(): array
     {
@@ -400,10 +400,21 @@ final class FilaImpressao
                 $this->opcoesCupom = (new ImpressoraRepository($this->db))->opcoesCupom($this->idRestaurante);
             } catch (\Throwable $e) {
                 error_log('[Cardapim] Opcoes do cupom indisponiveis (' . get_class($e) . ').');
-                $this->opcoesCupom = ['mostrar_atendente' => true, 'delivery_com_preco' => false];
+                $this->opcoesCupom = ImpressoraRepository::OPCOES_CUPOM_PADRAO;
             }
         }
         return $this->opcoesCupom;
+    }
+
+    /**
+     * Endereco e telefone do cliente para a via do delivery aceito, conforme o que o restaurante ligou.
+     * @param array<string,mixed> $p
+     * @return list<array<string,mixed>>
+     */
+    public function contatoPedido(array $p): array
+    {
+        $o = $this->opcoesCupom();
+        return CupomImpressao::contatoPedido($p, $o['delivery_com_endereco'], $o['delivery_com_telefone']);
     }
 
     /** Nome de quem atendeu no cupom (garcom, caixa ou quem aceitou), ou vazio se o restaurante desligou. */
