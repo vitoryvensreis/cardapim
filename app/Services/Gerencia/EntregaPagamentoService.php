@@ -108,12 +108,27 @@ final class EntregaPagamentoService
         if ($erros !== []) {
             return Resultado::falha('Confira os campos destacados.', $erros);
         }
-        $antes = $this->repo->config($this->idRestaurante);
         $taxasRepo = new TaxaPagamentoRepository($this->db);
-        $taxasAntes = $taxasRepo->regras($this->idRestaurante);
-        $this->repo->salvarConfig($this->idRestaurante, $c);
+        $this->db->beginTransaction();
+        try {
+            // Mesma trava usada na criacao do pedido: configuracao e taxas mudam juntas.
+            if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+                $this->db->prepare('SELECT id FROM restaurantes WHERE id = ? FOR UPDATE')->execute([$this->idRestaurante]);
+            }
+            $antes = $this->repo->config($this->idRestaurante);
+            $taxasAntes = $taxasRepo->regras($this->idRestaurante);
+            $this->repo->salvarConfig($this->idRestaurante, $c);
+            if ($taxas !== null) {
+                $taxasRepo->salvar($this->idRestaurante, $taxas);
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
         if ($taxas !== null) {
-            $taxasRepo->salvar($this->idRestaurante, $taxas);
             $texto = static function (array $regras): string {
                 $partes = [];
                 foreach ($regras as $forma => $r) {
