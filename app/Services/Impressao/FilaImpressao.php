@@ -274,7 +274,10 @@ final class FilaImpressao
                 return;
             }
             $desde = $this->repo->ultimoItemImpresso($this->idRestaurante, $idPedido);
-            $ativos = array_values(array_filter($pedidos->itens($this->idRestaurante, $idPedido), static fn (array $i): bool => ($i['cancelado_em'] ?? null) === null));
+            // Itens com o id (PedidoRepository::itens nao traz): so os que ainda nao sairam na producao.
+            $q = $this->db->prepare('SELECT * FROM pedido_itens WHERE id_pedido = ? AND id_restaurante = ? AND cancelado_em IS NULL ORDER BY id');
+            $q->execute([$idPedido, $this->idRestaurante]);
+            $ativos = $q->fetchAll(PDO::FETCH_ASSOC);
             $novos = array_values(array_filter($ativos, static fn (array $i): bool => (int) $i['id'] > $desde));
             if ($novos === []) {
                 return;

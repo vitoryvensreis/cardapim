@@ -314,7 +314,7 @@ final class ComandaService
             return $this->lancarCombo($id, $produto, $combo, intdiv($milesimos, 1000), $observacao, $escolhas);
         }
         $grupos = $unidade === 'un' ? (Complementos::carregar($this->db, $this->idRestaurante, [$idProduto])[$idProduto] ?? []) : [];
-        $conf = ['centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => []];
+        $conf = ['centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => [], 'produtos' => []];
         if ($grupos !== [] || $escolhas !== []) {
             $conf = Complementos::conferir($grupos, $escolhas);
             if (!$conf['ok']) {
@@ -323,12 +323,17 @@ final class ComandaService
         }
         $preco = Numero::centavos((string) $produto['preco']) + $conf['centavos'];
         $extras = Complementos::consumoDaLinha($conf['insumos'], intdiv($milesimos, 1000));
+        // Meio a Meio: alem do proprio produto, cada sabor baixa a fracao dele (2 sabores = 0,5 de cada).
+        $baixar = [$idProduto => $milesimos];
+        foreach (Complementos::consumoDaLinha($conf['produtos'] ?? [], intdiv($milesimos, 1000)) as $idSabor => $m) {
+            $baixar[$idSabor] = ($baixar[$idSabor] ?? 0) + $m;
+        }
         $comComplementos = Esquema::tem($this->db, 'complementos');
         $agora = date('Y-m-d H:i:s');
         $this->db->beginTransaction();
         try {
             // Baixa primeiro: se faltar insumo, nada e gravado.
-            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($this->idRestaurante, [$idProduto => $milesimos], $extras);
+            $consumo = (new BaixaEstoque($this->db))->baixarMilesimos($this->idRestaurante, $baixar, $extras);
             $valores = [$id, $this->idRestaurante, $idProduto, mb_substr((string) $produto['nome'], 0, 180), CaixaService::dec($preco), QuantidadeVenda::paraBanco($milesimos), $unidade,
                 $observacao !== '' ? $observacao : null, CaixaService::dec(QuantidadeVenda::totalCentavos($preco, $milesimos)), $this->autor->id,
                 $consumo !== [] ? json_encode($consumo, JSON_THROW_ON_ERROR) : null, $agora];

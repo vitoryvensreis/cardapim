@@ -74,7 +74,7 @@ final class CardapioPublico
                 'imagem' => $p['imagem_path'] !== null ? \Cardapim\Shared\MidiaUrl::publica((string) $p['imagem_path']) : null,
                 // Complementos (adicionais, bordas...): so produto por unidade.
                 'grupos' => $unidade === 'un' ? Complementos::publico($grupos[(int) $p['id']] ?? []) : [],
-            ], self::combo($combos[(int) $p['id']] ?? null));
+            ], self::combo($combos[(int) $p['id']] ?? null), self::meio($grupos[(int) $p['id']][0] ?? null));
         }
         // Disponiveis primeiro dentro de cada categoria (os indisponiveis continuam visiveis, no fim).
         foreach ($categorias as &$c) {
@@ -82,6 +82,20 @@ final class CardapioPublico
         }
         unset($c);
         return ['categorias' => array_values($categorias), 'total' => $total];
+    }
+
+    /**
+     * Meio a Meio com preco pela regra (fracionado ou maior): o cardapio mostra "A partir de" o menor preco possivel.
+     * @param array<string,mixed>|null $grupo primeiro grupo do produto (o "Sabores" do Meio a Meio vem primeiro)
+     * @return array<string,mixed>
+     */
+    private static function meio(?array $grupo): array
+    {
+        if (!is_array($grupo) || !isset($grupo['meio'])) {
+            return [];
+        }
+        $minimo = \Cardapim\Modules\Catalog\MeioAMeio::aPartirDe($grupo);
+        return $minimo === null ? [] : ['preco' => Numero::reais(sprintf('%d.%02d', intdiv($minimo, 100), $minimo % 100)), 'a_partir' => true];
     }
 
     /**

@@ -114,7 +114,7 @@ final class EstoqueController extends BaseGerencia
             'venda_minima' => $produto['venda_minima'] !== null ? \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($produto['venda_minima'])) : '',
             'porcoes' => array_map(static fn (string $p): string => \Cardapim\Modules\Inventory\QuantidadeVenda::campo(\Cardapim\Modules\Inventory\QuantidadeVenda::doBanco($p)),
                 (new ProdutoRepository($this->db))->porcoes($this->restaurante['id'], $id)),
-        ] + $this->gruposDoProdutoParaForm($id) + $this->impressorasDoProdutoParaForm($id) + $this->opcoesDoProdutoParaForm($id) + $this->comboParaForm($id), []);
+        ] + $this->gruposDoProdutoParaForm($id) + $this->impressorasDoProdutoParaForm($id) + $this->opcoesDoProdutoParaForm($id) + $this->comboParaForm($id) + $this->meioParaForm($id), []);
     }
 
     public function criarProduto(string $slug): Response
@@ -523,15 +523,18 @@ final class EstoqueController extends BaseGerencia
         }
         // Combo conferido antes de gravar o produto: com erro, nada e gravado.
         $combo = (new \Cardapim\Services\Gerencia\ComboCadastro($this->db, $this->restaurante['id']))->ler($_POST, $id);
-        if ($combo['erros'] !== []) {
+        // Meio a Meio (Produtos especiais) tambem e conferido antes: com erro, nada e gravado.
+        $meio = (new \Cardapim\Services\Gerencia\MeioAMeioCadastro($this->db, $this->restaurante['id']))->ler($_POST, $id);
+        if ($combo['erros'] !== [] || $meio['erros'] !== []) {
             $produto = $id === null ? null : (new ProdutoRepository($this->db))->buscar($this->restaurante['id'], $id);
-            return $this->formProduto($produto, $this->entradaPost(), $combo['erros'], 422);
+            return $this->formProduto($produto, $this->entradaPost(), $combo['erros'] + $meio['erros'], 422);
         }
         $resultado = (new ProdutoService($this->db, $this->usuario, $this->restaurante['id']))->salvar($id, $_POST, is_array($_FILES['foto'] ?? null) ? $_FILES['foto'] : null);
         if ($this->avisarEstoque($resultado, 'produto', $id === null ? 'criado' : 'editado', $id ?? $resultado->id)->ok) {
             $this->salvarImpressorasDoProduto($id ?? $resultado->id);
             $this->salvarOpcoesDoProduto($id ?? $resultado->id);
             $this->salvarCombo($id ?? $resultado->id, $combo);
+            $this->salvarMeio($id ?? $resultado->id, $meio);
             return $this->voltar($this->url('estoque/produtos'), 'sucesso', $resultado->mensagem);
         }
         $produto = $id === null ? null : (new ProdutoRepository($this->db))->buscar($this->restaurante['id'], $id);
@@ -578,6 +581,9 @@ final class EstoqueController extends BaseGerencia
             'comboDados' => \Cardapim\Modules\Catalog\Combo::ativo($this->db) ? [
                 'produtos' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->produtosParaCombo($idRest, $produto !== null ? (int) $produto['id'] : null),
                 'opcoes' => (new \Cardapim\Repositories\Estoque\ComboRepository($this->db))->opcoes($idRest),
+            ] : null,
+            'meioDados' => \Cardapim\Modules\Catalog\MeioAMeio::ativo($this->db) ? [
+                'candidatos' => (new \Cardapim\Repositories\Estoque\MeioAMeioRepository($this->db))->candidatos($idRest, $produto !== null ? (int) $produto['id'] : null),
             ] : null,
             'fotoAtual' => $produto['imagem_path'] ?? null,
             'pageStyles' => ['css/complementos.css'],
@@ -674,6 +680,40 @@ final class EstoqueController extends BaseGerencia
             'combo_fixo_qtd' => array_map(static fn (array $f): string => (string) $f['quantidade'], $c['fixos']),
             'combo_grupo' => $c['grupos'],
         ];
+    }
+
+    /** Valores da secao Produtos especiais (Meio a Meio) para editar. @return array<string,mixed> */
+    private function meioParaForm(int $idProduto): array
+    {
+        if (!\Cardapim\Modules\Catalog\MeioAMeio::ativo($this->db)) {
+            return [];
+        }
+        $c = (new \Cardapim\Repositories\Estoque\MeioAMeioRepository($this->db))->configuracoes($this->restaurante['id'], [$idProduto])[$idProduto] ?? null;
+        if ($c === null) {
+            return ['meio_ativo' => ''];
+        }
+        return [
+            'meio_ativo' => '1', 'meio_minimo' => (string) $c['minimo'], 'meio_maximo' => (string) $c['maximo'], 'meio_regra' => $c['regra'],
+            'meio_origem' => $c['id_categoria'] !== null ? 'categoria' : 'produtos',
+            'meio_categoria' => $c['id_categoria'] !== null ? (string) $c['id_categoria'] : '',
+            'meio_sabores' => array_map('strval', $c['sabores']),
+        ];
+    }
+
+    /** @param array<string,mixed> $meio de MeioAMeioCadastro::ler() */
+    private function salvarMeio(?int $idProduto, array $meio): void
+    {
+        if ($idProduto === null || !$meio['enviado']) {
+            return;
+        }
+        $this->db->beginTransaction();
+        try {
+            (new \Cardapim\Repositories\Estoque\MeioAMeioRepository($this->db))->salvar($this->restaurante['id'], $idProduto, $meio['ativo'] ? $meio['config'] : null);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 
     /** @param array<string,mixed> $combo de ComboCadastro::ler() */

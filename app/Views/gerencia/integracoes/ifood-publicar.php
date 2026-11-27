@@ -59,7 +59,7 @@ $total = array_sum(array_map(static fn (array $c): int => count($c['produtos']),
                         <ul class="ifood-itens">
                             <?php foreach ($cat['produtos'] as $p): [$classe, $icone, $rotulo] = $situacoes[$p['situacao']] ?? $situacoes['nao']; ?>
                                 <li class="ifood-publicar-item">
-                                    <input type="checkbox" id="pub-<?= (int) $p['id'] ?>" name="produtos[]" value="<?= (int) $p['id'] ?>"<?= $p['por_unidade'] ? '' : ' disabled' ?>>
+                                    <input type="checkbox" id="pub-<?= (int) $p['id'] ?>" name="produtos[]" value="<?= (int) $p['id'] ?>"<?= $p['por_unidade'] && empty($p['meio']) ? '' : ' disabled' ?>>
                                     <?php if ($p['imagem']): ?>
                                         <img src="<?= $e(MidiaUrl::publica((string) $p['imagem'])) ?>" alt="" width="56" height="56" loading="lazy">
                                     <?php else: ?>
@@ -68,8 +68,8 @@ $total = array_sum(array_map(static fn (array $c): int => count($c['produtos']),
                                     <label for="pub-<?= (int) $p['id'] ?>">
                                         <strong><?= $e($p['nome']) ?></strong>
                                         <small><?= $e($p['preco']) ?><?= $p['grupos'] !== [] ? ' · Complementos: ' . $e(implode(', ', $p['grupos'])) : '' ?></small>
-                                        <?php if (!$p['por_unidade']): ?><small>Vendido por quilo ou litro: publique pelo Portal do Parceiro.</small><?php endif; ?>
-                                        <?php if (!$p['imagem'] && $p['por_unidade']): ?><small>Sem foto: o iFood recomenda foto em todos os itens.</small><?php endif; ?>
+                                        <?php if (!empty($p['meio'])): ?><small class="texto-alerta">Meio a Meio: não é publicado no iFood por aqui. Monte a pizza direto no Portal do Parceiro do iFood; os pedidos chegam aqui e baixam o estoque dos sabores.</small><?php elseif (!$p['por_unidade']): ?><small>Vendido por quilo ou litro: publique pelo Portal do Parceiro.</small><?php endif; ?>
+                                        <?php if (!$p['imagem'] && $p['por_unidade'] && empty($p['meio'])): ?><small>Sem foto: o iFood recomenda foto em todos os itens.</small><?php endif; ?>
                                         <?php if ($p['situacao'] === 'erro' && $p['erro']): ?><small class="texto-alerta"><?= $e((string) $p['erro']) ?></small><?php endif; ?>
                                     </label>
                                     <span class="etiqueta <?= $classe ?>"><?= Icon::svg($icone) ?><?= $rotulo ?></span>

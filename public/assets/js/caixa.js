@@ -231,8 +231,15 @@
     const areaGrupos = $("[data-produto-grupos]", dlgProduto);
     const erroGrupos = $("[data-grupos-erro]", dlgProduto);
     // Complementos (adicionais, borda...): cada grupo vira chips; a soma entra no preco de cada unidade.
+    // Meio a Meio: o preco do item segue a regra (fracionado, maior ou personalizado) sobre os sabores marcados.
+    const deltaMeio = () => (areaGrupos ? $$("[data-meio-regra]", areaGrupos).reduce((t, caixa) => {
+      const sabores = $$("input:checked", caixa).map((c) => parseInt(c.dataset.sabor, 10) || 0);
+      const base = parseInt(caixa.dataset.meioBase, 10) || 0;
+      const Comp = window.CardapimComplementos;
+      return sabores.length && Comp ? t + Comp.precoMeio(caixa.dataset.meioRegra, base, sabores) - base : t;
+    }, 0) : 0);
     const extraComps = () => (areaGrupos ? $$("input:checked", areaGrupos).reduce((t, c) => t + (parseInt(c.dataset.centavos, 10) || 0), 0)
-      + $$("[data-combo-qtd]", areaGrupos).reduce((t, c) => t + (parseInt(c.dataset.centavos, 10) || 0) * (parseInt(c.value, 10) || 0), 0) : 0);
+      + $$("[data-combo-qtd]", areaGrupos).reduce((t, c) => t + (parseInt(c.dataset.centavos, 10) || 0) * (parseInt(c.value, 10) || 0), 0) + deltaMeio() : 0);
     const qtdGrupo = (caixa) => $$("input:checked", caixa).length + $$("[data-combo-qtd]", caixa).reduce((t, c) => t + (parseInt(c.value, 10) || 0), 0);
     // Combo: cada opcao com - e + (respeita o maximo do grupo, da opcao e o total de escolhas do combo).
     const passoCombo = (g, o, caixa) => {
@@ -288,6 +295,7 @@
         const caixa = document.createElement("fieldset");
         caixa.className = "comps-grupo";
         caixa.dataset.max = String(g.maximo);
+        if (g.meio) { caixa.dataset.meioRegra = g.meio.regra; caixa.dataset.meioBase = String(g.meio.base); }
         const legenda = document.createElement("legend");
         legenda.textContent = g.nome;
         const regra = document.createElement("small");
@@ -310,6 +318,7 @@
           input.name = `complementos[${o.id}]`;
           input.value = "1";
           input.dataset.centavos = String(o.centavos);
+          if (g.meio) input.dataset.sabor = String(o.sabor_centavos || 0);
           input.dataset.complemento = "";
           input.disabled = !o.disponivel;
           input.addEventListener("change", () => {
@@ -320,7 +329,8 @@
             desenhar();
           });
           const texto = document.createElement("span");
-          texto.textContent = o.nome + (o.centavos > 0 ? ` +${reais(o.centavos)}` : "") + (o.disponivel ? "" : " (acabou)");
+          const precoOpcao = g.meio ? (g.meio.regra !== "personalizado" ? ` ${reais(o.sabor_centavos || 0)}` : "") : (o.centavos > 0 ? ` +${reais(o.centavos)}` : "");
+          texto.textContent = o.nome + precoOpcao + (o.disponivel ? "" : " (acabou)");
           rotulo.append(input, texto);
           caixa.append(rotulo);
         });

@@ -84,6 +84,37 @@
     atualizarCombo();
   }
 
+  /* ---------- Produtos especiais: Meio a Meio ---------- */
+  // Mostra os campos quando ligado, troca categoria/produtos e nao deixa ligar junto com o combo.
+  const meio = document.querySelector("[data-meio]");
+  if (meio) {
+    const ativoMeio = meio.querySelector("[data-meio-ativo]");
+    const corpoMeio = meio.querySelector("[data-meio-corpo]");
+    const comboAtivo = document.querySelector("[data-combo-ativo]");
+    const atualizarMeio = () => {
+      corpoMeio.hidden = !ativoMeio.checked;
+      const origem = (meio.querySelector("[data-meio-origem]:checked") || {}).value || "categoria";
+      meio.querySelectorAll("[data-meio-parte]").forEach((p) => { p.hidden = p.dataset.meioParte !== origem; });
+    };
+    ativoMeio.addEventListener("change", () => {
+      if (ativoMeio.checked && comboAtivo && comboAtivo.checked) {
+        comboAtivo.checked = false;
+        comboAtivo.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      atualizarMeio();
+    });
+    comboAtivo?.addEventListener("change", () => {
+      if (comboAtivo.checked && ativoMeio.checked) { ativoMeio.checked = false; atualizarMeio(); }
+    });
+    meio.querySelectorAll("[data-meio-origem]").forEach((r) => r.addEventListener("change", atualizarMeio));
+    // Maximo nunca menor que o minimo (e vice-versa).
+    const minimo = meio.querySelector("[name='meio_minimo']");
+    const maximo = meio.querySelector("[name='meio_maximo']");
+    minimo?.addEventListener("change", () => { if (Number(maximo.value) < Number(minimo.value)) maximo.value = minimo.value; });
+    maximo?.addEventListener("change", () => { if (Number(minimo.value) > Number(maximo.value)) minimo.value = maximo.value; });
+    atualizarMeio();
+  }
+
   /* ---------- Produto ---------- */
   const formProduto = document.querySelector("[data-produto-form]");
   if (formProduto) {
