@@ -47,3 +47,29 @@ por opção, vale em todos os combos que usam o grupo) e `pedido_itens.combo_lot
 Migration `20261121100000_create_combos.php`, `database/verify-combos.php`, `deploy/scripts/apply-combos.sh`
 (backup; gatilho `[cardapim-combos]`). Antes da migração a seção não aparece e tudo funciona como antes.
 Testes: `tests/unit/combos.php`, `tests/http/combos.sh`.
+
+# Meio a Meio (produto especial)
+
+Na ficha do produto, em **Produtos especiais**, o gerente liga o Meio a Meio (não pode ser combo ao mesmo tempo).
+Cada tamanho é um produto Meio a Meio próprio (ex.: "Pizza Grande Meio a Meio"), com seus sabores.
+
+- **Sabores**: todos os produtos ativos de uma categoria **ou** produtos escolhidos um a um. Só entram produtos por
+  unidade, que não sejam combo nem outro Meio a Meio. O preço de cada sabor é o preço do próprio produto.
+- **Quantidade**: mínimo e máximo de 1 a 4 (mínimo ≤ máximo). Mínimo = máximo obriga aquele número exato
+  (ex.: 2 e 2 só sai com 2 sabores). Precisa haver pelo menos tantos sabores quanto o máximo.
+- **Preço** (`MeioAMeio::preco`): `fracionado` = soma dos sabores ÷ quantidade (arredondado para o centavo mais
+  próximo); `maior` = o sabor mais caro; `personalizado` = o preço do próprio produto Meio a Meio.
+  O cardápio mostra "A partir de" o menor preço possível quando a regra não é personalizada.
+- **Como funciona**: os sabores viram um grupo de escolhas virtual (`Complementos::carregar`; ids a partir de
+  `MeioAMeio::OFFSET`, que não colidem com complementos de verdade). Assim cardápio online, caixa e garçom usam a
+  mesma janela de escolhas. O pedido grava **uma linha** com o texto "Sabores: 1/2 X, 1/2 Y" e o preço da regra.
+- **Estoque**: cada sabor baixa a sua fração da ficha técnica (2 sabores = metade de cada; 3 = um terço).
+  Cancelar devolve o estoque como qualquer item.
+- **iFood**: produto Meio a Meio **não é publicado** pelo Cardapim (o aviso aparece na ficha e na tela de publicação,
+  e a publicação recusa). Monte a pizza no Portal do Parceiro do iFood. No pedido que chega, as escolhas são
+  reconhecidas como sabores pelo código (`DZ-P<id>` ou o código do produto) ou pelo nome (sem o "1/2"), e cada sabor
+  baixa a sua fração. Sem reconhecer, o item entra como antes.
+
+Migration `20261201100000_meio_a_meio.php` (tabelas `produto_meio_a_meio` e `produto_meio_sabores`),
+`database/verify-meio-a-meio.php`, `deploy/scripts/apply-meio-a-meio.sh` (backup; gatilho `[cardapim-meio-a-meio]`).
+Antes da migração a seção não aparece. Testes: `tests/unit/meio-a-meio.php`, `tests/http/meio-a-meio.sh`.

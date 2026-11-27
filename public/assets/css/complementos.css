@@ -80,3 +80,21 @@
 .grupo-repetir { margin-top: 1rem; }
 .opcao-qtd-max { max-width: 16rem; margin-top: .5rem; }
 .opcao-qtd-max[hidden] { display: none; }
+
+/* Produtos especiais: Meio a Meio (ficha do produto) */
+.meio-corpo [hidden] { display: none !important; }
+.meio-origem, .meio-regras { display: grid; gap: .5rem; margin: 0; padding: 0; border: 0; }
+@media (min-width: 48rem) { .meio-origem { grid-template-columns: 1fr 1fr; } .meio-regras { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.meio-sabores { display: flex; flex-wrap: wrap; gap: .45rem; max-height: 18rem; overflow-y: auto; padding: .25rem; }
+.meio-sabor { position: relative; display: inline-flex; }
+.meio-sabor input { position: absolute; opacity: 0; pointer-events: none; }
+.meio-sabor span {
+  display: inline-flex; align-items: center; gap: .35rem; min-height: 2.75rem; padding: 0 .85rem; cursor: pointer;
+  border: 1.5px solid var(--c-line); border-radius: var(--r-pill, 999px); background: var(--c-white); color: var(--c-ink); font-size: .9rem;
+}
+.meio-sabor span small { color: var(--c-muted); }
+.meio-sabor input:checked + span { border-color: var(--c-wine); background: var(--c-wine); color: var(--c-white); font-weight: 700; }
+.meio-sabor input:checked + span small { color: var(--c-white); }
+.meio-sabor input:focus-visible + span { outline: 3px solid var(--c-orange); outline-offset: 2px; }
+.meio-aviso { display: flex; align-items: flex-start; gap: .45rem; margin: .25rem 0 0; padding: .65rem .8rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-cream); color: var(--c-ink); font-size: .88rem; }
+.meio-aviso .icon { flex: none; margin-top: .1rem; color: var(--c-orange); }

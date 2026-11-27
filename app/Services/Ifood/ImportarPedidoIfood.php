@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Services\Ifood;
 
 use Cardapim\Modules\Catalog\Combo;
+use Cardapim\Modules\Catalog\MeioAMeio;
 use Cardapim\Modules\Inventory\BaixaEstoque;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Modules\Inventory\EstoqueInsuficiente;
@@ -112,6 +113,8 @@ final class ImportarPedidoIfood
             $extrasCombo = [];
             $unidades = $this->unidadesVenda(array_values(array_filter(array_column($p['itens'], 'id_produto'))));
             $combos = Combo::carregar($this->db, $this->idRestaurante, array_values(array_filter(array_column($p['itens'], 'id_produto'))));
+            // Meio a Meio: os sabores escolhidos no iFood baixam a fracao do estoque de cada um.
+            $meios = MeioAMeio::carregar($this->db, $this->idRestaurante, array_values(array_filter(array_column($p['itens'], 'id_produto'))));
             foreach ($p['itens'] as $i) {
                 // Combo publicado pelo Cardapim: entra com os itens separados (estoque e impressao de cada um),
                 // dividindo o valor que o iFood cobrou. Se algo nao for reconhecido, entra como antes (uma linha).
@@ -136,6 +139,10 @@ final class ImportarPedidoIfood
                     $i['observacao'], PedidoIfood::decimal($totalItem), $agora]);
                 if ($i['id_produto'] !== null) {
                     $baixar[$i['id_produto']] = ($baixar[$i['id_produto']] ?? 0) + $baixa;
+                    $sabores = isset($meios[$i['id_produto']]) && $unidade === 'un' ? MeioAMeio::saboresIfood($meios[$i['id_produto']], $i['opcoes'] ?? []) : null;
+                    foreach ($sabores ?? [] as $idSabor => $mil) {
+                        $baixar[$idSabor] = ($baixar[$idSabor] ?? 0) + $mil * (int) $i['quantidade'];
+                    }
                 }
             }
             $semLigacao = array_values(array_unique(array_map(static fn (array $i): string => $i['nome_ifood'] ?: $i['nome'],

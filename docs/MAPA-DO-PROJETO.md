@@ -163,7 +163,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | `Impressao/` | `CupomImpressao` (blocos do cupom), `RotaProducao` (**regra única** de qual impressora recebe cada item), `FilaImpressao` (grava na fila do Agent), `TesteImpressao` (simulador) | Agent, caixa, garçom, gerência > Impressoras |
 | `Descontos/` | Cupons, fidelidade e a regra de não somar (`DescontoPedido`) | Checkout |
 | `Entregas/` | Entregador, destino e rastreio | Painel do entregador, acompanhar pedido |
-| `Gerencia/` | Um service por aba: Produto, Categoria, Complemento, ComboCadastro, Insumo, Equipe, Perfil, Financeiro, EntregaPagamento, Cupom, Fidelidade, Assinatura, VisaoGeral, ImportarCardapio; `Integracoes/` (Asaas, iFood, WhatsApp) | Painel do gerente |
+| `Gerencia/` | Um service por aba: Produto, Categoria, Complemento, ComboCadastro, MeioAMeioCadastro, Insumo, Equipe, Perfil, Financeiro, EntregaPagamento, Cupom, Fidelidade, Assinatura, VisaoGeral, ImportarCardapio; `Integracoes/` (Asaas, iFood, WhatsApp) | Painel do gerente |
 | `Ifood/` | Toda a integração iFood: rotina, eventos, importar pedido, ações, catálogo, publicação, estado da loja | `bin/ifood.php`, caixa, gerência |
 | `Plataforma/` | Restaurantes, usuários, planos, marca, cobrança das assinaturas (Asaas da plataforma), SMS, `GoogleMapsService` (chave única da Routes API, teste e alternância global Haversine/Google) | `/painel`, `/painel/integracoes/google-maps`, `bin/cobranca-diaria.php` |
 | `Cliente/` | Login do cliente final por código (WhatsApp da plataforma ou SMS) | Cardápio |
@@ -180,6 +180,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | --- | --- | --- |
 | `Catalog/Complementos.php` | **Regra única** de complementos (obrigatório, mínimo/máximo, repetir, quantidade por opção) | Cardápio, sacola, pedido, caixa, garçom, iFood |
 | `Catalog/Combo.php` | **Regra única** dos combos (preço dividido entre os itens) | Cardápio, caixa, garçom, iFood |
+| `Catalog/MeioAMeio.php` | **Regra única** do Meio a Meio (sabores como grupo virtual, preço pela regra, fração de estoque) | Cardápio, caixa, garçom, iFood (pedido) |
 | `Catalog/PlanilhaCardapio`, `LeitorPlanilha`, `ImagemCardapio` | Importar cardápio (CSV/XLSX) e fotos | Gerência > Importar |
 | `Inventory/` | Disponibilidade dos produtos, baixa por ficha técnica, análise, quantidades em milésimos, venda por peso | Estoque, pedidos, caixa |
 | `Entrega/` | Área de entrega e taxa, distância, comparação de bairros | Checkout, verificador de entrega |
@@ -189,7 +190,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 
 ### 4.5 `app/Repositories/` — SQL
 
-Toda consulta recebe `id_restaurante` e filtra por ele. Pastas: `Caixa/`, `Desktop/` (impressões, impressoras, produto↔impressora, pesagens), `Estoque/` (produtos, categorias, complementos, combos, insumos), `Gerencia/`, `Plataforma/`, além de `PedidoRepository`, `OutboxRepository`, `UsuarioRepository`, `RestauranteRepository`, `ClienteRepository`, `PlanoRepository`, `SuporteRepository`, `LogUserRepository`, `ContaRepository`.
+Toda consulta recebe `id_restaurante` e filtra por ele. Pastas: `Caixa/`, `Desktop/` (impressões, impressoras, produto↔impressora, pesagens), `Estoque/` (produtos, categorias, complementos, combos, meio a meio, insumos), `Gerencia/`, `Plataforma/`, além de `PedidoRepository`, `OutboxRepository`, `UsuarioRepository`, `RestauranteRepository`, `ClienteRepository`, `PlanoRepository`, `SuporteRepository`, `LogUserRepository`, `ContaRepository`.
 Mudar uma consulta afeta todas as telas que usam o repositório. Procure os usos com `grep -rn "NomeRepository" app` antes de mudar. A configuração global e criptografada do Google fica em `configuracoes` via `Repositories/Plataforma/GoogleMapsRepository` (não em `IntegracaoRepository`, que é por restaurante).
 
 ### 4.6 `app/Realtime/`

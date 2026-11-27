@@ -26,6 +26,9 @@ final class IfoodPublicacao
 {
     private readonly IfoodVinculoRepository $vinculos;
 
+    /** Produto Meio a Meio nao vai para o iFood por aqui (o modelo de pizza do iFood e outro). */
+    public const AVISO_MEIO = 'produto Meio a Meio não é publicado no iFood por aqui. Monte a pizza direto no Portal do Parceiro do iFood: os pedidos chegam aqui e baixam o estoque dos sabores.';
+
     public function __construct(private readonly PDO $db, private readonly int $idRestaurante)
     {
         $this->vinculos = new IfoodVinculoRepository($db, $idRestaurante);
@@ -45,6 +48,7 @@ final class IfoodPublicacao
         $produtos = $this->produtos([]);
         $vinc = $this->vinculos->todos('item');
         $grupos = Complementos::carregar($this->db, $this->idRestaurante, array_keys($produtos));
+        $meios = $this->meios(array_keys($produtos));
         $categorias = [];
         foreach ($produtos as $id => $p) {
             $chave = $p['categoria'] ?? 'Sem categoria';
@@ -53,6 +57,7 @@ final class IfoodPublicacao
             $categorias[$chave]['produtos'][] = [
                 'id' => $id, 'nome' => $p['nome'], 'preco' => Numero::reais($p['preco']), 'imagem' => $p['imagem_path'],
                 'por_unidade' => $p['unidade_venda'] === 'un',
+                'meio' => isset($meios[$id]),
                 'grupos' => array_map(static fn (array $g): string => $g['nome'] . ' (' . count($g['opcoes']) . ')', $grupos[$id] ?? []),
                 'situacao' => $v === null ? 'nao' : (string) $v['status'],
                 'erro' => $v['ultimo_erro'] ?? null,
@@ -75,7 +80,12 @@ final class IfoodPublicacao
             return $saida;
         }
         $token = $conta->token();
+        $meios = $this->meios(array_keys($produtos));
         foreach ($produtos as $id => $p) {
+            if (isset($meios[$id])) {
+                $saida['erros'][] = $p['nome'] . ': ' . self::AVISO_MEIO;
+                continue;
+            }
             if ($p['unidade_venda'] !== 'un') {
                 $saida['erros'][] = $p['nome'] . ': produto vendido por quilo ou litro ainda não pode ser publicado no iFood por aqui.';
                 continue;
@@ -147,6 +157,9 @@ final class IfoodPublicacao
      */
     private function publicarProduto(IfoodConta $conta, string $token, array $p, bool $forcar): int
     {
+        if ($this->meios([(int) $p['id']]) !== []) {
+            throw new IntegracaoErro(self::AVISO_MEIO, 422);
+        }
         $api = $conta->api();
         $loja = (string) $conta->loja();
         $id = (int) $p['id'];
@@ -361,6 +374,15 @@ final class IfoodPublicacao
             $saida[(int) $p['id']] = $p;
         }
         return $saida;
+    }
+
+    /** Quais dos produtos sao Meio a Meio. @param list<int> $ids @return array<int,true> */
+    private function meios(array $ids): array
+    {
+        if ($ids === [] || !\Cardapim\Modules\Catalog\MeioAMeio::ativo($this->db)) {
+            return [];
+        }
+        return array_fill_keys(array_keys((new \Cardapim\Repositories\Estoque\MeioAMeioRepository($this->db))->configuracoes($this->idRestaurante, $ids)), true);
     }
 
     /** @return array{value:float, originalValue:float} */

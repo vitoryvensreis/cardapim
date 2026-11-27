@@ -141,8 +141,15 @@
         if (!inp) return;
         const q = Math.max(0, Math.min(Number(inp.max || 99), parseInt(inp.value || "0", 10) || 0));
         // Complementos escolhidos (adicionais, borda...) somam no preco de cada unidade.
+        // Meio a Meio: o preco do item segue a regra (fracionado, maior ou personalizado) sobre os sabores marcados.
+        const meio = $$("[data-meio-regra]", li).reduce((t, g) => {
+          const sabores = $$("input:checked", g).map((c) => Number(c.dataset.sabor || 0));
+          const base = Number(g.dataset.meioBase || 0);
+          const Comp = window.CardapimComplementos;
+          return sabores.length && Comp ? t + Comp.precoMeio(g.dataset.meioRegra, base, sabores) - base : t;
+        }, 0);
         const extra = $$("[data-comps] input:checked", li).reduce((t, c) => t + Number(c.dataset.centavos || 0), 0)
-          + $$("[data-combo-qtd]", li).reduce((t, c) => t + Number(c.dataset.centavos || 0) * (parseInt(c.value || "0", 10) || 0), 0);
+          + $$("[data-combo-qtd]", li).reduce((t, c) => t + Number(c.dataset.centavos || 0) * (parseInt(c.value || "0", 10) || 0), 0) + meio;
         itens += q;
         soma += q * (Number(li.dataset.preco || 0) + extra);
         const comps = $("[data-comps]", li);

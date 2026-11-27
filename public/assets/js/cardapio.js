@@ -287,7 +287,14 @@
   const somaComps = () => {
     if (!atual || !atual.grupos.length) return 0;
     let total = 0;
-    atual.grupos.forEach((g) => g.opcoes.forEach((o) => { total += (compsAtual.get(o.id) || 0) * o.centavos; }));
+    atual.grupos.forEach((g) => {
+      if (g.meio) { // Meio a Meio: diferenca do preco pela regra (fracionado, maior ou personalizado)
+        const sabores = g.opcoes.filter((o) => compsAtual.get(o.id)).map((o) => o.sabor_centavos || 0);
+        if (sabores.length) total += Comp.precoMeio(g.meio.regra, g.meio.base, sabores) - g.meio.base;
+        return;
+      }
+      g.opcoes.forEach((o) => { total += (compsAtual.get(o.id) || 0) * o.centavos; });
+    });
     return total;
   };
   const totalEscolhas = () => [...compsAtual.values()].reduce((t, q) => t + q, 0);
@@ -417,7 +424,7 @@
         const texto = el("span", "cd-opcao-texto");
         texto.append(el("strong", "", o.nome));
         if (o.descricao) texto.append(el("small", "", o.descricao));
-        rotulo.append(texto, el("span", "cd-opcao-preco", !o.disponivel ? "Acabou" : (o.centavos > 0 ? `+ ${reais(o.centavos)}` : "Grátis")));
+        rotulo.append(texto, el("span", "cd-opcao-preco", Comp.rotuloOpcao(g, o, reais)));
         caixa.append(rotulo);
       });
       areaGrupos.append(caixa);
@@ -459,7 +466,9 @@
     const desc = dProduto.querySelector("[data-produto-desc]");
     desc.textContent = produto.descricao;
     desc.hidden = produto.descricao === "";
-    dProduto.querySelector("[data-produto-preco]").textContent = produto.porcoes.length ? produto.precoTexto : reais(produto.centavos);
+    const meioPelaRegra = produto.grupos.some((g) => g.meio && g.meio.regra !== "personalizado");
+    dProduto.querySelector("[data-produto-preco]").textContent = produto.porcoes.length ? produto.precoTexto
+      : (meioPelaRegra ? `A partir de ${produto.precoTexto}` : reais(produto.centavos));
     campoObs.value = linha ? linha.obs : "";
     contaObs.textContent = `${campoObs.value.length}/140`;
     textoAdicionar.textContent = linha ? "Atualizar" : "Adicionar";

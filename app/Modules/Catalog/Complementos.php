@@ -28,12 +28,17 @@ final class Complementos
      */
     public static function carregar(PDO $db, int $idRestaurante, array $idsProdutos): array
     {
-        if ($idsProdutos === [] || !Esquema::tem($db, 'complementos')) {
+        if ($idsProdutos === []) {
             return [];
+        }
+        // Meio a Meio: o grupo "Sabores" entra primeiro (MeioAMeio monta com a disponibilidade de cada sabor).
+        $meio = MeioAMeio::carregar($db, $idRestaurante, $idsProdutos);
+        if (!Esquema::tem($db, 'complementos')) {
+            return array_map(static fn (array $g): array => [$g], $meio);
         }
         $grupos = (new ComplementoRepository($db))->gruposDosProdutos($idRestaurante, $idsProdutos);
         if ($grupos === []) {
-            return [];
+            return array_map(static fn (array $g): array => [$g], $meio);
         }
         $idsInsumos = [];
         foreach ($grupos as $lista) {
@@ -70,6 +75,9 @@ final class Complementos
             unset($g);
         }
         unset($lista);
+        foreach ($meio as $idProduto => $g) {
+            $grupos[$idProduto] = [$g, ...($grupos[$idProduto] ?? [])];
+        }
         return $grupos;
     }
 
@@ -132,12 +140,13 @@ final class Complementos
      * Confere as escolhas de UMA unidade do produto contra os grupos dele.
      * @param list<array<string,mixed>> $grupos grupos do produto (de carregar())
      * @param list<array{id:int, quantidade:int}> $escolhas (de formato())
-     * @return array{ok:bool, erro:?string, centavos:int, itens:list<array{id:int, grupo:string, nome:string, centavos:int, quantidade:int}>, texto:string, insumos:array<int,int>}
-     *         centavos = soma dos complementos para 1 unidade; insumos = id_insumo => milesimos para 1 unidade
+     * @return array{ok:bool, erro:?string, centavos:int, itens:list<array{id:int, grupo:string, nome:string, centavos:int, quantidade:int}>, texto:string, insumos:array<int,int>, produtos:array<int,int>}
+     *         centavos = soma dos complementos para 1 unidade (no Meio a Meio, mais a diferenca do preco pela regra);
+     *         insumos = id_insumo => milesimos para 1 unidade; produtos = sabor do Meio a Meio => milesimos para 1 unidade
      */
     public static function conferir(array $grupos, array $escolhas): array
     {
-        $falha = static fn (string $m): array => ['ok' => false, 'erro' => $m, 'centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => []];
+        $falha = static fn (string $m): array => ['ok' => false, 'erro' => $m, 'centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => [], 'produtos' => []];
         $porOpcao = [];
         foreach ($grupos as $gi => $g) {
             foreach ($g['opcoes'] as $o) {
@@ -159,6 +168,7 @@ final class Complementos
         $partes = [];
         $centavos = 0;
         $insumos = [];
+        $produtos = [];
         foreach ($grupos as $gi => $g) {
             $escolhidos = $porGrupo[$gi] ?? [];
             $soma = array_sum(array_map(static fn (array $x): int => $x[1], $escolhidos));
@@ -179,6 +189,23 @@ final class Complementos
                     return $falha('No máximo ' . (int) $o['qtd_max'] . ' de "' . $o['nome'] . '".');
                 }
             }
+            // Meio a Meio: preco pela regra (fica no preco do item) e cada sabor baixa a fracao do proprio produto.
+            if (isset($g['meio'])) {
+                if ($escolhidos === []) {
+                    continue;
+                }
+                $n = count($escolhidos);
+                $base = (int) $g['meio']['base'];
+                $centavos += MeioAMeio::preco((string) $g['meio']['regra'], $base, array_map(static fn (array $x): int => (int) $x[0]['sabor_centavos'], $escolhidos)) - $base;
+                $fracoes = MeioAMeio::fracoes($n);
+                $nomes = [];
+                foreach ($escolhidos as $i => [$o]) {
+                    $produtos[(int) $o['id_produto']] = ($produtos[(int) $o['id_produto']] ?? 0) + $fracoes[$i];
+                    $nomes[] = trim(MeioAMeio::fracaoTexto($n) . ' ' . $o['nome']);
+                }
+                $partes[] = $g['nome'] . ': ' . implode(', ', $nomes);
+                continue;
+            }
             $nomes = [];
             foreach ($escolhidos as [$o, $qtd]) {
                 $c = (int) ($o['centavos'] ?? Numero::centavos((string) $o['preco']));
@@ -193,7 +220,7 @@ final class Complementos
                 $partes[] = $g['nome'] . ': ' . implode(', ', $nomes);
             }
         }
-        return ['ok' => true, 'erro' => null, 'centavos' => $centavos, 'itens' => $itens, 'texto' => mb_substr(implode(' · ', $partes), 0, 500), 'insumos' => $insumos];
+        return ['ok' => true, 'erro' => null, 'centavos' => $centavos, 'itens' => $itens, 'texto' => mb_substr(implode(' · ', $partes), 0, 500), 'insumos' => $insumos, 'produtos' => $produtos];
     }
 
     /** Dados dos grupos que podem ir para o navegador (sem ficha tecnica, codigo ou estoque). @param list<array<string,mixed>> $grupos @return list<array<string,mixed>> */
@@ -203,10 +230,14 @@ final class Complementos
             'id' => $g['id'], 'nome' => $g['nome'], 'minimo' => $g['minimo'], 'maximo' => $g['maximo'],
             // repetir: o cliente escolhe a quantidade de cada opcao (- e +); maximo da opcao: null = livre.
             'repetir' => !empty($g['repetir']),
+            // Meio a Meio: regra do preco e preco do proprio produto; cada sabor leva o preco dele em sabor_centavos.
+            'meio' => isset($g['meio']) ? ['regra' => (string) $g['meio']['regra'], 'base' => (int) $g['meio']['base']] : null,
             'opcoes' => array_map(static fn (array $o): array => [
                 'maximo' => !empty($g['repetir']) && ($o['qtd_max'] ?? null) !== null ? (int) $o['qtd_max'] : null,
                 'id' => $o['id'], 'nome' => $o['nome'], 'descricao' => (string) ($o['descricao'] ?? ''), 'centavos' => (int) $o['centavos'],
-                'preco' => Numero::reais((string) $o['preco']), 'disponivel' => !empty($o['vendavel']),
+                'preco' => isset($o['sabor_centavos']) ? Numero::reais(self::dec((int) $o['sabor_centavos'])) : Numero::reais((string) $o['preco']),
+                'sabor_centavos' => isset($o['sabor_centavos']) ? (int) $o['sabor_centavos'] : null,
+                'disponivel' => !empty($o['vendavel']),
                 'imagem' => $o['imagem_path'] !== null ? \Cardapim\Shared\MidiaUrl::publica((string) $o['imagem_path']) : null,
             ], $g['opcoes']),
         ], $grupos);
@@ -223,6 +254,9 @@ final class Complementos
         }
         $ins = $db->prepare('INSERT INTO pedido_item_complementos (id_restaurante, id_pedido_item, id_complemento, grupo, nome, preco_unitario, quantidade, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($itens as $c) {
+            if (MeioAMeio::ehSabor((int) $c['id'])) {
+                continue; // sabor do Meio a Meio nao e complemento (fica no texto do item)
+            }
             $ins->execute([$idRestaurante, $idItem, $c['id'], mb_substr($c['grupo'], 0, 80), mb_substr($c['nome'], 0, 120),
                 self::dec($c['centavos']), $c['quantidade'], self::dec($c['centavos'] * $c['quantidade'])]);
         }

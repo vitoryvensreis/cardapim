@@ -1,10 +1,19 @@
 /*
  * Cardapim - regra dos complementos no navegador (adicionais, bordas...), igual a do servidor
  * (app/Modules/Catalog/Complementos.php). Serve so para mostrar preco e avisos na hora: o servidor confere tudo de novo.
- * Grupos: [{id, nome, minimo, maximo, opcoes: [{id, nome, centavos, disponivel}]}]. Escolhas: [{id, qtd}].
+ * Grupos: [{id, nome, minimo, maximo, meio?, opcoes: [{id, nome, centavos, sabor_centavos?, disponivel}]}]. Escolhas: [{id, qtd}].
+ * Grupo com "meio" (Meio a Meio): sabores; o preco do item segue a regra (fracionado, maior ou personalizado).
  */
 (() => {
   "use strict";
+
+  /* Meio a Meio: fracionado = media arredondada; maior = sabor mais caro; personalizado = preco do produto. */
+  const precoMeio = (regra, base, sabores) => {
+    if (!sabores.length || regra === "personalizado") return base;
+    if (regra === "maior") return Math.max(...sabores);
+    const soma = sabores.reduce((t, c) => t + c, 0);
+    return Math.floor((soma * 2 + sabores.length) / (sabores.length * 2));
+  };
 
   const conferir = (grupos, escolhas) => {
     const lista = Array.isArray(grupos) ? grupos : [];
@@ -33,6 +42,15 @@
         if (q > 1 && g.repetir === false) return { ok: false, grupo: g.id, erro: `Em "${g.nome}" cada opção pode ser escolhida uma vez.`, centavos: 0, texto: "" };
         if (g.repetir && o.maximo && q > o.maximo) return { ok: false, grupo: g.id, erro: `No máximo ${o.maximo} de "${o.nome}".`, centavos: 0, texto: "" };
       }
+      // Meio a Meio: o preco do item vem da regra (diferenca sobre o preco do produto) e cada sabor e uma fracao.
+      if (g.meio) {
+        if (escolhidos.length) {
+          const n = escolhidos.length;
+          centavos += precoMeio(g.meio.regra, g.meio.base, escolhidos.map(([o]) => o.sabor_centavos || 0)) - g.meio.base;
+          partes.push(`${g.nome}: ${escolhidos.map(([o]) => (n > 1 ? `1/${n} ` : "") + o.nome).join(", ")}`);
+        }
+        continue;
+      }
       const nomes = escolhidos.map(([o, q]) => { centavos += o.centavos * q; return (q > 1 ? `${q}x ` : "") + o.nome; });
       if (nomes.length) partes.push(`${g.nome}: ${nomes.join(", ")}`);
     }
@@ -45,5 +63,12 @@
     return g.minimo === g.maximo ? `Obrigatório · escolha ${g.minimo}` : `Obrigatório · de ${g.minimo} a ${g.maximo}`;
   };
 
-  window.CardapimComplementos = { conferir, regra };
+  /* Rotulo do preco de uma opcao: sabor do Meio a Meio mostra o preco dele (sem "+"). */
+  const rotuloOpcao = (g, o, reais) => {
+    if (!o.disponivel) return "Acabou";
+    if (g && g.meio) return g.meio.regra === "personalizado" ? "" : reais(o.sabor_centavos || 0);
+    return o.centavos > 0 ? `+ ${reais(o.centavos)}` : "Grátis";
+  };
+
+  window.CardapimComplementos = { conferir, regra, precoMeio, rotuloOpcao };
 })();

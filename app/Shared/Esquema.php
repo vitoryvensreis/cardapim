@@ -43,6 +43,8 @@ final class Esquema
         'cupom_opcoes' => ['restaurante_impressao_config', 'delivery_com_preco'],
         // Popup do cardapio online (banner 1:1 ou texto).
         'popup_cardapio' => ['restaurante_popup', 'versao'],
+        // Produto especial Meio a Meio (sabores com fracao do estoque).
+        'meio_a_meio' => ['produto_meio_sabores', 'id_sabor'],
         'fiscal_restaurante' => ['restaurante_fiscal', 'dados'],
         'fiscal_produtos' => ['fiscal_produtos', 'dados'],
         'fiscal_visibilidade' => ['fiscal_visibilidade', 'visivel'],

@@ -115,6 +115,9 @@ final class CriarPedido
                 continue;
             }
             $quantidades[$l['id']] = ($quantidades[$l['id']] ?? 0) + $l['milesimos'];
+            foreach ($l['sabores'] ?? [] as $idSabor => $m) { // Meio a Meio: fracao do estoque de cada sabor
+                $quantidades[$idSabor] = ($quantidades[$idSabor] ?? 0) + $m;
+            }
             foreach ($l['insumos_complementos'] ?? [] as $idInsumo => $m) {
                 $extras[$idInsumo] = ($extras[$idInsumo] ?? 0) + $m;
             }

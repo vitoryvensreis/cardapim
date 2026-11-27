@@ -164,6 +164,7 @@ final class PedidoIfood
                 $q = is_numeric($op['quantity'] ?? null) ? (float) $op['quantity'] : 1.0;
                 $opcoes[] = [
                     'codigo' => is_scalar($op['externalCode'] ?? null) && trim((string) $op['externalCode']) !== '' ? mb_substr(trim((string) $op['externalCode']), 0, 80) : null,
+                    'nome' => mb_substr(trim((string) $op['name']), 0, 120), // sabor do Meio a Meio reconhecido pelo nome
                     'quantidade' => abs($q - round($q)) < 0.0001 && $q >= 1 && $q <= 99 ? (int) round($q) : null,
                     'customizado' => is_array($op['customizations'] ?? null) && $op['customizations'] !== [],
                 ];

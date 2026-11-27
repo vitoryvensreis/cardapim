@@ -111,6 +111,8 @@ if ($popup !== null) {
                                         $precoTexto = 'Indisponível no momento';
                                     } elseif ($p['opcoes'] !== []) {
                                         $precoTexto = $p['opcoes'][0]['texto'] . ' por ' . $p['opcoes'][0]['preco'] . (count($p['opcoes']) > 1 ? ' · ' . count($p['opcoes']) . ' porções' : '');
+                                    } elseif (!empty($p['a_partir'])) { // Meio a Meio: menor preco possivel pela regra
+                                        $precoTexto = 'A partir de ' . $p['preco'];
                                     } elseif (!empty($p['grupos']) && array_filter($p['grupos'], static fn (array $g): bool => array_filter($g['opcoes'], static fn (array $o): bool => $o['centavos'] > 0) !== []) !== []) {
                                         $precoTexto = 'A partir de ' . $p['preco'];
                                     } else {

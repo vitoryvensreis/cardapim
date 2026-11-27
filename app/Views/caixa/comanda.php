@@ -11,7 +11,7 @@ use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Shared\Numero;
 
 $pageStyles = [...($pageStyles ?? []), 'css/balanca-caixa.css'];
-$pageScripts = [...($pageScripts ?? []), 'js/balanca-caixa.js', 'js/imprimir-agent.js'];
+$pageScripts = [...($pageScripts ?? []), 'js/complementos.js', 'js/balanca-caixa.js', 'js/imprimir-agent.js'];
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $r = static fn (int $c): string => Numero::reais(CaixaService::dec($c));
 $p = $c['pedido'];

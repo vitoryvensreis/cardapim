@@ -125,7 +125,7 @@ final class LinhasSacola
                 continue;
             }
             $gruposProduto = $unidade === 'un' ? ($grupos[$l['id']] ?? []) : [];
-            $conf = ['ok' => true, 'centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => []];
+            $conf = ['ok' => true, 'centavos' => 0, 'itens' => [], 'texto' => '', 'insumos' => [], 'produtos' => []];
             if ($gruposProduto !== [] || $escolhas !== []) {
                 $conf = Complementos::conferir($gruposProduto, $escolhas);
                 if (!$conf['ok']) {
@@ -145,6 +145,8 @@ final class LinhasSacola
                 'complementos' => $conf['itens'],
                 'complementos_texto' => $conf['texto'],
                 'insumos_complementos' => Complementos::consumoDaLinha($conf['insumos'], intdiv($milesimos, 1000)),
+                // Meio a Meio: fracao de cada sabor (milesimos do produto sabor) x unidades.
+                'sabores' => Complementos::consumoDaLinha($conf['produtos'] ?? [], intdiv($milesimos, 1000)),
             ]);
         }
         return ['linhas' => $saida, 'ausentes' => array_values(array_diff($ids, array_keys($produtos))), 'invalida' => $invalida, 'mensagem' => $mensagem];

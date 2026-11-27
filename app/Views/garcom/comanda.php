@@ -12,7 +12,7 @@ use Cardapim\Core\Icon;
 use Cardapim\Modules\Inventory\QuantidadeVenda;
 use Cardapim\Shared\Numero;
 
-$pageScripts = [...($pageScripts ?? []), 'js/imprimir-agent.js'];
+$pageScripts = [...($pageScripts ?? []), 'js/complementos.js', 'js/imprimir-agent.js'];
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $p = $c['pedido'];
 $url = $base . '/comandas/' . (int) $p['id'];
@@ -279,12 +279,13 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
                                                         <?php endforeach; ?>
                                                     </fieldset>
                                                     <?php continue; endif; ?>
-                                                <fieldset class="comps-grupo" data-comps-grupo data-max="<?= (int) $g['maximo'] ?>">
-                                                    <legend><?= $e($g['nome']) ?> <small><?= $g['minimo'] > 0 ? 'obrigatório' : 'opcional' ?><?= $g['maximo'] > 1 ? ', até ' . (int) $g['maximo'] : '' ?></small></legend>
+                                                <?php $meioG = $g['meio'] ?? null; // Meio a Meio: sabores, preco pela regra ?>
+                                                <fieldset class="comps-grupo" data-comps-grupo data-max="<?= (int) $g['maximo'] ?>"<?= $meioG !== null ? ' data-meio-regra="' . $e((string) $meioG['regra']) . '" data-meio-base="' . (int) $meioG['base'] . '"' : '' ?>>
+                                                    <legend><?= $e($g['nome']) ?> <small><?= $g['minimo'] > 0 ? 'obrigatório' : 'opcional' ?><?= $g['maximo'] > 1 ? ($g['minimo'] > 0 && $g['minimo'] !== $g['maximo'] ? ', de ' . (int) $g['minimo'] . ' a ' . (int) $g['maximo'] : ', até ' . (int) $g['maximo']) : '' ?></small></legend>
                                                     <?php foreach ($g['opcoes'] as $o): ?>
                                                         <label class="chip-opcao<?= $o['disponivel'] ? '' : ' is-indisponivel' ?>">
-                                                            <input type="checkbox" name="comp[<?= (int) $p['id'] ?>][<?= (int) $o['id'] ?>]" value="1" data-centavos="<?= (int) $o['centavos'] ?>"<?= $o['disponivel'] ? '' : ' disabled' ?>>
-                                                            <span><?= $e($o['nome']) ?><?= $o['centavos'] > 0 ? ' +' . $e($o['preco']) : '' ?><?= $o['disponivel'] ? '' : ' (acabou)' ?></span>
+                                                            <input type="checkbox" name="comp[<?= (int) $p['id'] ?>][<?= (int) $o['id'] ?>]" value="1" data-centavos="<?= (int) $o['centavos'] ?>"<?= $meioG !== null ? ' data-sabor="' . (int) ($o['sabor_centavos'] ?? 0) . '"' : '' ?><?= $o['disponivel'] ? '' : ' disabled' ?>>
+                                                            <span><?= $e($o['nome']) ?><?= $meioG !== null ? ($meioG['regra'] !== 'personalizado' ? ' ' . $e($o['preco']) : '') : ($o['centavos'] > 0 ? ' +' . $e($o['preco']) : '') ?><?= $o['disponivel'] ? '' : ' (acabou)' ?></span>
                                                         </label>
                                                     <?php endforeach; ?>
                                                 </fieldset>

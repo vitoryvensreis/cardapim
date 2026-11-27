@@ -228,6 +228,92 @@ $linhaFicha = static function (string $idInsumo, string $qtd) use ($insumos, $e)
             </section>
         <?php endif; ?>
 
+        <?php if (isset($meioDados) && is_array($meioDados)):
+            $meioAtivo = ($valores['meio_ativo'] ?? '') === '1';
+            $meioOrigem = ($valores['meio_origem'] ?? 'categoria') === 'produtos' ? 'produtos' : 'categoria';
+            $meioMin = (int) ($valores['meio_minimo'] ?? 1);
+            $meioMax = (int) ($valores['meio_maximo'] ?? 2);
+            $meioRegra = (string) ($valores['meio_regra'] ?? 'fracionado');
+            $meioSabores = array_map('strval', is_array($valores['meio_sabores'] ?? null) ? $valores['meio_sabores'] : []);
+            $meioCategoria = (string) ($valores['meio_categoria'] ?? '');
+        ?>
+            <section class="bloco" aria-labelledby="titulo-especiais" id="campo-meio" data-meio>
+                <div class="bloco-cabecalho">
+                    <h2 id="titulo-especiais"><?= Icon::svg('sparkles') ?>Produtos especiais</h2>
+                    <p>Modos especiais de venda para este produto.</p>
+                </div>
+                <input type="hidden" name="meio_enviado" value="1">
+                <label class="alternador">
+                    <span><strong>Meio a Meio</strong><small>O cliente escolhe os sabores. Ex.: pizza meia calabresa e meia mista. Cada sabor baixa a fração do próprio estoque (2 sabores = 0,5 de cada).</small></span>
+                    <input type="checkbox" name="meio_ativo" value="1" data-meio-ativo<?= $meioAtivo ? ' checked' : '' ?>><span class="alternador-chave" aria-hidden="true"></span>
+                </label>
+                <?php if (isset($erros['meio_ativo'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['meio_ativo']) ?></p><?php endif; ?>
+                <div class="combo-corpo meio-corpo" data-meio-corpo<?= $meioAtivo ? '' : ' hidden' ?>>
+                    <h3 class="combo-subtitulo">Sabores <small>produtos vendidos por unidade, que não são combo nem Meio a Meio</small></h3>
+                    <fieldset class="opcoes-modo meio-origem">
+                        <legend class="sr-only">De onde vêm os sabores</legend>
+                        <label class="opcao-modo">
+                            <input type="radio" name="meio_origem" value="categoria" data-meio-origem<?= $meioOrigem === 'categoria' ? ' checked' : '' ?>>
+                            <span><strong>Uma categoria inteira</strong><small>Ex.: todos os produtos de "Pizzas grandes". Produto novo na categoria já entra.</small></span>
+                        </label>
+                        <label class="opcao-modo">
+                            <input type="radio" name="meio_origem" value="produtos" data-meio-origem<?= $meioOrigem === 'produtos' ? ' checked' : '' ?>>
+                            <span><strong>Produtos escolhidos</strong><small>Marque um por um.</small></span>
+                        </label>
+                    </fieldset>
+                    <div data-meio-parte="categoria"<?= $meioOrigem === 'categoria' ? '' : ' hidden' ?>>
+                        <label class="combo-limite-campo" for="meio-categoria"><span>Categoria dos sabores</span>
+                            <select class="campo-simples" id="meio-categoria" name="meio_categoria">
+                                <option value="">Escolha a categoria</option>
+                                <?php foreach ($categorias as $cat): ?>
+                                    <option value="<?= (int) $cat['id'] ?>"<?= $meioCategoria === (string) $cat['id'] ? ' selected' : '' ?>><?= $e((string) $cat['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select></label>
+                    </div>
+                    <div class="meio-sabores" data-meio-parte="produtos"<?= $meioOrigem === 'produtos' ? '' : ' hidden' ?>>
+                        <?php if ($meioDados['candidatos'] === []): ?>
+                            <p class="texto-suave">Nenhum produto vendido por unidade para escolher ainda.</p>
+                        <?php else: foreach ($meioDados['candidatos'] as $cp): $sid = (int) $cp['id']; ?>
+                            <label class="chip-opcao meio-sabor"><input type="checkbox" name="meio_sabores[]" value="<?= $sid ?>"<?= in_array((string) $sid, $meioSabores, true) ? ' checked' : '' ?>><span><?= $e($cp['nome']) ?> <small><?= $e(\Cardapim\Shared\Numero::reais($cp['preco'])) ?></small></span></label>
+                        <?php endforeach; endif; ?>
+                    </div>
+                    <?php if (isset($erros['meio_sabores'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['meio_sabores']) ?></p><?php endif; ?>
+
+                    <h3 class="combo-subtitulo">Quantos sabores <small>mínimo e máximo podem ser iguais: 2 e 2 = só sai com 2 sabores</small></h3>
+                    <div class="combo-limite">
+                        <label class="combo-limite-campo" for="meio-minimo"><span>Mínimo</span>
+                            <select class="campo-simples" id="meio-minimo" name="meio_minimo">
+                                <?php for ($n = 1; $n <= \Cardapim\Modules\Catalog\MeioAMeio::MAX_SABORES; $n++): ?><option value="<?= $n ?>"<?= $meioMin === $n ? ' selected' : '' ?>><?= $n ?></option><?php endfor; ?>
+                            </select></label>
+                        <label class="combo-limite-campo" for="meio-maximo"><span>Máximo</span>
+                            <select class="campo-simples" id="meio-maximo" name="meio_maximo">
+                                <?php for ($n = 1; $n <= \Cardapim\Modules\Catalog\MeioAMeio::MAX_SABORES; $n++): ?><option value="<?= $n ?>"<?= $meioMax === $n ? ' selected' : '' ?>><?= $n ?></option><?php endfor; ?>
+                            </select></label>
+                    </div>
+                    <?php if (isset($erros['meio_quantidade'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['meio_quantidade']) ?></p><?php endif; ?>
+
+                    <h3 class="combo-subtitulo">Preço</h3>
+                    <fieldset class="opcoes-modo meio-regras">
+                        <legend class="sr-only">Como o preço é calculado</legend>
+                        <label class="opcao-modo">
+                            <input type="radio" name="meio_regra" value="fracionado"<?= $meioRegra === 'fracionado' ? ' checked' : '' ?>>
+                            <span><strong>Fracionado</strong><small>Soma dos sabores dividida pela quantidade. Ex.: R$ 40 + R$ 50 = R$ 45.</small></span>
+                        </label>
+                        <label class="opcao-modo">
+                            <input type="radio" name="meio_regra" value="maior"<?= $meioRegra === 'maior' ? ' checked' : '' ?>>
+                            <span><strong>Sabor mais caro</strong><small>Ex.: R$ 40 e R$ 50 = R$ 50.</small></span>
+                        </label>
+                        <label class="opcao-modo">
+                            <input type="radio" name="meio_regra" value="personalizado"<?= $meioRegra === 'personalizado' ? ' checked' : '' ?>>
+                            <span><strong>Preço personalizado</strong><small>Vale o preço deste produto, lá em cima, para qualquer sabor.</small></span>
+                        </label>
+                    </fieldset>
+                    <?php if (isset($erros['meio_regra'])): ?><p class="field-msg ficha-erro" role="alert"><?= $e($erros['meio_regra']) ?></p><?php endif; ?>
+                    <p class="meio-aviso"><?= Icon::svg('info', 'icon-sm') ?><span>Produto Meio a Meio <strong>não é publicado no iFood</strong> por aqui. Monte a pizza direto no Portal do Parceiro do iFood: os pedidos chegam aqui e baixam o estoque dos sabores.</span></p>
+                </div>
+            </section>
+        <?php endif; ?>
+
         <?php if (!empty($opcoesProduto)): $ondeVende = ($valores['onde_vende'] ?? 'todos') === 'presencial' ? 'presencial' : 'todos'; ?>
             <section class="bloco" aria-labelledby="titulo-onde-vende" id="campo-onde-vende">
                 <div class="bloco-cabecalho">
