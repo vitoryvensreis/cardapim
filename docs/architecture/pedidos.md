@@ -33,6 +33,23 @@ Verificacao: `php database/verify-pedidos.php --verify`.
 - **Na entrega/retirada**: Pix, cartao de debito, cartao de credito, dinheiro (com "troco para").
   Pedido ja nasce `recebido`.
 
+### Taxa por forma de pagamento (opcional)
+
+- Gerencia > Entrega e pagamento > "Cobrar taxa por forma de pagamento": para Pix (pelo app, com comprovante e na
+  entrega), debito e credito, **porcentagem OU valor fixo** (0,01% a 20% ou R$ 0,01 a R$ 50,00). Dinheiro nunca tem taxa.
+  Tabela `restaurante_taxas_pagamento` (sem linha = sem taxa); o formulario so mexe nas taxas quando manda `taxas_enviado=1`.
+- Calculo em `Services/Pedidos/TaxaPagamento`: base = itens + entrega - desconto; porcentagem arredondada meio para cima,
+  em centavos. Cupom e fidelidade nunca descontam sobre a taxa; o pedido minimo continua olhando so os itens.
+- Checkout: "+ 3,5%" ao lado da forma e a linha "Taxa do credito (3,5%)" no resumo (`checkout.js` faz a mesma conta so
+  para mostrar). O corpo leva `taxa_pagamento_centavos`; se a regra mudou, `CriarPedido` devolve 409 (`campo =
+  forma_pagamento`) e a tela recarrega. A taxa e conferida de novo sob a trava do restaurante.
+- Pedido: `pedidos.taxa_pagamento` e `taxa_pagamento_rotulo` (foto da regra). `total = subtotal + taxa_entrega +
+  taxa_servico + taxa_pagamento - desconto` (CHECK `chk_pedidos_valores`). Aparece no acompanhamento, no caixa, no cupom
+  impresso (`resumoPedido`), na cobranca do Pix pelo app (o total ja inclui) e na NFC-e em `vOutro` (validar com o contador).
+- Migration `20261203100000_taxas_pagamento`, `database/verify-taxas-pagamento.php`, `deploy/scripts/apply-taxas-pagamento.sh`
+  (gatilho `[cardapim-taxas-pagamento]`; `Esquema::tem('taxas_pagamento')`). Testes: `tests/unit/taxa-pagamento.php` e
+  o bloco "Taxa por forma de pagamento" de `tests/http/pedidos.sh`.
+
 ## Areas de entrega e geolocalizacao (sem custo)
 
 Regra (a mesma no cardapio, no servidor e no "Testar um endereco" do gerente):

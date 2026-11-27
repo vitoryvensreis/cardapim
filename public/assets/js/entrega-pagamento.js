@@ -32,6 +32,42 @@
     travarPix();
   }
 
+  // Taxa por forma de pagamento: a linha aparece so para a forma marcada; o campo de valor so com taxa escolhida.
+  var blocoTaxas = document.querySelector('[data-taxas]');
+  if (blocoTaxas) {
+    var vazio = blocoTaxas.querySelector('[data-taxas-vazio]');
+    var linhas = Array.prototype.slice.call(blocoTaxas.querySelectorAll('[data-taxa-linha]'));
+    var mostrarLinhas = function () {
+      var visiveis = 0;
+      linhas.forEach(function (linha) {
+        var caixa = document.querySelector('input[name="' + linha.getAttribute('data-taxa-linha') + '"]');
+        var ligada = !!caixa && caixa.checked && !caixa.disabled;
+        linha.hidden = !ligada;
+        if (ligada) { visiveis += 1; }
+      });
+      if (vazio) { vazio.hidden = visiveis > 0; }
+    };
+    linhas.forEach(function (linha) {
+      var caixa = document.querySelector('input[name="' + linha.getAttribute('data-taxa-linha') + '"]');
+      if (caixa) { caixa.addEventListener('change', mostrarLinhas); }
+      var tipo = linha.querySelector('[data-taxa-tipo]');
+      var valorCaixa = linha.querySelector('[data-taxa-valor-caixa]');
+      var prefixo = linha.querySelector('[data-taxa-prefixo]');
+      var valor = linha.querySelector('[data-taxa-valor]');
+      if (!tipo || !valorCaixa) { return; }
+      tipo.addEventListener('change', function () {
+        valorCaixa.hidden = tipo.value === '';
+        if (prefixo) { prefixo.textContent = tipo.value === 'fixo' ? 'R$' : '%'; }
+        if (valor) {
+          valor.placeholder = tipo.value === 'fixo' ? '1,00' : '3,5';
+          if (tipo.value !== '') { valor.focus(); }
+        }
+      });
+    });
+    if (pixApp) { pixApp.addEventListener('change', mostrarLinhas); }
+    mostrarLinhas();
+  }
+
   // "Usar a localizacao deste aparelho"
   var form = document.querySelector('[data-local-form]');
   var botao = document.querySelector('[data-usar-local]');

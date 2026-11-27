@@ -12,6 +12,7 @@ use Cardapim\Modules\Inventory\DisponibilidadeProdutos;
 use Cardapim\Modules\Inventory\EstoqueInsuficiente;
 use Cardapim\Realtime\TempoReal;
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
+use Cardapim\Repositories\Gerencia\TaxaPagamentoRepository;
 use Cardapim\Repositories\PedidoRepository;
 use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Services\Descontos\DescontoPedido;
@@ -149,7 +150,16 @@ final class CriarPedido
         if (!$desconto['ok']) {
             return self::erro(422, (string) $desconto['mensagem'], 'cupom');
         }
-        $total = $subtotal + $taxa - $desconto['centavos'];
+        // Taxa da forma de pagamento (opcional): sobre itens + entrega - desconto. O cliente viu o valor na tela;
+        // se a regra mudou desde entao, ele confere de novo (409), como no desconto.
+        $taxasRepo = new TaxaPagamentoRepository($this->db);
+        $regraTaxa = $taxasRepo->regras($idRest)[$forma] ?? null;
+        $taxaPagamento = TaxaPagamento::calcular($subtotal + $taxa - $desconto['centavos'], $regraTaxa);
+        $esperada = $e['taxa_pagamento_centavos'] ?? null;
+        if (is_int($esperada) && $esperada !== $taxaPagamento) {
+            return self::erro(409, 'A taxa da forma de pagamento mudou. Confira o total e tente de novo.', 'forma_pagamento') + ['taxa_pagamento_centavos' => $taxaPagamento];
+        }
+        $total = $subtotal + $taxa - $desconto['centavos'] + $taxaPagamento;
 
         $troco = null;
         if ($forma === 'dinheiro' && is_string($e['troco_para'] ?? null) && trim($e['troco_para']) !== '') {
@@ -193,18 +203,26 @@ final class CriarPedido
                     return self::erro(409, $agoraDesconto['ok'] ? 'O desconto mudou. Confira o total e tente de novo.' : (string) $agoraDesconto['mensagem'], 'cupom');
                 }
             }
+            // A taxa tambem e conferida sob a trava (o gerente pode ter salvo outra agora).
+            if (TaxaPagamento::calcular($subtotal + $taxa - $desconto['centavos'], $taxasRepo->regras($idRest)[$forma] ?? null) !== $taxaPagamento) {
+                $this->db->rollBack();
+                return self::erro(409, 'A taxa da forma de pagamento mudou. Confira o total e tente de novo.', 'forma_pagamento');
+            }
             $n = $this->db->prepare('SELECT COALESCE(MAX(numero), 0) + 1 FROM pedidos WHERE id_restaurante = ?');
             $n->execute([$idRest]);
             $numero = (int) $n->fetchColumn();
             $tempoMin = $tipo === 'entrega' ? $config['entrega_minutos_min'] : $config['retirada_minutos'];
             $tempoMax = $tipo === 'entrega' ? $config['entrega_minutos_max'] : $config['retirada_minutos'];
+            // Taxa da forma de pagamento: colunas so existem depois da migracao (sem a migracao nao ha regra, a taxa e 0).
+            $comTaxa = $taxasRepo->disponivel();
             $this->db->prepare('INSERT INTO pedidos (id_restaurante, numero, id_cliente, id_user, origem, tipo, status, forma_pagamento, pagamento_status, troco_para,
-                subtotal, taxa_entrega, desconto, desconto_origem, id_cupom, cupom_codigo, motivo_desconto, total, observacao, cliente_nome, cliente_whatsapp, entrega_cep, entrega_logradouro, entrega_numero,
+                ' . ($comTaxa ? 'taxa_pagamento, taxa_pagamento_rotulo, ' : '') . 'subtotal, taxa_entrega, desconto, desconto_origem, id_cupom, cupom_codigo, motivo_desconto, total, observacao, cliente_nome, cliente_whatsapp, entrega_cep, entrega_logradouro, entrega_numero,
                 entrega_complemento, entrega_bairro, entrega_cidade, entrega_estado, entrega_referencia, entrega_latitude, entrega_longitude,
                 entrega_distancia_km, id_area_entrega, area_descricao, previsao_minutos_min, previsao_minutos_max, chave_idempotencia, criado_em, atualizado_em)
-                VALUES (?, ?, ?, NULL, \'cardapio\', ?, ?, ?, \'pendente\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                VALUES (?, ?, ?, NULL, \'cardapio\', ?, ?, ?, \'pendente\', ?, ' . ($comTaxa ? '?, ?, ' : '') . '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                 ->execute([
                     $idRest, $numero, $idCliente, $tipo, $status, $forma, $troco,
+                    ...($comTaxa ? [self::dec($taxaPagamento), $taxaPagamento > 0 && $regraTaxa !== null ? TaxaPagamento::rotulo($forma, $regraTaxa) : null] : []),
                     self::dec($subtotal), self::dec($taxa), self::dec($desconto['centavos']), $desconto['origem'], $desconto['id_cupom'], $desconto['codigo'], $desconto['motivo'],
                     self::dec($total), $obsPedido !== '' ? $obsPedido : null,
                     mb_substr((string) $cliente['nome'], 0, 80), (string) $cliente['whatsapp'],
@@ -221,6 +239,7 @@ final class CriarPedido
                 throw new \RuntimeException('Pedido nao gravado.');
             }
             $idPedido = (int) $pedido['id'];
+
             $comComplementos = Esquema::tem($this->db, 'complementos');
             $insItem = $this->db->prepare($comComplementos
                 ? 'INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em, complementos_texto)

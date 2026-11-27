@@ -125,6 +125,7 @@ jobs:
           php tests/unit/cupom-imagem.php
           php tests/unit/aparencia-cupom.php
           php tests/unit/opcoes-cupom.php
+          php tests/unit/taxa-pagamento.php
           php tests/unit/popup-cardapio.php
           php tests/unit/meio-a-meio.php
           php tests/unit/fiscal-restaurante.php
@@ -143,6 +144,7 @@ jobs:
           bash -n deploy/scripts/apply-fiscal-danfe-producao.sh
           bash -n deploy/scripts/apply-impressao-opcoes-cupom.sh
           bash -n deploy/scripts/apply-impressao-contato-delivery.sh
+          bash -n deploy/scripts/apply-taxas-pagamento.sh
           bash -n deploy/scripts/apply-popup-cardapio.sh
           bash -n deploy/scripts/apply-meio-a-meio.sh
           bash -n deploy/scripts/install-fiscal-fila-cron.sh
@@ -212,6 +214,7 @@ jobs:
           php database/verify-fiscal-danfe-producao.php --verify
           php database/verify-opcoes-cupom.php --verify
           php database/verify-contato-delivery.php --verify
+          php database/verify-taxas-pagamento.php --verify
           php database/verify-popup-cardapio.php --verify
           php database/verify-meio-a-meio.php --verify
           php database/seed-demo-planos.php --apply
@@ -738,6 +741,19 @@ jobs:
           set -euo pipefail
           ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-impressao-contato-delivery.sh'"
+
+      - name: Aplicar taxa por forma de pagamento com backup
+        if: ${{ contains(github.event.head_commit.message, '[cardapim-taxas-pagamento]') }}
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDAPIM_VPS_HOST }}
+          DEPLOY_USER: ${{ secrets.CARDAPIM_VPS_USER }}
+          DEPLOY_ROOT: ${{ vars.CARDAPIM_DEPLOY_ROOT }}
+          DEPLOY_SSH_PORT: ${{ vars.CARDAPIM_VPS_SSH_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/cardapim_deploy" -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash '$DEPLOY_ROOT/current/deploy/scripts/apply-taxas-pagamento.sh'"
 
       - name: Aplicar fiscal por restaurante com backup
         if: ${{ contains(github.event.head_commit.message, '[cardapim-fiscal-restaurante]') }}

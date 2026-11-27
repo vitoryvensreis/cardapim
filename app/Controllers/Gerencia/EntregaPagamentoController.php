@@ -7,6 +7,7 @@ namespace Cardapim\Controllers\Gerencia;
 use Cardapim\Core\Response;
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
+use Cardapim\Repositories\Gerencia\TaxaPagamentoRepository;
 use Cardapim\Services\Garcom\PermissoesGarcom;
 use Cardapim\Services\Gerencia\EntregaPagamentoService;
 use Cardapim\Services\Geo\Geocodificador;
@@ -171,6 +172,8 @@ final class EntregaPagamentoController extends BaseGerencia
             'local' => $local,
             'precisaLocal' => AreaEntrega::precisaDeLocalizacao($areas),
             'asaasConectado' => $servico->asaasConectado(),
+            'taxasDisponivel' => ($taxasRepo = new TaxaPagamentoRepository($this->db))->disponivel(),
+            'taxas' => $taxasRepo->regras($this->restaurante['id']),
             'teste' => $teste,
             'erros' => $erros,
             'pageScripts' => ['js/forms.js', 'js/entrega-pagamento.js'],

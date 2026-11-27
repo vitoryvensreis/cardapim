@@ -162,6 +162,41 @@ get "$cj2" "/api/v1/pedidos/$pedido2" >/dev/null
 esperar "retirada sem taxa" "$(json "$tmp/r.json" taxa_centavos)" "0"
 contem "forma na retirada" "$tmp/r.json" 'na retirada'
 
+echo "Taxa por forma de pagamento"
+esperar "taxa invalida recusada (422)" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_entrega=1 pag_debito=1 pag_credito=1 pag_dinheiro=1 taxas_enviado=1 'taxa_tipo[credito]=percentual' 'taxa_valor[credito]=25' | cut -d' ' -f1)" "422"
+contem "erro da taxa na tela" "$tmp/resp.html" 'A porcentagem precisa ser de 0,01% a 20%.'
+esperar "salvar 10% no credito e R\$ 1,50 no debito" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_entrega=1 pag_debito=1 pag_credito=1 pag_dinheiro=1 taxas_enviado=1 'taxa_tipo[credito]=percentual' 'taxa_valor[credito]=10' 'taxa_tipo[debito]=fixo' 'taxa_valor[debito]=1,50' 'taxa_tipo[dinheiro]=fixo' 'taxa_valor[dinheiro]=9' | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/entrega-pagamento" -o "$tmp/aba.html"
+contem "aba mostra a taxa salva" "$tmp/aba.html" 'name="taxa_valor[credito]" value="10"'
+contem "dinheiro nao tem campo de taxa" "$tmp/aba.html" 'Dinheiro nunca tem taxa'
+curl -s "$base/$slug/finalizar" -o "$tmp/f.html"
+contem "checkout mostra a taxa do credito" "$tmp/f.html" '+ 10%'
+contem "checkout mostra a taxa do debito" "$tmp/f.html" '+ R$ 1,50'
+taxa_cred=$(( (preco * 1000 + 5000) / 10000 ))
+cj3="$tmp/cliente3"
+sleep 1
+esperar "cliente 3 conectado" "$(entrar_cliente "$cj3" 85955554444 'Taxa Teste CI')" "Taxa"
+csrf3="$(sessao "$cj3")"
+esperar "taxa diferente da tela (409)" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"credito\",\"taxa_pagamento_centavos\":1,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "409"
+esperar "409 aponta a forma de pagamento" "$(json "$tmp/r.json" campo)" "forma_pagamento"
+esperar "pedido no credito com taxa" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"credito\",\"taxa_pagamento_centavos\":$taxa_cred,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+pedido_taxa="$(json "$tmp/r.json" pedido.id)"
+get "$cj3" "/api/v1/pedidos/$pedido_taxa" >/dev/null
+esperar "taxa do credito no pedido" "$(json "$tmp/r.json" taxa_pagamento_centavos)" "$taxa_cred"
+esperar "total com a taxa" "$(json "$tmp/r.json" total_centavos)" "$((preco + taxa_cred))"
+esperar "rotulo da taxa" "$(json "$tmp/r.json" taxa_pagamento_rotulo)" "Taxa do crédito (10%)"
+esperar "pedido no debito com taxa fixa" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"debito\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+get "$cj3" "/api/v1/pedidos/$(json "$tmp/r.json" pedido.id)" >/dev/null
+esperar "total com R\$ 1,50 (sem enviar a taxa esperada)" "$(json "$tmp/r.json" total_centavos)" "$((preco + 150))"
+esperar "pedido em dinheiro sem taxa" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"dinheiro\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+get "$cj3" "/api/v1/pedidos/$(json "$tmp/r.json" pedido.id)" >/dev/null
+esperar "dinheiro nunca tem taxa" "$(json "$tmp/r.json" taxa_pagamento_centavos)" "0"
+curl -s -b "$gj" "$base/$slug/caixa/delivery/$pedido_taxa" -o "$tmp/cx.html"
+contem "caixa mostra a taxa" "$tmp/cx.html" 'Taxa do crédito (10%)'
+esperar "tirar as taxas" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_entrega=1 pag_debito=1 pag_credito=1 pag_dinheiro=1 taxas_enviado=1 | cut -d' ' -f1)" "303"
+curl -s "$base/$slug/finalizar" -o "$tmp/f.html"
+if grep -q '+ 10%' "$tmp/f.html"; then falha "checkout ainda mostra a taxa"; else ok "checkout sem taxa depois de tirar"; fi
+
 echo "Pix pelo app (Asaas do restaurante)"
 esperar "conectar Asaas (fake)" "$(enviar "$gj" "$g/integracoes/asaas" ambiente=sandbox chave='$aact_ci_valida_1234567890abcdef' email_avisos=financeiro@example.test | cut -d' ' -f1)" "303"
 esperar "ligar Pix pelo app" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_online=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1 | cut -d' ' -f1)" "303"

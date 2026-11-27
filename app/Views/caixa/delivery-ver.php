@@ -204,6 +204,7 @@ if (!empty($notaFiscal)) {
                 <div><dt>Itens</dt><dd><?= $e(Numero::reais((string) $p['subtotal'])) ?></dd></div>
                 <?php if (Numero::centavos((string) $p['desconto']) > 0): ?><div><dt><?= ($p['desconto_origem'] ?? null) === 'cupom' ? 'Cupom ' . $e((string) $p['cupom_codigo']) : (($p['desconto_origem'] ?? null) === 'fidelidade' ? 'Desconto fidelidade' : 'Descontos e cupons') ?></dt><dd>- <?= $e(Numero::reais((string) $p['desconto'])) ?></dd></div><?php endif; ?>
                 <?php if ($entrega || Numero::centavos((string) $p['taxa_entrega']) > 0): ?><div><dt><?= $doIfood ? 'Entrega e taxas' : 'Taxa de entrega' ?></dt><dd><?= Numero::centavos((string) $p['taxa_entrega']) === 0 ? 'Grátis' : $e(Numero::reais((string) $p['taxa_entrega'])) ?></dd></div><?php endif; ?>
+                <?php if (Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')) > 0): ?><div><dt><?= $e((string) ($p['taxa_pagamento_rotulo'] ?? 'Taxa da forma de pagamento')) ?></dt><dd><?= $e(Numero::reais((string) $p['taxa_pagamento'])) ?></dd></div><?php endif; ?>
                 <div class="conta-total"><dt>Total</dt><dd><?= $e(Numero::reais((string) $p['total'])) ?></dd></div>
             </dl>
             <?php if ($p['observacao']): ?><p class="pedido-obs"><?= Icon::svg('pencil', 'icon-sm') ?><?= $e((string) $p['observacao']) ?></p><?php endif; ?>
@@ -224,6 +225,7 @@ if (!empty($notaFiscal)) {
         <table>
             <?php foreach ($d['itens'] as $i): ?><tr><td><?= $e(\Cardapim\Modules\Inventory\QuantidadeVenda::textoDoBanco($i['quantidade'], (string) ($i['unidade'] ?? 'un'))) ?> <?= $e((string) $i['nome']) ?><?= !empty($i['complementos_texto']) ? '<br><small>' . $e((string) $i['complementos_texto']) . '</small>' : '' ?><?= $i['observacao'] ? ' (' . $e((string) $i['observacao']) . ')' : '' ?></td><td><?= $e(Numero::reais((string) $i['total'])) ?></td></tr><?php endforeach; ?>
             <?php if ($entrega): ?><tr><td>Entrega</td><td><?= $e(Numero::reais((string) $p['taxa_entrega'])) ?></td></tr><?php endif; ?>
+            <?php if (Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')) > 0): ?><tr><td><?= $e((string) ($p['taxa_pagamento_rotulo'] ?? 'Taxa da forma de pagamento')) ?></td><td><?= $e(Numero::reais((string) $p['taxa_pagamento'])) ?></td></tr><?php endif; ?>
             <tr class="impressao-total"><td>Total</td><td><?= $e(Numero::reais((string) $p['total'])) ?></td></tr>
         </table>
         <p><?= $e($formaTexto) ?><?= $p['pagamento_status'] === 'pago' && !$doIfood && !$doCaixa ? ' (PAGO)' : '' ?><?= $troco > 0 ? ' · troco para ' . $e(Numero::reais((string) $p['troco_para'])) : '' ?></p>

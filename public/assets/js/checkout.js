@@ -93,7 +93,15 @@
   const taxa = () => (estado.tipo === "entrega" && estado.entrega?.entrega ? estado.entrega.taxa_centavos : 0);
   const temItens = () => sacola.some((i) => !i.indisponivel);
   const descontoAtual = () => (temItens() ? Math.min(estado.desconto.centavos || 0, subtotal()) : 0);
-  const total = () => (temItens() ? Math.max(0, subtotal() + taxa() - descontoAtual()) : 0);
+  // Taxa da forma de pagamento (opcional): a MESMA conta do servidor (TaxaPagamento::calcular), so para mostrar.
+  // Porcentagem em centesimos de ponto (3,5% = 350), arredondada meio para cima; base = itens + entrega - desconto.
+  const regraTaxa = () => (estado.forma && config.taxas ? config.taxas[estado.forma] || null : null);
+  const taxaDe = (base, regra) => {
+    if (!regra || base <= 0) return 0;
+    return regra.tipo === "fixo" ? regra.valor : Math.floor((base * regra.valor + 5000) / 10000);
+  };
+  const taxaPagamento = () => (temItens() ? taxaDe(Math.max(0, subtotal() + taxa() - descontoAtual()), regraTaxa()) : 0);
+  const total = () => (temItens() ? Math.max(0, subtotal() + taxa() - descontoAtual()) + taxaPagamento() : 0);
 
   const desenharItens = () => {
     elItens.replaceChildren();
@@ -154,6 +162,12 @@
     linhaDesconto.hidden = descontoAtual() <= 0;
     $("[data-ck-desconto-rotulo]").textContent = estado.desconto.rotulo || "Desconto";
     $("[data-ck-desconto]").textContent = `− ${reais(descontoAtual())}`;
+    const linhaTaxaPag = $("[data-ck-linha-taxa-pag]");
+    if (linhaTaxaPag) {
+      linhaTaxaPag.hidden = taxaPagamento() <= 0;
+      $("[data-ck-taxa-pag-rotulo]").textContent = regraTaxa()?.rotulo || "Taxa da forma de pagamento";
+      $("[data-ck-taxa-pag]").textContent = reais(taxaPagamento());
+    }
     const t = reais(total());
     // Sem nenhum item disponivel nao ha o que pedir: o botao avisa em vez de enviar.
     $$("[data-ck-enviar]").forEach((b) => {
@@ -533,6 +547,7 @@
     blocoCpf.hidden = !(forma === "pix_online" && !estado.temCpf);
     escolhas.forma = forma;
     guardar(CHAVE_ESCOLHAS, escolhas);
+    desenharTotais();
   };
   $$("[data-ck-forma]").forEach((r) => r.addEventListener("change", () => escolherForma(r.value)));
   precisaTroco.addEventListener("change", () => {
@@ -631,6 +646,7 @@
       chave: chaveIdempotencia(),
       tipo: estado.tipo,
       forma_pagamento: estado.forma,
+      taxa_pagamento_centavos: taxaPagamento(),
       itens: sacola.map((i) => ({ ...paraApi(i), observacao: i.obs || "" })),
       observacao: $("#ck-obs").value.trim(),
       ...(estado.tipo === "entrega" ? { endereco: endereco() } : {}),
@@ -667,6 +683,12 @@
       await atualizarDesconto("");
       avisoCupom(r.mensagem || "Não deu para usar este cupom.");
       mostrarErro(r.mensagem || "Confira o desconto e tente de novo.", cupomMsg);
+      return;
+    }
+    if (r.campo === "forma_pagamento" && r.http === 409) {
+      // A taxa mudou no restaurante: a tela recarrega com a regra nova e o cliente confere o total.
+      mostrarErro(r.mensagem || "A taxa da forma de pagamento mudou. Confira o total.", $("[data-ck-forma]"));
+      window.setTimeout(() => window.location.reload(), 2500);
       return;
     }
     const alvos = { endereco: status, tipo: $("[data-ck-tipo]"), forma_pagamento: $("[data-ck-forma]"), troco_para: campoTroco, cpf: campoCpf };
