@@ -185,9 +185,10 @@ get "$cj3" "/api/v1/pedidos/$pedido_taxa" >/dev/null
 esperar "taxa do credito no pedido" "$(json "$tmp/r.json" taxa_pagamento_centavos)" "$taxa_cred"
 esperar "total com a taxa" "$(json "$tmp/r.json" total_centavos)" "$((preco + taxa_cred))"
 esperar "rotulo da taxa" "$(json "$tmp/r.json" taxa_pagamento_rotulo)" "Taxa do crédito (10%)"
-esperar "pedido no debito com taxa fixa" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"debito\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+esperar "taxa fixa sem confirmacao (409)" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"debito\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "409"
+esperar "pedido no debito com taxa fixa" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"debito\",\"taxa_pagamento_centavos\":150,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
 get "$cj3" "/api/v1/pedidos/$(json "$tmp/r.json" pedido.id)" >/dev/null
-esperar "total com R\$ 1,50 (sem enviar a taxa esperada)" "$(json "$tmp/r.json" total_centavos)" "$((preco + 150))"
+esperar "total com R\$ 1,50" "$(json "$tmp/r.json" total_centavos)" "$((preco + 150))"
 esperar "pedido em dinheiro sem taxa" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"dinheiro\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
 get "$cj3" "/api/v1/pedidos/$(json "$tmp/r.json" pedido.id)" >/dev/null
 esperar "dinheiro nunca tem taxa" "$(json "$tmp/r.json" taxa_pagamento_centavos)" "0"
@@ -199,12 +200,12 @@ if grep -q '+ 10%' "$tmp/f.html"; then falha "checkout ainda mostra a taxa"; els
 
 echo "Pix pelo app (Asaas do restaurante)"
 esperar "conectar Asaas (fake)" "$(enviar "$gj" "$g/integracoes/asaas" ambiente=sandbox chave='$aact_ci_valida_1234567890abcdef' email_avisos=financeiro@example.test | cut -d' ' -f1)" "303"
-esperar "ligar Pix pelo app" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_online=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1 | cut -d' ' -f1)" "303"
+esperar "ligar Pix pelo app" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_online=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1 taxas_enviado=1 'taxa_tipo[pix_online]=fixo' 'taxa_valor[pix_online]=2,00' | cut -d' ' -f1)" "303"
 curl -s -b "$gj" "$g/entrega-pagamento" > "$tmp/pagina.html"
 contem "Pix na entrega desligado com o Pix pelo app" "$tmp/pagina.html" 'Desligado porque o Pix pelo app está ligado.'
 pix_entrega="{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_entrega\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}"
 esperar "Pix na entrega recusado com o Pix pelo app ligado" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "$pix_entrega")" "422"
-pix="{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_online\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}"
+pix="{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_online\",\"taxa_pagamento_centavos\":200,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}"
 esperar "Pix sem CPF (422)" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "$pix")" "422"
 esperar "erro aponta o CPF" "$(json "$tmp/r.json" campo)" "cpf"
 pix="${pix%\}},\"cpf\":\"529.982.247-25\"}"
@@ -212,10 +213,14 @@ esperar "pedido com Pix" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedid
 pedido3="$(json "$tmp/r.json" pedido.id)"
 get "$cj" "/api/v1/pedidos/$pedido3" >/dev/null
 esperar "aguardando pagamento" "$(json "$tmp/r.json" status)" "aguardando_pagamento"
+esperar "taxa do Pix no pedido" "$(json "$tmp/r.json" taxa_pagamento_centavos)" "200"
+esperar "total do Pix inclui taxa" "$(json "$tmp/r.json" total_centavos)" "$((preco + 200))"
 contem "codigo Pix copia e cola" "$tmp/r.json" '"copia_cola":"000201'
 curl -s "$fake/_teste/asaas-cobrancas" > "$tmp/cob.json"
 cobranca="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); foreach ($d as $c) { if ($c["externalReference"] === "pedido:" . $argv[2]) { echo $c["id"]; } }' "$tmp/cob.json" "$pedido3")"
 [[ -n "$cobranca" ]] && ok "cobranca criada no Asaas com a referencia do pedido" || falha "cobranca nao criada"
+valor_cobrado="$(php -r '$d = json_decode(file_get_contents($argv[1]), true); foreach ($d as $c) { if ($c["id"] === $argv[2]) { echo (int) round((float) $c["value"] * 100); break; } }' "$tmp/cob.json" "$cobranca")"
+esperar "Asaas recebe o total com a taxa do Pix" "$valor_cobrado" "$((preco + 200))"
 curl -s "$fake/_teste/asaas-pagar/$cobranca" > "$tmp/pago.json"
 valor="$(json "$tmp/pago.json" value)"
 curl -s "$fake/_teste/asaas-webhook" > "$tmp/wh.json"
@@ -230,7 +235,7 @@ esperar "pagamento pago" "$(json "$tmp/r.json" pagamento_status)" "pago"
 esperar "sem codigo Pix depois de pago" "$(json "$tmp/r.json" pix)" "null"
 
 echo "Pix confirmado pela consulta (sem aviso)"
-esperar "outro pedido com Pix (CPF ja guardado)" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_online\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+esperar "outro pedido com Pix (CPF ja guardado)" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_online\",\"taxa_pagamento_centavos\":200,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
 pedido4="$(json "$tmp/r.json" pedido.id)"
 get "$cj" "/api/v1/pedidos/$pedido4" >/dev/null
 cobranca4="$(curl -s "$fake/_teste/asaas-cobrancas" | php -r '$d = json_decode(stream_get_contents(STDIN), true); foreach ($d as $c) { if ($c["externalReference"] === "pedido:" . $argv[1]) { echo $c["id"]; } }' "$pedido4")"
@@ -241,7 +246,7 @@ esperar "consulta ao Asaas confirma o Pix" "$(json "$tmp/r.json" status)" "receb
 
 echo "Limpeza"
 enviar "$gj" "$g/integracoes/asaas/desconectar" >/dev/null
-enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1 >/dev/null
+enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1 taxas_enviado=1 >/dev/null
 t="$(token "$aj" "$base/painel/integracoes/whatsapp")"
 curl -s -o /dev/null -c "$aj" -b "$aj" --data-urlencode "_csrf=$t" "$base/painel/integracoes/whatsapp/desconectar"
 ok "integracoes de teste desligadas"
