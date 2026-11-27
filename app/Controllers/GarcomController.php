@@ -19,6 +19,7 @@ use Cardapim\Services\Caixa\ComandaService;
 use Cardapim\Services\Caixa\MesaService;
 use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Services\Garcom\ComandaPix;
+use Cardapim\Services\Garcom\ComandaPixChave;
 use Cardapim\Services\Garcom\PermissoesGarcom;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Impressao\FilaImpressao;
@@ -286,7 +287,9 @@ final class GarcomController
             // Sem permissao de fechar: o garcom so ve a conta (valores e o que falta pagar).
             'podeFecharConta' => $this->permissoes()->podeFecharConta($this->usuario),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
-            'pixDisponivel' => $c['aberta'] && $this->pix()->disponivel(),
+            // Um Pix por vez: com o Pix pela chave ligado, o QR e o da chave; senao, o do Asaas (se conectado).
+            'pixChaveDisponivel' => $pixChave = $c['aberta'] && (new ComandaPixChave($this->db, $this->restaurante['id']))->disponivel(),
+            'pixDisponivel' => $c['aberta'] && !$pixChave && $this->pix()->disponivel(),
             'troco' => Session::flash('garcom_troco'),
             'erros' => is_array($erros) ? $erros : [],
             'enviado' => is_array($enviado) ? $enviado : [],
@@ -362,6 +365,65 @@ final class GarcomController
             return $this->voltar($volta, 'erro', $res->mensagem);
         }
         return $this->voltar($this->url('pix/' . $res->id), 'sucesso', '');
+    }
+
+    /** Pix pela chave: QR Code e copia e cola do que falta pagar. O garcom confere no banco e toca em "Recebi o Pix". */
+    public function pixChave(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug)) {
+            return $r;
+        }
+        $volta = $this->url('comandas/' . (int) self::id($id) . '/conta');
+        if (!$this->permissoes()->podeFecharConta($this->usuario)) {
+            return $this->voltar($this->url('comandas/' . (int) self::id($id)), 'erro', 'Você não tem permissão para fechar a conta. Chame o caixa.');
+        }
+        $c = $this->detalhes($id);
+        if ($c === null) {
+            return $this->voltar($this->url(), 'erro', 'Conta não encontrada.');
+        }
+        $codigo = (new ComandaPixChave($this->db, $this->restaurante['id']))->codigo($c);
+        if ($codigo instanceof \Cardapim\Services\Gerencia\Resultado) {
+            return $this->voltar($volta, 'erro', $codigo->mensagem);
+        }
+        return $this->tela('garcom/pix-chave', 'mesas', (string) $c['rotulo'], [
+            'c' => $c,
+            'pix' => $codigo,
+            'voltar' => $volta,
+            'subtitulo' => 'Pix pela chave',
+            'pageScripts' => ['vendor/qrcode-generator/qrcode.js'],
+        ]);
+    }
+
+    /** "Recebi o Pix": entra como Pix (taxa do Pix pela chave), so se a conta ainda e a mesma do QR mostrado. */
+    public function pixChaveRecebido(string $slug, string $id): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $idComanda = (int) self::id($id);
+        if (!$this->permissoes()->podeFecharConta($this->usuario)) {
+            return $this->voltar($this->url('comandas/' . $idComanda), 'erro', 'Você não tem permissão para fechar a conta. Chame o caixa.');
+        }
+        $volta = $this->url('comandas/' . $idComanda . '/conta');
+        $c = $this->detalhes($id);
+        if ($c === null) {
+            return $this->voltar($this->url(), 'erro', 'Conta não encontrada.');
+        }
+        $codigo = (new ComandaPixChave($this->db, $this->restaurante['id']))->codigo($c);
+        if ($codigo instanceof \Cardapim\Services\Gerencia\Resultado) {
+            return $this->voltar($volta, 'erro', $codigo->mensagem);
+        }
+        if ($this->post('total_visto') !== (string) $codigo['total']) {
+            return $this->voltar($this->url('comandas/' . $idComanda . '/pix-chave'), 'aviso',
+                'A conta mudou depois que o QR Code foi mostrado. Confira o novo valor (' . self::reais($codigo['total']) . ') com o cliente.');
+        }
+        $res = $this->comandas()->pagar($idComanda, 'pix', CaixaService::dec($codigo['conta']), '', (string) $codigo['taxa'], 'pix_chave');
+        if (!$res->ok) {
+            return $this->voltar($volta, 'erro', $res->mensagem);
+        }
+        \Cardapim\Services\Auditoria::registrar($this->usuario, 'Pix pela chave confirmado pelo garçom', sprintf('%s: %s conferido no banco por quem tocou em "Recebi o Pix".',
+            (string) $c['rotulo'], self::reais($codigo['total'])));
+        return $this->voltar($volta, 'sucesso', $res->mensagem);
     }
 
     /** Tela do QR Code. Com Accept: application/json devolve so a situacao (a tela consulta a cada 3 s). */

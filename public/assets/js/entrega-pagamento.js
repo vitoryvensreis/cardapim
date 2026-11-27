@@ -11,25 +11,77 @@
     atualizar();
   });
 
-  // Pix pelo app ligado desliga o Pix na entrega (o servidor tambem garante).
+  // Um Pix por vez: Pix pelo app (Asaas) e Pix pela chave nunca juntos (o servidor e o banco tambem garantem).
+  // Qualquer Pix com QR Code ligado desliga o Pix na entrega.
   var pixApp = document.querySelector('[data-pix-online]');
+  var pixChave = document.querySelector('[data-pix-chave]');
+  var pixChaveCampos = document.querySelector('[data-pix-chave-campos]');
+  var pixUmAviso = document.querySelector('[data-pix-um-aviso]');
   var pixEntrega = document.querySelector('[data-pix-entrega]');
   var pixAviso = document.querySelector('[data-pix-entrega-aviso]');
-  if (pixApp && pixEntrega) {
-    var pixEntregaAntes = pixEntrega.checked;
-    var travarPix = function () {
-      var ligado = pixApp.checked && !pixApp.disabled;
-      if (ligado) {
-        if (!pixEntrega.disabled) { pixEntregaAntes = pixEntrega.checked; }
-        pixEntrega.checked = false;
-      } else if (pixEntrega.disabled) {
-        pixEntrega.checked = pixEntregaAntes;
-      }
-      pixEntrega.disabled = ligado;
-      if (pixAviso) { pixAviso.hidden = !ligado; }
-    };
-    pixApp.addEventListener('change', travarPix);
+  var pixEntregaAntes = pixEntrega ? pixEntrega.checked : false;
+  var travarPix = function () {
+    var ligado = (pixApp && pixApp.checked && !pixApp.disabled) || (pixChave && pixChave.checked);
+    if (pixChaveCampos && pixChave && pixChave.checked) { pixChaveCampos.hidden = false; }
+    if (!pixEntrega) { return; }
+    if (ligado) {
+      if (!pixEntrega.disabled) { pixEntregaAntes = pixEntrega.checked; }
+      pixEntrega.checked = false;
+    } else if (pixEntrega.disabled) {
+      pixEntrega.checked = pixEntregaAntes;
+    }
+    pixEntrega.disabled = !!ligado;
+    if (pixAviso) { pixAviso.hidden = !ligado; }
+  };
+  var umPorVez = function (marcado, outro) {
+    if (marcado && marcado.checked && outro && outro.checked) {
+      outro.checked = false;
+      if (pixUmAviso) { pixUmAviso.hidden = false; }
+    }
     travarPix();
+  };
+  if (pixApp) { pixApp.addEventListener('change', function () { umPorVez(pixApp, pixChave); }); }
+  if (pixChave) { pixChave.addEventListener('change', function () { umPorVez(pixChave, pixApp); }); }
+  travarPix();
+
+  // "Ver como fica": QR Code de R$ 1,00 com os dados digitados (nada e gravado).
+  var botaoTeste = document.querySelector('[data-pix-teste]');
+  if (botaoTeste) {
+    var resultado = document.querySelector('[data-pix-teste-resultado]');
+    var erroTeste = document.querySelector('[data-pix-teste-erro]');
+    botaoTeste.addEventListener('click', function () {
+      var dados = new FormData(botaoTeste.form);
+      botaoTeste.disabled = true;
+      erroTeste.hidden = true;
+      fetch(botaoTeste.getAttribute('data-pix-teste'), { method: 'POST', body: dados, credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j.ok) {
+            var erros = j.erros || {};
+            var primeira = Object.keys(erros)[0];
+            erroTeste.textContent = primeira ? erros[primeira] : 'Confira os dados da chave Pix.';
+            erroTeste.hidden = false;
+            resultado.hidden = true;
+            return;
+          }
+          document.querySelector('[data-pix-teste-codigo]').value = j.codigo;
+          var area = document.querySelector('[data-pix-teste-qr]');
+          if (typeof window.qrcode === 'function') {
+            var qr = window.qrcode(0, 'M');
+            qr.addData(j.codigo);
+            qr.make();
+            area.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+          } else {
+            area.textContent = 'Use o código abaixo no app do seu banco.';
+          }
+          resultado.hidden = false;
+        })
+        .catch(function () {
+          erroTeste.textContent = 'Não foi possível gerar agora. Atualize a página e tente de novo.';
+          erroTeste.hidden = false;
+        })
+        .then(function () { botaoTeste.disabled = false; });
+    });
   }
 
   // Taxa por forma de pagamento: todas as linhas ficam visiveis (a taxa vale tambem na mesa, no balcao e no garcom,

@@ -242,6 +242,33 @@ enviar "$wj" "$w/comandas/$comanda3/pagamentos" "$w" forma=debito valor= >/dev/n
 msg="$(aviso "$wj" "$w/comandas/$comanda3/conta")"
 case "$msg" in *"Conta fechada e mesa liberada."*) ok "debito fecha a conta";; *) falha "debito ($msg)";; esac
 
+echo "Pix pela chave do restaurante (um Pix por vez: o QR e o da chave; o garcom confere e toca em Recebi o Pix)"
+banco() { php -r 'require "bootstrap/app.php"; $d = \Cardapim\Core\Database::connect(); $q = $d->prepare($argv[1]); $q->execute(array_slice($argv, 2)); echo implode("|", (array) $q->fetch(PDO::FETCH_NUM));' "$@"; }
+r="$(enviar "$gj" "$g/entrega-pagamento" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_comprovante=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pix_chave_enviado=1 pix_chave_tipo=celular "pix_chave=(85) 97777-1111" "pix_recebedor=Restaurante Modelo" pix_cidade=Fortaleza)"
+esperar "gerente liga o Pix pela chave" "$(echo "$r" | cut -d' ' -f1)" "303"
+r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
+comanda5="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"
+enviar "$wj" "$w/comandas/$comanda5/itens" "$w" "qtd[$cerveja]=2" >/dev/null
+pagina "$wj" "$w/comandas/$comanda5/conta" >/dev/null
+contem "conta oferece o Pix pela chave" "$tmp/pagina.html" 'value="pix_chave"'
+nao_contem "com a chave ligada o QR do Asaas some" "$tmp/pagina.html" 'value="pix_qr"'
+esperar "tela do Pix pela chave" "$(pagina "$wj" "$w/comandas/$comanda5/pix-chave")" "200"
+contem "QR do Pix pela chave" "$tmp/pagina.html" 'data-qr="000201'
+contem "copia e cola com o celular do restaurante" "$tmp/pagina.html" '0014br.gov.bcb.pix0114+5585977771111'
+contem "aviso de conferir no banco" "$tmp/pagina.html" 'Este Pix não confirma sozinho'
+total_visto="$(php -r 'if (preg_match("~name=\"total_visto\" value=\"(\d+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/pagina.html")"
+[[ -n "$total_visto" ]] && ok "valor mostrado no QR ($total_visto)" || falha "sem valor no QR"
+enviar "$wj" "$w/comandas/$comanda5/pix-chave/recebido" "$w" total_visto=1 >/dev/null
+case "$(aviso "$wj" "$w/comandas/$comanda5/pix-chave")" in "A conta mudou depois que o QR Code foi mostrado."*) ok "valor diferente do QR pede para conferir";; *) falha "valor diferente do QR aceito";; esac
+esperar "nada recebido antes de conferir" "$(banco 'SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = ?' "$comanda5")" "0"
+enviar "$wj" "$w/comandas/$comanda5/pix-chave/recebido" "$w" "total_visto=$total_visto" >/dev/null
+msg="$(aviso "$wj" "$w/comandas/$comanda5/conta")"
+case "$msg" in "Pix "*"Conta fechada e mesa liberada.") ok "Recebi o Pix fecha a conta";; *) falha "Recebi o Pix ($msg)";; esac
+esperar "entra no caixa como Pix com o valor do QR" "$(banco 'SELECT forma, valor FROM pedido_pagamentos WHERE id_pedido = ?' "$comanda5")" "pix|$(php -r 'echo number_format($argv[1] / 100, 2, ".", "");' "$total_visto")"
+esperar "auditoria de quem confirmou" "$(banco "SELECT COUNT(*) > 0 FROM log_user WHERE titulo = 'Pix pela chave confirmado pelo garçom'")" "1"
+r="$(enviar "$gj" "$g/entrega-pagamento" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1)"
+esperar "gerente desliga o Pix pela chave" "$(echo "$r" | cut -d' ' -f1)" "303"
+
 echo "Cancelar a comanda"
 r="$(enviar "$wj" "$w/mesas/$mesa/abrir" "$w")"
 vazia="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2 || true)"

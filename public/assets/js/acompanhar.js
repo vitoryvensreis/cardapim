@@ -53,7 +53,7 @@
   let segundosPix = 0;
   let proxima = null;
 
-  const desenharPix = (pix) => {
+  const desenharPix = (pix, p) => {
     const bloco = $("[data-ap-pix]");
     if (!pix) {
       bloco.hidden = true;
@@ -61,6 +61,16 @@
       return;
     }
     bloco.hidden = false;
+    // Pix pela chave do restaurante: nao confirma sozinho; o cliente envia o comprovante pelo WhatsApp.
+    const chave = pix.modo === "chave";
+    $("[data-ap-pix-passo-app]").hidden = chave;
+    $("[data-ap-pix-passo-chave]").hidden = !chave;
+    $("[data-ap-pix-valor]").textContent = `Valor: ${reais(p.total_centavos)}`;
+    const enviar = $("[data-ap-comprovante]");
+    enviar.hidden = !chave;
+    const whats = p.comprovante && p.comprovante.whatsapp;
+    enviar.setAttribute("href", whats || "#");
+    if (whats) enviar.setAttribute("target", "_blank"); else enviar.removeAttribute("target");
     if (qrDesenhado !== pix.copia_cola) {
       qrDesenhado = pix.copia_cola;
       $("[data-ap-pix-codigo]").value = pix.copia_cola;
@@ -101,7 +111,18 @@
     $("[data-ap-texto]").textContent = t;
     document.title = `Pedido #${p.numero} · ${p.status_rotulo}`;
 
-    desenharPix(p.pix);
+    desenharPix(p.pix, p);
+    // Comprovante enviado e ainda nao conferido pelo restaurante.
+    const comp = p.comprovante;
+    const esperandoConferir = !!(comp && comp.enviado && !comp.conferido && !p.final);
+    $("[data-ap-comprovante-bloco]").hidden = !esperandoConferir;
+    const deNovo = $("[data-ap-whats-de-novo]");
+    deNovo.hidden = !(esperandoConferir && comp.whatsapp);
+    if (comp && comp.whatsapp) deNovo.setAttribute("href", comp.whatsapp);
+    if (esperandoConferir && p.status === "recebido") {
+      $("[data-ap-titulo]").textContent = "Comprovante enviado";
+      $("[data-ap-texto]").textContent = "O restaurante vai conferir o Pix e começar a preparar.";
+    }
 
     // Linha do tempo (some enquanto espera o Pix e quando cancelado).
     const etapas = $("[data-ap-etapas]");
@@ -179,7 +200,10 @@
     $("[data-ap-obs]").textContent = p.observacao;
 
     if (ultimoStatus && ultimoStatus !== p.status) {
-      avisar(p.status === "recebido" && ultimoStatus === "aguardando_pagamento" ? "Pix confirmado! Pedido enviado ao restaurante." : `Agora: ${p.status_rotulo}`);
+      const pixChave = p.forma === "pix_comprovante";
+      avisar(p.status === "recebido" && ultimoStatus === "aguardando_pagamento"
+        ? (pixChave ? "Comprovante enviado. Aguardando o restaurante confirmar." : "Pix confirmado! Pedido enviado ao restaurante.")
+        : `Agora: ${p.status_rotulo}`);
       if (navigator.vibrate) navigator.vibrate(120);
     }
     ultimoStatus = p.status;
@@ -323,6 +347,22 @@
     texto.textContent = "Código copiado!";
     avisar("Código Pix copiado. Cole no app do seu banco.");
     window.setTimeout(() => { texto.textContent = "Copiar código Pix"; }, 2500);
+  });
+
+  // "Ja paguei: enviar comprovante": o link abre o WhatsApp (sem bloqueio de popup) e o pedido vai para o restaurante.
+  const botaoComprovante = $("[data-ap-comprovante]");
+  botaoComprovante.addEventListener("click", async (ev) => {
+    if (botaoComprovante.getAttribute("href") === "#") ev.preventDefault();
+    if (botaoComprovante.dataset.enviando) return;
+    botaoComprovante.dataset.enviando = "1";
+    const r = await Cliente.api(`/api/v1/pedidos/${id}/comprovante`, {});
+    delete botaoComprovante.dataset.enviando;
+    if (r.ok) {
+      avisar(r.whatsapp ? "Comprovante enviado. Mande a imagem no WhatsApp que abriu." : "Pronto! Mande o comprovante para o restaurante pelo telefone da página.");
+    } else {
+      avisar(r.mensagem || "Não foi possível enviar agora. Tente de novo.");
+    }
+    carregar();
   });
 
   // Ao voltar para a aba (ex.: depois de pagar no app do banco), atualiza na hora.

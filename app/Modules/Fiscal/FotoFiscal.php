@@ -13,7 +13,7 @@ use PDO;
 final class FotoFiscal
 {
     /** Formas do Deliveryzim => código tPag da SEFAZ. */
-    public const TPAG = ['dinheiro'=>'01', 'credito'=>'03', 'debito'=>'04', 'pix'=>'20', 'pix_entrega'=>'20', 'pix_online'=>'17', 'ifood'=>'99'];
+    public const TPAG = ['dinheiro'=>'01', 'credito'=>'03', 'debito'=>'04', 'pix'=>'20', 'pix_entrega'=>'20', 'pix_comprovante'=>'20', 'pix_online'=>'17', 'ifood'=>'99'];
     public const TPAG_ROTULO = ['01'=>'Dinheiro', '03'=>'Cartão de crédito', '04'=>'Cartão de débito', '17'=>'Pix', '20'=>'Pix', '99'=>'Outros'];
 
     public function __construct(private readonly PDO $db, private readonly int $idRestaurante) {}

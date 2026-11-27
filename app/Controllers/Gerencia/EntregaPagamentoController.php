@@ -124,6 +124,17 @@ final class EntregaPagamentoController extends BaseGerencia
         return $this->responder($this->servico()->removerLocal(), $this->url('entrega-pagamento') . '#localizacao');
     }
 
+    /** "Ver como fica" do Pix pela chave: devolve o codigo de R$ 1,00 com os dados digitados (nada e gravado). */
+    public function testarPixChave(string $slug): Response
+    {
+        if ($r = $this->entrar($slug, true)) {
+            return $r;
+        }
+        $teste = $this->servico()->testarPixChave($_POST);
+        return Response::json(['ok' => $teste['codigo'] !== null, 'codigo' => $teste['codigo'], 'erros' => $teste['erros']],
+            $teste['codigo'] !== null ? 200 : 422, ['Cache-Control' => 'no-store']);
+    }
+
     /** "Testar um endereco": o gerente confere a regra como o cliente vai ver (sem gravar nada). */
     public function testar(string $slug): Response
     {
@@ -172,13 +183,25 @@ final class EntregaPagamentoController extends BaseGerencia
             'local' => $local,
             'precisaLocal' => AreaEntrega::precisaDeLocalizacao($areas),
             'asaasConectado' => $servico->asaasConectado(),
+            'pixChaveDisponivel' => $repo->pixChaveDisponivel(),
+            'pixChave' => $repo->pixChave($this->restaurante['id']),
+            'perfilPix' => $this->perfilPix(),
             'taxasDisponivel' => ($taxasRepo = new TaxaPagamentoRepository($this->db))->disponivel(),
             'taxas' => $taxasRepo->regras($this->restaurante['id']),
             'teste' => $teste,
             'erros' => $erros,
-            'pageScripts' => ['js/forms.js', 'js/entrega-pagamento.js'],
+            'pageScripts' => ['js/forms.js', 'vendor/qrcode-generator/qrcode.js', 'js/entrega-pagamento.js'],
             'pageStyles' => ['css/entrega-pagamento.css'],
         ], $status);
+    }
+
+    /** Nome, cidade e telefone do Perfil: sugestao para os campos do Pix pela chave. @return array{nome:string,cidade:string,telefone:string} */
+    private function perfilPix(): array
+    {
+        $q = $this->db->prepare('SELECT nome, cidade, telefone FROM restaurantes WHERE id = ?');
+        $q->execute([$this->restaurante['id']]);
+        $r = $q->fetch(\PDO::FETCH_ASSOC) ?: [];
+        return ['nome' => (string) ($r['nome'] ?? ''), 'cidade' => (string) ($r['cidade'] ?? ''), 'telefone' => (string) ($r['telefone'] ?? '')];
     }
 
     private function servico(): EntregaPagamentoService

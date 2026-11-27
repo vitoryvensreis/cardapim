@@ -202,7 +202,7 @@ echo "Pix pelo app (Asaas do restaurante)"
 esperar "conectar Asaas (fake)" "$(enviar "$gj" "$g/integracoes/asaas" ambiente=sandbox chave='$aact_ci_valida_1234567890abcdef' email_avisos=financeiro@example.test | cut -d' ' -f1)" "303"
 esperar "ligar Pix pelo app" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_online=1 pag_dinheiro=1 pag_debito=1 pag_credito=1 pag_pix_entrega=1 taxas_enviado=1 'taxa_tipo[pix_online]=fixo' 'taxa_valor[pix_online]=2,00' | cut -d' ' -f1)" "303"
 curl -s -b "$gj" "$g/entrega-pagamento" > "$tmp/pagina.html"
-contem "Pix na entrega desligado com o Pix pelo app" "$tmp/pagina.html" 'Desligado porque o Pix pelo app está ligado.'
+contem "Pix na entrega desligado com o Pix pelo app" "$tmp/pagina.html" 'Desligado porque o Pix com QR Code está ligado.'
 pix_entrega="{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_entrega\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}"
 esperar "Pix na entrega recusado com o Pix pelo app ligado" "$(post "$cj" "$csrf" "/api/v1/restaurantes/$slug/pedidos" "$pix_entrega")" "422"
 pix="{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_online\",\"taxa_pagamento_centavos\":200,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}"
@@ -243,6 +243,66 @@ curl -s "$fake/_teste/asaas-pagar/$cobranca4" >/dev/null
 sleep 9
 get "$cj" "/api/v1/pedidos/$pedido4" >/dev/null
 esperar "consulta ao Asaas confirma o Pix" "$(json "$tmp/r.json" status)" "recebido"
+
+echo "Pix pela chave do restaurante (um Pix por vez, comprovante pelo WhatsApp)"
+banco() { php -r 'require "bootstrap/app.php"; $d = \Cardapim\Core\Database::connect(); $q = $d->prepare($argv[1]); $q->execute(array_slice($argv, 2)); echo implode("|", (array) $q->fetch(PDO::FETCH_NUM));' "$@"; }
+cx="$base/$slug/caixa"
+chave_ok=(pix_chave_enviado=1 pix_chave_tipo=email pix_chave=Pix@Restaurante.test "pix_recebedor=Restaurante Modelo São" "pix_cidade=São Paulo" "pix_whatsapp=(85) 98888-7777")
+esperar "Asaas e chave juntos recusado (422)" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_online=1 pag_pix_comprovante=1 pag_dinheiro=1 "${chave_ok[@]}" | cut -d' ' -f1)" "422"
+contem "aviso de um Pix por vez" "$tmp/resp.html" 'Você só pode usar um tipo de Pix por vez'
+esperar "chave invalida recusada (422)" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_comprovante=1 pag_dinheiro=1 pix_chave_enviado=1 pix_chave_tipo=cpf pix_chave=123 pix_recebedor=Loja pix_cidade=Fortaleza | cut -d' ' -f1)" "422"
+contem "erro aponta a chave" "$tmp/resp.html" 'Digite um CPF válido'
+t="$(token "$gj" "$g/entrega-pagamento")"
+campos_teste=(); for f in "${chave_ok[@]}"; do campos_teste+=(--data-urlencode "$f"); done
+esperar "Ver como fica gera o QR de R\$ 1,00" "$(curl -s -o "$tmp/teste.json" -b "$gj" -w '%{http_code}' -H 'Accept: application/json' --data-urlencode "_csrf=$t" "${campos_teste[@]}" "$g/entrega-pagamento/pix-teste")" "200"
+contem "codigo de teste com R\$ 1,00" "$tmp/teste.json" '54041.00'
+contem "codigo de teste com a chave" "$tmp/teste.json" 'pix@restaurante.test'
+esperar "nada gravado pelo teste" "$(banco 'SELECT pix_chave IS NULL FROM restaurante_entrega_pagamento WHERE id_restaurante = (SELECT id FROM restaurantes WHERE slug = ?)' "$slug")" "1"
+esperar "ligar o Pix pela chave (desliga o Asaas)" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_comprovante=1 pag_pix_entrega=1 pag_dinheiro=1 "${chave_ok[@]}" taxas_enviado=1 'taxa_tipo[pix_comprovante]=fixo' 'taxa_valor[pix_comprovante]=1,00' | cut -d' ' -f1)" "303"
+esperar "chave guardada no padrao do banco" "$(banco 'SELECT pag_pix_online, pag_pix_comprovante, pag_pix_entrega, pix_chave_tipo, pix_chave, pix_recebedor, pix_cidade, pix_whatsapp FROM restaurante_entrega_pagamento WHERE id_restaurante = (SELECT id FROM restaurantes WHERE slug = ?)' "$slug")" "0|1|0|email|pix@restaurante.test|Restaurante Modelo Sao|Sao Paulo|85988887777"
+curl -s -b "$gj" "$g/entrega-pagamento" > "$tmp/pagina.html"
+contem "aviso de que o sistema nao confirma" "$tmp/pagina.html" 'não confirma pagamentos feitos pela chave'
+curl -s "$base/$slug/finalizar" -o "$tmp/f.html"
+contem "checkout oferece o Pix pela chave" "$tmp/f.html" 'value="pix_comprovante"'
+contem "checkout explica o comprovante" "$tmp/f.html" 'envia o comprovante pelo WhatsApp'
+cj3="$tmp/cliente3"
+esperar "cliente do Pix pela chave conectado" "$(entrar_cliente "$cj3" 85944443333 'Pix Chave CI')" "Pix"
+csrf3="$(sessao "$cj3")"
+esperar "Pix na entrega recusado com a chave ligada" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_entrega\",\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "422"
+esperar "pedido com Pix pela chave" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+pc1="$(json "$tmp/r.json" pedido.id)"
+get "$cj3" "/api/v1/pedidos/$pc1" >/dev/null
+esperar "Pix pela chave espera o pagamento" "$(json "$tmp/r.json" status)" "aguardando_pagamento"
+esperar "modo chave na tela" "$(json "$tmp/r.json" pix.modo)" "chave"
+esperar "total com a taxa do Pix pela chave" "$(json "$tmp/r.json" total_centavos)" "$((preco + 100))"
+contem "copia e cola com a chave do restaurante" "$tmp/r.json" '0014br.gov.bcb.pix0120pix@restaurante.test'
+contem "link do WhatsApp do comprovante" "$tmp/r.json" 'wa.me.\{1,2\}5585988887777?text=Ol'
+esperar "restaurante ainda nao ve o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc1")" "aguardando_pagamento"
+esperar "outro cliente nao envia comprovante do pedido (404)" "$(post "$cj2" "$(sessao "$cj2")" "/api/v1/pedidos/$pc1/comprovante" '{}')" "404"
+esperar "enviar comprovante" "$(post "$cj3" "$csrf3" "/api/v1/pedidos/$pc1/comprovante" '{}')" "200"
+contem "comprovante devolve o WhatsApp" "$tmp/r.json" 'wa.me'
+esperar "enviar de novo nao duplica" "$(post "$cj3" "$csrf3" "/api/v1/pedidos/$pc1/comprovante" '{}')" "200"
+esperar "um evento de comprovante so" "$(banco "SELECT COUNT(*) FROM pedido_eventos WHERE id_pedido = ? AND descricao LIKE 'Cliente enviou o comprovante%'" "$pc1")" "1"
+get "$cj3" "/api/v1/pedidos/$pc1" >/dev/null
+esperar "pedido vai para o restaurante conferir" "$(json "$tmp/r.json" status)|$(json "$tmp/r.json" pagamento_status)|$(json "$tmp/r.json" comprovante.enviado)" "recebido|pendente|true"
+curl -s -b "$gj" "$cx/delivery/$pc1" -o "$tmp/cx.html"
+contem "caixa ve conferir comprovante" "$tmp/cx.html" 'Pix: conferir comprovante no WhatsApp'
+contem "acao principal Confirmei o Pix" "$tmp/cx.html" 'Confirmei o Pix, aceitar'
+enviar "$gj" "$cx/delivery/$pc1/aceitar" >/dev/null
+esperar "aceitar sem conferir o Pix recusado" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc1")" "recebido"
+enviar "$gj" "$cx/delivery/$pc1/confirmar-pix" >/dev/null
+esperar "Confirmei o Pix: pago e em preparo" "$(banco 'SELECT status, pagamento_status FROM pedidos WHERE id = ?' "$pc1")" "em_preparo|pago"
+esperar "confirmar de novo nao muda nada" "$(enviar "$gj" "$cx/delivery/$pc1/confirmar-pix" | cut -d' ' -f1)" "303"
+esperar "pedido recusado: outro Pix pela chave" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+pc2="$(json "$tmp/r.json" pedido.id)"
+post "$cj3" "$csrf3" "/api/v1/pedidos/$pc2/comprovante" '{}' >/dev/null
+enviar "$gj" "$cx/delivery/$pc2/cancelar" "motivo=O Pix não foi encontrado na nossa conta." >/dev/null
+esperar "Recusar cancela o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc2")" "cancelado"
+esperar "Pix sem comprovante no prazo" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+pc3="$(json "$tmp/r.json" pedido.id)"
+php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE pedidos SET pix_expira_em = ? WHERE id = ?")->execute([date("Y-m-d H:i:s", time() - 60), $argv[1]]);' "$pc3"
+esperar "comprovante depois do prazo recusado (409)" "$(post "$cj3" "$csrf3" "/api/v1/pedidos/$pc3/comprovante" '{}')" "409"
+esperar "prazo vencido cancela o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc3")" "cancelado"
 
 echo "Limpeza"
 enviar "$gj" "$g/integracoes/asaas/desconectar" >/dev/null

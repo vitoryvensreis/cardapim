@@ -20,13 +20,16 @@ try {
     $exigir = static function (string $tabela, array $esperado) use ($colunas): void {
         $c = $colunas($tabela);
         foreach ($esperado as $nome => $tipo) {
-            if (($c[$nome] ?? '') !== $tipo) {
+            // Lista = tipos aceitos (ex.: o ENUM ganhou um valor numa migration posterior).
+            if (!in_array($c[$nome] ?? '', (array) $tipo, true)) {
                 throw new RuntimeException('Coluna ' . $tabela . '.' . $nome . ' incorreta ou ausente.');
             }
         }
     };
     $exigir('pedidos', [
-        'forma_pagamento' => "enum('pix_online','pix_entrega','debito','credito','dinheiro','misto','ifood')",
+        // Pix pela chave (migration 20261205100000) acrescenta 'pix_comprovante' no fim.
+        'forma_pagamento' => ["enum('pix_online','pix_entrega','debito','credito','dinheiro','misto','ifood')",
+            "enum('pix_online','pix_entrega','debito','credito','dinheiro','misto','ifood','pix_comprovante')"],
         'ifood_id' => 'varchar(64)', 'ifood_display_id' => 'varchar(20)', 'ifood_entregue_por' => "enum('ifood','loja')",
         'ifood_codigo_coleta' => 'varchar(20)', 'ifood_dados' => 'mediumtext',
     ]);

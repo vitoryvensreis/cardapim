@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cardapim\Repositories\Gerencia;
 
+use Cardapim\Shared\Esquema;
 use PDO;
 
 /** Formas de pagamento, modos de pedido (entrega/retirada), areas de entrega e localizacao do restaurante. */
@@ -11,19 +12,34 @@ final class EntregaPagamentoRepository
 {
     public const PAGAMENTOS = ['pag_pix_online', 'pag_pix_entrega', 'pag_debito', 'pag_credito', 'pag_dinheiro'];
     private const CAMPOS = ['aceita_entrega', 'aceita_retirada', 'entrega_minutos_min', 'entrega_minutos_max', 'retirada_minutos', ...self::PAGAMENTOS];
+    /** Pix pela chave (BR Code estatico): colunas da migration 20261205100000. */
+    public const PIX_CHAVE = ['pix_chave_tipo', 'pix_chave', 'pix_recebedor', 'pix_cidade', 'pix_whatsapp'];
 
     public function __construct(private readonly PDO $db)
     {
     }
 
+    /** O Pix pela chave ja existe no banco (codigo publicado antes da migration continua funcionando sem ele). */
+    public function pixChaveDisponivel(): bool
+    {
+        return Esquema::tem($this->db, 'pix_chave');
+    }
+
+    /** @return list<string> */
+    private function campos(): array
+    {
+        return $this->pixChaveDisponivel() ? [...self::CAMPOS, 'pag_pix_comprovante'] : self::CAMPOS;
+    }
+
     /** @return array<string,mixed> configuracao (padrao tudo desligado se ainda nao salvou) + 'salvo' */
     public function config(int $idRestaurante): array
     {
-        $q = $this->db->prepare('SELECT ' . implode(', ', self::CAMPOS) . ' FROM restaurante_entrega_pagamento WHERE id_restaurante = ?');
+        $campos = $this->campos();
+        $q = $this->db->prepare('SELECT ' . implode(', ', $campos) . ' FROM restaurante_entrega_pagamento WHERE id_restaurante = ?');
         $q->execute([$idRestaurante]);
         $row = $q->fetch(PDO::FETCH_ASSOC);
-        $config = ['salvo' => $row !== false];
-        foreach (self::CAMPOS as $campo) {
+        $config = ['salvo' => $row !== false, 'pag_pix_comprovante' => 0];
+        foreach ($campos as $campo) {
             $v = $row[$campo] ?? null;
             $config[$campo] = str_contains($campo, 'minutos') ? ($v !== null ? (int) $v : null) : (int) ($v ?? 0);
         }
@@ -33,16 +49,45 @@ final class EntregaPagamentoRepository
     /** @param array<string,int|null> $c */
     public function salvarConfig(int $idRestaurante, array $c): void
     {
-        $valores = array_map(static fn (string $campo) => $c[$campo] ?? null, self::CAMPOS);
+        $campos = $this->campos();
+        if (array_key_exists('pix_chave', $c) && $this->pixChaveDisponivel()) {
+            $campos = [...$campos, ...self::PIX_CHAVE];
+        }
+        $valores = array_map(static fn (string $campo) => $c[$campo] ?? null, $campos);
         $existe = $this->db->prepare('SELECT 1 FROM restaurante_entrega_pagamento WHERE id_restaurante = ?');
         $existe->execute([$idRestaurante]);
         if ($existe->fetchColumn() !== false) {
-            $this->db->prepare('UPDATE restaurante_entrega_pagamento SET ' . implode(', ', array_map(static fn (string $c): string => $c . ' = ?', self::CAMPOS))
+            $this->db->prepare('UPDATE restaurante_entrega_pagamento SET ' . implode(', ', array_map(static fn (string $c): string => $c . ' = ?', $campos))
                 . ', atualizado_em = CURRENT_TIMESTAMP WHERE id_restaurante = ?')->execute([...$valores, $idRestaurante]);
             return;
         }
-        $this->db->prepare('INSERT INTO restaurante_entrega_pagamento (id_restaurante, ' . implode(', ', self::CAMPOS) . ') VALUES (?'
-            . str_repeat(', ?', count(self::CAMPOS)) . ')')->execute([$idRestaurante, ...$valores]);
+        $this->db->prepare('INSERT INTO restaurante_entrega_pagamento (id_restaurante, ' . implode(', ', $campos) . ') VALUES (?'
+            . str_repeat(', ?', count($campos)) . ')')->execute([$idRestaurante, ...$valores]);
+    }
+
+    /**
+     * Dados do Pix pela chave. 'pronto' = tem tudo para gerar o codigo; 'ligado' = a opcao esta marcada.
+     * @return array{tipo:string,chave:string,recebedor:string,cidade:string,whatsapp:string,pronto:bool,ligado:bool}
+     */
+    public function pixChave(int $idRestaurante): array
+    {
+        $vazio = ['tipo' => '', 'chave' => '', 'recebedor' => '', 'cidade' => '', 'whatsapp' => '', 'pronto' => false, 'ligado' => false];
+        if (!$this->pixChaveDisponivel()) {
+            return $vazio;
+        }
+        $q = $this->db->prepare('SELECT pag_pix_comprovante, ' . implode(', ', self::PIX_CHAVE) . ' FROM restaurante_entrega_pagamento WHERE id_restaurante = ?');
+        $q->execute([$idRestaurante]);
+        $r = $q->fetch(PDO::FETCH_ASSOC);
+        if ($r === false) {
+            return $vazio;
+        }
+        $d = [
+            'tipo' => (string) ($r['pix_chave_tipo'] ?? ''), 'chave' => (string) ($r['pix_chave'] ?? ''),
+            'recebedor' => (string) ($r['pix_recebedor'] ?? ''), 'cidade' => (string) ($r['pix_cidade'] ?? ''),
+            'whatsapp' => (string) ($r['pix_whatsapp'] ?? ''),
+        ];
+        $pronto = $d['tipo'] !== '' && $d['chave'] !== '' && $d['recebedor'] !== '' && $d['cidade'] !== '';
+        return $d + ['pronto' => $pronto, 'ligado' => $pronto && (int) $r['pag_pix_comprovante'] === 1];
     }
 
     /**

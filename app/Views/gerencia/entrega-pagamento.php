@@ -1,12 +1,15 @@
 <?php
 /**
  * Aba Entrega e pagamento. Espera: $config, $enviado, $bairros, $faixas, $local, $precisaLocal, $asaasConectado, $taxasDisponivel, $taxas, $entregadorVeValores, $permissoesGarcom,
+ * $pixChaveDisponivel, $pixChave (dados salvos do Pix pela chave), $perfilPix (nome, cidade e telefone do Perfil, para sugerir),
  * $teste (null ou resultado do "Testar um endereco"), $erros (por formulario), $restaurante, $base, $csrf.
  */
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Shared\Html\Campo;
 use Cardapim\Shared\Numero;
+use Cardapim\Shared\PixCopiaECola;
+use Cardapim\Services\Gerencia\EntregaPagamentoService;
 use Cardapim\Services\Pedidos\TaxaPagamento;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -173,16 +176,66 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
                         <?php endif; ?>
                     </span>
                 </label>
+                <?php if ($pixChaveDisponivel ?? false):
+                    $pc = is_array($pixChave ?? null) ? $pixChave : [];
+                    $perfil = is_array($perfilPix ?? null) ? $perfilPix : ['nome' => '', 'cidade' => '', 'telefone' => ''];
+                    $vChave = static function (string $campo, string $salvo, string $sugestao = '') use ($env): string {
+                        if ($env !== null) {
+                            return is_string($env[$campo] ?? null) ? $env[$campo] : '';
+                        }
+                        return $salvo !== '' ? $salvo : $sugestao;
+                    };
+                    $tipoChave = $vChave('pix_chave_tipo', (string) ($pc['tipo'] ?? ''));
+                    $chaveMarcada = $marcado('pag_pix_comprovante');
+                    $abrirChave = $chaveMarcada || array_intersect_key($errosConfig, array_flip(['pix_chave', 'pix_chave_tipo', 'pix_recebedor', 'pix_cidade', 'pix_whatsapp'])) !== []; ?>
+                <label class="opcao-modo">
+                    <input type="checkbox" name="pag_pix_comprovante" value="1" data-pix-chave<?= $chaveMarcada ? ' checked' : '' ?>>
+                    <span>
+                        <strong><?= Icon::svg('qr-code', 'icon-sm') ?>Pix pela chave (com comprovante)</strong>
+                        <small>O sistema monta o QR Code e o copia e cola com a sua chave Pix, sem custo. O cliente envia o comprovante pelo WhatsApp e você confere antes de aceitar.</small>
+                    </span>
+                </label>
+                <p class="opcao-aviso pix-um-por-vez" data-pix-um-aviso hidden role="status"><?= Icon::svg('info', 'icon-sm') ?>Você só pode usar um tipo de Pix por vez. Ligamos o que você acabou de marcar e desligamos o outro.</p>
+                <div class="pix-chave-campos" data-pix-chave-campos<?= $abrirChave ? '' : ' hidden' ?>>
+                    <input type="hidden" name="pix_chave_enviado" value="1">
+                    <p class="notice notice-warning pix-chave-aviso"><?= Icon::svg('circle-exclamation-point') ?><span><?= $e(EntregaPagamentoService::avisoPixChave()) ?></span></p>
+                    <div class="form-grade">
+                        <?= Campo::selecao(['nome' => 'pix_chave_tipo', 'id' => 'campo-pix_chave_tipo', 'rotulo' => 'Tipo da chave', 'valor' => $tipoChave, 'icone' => 'key-round', 'vazio' => 'Escolha',
+                            'erro' => $errosConfig['pix_chave_tipo'] ?? null, 'opcional' => true, 'attrs' => ['data-pix-chave-tipo' => true]], PixCopiaECola::TIPOS) ?>
+                        <?= Campo::texto(['nome' => 'pix_chave', 'id' => 'campo-pix_chave', 'rotulo' => 'Chave Pix', 'valor' => $vChave('pix_chave', (string) ($pc['chave'] ?? '')), 'icone' => 'qr-code',
+                            'erro' => $errosConfig['pix_chave'] ?? null, 'opcional' => true, 'attrs' => ['maxlength' => 77, 'autocomplete' => 'off']]) ?>
+                        <?= Campo::texto(['nome' => 'pix_recebedor', 'id' => 'campo-pix_recebedor', 'rotulo' => 'Nome de quem recebe', 'icone' => 'user',
+                            'valor' => $vChave('pix_recebedor', (string) ($pc['recebedor'] ?? ''), PixCopiaECola::texto($perfil['nome'], PixCopiaECola::MAX_NOME)),
+                            'dica' => 'Como aparece no banco. Até 25 letras, sem acento.', 'erro' => $errosConfig['pix_recebedor'] ?? null, 'opcional' => true, 'attrs' => ['maxlength' => 25]]) ?>
+                        <?= Campo::texto(['nome' => 'pix_cidade', 'id' => 'campo-pix_cidade', 'rotulo' => 'Cidade', 'icone' => 'map-pin',
+                            'valor' => $vChave('pix_cidade', (string) ($pc['cidade'] ?? ''), PixCopiaECola::texto($perfil['cidade'], PixCopiaECola::MAX_CIDADE)),
+                            'erro' => $errosConfig['pix_cidade'] ?? null, 'opcional' => true, 'attrs' => ['maxlength' => 15]]) ?>
+                        <?= Campo::texto(['nome' => 'pix_whatsapp', 'id' => 'campo-pix_whatsapp', 'rotulo' => 'WhatsApp para receber o comprovante', 'icone' => 'message-circle',
+                            'valor' => $vChave('pix_whatsapp', (string) ($pc['whatsapp'] ?? ''), $perfil['telefone']), 'tipo' => 'tel',
+                            'dica' => 'Vazio = o telefone do Perfil.', 'erro' => $errosConfig['pix_whatsapp'] ?? null, 'opcional' => true, 'attrs' => ['maxlength' => 20, 'inputmode' => 'tel', 'data-mask' => 'phone']]) ?>
+                    </div>
+                    <div class="pix-teste">
+                        <button type="button" class="btn btn-outline btn-sm" data-pix-teste="<?= $e($base . '/entrega-pagamento/pix-teste') ?>"><?= Icon::svg('qr-code', 'icon-sm') ?>Ver como fica</button>
+                        <p class="texto-suave">Mostra um QR Code de R$ 1,00. Leia no app do seu banco e confira o nome antes de ligar.</p>
+                        <div class="pix-teste-resultado" data-pix-teste-resultado hidden aria-live="polite">
+                            <div class="pix-teste-qr" data-pix-teste-qr role="img" aria-label="QR Code de teste de R$ 1,00"></div>
+                            <label class="sr-only" for="pix-teste-codigo">Código de teste</label>
+                            <textarea id="pix-teste-codigo" rows="3" readonly data-pix-teste-codigo></textarea>
+                        </div>
+                        <p class="field-msg" data-pix-teste-erro role="alert" hidden></p>
+                    </div>
+                </div>
+                <?php endif; ?>
             </fieldset>
             <h3 class="rotulo-grupo">Pago na entrega ou na retirada</h3>
             <fieldset class="opcoes-modo formas-grade">
                 <legend class="sr-only">Pagamento na entrega ou na retirada</legend>
-                <?php $pixAppLigado = $marcado('pag_pix_online') && $asaasConectado; ?>
+                <?php $pixAppLigado = ($marcado('pag_pix_online') && $asaasConectado) || (($pixChaveDisponivel ?? false) && $marcado('pag_pix_comprovante')); ?>
                 <?php foreach ($formas as $campo => [$rotulo, $icone, $explica]): $ehPixEntrega = $campo === 'pag_pix_entrega'; ?>
                     <label class="opcao-modo"<?= $ehPixEntrega ? ' data-pix-entrega-opcao' : '' ?>>
                         <input type="checkbox" name="<?= $e($campo) ?>" value="1"<?= $ehPixEntrega ? ' data-pix-entrega' : '' ?><?= $marcado($campo) && !($ehPixEntrega && $pixAppLigado) ? ' checked' : '' ?><?= $ehPixEntrega && $pixAppLigado ? ' disabled' : '' ?>>
                         <span><strong><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></strong><small><?= $e($explica) ?></small>
-                            <?php if ($ehPixEntrega): ?><small class="opcao-aviso" data-pix-entrega-aviso<?= $pixAppLigado ? '' : ' hidden' ?>><?= Icon::svg('info', 'icon-sm') ?>Desligado porque o Pix pelo app está ligado.</small><?php endif; ?>
+                            <?php if ($ehPixEntrega): ?><small class="opcao-aviso" data-pix-entrega-aviso<?= $pixAppLigado ? '' : ' hidden' ?>><?= Icon::svg('info', 'icon-sm') ?>Desligado porque o Pix com QR Code está ligado.</small><?php endif; ?>
                         </span>
                     </label>
                 <?php endforeach; ?>
@@ -192,7 +245,8 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
                 <?php
                 // Taxa de cada forma: o que foi enviado (erro) ou o salvo.
                 $taxaFormas = [
-                    'pix_online' => ['Pix pelo app', 'smartphone', 'pag_pix_online'],
+                    'pix_online' => ['Pix pelo app (Asaas)', 'smartphone', 'pag_pix_online'],
+                    'pix_comprovante' => ['Pix pela chave', 'qr-code', 'pag_pix_comprovante'],
                     'pix_entrega' => ['Pix na entrega ou no caixa', 'qr-code', 'pag_pix_entrega'],
                     'debito' => ['Cartão de débito', 'credit-card', 'pag_debito'],
                     'credito' => ['Cartão de crédito', 'credit-card', 'pag_credito'],

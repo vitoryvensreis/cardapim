@@ -39,7 +39,15 @@ final class DeliveryService
     ];
 
     /** Forma do pedido online -> forma registrada no caixa. */
-    private const FORMA_CAIXA = ['pix_entrega' => 'pix', 'debito' => 'debito', 'credito' => 'credito', 'dinheiro' => 'dinheiro', 'pix_online' => 'pix_online', 'ifood' => 'ifood'];
+    private const FORMA_CAIXA = ['pix_entrega' => 'pix', 'debito' => 'debito', 'credito' => 'credito', 'dinheiro' => 'dinheiro', 'pix_online' => 'pix_online', 'ifood' => 'ifood',
+        'pix_comprovante' => 'pix'];
+
+    /** Pix pela chave do restaurante com o comprovante ainda nao conferido. @param array<string,mixed> $p */
+    public static function pixParaConferir(array $p): bool
+    {
+        return ($p['forma_pagamento'] ?? '') === 'pix_comprovante' && ($p['pagamento_status'] ?? '') === 'pendente'
+            && !in_array($p['status'] ?? '', ['concluido', 'cancelado'], true);
+    }
 
     private readonly PedidoRepository $pedidos;
 
@@ -126,6 +134,9 @@ final class DeliveryService
         if (!in_array($p['status'], $de, true)) {
             return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
         }
+        if (self::pixParaConferir($p)) {
+            return Resultado::falha('Confira o comprovante do Pix no WhatsApp e no app do banco. Depois toque em "Confirmei o Pix, aceitar".');
+        }
         $ifood = $this->ifoodAtivo($p);
         $this->mudar($p, $de, $para, $texto, [], $ifood ? function () use ($p, $acao): void {
             if ($p['status'] === 'recebido') {
@@ -143,6 +154,27 @@ final class DeliveryService
             (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoPedido($id);
         }
         return Resultado::sucesso('Pedido #' . $p['numero'] . ': ' . mb_strtolower(rtrim($texto, '.')) . '.' . ($ifood ? ' O iFood foi avisado.' : ''));
+    }
+
+    /** "Confirmei o Pix, aceitar": o restaurante conferiu o Pix pela chave no banco. Marca pago e vai para o preparo. */
+    public function confirmarPix(int $id): Resultado
+    {
+        $p = $this->pedido($id);
+        if ($p instanceof Resultado) {
+            return $p;
+        }
+        if (!self::pixParaConferir($p) || $p['status'] !== 'recebido') {
+            return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
+        }
+        $agora = date('Y-m-d H:i:s');
+        try {
+            $this->mudar($p, ['recebido'], 'em_preparo', 'Pix conferido pelo restaurante. Pedido aceito. Em preparo.', ['pagamento_status' => 'pago', 'pago_em' => $agora]);
+        } catch (\RuntimeException) {
+            return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
+        }
+        (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoPedido($id);
+        Auditoria::registrar($this->autor, 'Pix pela chave conferido', sprintf('Pedido #%d: Pix de %s conferido no banco e pedido aceito.', (int) $p['numero'], Numero::reais((string) $p['total'])));
+        return Resultado::sucesso('Pedido #' . $p['numero'] . ': Pix conferido e pedido aceito. Em preparo.');
     }
 
     public function despachar(int $id, int $idEntregador): Resultado
@@ -200,6 +232,9 @@ final class DeliveryService
         $de = $p['tipo'] === 'entrega' ? ['saiu_entrega'] : ['pronto', 'em_preparo', 'recebido'];
         if (!in_array($p['status'], $de, true)) {
             return Resultado::falha($p['tipo'] === 'entrega' ? 'Despache o pedido para um entregador antes de marcar como entregue.' : 'Este pedido já mudou de situação.');
+        }
+        if (self::pixParaConferir($p)) {
+            return Resultado::falha('Confira o comprovante do Pix e toque em "Confirmei o Pix, aceitar" antes de concluir.');
         }
         $forma = (string) $p['forma_pagamento'];
         $jaPago = $p['pagamento_status'] === 'pago';

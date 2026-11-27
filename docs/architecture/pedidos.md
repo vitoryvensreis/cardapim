@@ -70,6 +70,30 @@ Verificacao: `php database/verify-pedidos.php --verify`.
   da migration o codigo funciona sem taxa nas contas). Testes: `tests/unit/taxa-pagamento.php` e o bloco "Taxa por
   forma de pagamento nas contas" de `tests/http/caixa.sh`.
 
+### Pix pela chave do restaurante (com comprovante), um Pix por vez
+
+- Gerencia > Entrega e pagamento > "Pix pela chave (com comprovante)": tipo da chave (CPF, CNPJ, celular, e-mail,
+  aleatoria), chave, nome de quem recebe (ate 25 letras, sem acento), cidade (ate 15) e WhatsApp do comprovante
+  (vazio = telefone do Perfil). "Ver como fica" (`POST .../entrega-pagamento/pix-teste`) devolve um codigo de R$ 1,00
+  para o dono ler no app do banco; nada e gravado. Aviso fixo: o Cardapim nao confirma pagamentos feitos pela chave.
+- **Um Pix por vez**: Asaas (`pag_pix_online`) e chave (`pag_pix_comprovante`) nunca juntos (servico + CHECK
+  `chk_pix_um_por_vez`). Qualquer Pix com QR Code ligado desliga o Pix na entrega.
+- `Shared/PixCopiaECola`: BR Code estatico do Banco Central (campos EMV 00, 26, 52, 53, 54, 58, 59, 60, 62/05 e CRC16
+  no 63), sem biblioteca nem chamada externa. Valida e padroniza cada tipo de chave.
+- Cliente (`pix_comprovante`): o pedido nasce `aguardando_pagamento` com o copia e cola em `pix_copia_cola` e prazo
+  de 60 min (`PixChavePedido`). A tela mostra o QR, "Copiar codigo Pix" e "Ja paguei: enviar comprovante", que chama
+  `POST /api/v1/pedidos/{id}/comprovante` (so o dono, CSRF, limite de uso, repetir nao duplica) e abre o WhatsApp do
+  restaurante com a mensagem pronta. O pedido vai para `recebido` com o pagamento `pendente` e `comprovante_enviado_em`.
+  Sem comprovante no prazo: cancelado e estoque devolvido (`bin/expirar-pix.php` e a propria tela).
+- Caixa (Delivery): etiqueta "Conferir Pix" na fila; no pedido, "Pix: conferir comprovante no WhatsApp", a acao
+  principal **"Confirmei o Pix, aceitar"** (`POST /{slug}/caixa/delivery/{id}/confirmar-pix`: pago + em preparo +
+  vias de producao + auditoria), "Abrir a conversa com o cliente" e "Recusar" (cancela com motivo e devolve o estoque).
+  Aceitar, pronto e concluir ficam bloqueados ate conferir. Ao concluir entra no caixa como Pix.
+- Taxa: regra `pix_comprovante` (opcional). NFC-e: `tPag` 20 como Pix (validar com o contador/NeXT).
+- Migration `20261205100000_pix_chave`, `database/verify-pix-chave.php`, `deploy/scripts/apply-pix-chave.sh`
+  (gatilho `[cardapim-pix-chave]`; `Esquema::tem('pix_chave')`). Testes: `tests/unit/pix-copia-e-cola.php` (inclui o
+  exemplo oficial do BR Code) e os blocos "Pix pela chave" de `tests/http/pedidos.sh` e `tests/http/garcom.sh`.
+
 ## Areas de entrega e geolocalizacao (sem custo)
 
 Regra (a mesma no cardapio, no servidor e no "Testar um endereco" do gerente):

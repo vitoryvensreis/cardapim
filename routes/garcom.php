@@ -22,6 +22,8 @@ return static function (Router $router): void {
     $router->post($g . '/comandas/{id}/servico', [GarcomController::class, 'servico']);
     $router->post($g . '/comandas/{id}/pagamentos', [GarcomController::class, 'pagar']);
     $router->post($g . '/comandas/{id}/pix', [GarcomController::class, 'gerarPix']);
+    $router->get($g . '/comandas/{id}/pix-chave', [GarcomController::class, 'pixChave']);
+    $router->post($g . '/comandas/{id}/pix-chave/recebido', [GarcomController::class, 'pixChaveRecebido']);
     $router->get($g . '/pix/{id}', [GarcomController::class, 'verPix']);
     $router->post($g . '/pix/{id}/cancelar', [GarcomController::class, 'cancelarPix']);
     $router->get($g . '/cardapio', [GarcomController::class, 'cardapioTela']);

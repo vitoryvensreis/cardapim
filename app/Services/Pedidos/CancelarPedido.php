@@ -24,7 +24,7 @@ final class CancelarPedido
             $agora = date('Y-m-d H:i:s');
             $filtroPix = $somentePixExpirado
                 ? " AND status = 'aguardando_pagamento' AND pagamento_status = 'pendente'
-                    AND forma_pagamento = 'pix_online' AND pix_expira_em <= ?"
+                    AND forma_pagamento IN ('pix_online', 'pix_comprovante') AND pix_expira_em <= ?"
                 : '';
             $q = $this->db->prepare("UPDATE pedidos SET status = 'cancelado', cancelado_em = ?, motivo_cancelamento = ?,
                 pagamento_status = CASE WHEN pagamento_status = 'pendente' THEN 'cancelado' ELSE pagamento_status END, atualizado_em = ?

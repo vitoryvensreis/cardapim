@@ -47,4 +47,5 @@ return static function (Router $router): void {
     $router->post('/api/v1/restaurantes/{slug}/pedidos', [PedidoClienteController::class, 'criar']);
     $router->get('/api/v1/pedidos/{id}', [PedidoClienteController::class, 'mostrar']);
     $router->get('/api/v1/pedidos/{id}/rastreio', [PedidoClienteController::class, 'rastreio']);
+    $router->post('/api/v1/pedidos/{id}/comprovante', [PedidoClienteController::class, 'comprovante']);
 };

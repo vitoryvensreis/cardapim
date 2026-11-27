@@ -317,8 +317,10 @@
     const formaCampo = pagar ? $("[data-forma-campo]", pagar) : null;
     const trocar = () => {
       const escolhida = ($("[data-forma]:checked", formas) || {}).value || "dinheiro";
-      $$("[data-painel-forma]").forEach((p) => { p.hidden = (p.dataset.painelForma === "pix_qr") !== (escolhida === "pix_qr"); });
-      if (formaCampo && escolhida !== "pix_qr") formaCampo.value = escolhida;
+      // QR Code (Asaas ou chave) tem painel proprio; as outras formas usam o formulario "presencial".
+      const qr = escolhida === "pix_qr" || escolhida === "pix_chave";
+      $$("[data-painel-forma]").forEach((p) => { p.hidden = qr ? p.dataset.painelForma !== escolhida : p.dataset.painelForma !== "presencial"; });
+      if (formaCampo && !qr) formaCampo.value = escolhida;
       if (pagar) {
         $("[data-so-dinheiro]", pagar).hidden = escolhida !== "dinheiro";
         atualizarPagamento();

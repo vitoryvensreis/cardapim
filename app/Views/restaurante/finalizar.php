@@ -9,7 +9,7 @@ use Cardapim\Services\Gerencia\PerfilService;
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $modos = $config['modos'];
 $formas = $config['formas'];
-$formasEntrega = array_values(array_diff($formas, ['pix_online']));
+$formasEntrega = array_values(array_diff($formas, ['pix_online', 'pix_comprovante']));
 $rotulosForma = [
     'pix_entrega' => ['Pix', 'qr-code'],
     'debito' => ['Cartão de débito', 'credit-card'],
@@ -137,13 +137,15 @@ $json = json_encode([
 
             <section class="ck-bloco" aria-labelledby="ck-titulo-pagamento" data-ck-pagamento>
                 <h2 id="ck-titulo-pagamento"><span class="ck-passo" aria-hidden="true" data-ck-passo-pag>3</span>Pagamento</h2>
-                <?php if (in_array('pix_online', $formas, true)): ?>
+                <?php if (in_array('pix_online', $formas, true) || in_array('pix_comprovante', $formas, true)): $pixChave = in_array('pix_comprovante', $formas, true); ?>
                     <p class="ck-grupo">Pagar agora</p>
                     <div class="ck-opcoes" role="radiogroup" aria-label="Pagar agora">
                         <label class="ck-opcao">
-                            <input type="radio" name="forma_pagamento" value="pix_online" data-ck-forma>
+                            <input type="radio" name="forma_pagamento" value="<?= $pixChave ? 'pix_comprovante' : 'pix_online' ?>" data-ck-forma>
                             <span class="ck-opcao-icone ck-opcao-icone-pix" aria-hidden="true"><?= Icon::svg('qr-code') ?></span>
-                            <span class="ck-opcao-texto"><strong>Pix</strong><small>Aprovação na hora. O pedido vai para a cozinha assim que o Pix cair.</small><?= $taxaTexto('pix_online') ?></span>
+                            <span class="ck-opcao-texto"><strong>Pix</strong><small><?= $pixChave
+                                ? 'Você paga com o QR Code e envia o comprovante pelo WhatsApp. O restaurante confere e começa a preparar.'
+                                : 'Aprovação na hora. O pedido vai para a cozinha assim que o Pix cair.' ?></small><?= $taxaTexto($pixChave ? 'pix_comprovante' : 'pix_online') ?></span>
                         </label>
                     </div>
                 <?php endif; ?>

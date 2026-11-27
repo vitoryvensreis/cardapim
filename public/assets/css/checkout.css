@@ -177,6 +177,14 @@
 .ck-pix-qr svg { display: block; width: 100%; height: auto; }
 .ck-pix-passos { margin: 0 0 .85rem; padding-left: 1.25rem; color: var(--c-ink); font-size: .9rem; display: grid; gap: .3rem; }
 .ck-pix-codigo { min-height: 4.5rem !important; margin-bottom: .7rem; font: 400 .8rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace !important; color: var(--c-muted) !important; word-break: break-all; resize: none; }
+.ck-pix-valor { margin: 0 0 .75rem; color: var(--c-wine); font: 700 1.15rem/1.2 var(--f-head); text-align: center; }
+.ck-pix [data-ap-comprovante] { margin-top: .6rem; }
+.ck-pix [hidden], .ck-comprovante[hidden] { display: none !important; }
+.ck-comprovante { display: flex; align-items: flex-start; gap: .75rem; border-left: 4px solid var(--c-orange); }
+.ck-comprovante-icone { display: grid; place-items: center; flex: none; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--c-cream, #fff6f2); color: var(--c-orange-700); }
+.ck-comprovante strong { display: block; color: var(--c-ink); }
+.ck-comprovante p { margin: .2rem 0 .45rem; color: var(--c-muted); font-size: .92rem; }
+.ck-comprovante .link-acao { display: inline-flex; align-items: center; gap: .35rem; color: var(--c-wine); font-weight: 700; }
 
 .ck-etapas { margin: 0; padding: 0; list-style: none; display: grid; }
 .ck-etapas li { position: relative; display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; align-items: center; gap: .75rem; min-height: 3.1rem; color: var(--c-muted); }
