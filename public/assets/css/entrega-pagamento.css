@@ -51,3 +51,34 @@
 }
 
 .equipe-perfis-aviso { display: flex; align-items: center; gap: .5rem; margin: 1rem 0; }
+
+/* Taxa por forma de pagamento (opcional) */
+.taxas-forma { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px dashed var(--c-line); }
+.taxas-forma > summary {
+  display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; color: var(--c-wine); font: 700 .92rem/1.2 var(--f-head);
+  cursor: pointer; list-style: none;
+}
+.taxas-forma > summary::-webkit-details-marker { display: none; }
+.taxas-forma > summary .field-optional { color: var(--c-muted); font-weight: 400; }
+.taxas-ajuda { margin: .25rem 0 .85rem; color: var(--c-muted); font-size: .88rem; }
+.taxas-lista { display: grid; gap: .6rem; }
+.taxa-linha {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; align-items: center;
+  padding: .75rem .85rem; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-white);
+}
+.taxa-linha[hidden] { display: none; }
+.taxa-linha.is-invalid { border-color: var(--c-orange-700); }
+.taxa-nome { display: flex; align-items: center; gap: .4rem; color: var(--c-ink); font-weight: 700; }
+.taxa-nome .icon { color: var(--c-wine); }
+.taxa-linha select, .taxa-valor input {
+  width: 100%; min-height: 2.75rem; padding: .5rem .7rem; border: 1px solid var(--c-line); border-radius: var(--r-md);
+  background: var(--c-white); color: var(--c-ink); font: inherit;
+}
+.taxa-valor { display: flex; align-items: center; gap: .4rem; }
+.taxa-valor[hidden] { display: none; }
+.taxa-prefixo { min-width: 1.6rem; color: var(--c-muted); font-weight: 700; text-align: center; }
+.taxa-erro { grid-column: 1 / -1; margin: 0; color: var(--c-orange-700); }
+.taxas-vazio { margin: .5rem 0 0; color: var(--c-muted); font-size: .88rem; }
+@media (min-width: 40rem) {
+  .taxa-linha { grid-template-columns: minmax(0, 1fr) 12rem 9rem; }
+}

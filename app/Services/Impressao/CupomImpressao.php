@@ -187,6 +187,10 @@ final class CupomImpressao
         if (Numero::centavos((string) ($p['desconto'] ?? '0')) > 0) {
             $blocos[] = ['t' => 'valor', 'rotulo' => 'Desconto', 'valor' => '-' . Numero::reais((string) $p['desconto'])];
         }
+        if (Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')) > 0) {
+            $rotuloTaxa = trim((string) ($p['taxa_pagamento_rotulo'] ?? ''));
+            $blocos[] = ['t' => 'valor', 'rotulo' => $rotuloTaxa !== '' ? $rotuloTaxa : 'Taxa do pagamento', 'valor' => Numero::reais((string) $p['taxa_pagamento'])];
+        }
         $blocos[] = ['t' => 'valor', 'rotulo' => 'TOTAL', 'valor' => Numero::reais((string) $p['total']), 'forte' => true];
         $blocos[] = ['t' => 'texto', 'texto' => 'Pagamento: ' . StatusPedido::forma((string) $p['forma_pagamento'], (string) $p['tipo'])];
         if (($p['forma_pagamento'] ?? '') === 'dinheiro' && ($p['troco_para'] ?? null) !== null) {

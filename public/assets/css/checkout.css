@@ -294,3 +294,6 @@
 
 /* Complementos escolhidos no item */
 .item-complementos, .ck-item-comps { display: block; color: var(--c-ink); font-weight: 600; overflow-wrap: anywhere; }
+
+/* Taxa da forma de pagamento (opcional), ao lado do nome: texto, nao so cor. */
+.ck-opcao-texto .ck-opcao-taxa { display: block; margin-top: .15rem; color: var(--c-orange-700); font-weight: 700; font-size: .8rem; }

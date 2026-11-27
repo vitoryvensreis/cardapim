@@ -9,6 +9,8 @@ use Cardapim\Modules\Entrega\Distancia;
 use Cardapim\Modules\Entrega\TextoLocal;
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
+use Cardapim\Repositories\Gerencia\TaxaPagamentoRepository;
+use Cardapim\Services\Pedidos\TaxaPagamento;
 use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Geo\Geocodificador;
@@ -83,6 +85,21 @@ final class EntregaPagamentoService
         if ($c['pag_pix_online'] === 1 && !$this->asaasConectado()) {
             $erros['formas'] = 'Para aceitar Pix pelo app, conecte primeiro sua conta Asaas em Integrações.';
         }
+        // Taxa opcional de cada forma (porcentagem OU valor fixo). So mexe quando o bloco veio na tela.
+        $taxas = null;
+        if (($e['taxas_enviado'] ?? '') === '1') {
+            $taxas = [];
+            $tipos = is_array($e['taxa_tipo'] ?? null) ? $e['taxa_tipo'] : [];
+            $valores = is_array($e['taxa_valor'] ?? null) ? $e['taxa_valor'] : [];
+            foreach (array_keys(TaxaPagamento::FORMAS) as $forma) {
+                $lido = TaxaPagamento::ler(is_string($tipos[$forma] ?? null) ? $tipos[$forma] : '', is_string($valores[$forma] ?? null) ? $valores[$forma] : '');
+                if ($lido['erro'] !== null) {
+                    $erros['taxa_' . $forma] = $lido['erro'];
+                } elseif ($lido['regra'] !== null) {
+                    $taxas[$forma] = $lido['regra'];
+                }
+            }
+        }
         // Com Pix pelo app ligado, o Pix na entrega desliga: o cliente paga o Pix antes, pelo app.
         $pixEntregaDesligado = $c['pag_pix_online'] === 1 && $c['pag_pix_entrega'] === 1;
         if ($c['pag_pix_online'] === 1) {
@@ -91,8 +108,38 @@ final class EntregaPagamentoService
         if ($erros !== []) {
             return Resultado::falha('Confira os campos destacados.', $erros);
         }
-        $antes = $this->repo->config($this->idRestaurante);
-        $this->repo->salvarConfig($this->idRestaurante, $c);
+        $taxasRepo = new TaxaPagamentoRepository($this->db);
+        $this->db->beginTransaction();
+        try {
+            // Mesma trava usada na criacao do pedido: configuracao e taxas mudam juntas.
+            if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+                $this->db->prepare('SELECT id FROM restaurantes WHERE id = ? FOR UPDATE')->execute([$this->idRestaurante]);
+            }
+            $antes = $this->repo->config($this->idRestaurante);
+            $taxasAntes = $taxasRepo->regras($this->idRestaurante);
+            $this->repo->salvarConfig($this->idRestaurante, $c);
+            if ($taxas !== null) {
+                $taxasRepo->salvar($this->idRestaurante, $taxas);
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+        if ($taxas !== null) {
+            $texto = static function (array $regras): string {
+                $partes = [];
+                foreach ($regras as $forma => $r) {
+                    $partes[] = TaxaPagamento::rotulo($forma, $r) . ($forma === 'pix_entrega' ? ' na entrega' : ($forma === 'pix_online' ? ' pelo app' : ($forma === 'pix_comprovante' ? ' com comprovante' : '')));
+                }
+                return $partes === [] ? 'nenhuma' : implode(', ', $partes);
+            };
+            if ($taxas != $taxasAntes) {
+                Auditoria::registrar($this->autor, 'Taxas das formas de pagamento alteradas', 'Antes: ' . $texto($taxasAntes) . '. Agora: ' . $texto($taxas) . '.');
+            }
+        }
         $legivel = static function (array $x): array {
             foreach ($x as $campo => $v) {
                 if (is_int($v) && !str_contains((string) $campo, 'minutos')) {

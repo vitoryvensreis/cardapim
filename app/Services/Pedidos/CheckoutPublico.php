@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Services\Pedidos;
 
 use Cardapim\Repositories\Gerencia\EntregaPagamentoRepository;
+use Cardapim\Repositories\Gerencia\TaxaPagamentoRepository;
 use Cardapim\Services\Cardapio\CardapioPublico;
 use Cardapim\Shared\Numero;
 use PDO;
@@ -32,6 +33,13 @@ final class CheckoutPublico
                 $formas[] = $forma;
             }
         }
+        // Taxa de cada forma oferecida (o JS so mostra; CriarPedido confere).
+        $taxas = [];
+        foreach ((new TaxaPagamentoRepository($this->db))->regras($idRestaurante) as $forma => $regra) {
+            if (in_array($forma, $formas, true)) {
+                $taxas[$forma] = TaxaPagamento::paraCheckout($regra) + ['rotulo' => TaxaPagamento::rotulo($forma, $regra)];
+            }
+        }
         $modos = [];
         if ($c['aceita_entrega'] === 1) {
             $modos['entrega'] = self::tempo($c['entrega_minutos_min'], $c['entrega_minutos_max']);
@@ -42,6 +50,7 @@ final class CheckoutPublico
         return [
             'modos' => $modos,
             'formas' => $formas,
+            'taxas' => $taxas,
             'aberto' => !$info['horario_informado'] || $info['aberto'],
             'endereco_restaurante' => trim($info['endereco'] . ($info['bairro_cidade'] !== '' ? ' · ' . $info['bairro_cidade'] : '')),
             'telefone' => $info['telefone'],
@@ -85,6 +94,8 @@ final class CheckoutPublico
             'subtotal_centavos' => Numero::centavos((string) $p['subtotal']),
             'taxa_centavos' => Numero::centavos((string) $p['taxa_entrega']),
             'desconto_centavos' => Numero::centavos((string) ($p['desconto'] ?? '0')),
+            'taxa_pagamento_centavos' => Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')),
+            'taxa_pagamento_rotulo' => (string) ($p['taxa_pagamento_rotulo'] ?? '') !== '' ? (string) $p['taxa_pagamento_rotulo'] : 'Taxa da forma de pagamento',
             'desconto_rotulo' => ($p['desconto_origem'] ?? null) === 'cupom' ? 'Cupom ' . (string) $p['cupom_codigo'] : (($p['desconto_origem'] ?? null) === 'fidelidade' ? 'Desconto fidelidade' : 'Desconto'),
             'total_centavos' => Numero::centavos((string) $p['total']),
             'observacao' => (string) ($p['observacao'] ?? ''),

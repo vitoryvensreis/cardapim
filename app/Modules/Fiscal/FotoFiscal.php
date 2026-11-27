@@ -25,7 +25,9 @@ final class FotoFiscal
     public function montar(int $idPedido, string $cnpj, array $empresa, int $ambiente, ?string $documento = null): array
     {
         $pend = [];
-        $p = $this->linha('SELECT id, numero, origem, tipo, status, subtotal, taxa_entrega, taxa_servico, desconto, total, forma_pagamento, troco_para, criado_em FROM pedidos WHERE id = ? AND id_restaurante = ?', [$idPedido, $this->idRestaurante]);
+        $p = $this->linha('SELECT id, numero, origem, tipo, status, subtotal, taxa_entrega, taxa_servico, '
+            . (\Cardapim\Shared\Esquema::tem($this->db, 'taxas_pagamento') ? 'taxa_pagamento, ' : '')
+            . 'desconto, total, forma_pagamento, troco_para, criado_em FROM pedidos WHERE id = ? AND id_restaurante = ?', [$idPedido, $this->idRestaurante]);
         if ($p === null) { return ['foto'=>[], 'pendencias'=>['Pedido não encontrado.']]; }
         if ($p['status'] === 'cancelado') { $pend[] = 'O pedido foi cancelado.'; }
         $crt = (string) ($empresa['crt'] ?? '');
@@ -89,10 +91,11 @@ final class FotoFiscal
                 'cbenef'=>(string) ($perfil['cbenef'] ?? ''),
             ];
         }
-        // Desconto e taxas (entrega e serviço) rateados ao centavo entre as linhas.
+        // Desconto e taxas (entrega, serviço e taxa da forma de pagamento) rateados ao centavo entre as linhas.
         $pesos = array_map(static fn ($l) => $l['vprod'], $saida);
         $desc = RateioFiscal::repartir(RateioFiscal::centavos((string) $p['desconto']), $pesos);
-        $outro = RateioFiscal::repartir(RateioFiscal::centavos((string) $p['taxa_entrega']) + RateioFiscal::centavos((string) ($p['taxa_servico'] ?? '0')), $pesos);
+        $outro = RateioFiscal::repartir(RateioFiscal::centavos((string) $p['taxa_entrega']) + RateioFiscal::centavos((string) ($p['taxa_servico'] ?? '0'))
+            + RateioFiscal::centavos((string) ($p['taxa_pagamento'] ?? '0')), $pesos);
         foreach ($saida as $k => &$l) { $l['vdesc'] = $desc[$k]; $l['voutro'] = $outro[$k]; }
         unset($l);
 

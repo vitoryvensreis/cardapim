@@ -16,9 +16,14 @@ $rotulosForma = [
     'credito' => ['Cartão de crédito', 'credit-card'],
     'dinheiro' => ['Dinheiro', 'banknote'],
 ];
+$taxas = $config['taxas'] ?? [];
+/** "+ 3,5%" ao lado da forma (com texto: nao depende de cor). */
+$taxaTexto = static fn (string $forma): string => isset($taxas[$forma])
+    ? '<small class="ck-opcao-taxa">' . htmlspecialchars((string) $taxas[$forma]['texto'], ENT_QUOTES, 'UTF-8') . '<span class="sr-only"> de taxa</span></small>' : '';
 $json = json_encode([
     'modos' => array_keys($modos),
     'formas' => $formas,
+    'taxas' => array_map(static fn (array $t): array => ['tipo' => $t['tipo'], 'valor' => $t['valor'], 'rotulo' => $t['rotulo']], $taxas),
     'aberto' => $config['aberto'],
     'pixPrazo' => $config['pix_prazo_minutos'],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -138,7 +143,7 @@ $json = json_encode([
                         <label class="ck-opcao">
                             <input type="radio" name="forma_pagamento" value="pix_online" data-ck-forma>
                             <span class="ck-opcao-icone ck-opcao-icone-pix" aria-hidden="true"><?= Icon::svg('qr-code') ?></span>
-                            <span class="ck-opcao-texto"><strong>Pix</strong><small>Aprovação na hora. O pedido vai para a cozinha assim que o Pix cair.</small></span>
+                            <span class="ck-opcao-texto"><strong>Pix</strong><small>Aprovação na hora. O pedido vai para a cozinha assim que o Pix cair.</small><?= $taxaTexto('pix_online') ?></span>
                         </label>
                     </div>
                 <?php endif; ?>
@@ -149,7 +154,7 @@ $json = json_encode([
                             <label class="ck-opcao ck-opcao-compacta">
                                 <input type="radio" name="forma_pagamento" value="<?= $e($forma) ?>" data-ck-forma>
                                 <span class="ck-opcao-icone" aria-hidden="true"><?= Icon::svg($icone) ?></span>
-                                <span class="ck-opcao-texto"><strong><?= $e($rotulo) ?></strong></span>
+                                <span class="ck-opcao-texto"><strong><?= $e($rotulo) ?></strong><?= $taxaTexto($forma) ?></span>
                             </label>
                         <?php endforeach; ?>
                     </div>
@@ -220,6 +225,7 @@ $json = json_encode([
                     <div><dt>Subtotal</dt><dd data-ck-subtotal>R$ 0,00</dd></div>
                     <div data-ck-linha-taxa><dt>Taxa de entrega</dt><dd data-ck-taxa>—</dd></div>
                     <div class="ck-desconto" data-ck-linha-desconto hidden><dt data-ck-desconto-rotulo>Desconto</dt><dd data-ck-desconto>− R$ 0,00</dd></div>
+                    <div data-ck-linha-taxa-pag hidden><dt data-ck-taxa-pag-rotulo>Taxa da forma de pagamento</dt><dd data-ck-taxa-pag>R$ 0,00</dd></div>
                     <div class="ck-total"><dt>Total</dt><dd data-ck-total>R$ 0,00</dd></div>
                 </dl>
                 <p class="ck-aviso-min" data-ck-minimo hidden></p>

@@ -162,6 +162,12 @@
       $("[data-ap-desconto-rotulo]").textContent = p.desconto_rotulo || "Desconto";
       $("[data-ap-desconto]").textContent = `− ${reais(p.desconto_centavos || 0)}`;
     }
+    const linhaTaxaPag = $("[data-ap-linha-taxa-pag]");
+    if (linhaTaxaPag) {
+      linhaTaxaPag.hidden = !(p.taxa_pagamento_centavos > 0);
+      $("[data-ap-taxa-pag-rotulo]").textContent = p.taxa_pagamento_rotulo || "Taxa da forma de pagamento";
+      $("[data-ap-taxa-pag]").textContent = reais(p.taxa_pagamento_centavos || 0);
+    }
     $("[data-ap-total]").textContent = reais(p.total_centavos);
     let pag = p.forma_pagamento;
     if (p.pagamento_status === "pago") pag += " · pago";

@@ -1,12 +1,13 @@
 <?php
 /**
- * Aba Entrega e pagamento. Espera: $config, $enviado, $bairros, $faixas, $local, $precisaLocal, $asaasConectado, $entregadorVeValores, $permissoesGarcom,
+ * Aba Entrega e pagamento. Espera: $config, $enviado, $bairros, $faixas, $local, $precisaLocal, $asaasConectado, $taxasDisponivel, $taxas, $entregadorVeValores, $permissoesGarcom,
  * $teste (null ou resultado do "Testar um endereco"), $erros (por formulario), $restaurante, $base, $csrf.
  */
 use Cardapim\Core\Icon;
 use Cardapim\Modules\Entrega\AreaEntrega;
 use Cardapim\Shared\Html\Campo;
 use Cardapim\Shared\Numero;
+use Cardapim\Services\Pedidos\TaxaPagamento;
 
 $e = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $errosConfig = $erros['config'] ?? [];
@@ -186,6 +187,65 @@ $listaAreas = static function (array $lista, string $tipo) use ($e, $base, $csrf
                     </label>
                 <?php endforeach; ?>
             </fieldset>
+
+            <?php if ($taxasDisponivel ?? false): ?>
+                <?php
+                // Taxa de cada forma: o que foi enviado (erro) ou o salvo.
+                $taxaFormas = [
+                    'pix_online' => ['Pix pelo app', 'smartphone', 'pag_pix_online'],
+                    'pix_entrega' => ['Pix na entrega', 'qr-code', 'pag_pix_entrega'],
+                    'debito' => ['Cartão de débito', 'credit-card', 'pag_debito'],
+                    'credito' => ['Cartão de crédito', 'credit-card', 'pag_credito'],
+                ];
+                $taxaTipo = static function (string $forma) use ($env, $taxas): string {
+                    if ($env !== null) {
+                        $v = $env['taxa_tipo'][$forma] ?? '';
+                        return is_string($v) ? $v : '';
+                    }
+                    return $taxas[$forma]['tipo'] ?? '';
+                };
+                $taxaValor = static function (string $forma) use ($env, $taxas): string {
+                    if ($env !== null) {
+                        $v = $env['taxa_valor'][$forma] ?? '';
+                        return is_string($v) ? $v : '';
+                    }
+                    if (!isset($taxas[$forma])) {
+                        return '';
+                    }
+                    return $taxas[$forma]['tipo'] === 'fixo' ? Numero::dinheiroCampo($taxas[$forma]['valor']) : Numero::decimalCampo($taxas[$forma]['valor']);
+                };
+                $temErroTaxa = array_filter($errosConfig, static fn (string $k): bool => str_starts_with($k, 'taxa_'), ARRAY_FILTER_USE_KEY) !== [];
+                ?>
+                <details class="taxas-forma" data-taxas<?= $taxas !== [] || $temErroTaxa ? ' open' : '' ?>>
+                    <summary><?= Icon::svg('percent', 'icon-sm') ?>Cobrar taxa por forma de pagamento <span class="field-optional">(opcional)</span></summary>
+                    <input type="hidden" name="taxas_enviado" value="1">
+                    <p class="taxas-ajuda">A taxa é somada ao total do pedido. O cliente vê o valor ao lado da forma de pagamento antes de fazer o pedido. Dinheiro nunca tem taxa.</p>
+                    <div class="taxas-lista">
+                        <?php foreach ($taxaFormas as $forma => [$rotulo, $icone, $campoForma]):
+                            $tipo = $taxaTipo($forma);
+                            $erroTaxa = $errosConfig['taxa_' . $forma] ?? null;
+                            $idBase = 'taxa-' . str_replace('_', '-', $forma); ?>
+                            <div class="taxa-linha<?= $erroTaxa ? ' is-invalid' : '' ?>" data-taxa-linha="<?= $e($campoForma) ?>" id="campo-taxa_<?= $e($forma) ?>">
+                                <span class="taxa-nome"><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></span>
+                                <label class="sr-only" for="<?= $e($idBase) ?>-tipo">Tipo da taxa: <?= $e($rotulo) ?></label>
+                                <select id="<?= $e($idBase) ?>-tipo" name="taxa_tipo[<?= $e($forma) ?>]" data-taxa-tipo>
+                                    <option value=""<?= $tipo === '' ? ' selected' : '' ?>>Sem taxa</option>
+                                    <option value="percentual"<?= $tipo === 'percentual' ? ' selected' : '' ?>>Porcentagem (%)</option>
+                                    <option value="fixo"<?= $tipo === 'fixo' ? ' selected' : '' ?>>Valor fixo (R$)</option>
+                                </select>
+                                <span class="taxa-valor" data-taxa-valor-caixa<?= $tipo === '' ? ' hidden' : '' ?>>
+                                    <label class="sr-only" for="<?= $e($idBase) ?>-valor">Valor da taxa: <?= $e($rotulo) ?></label>
+                                    <span class="taxa-prefixo" data-taxa-prefixo aria-hidden="true"><?= $tipo === 'fixo' ? 'R$' : '%' ?></span>
+                                    <input id="<?= $e($idBase) ?>-valor" name="taxa_valor[<?= $e($forma) ?>]" value="<?= $e($taxaValor($forma)) ?>" inputmode="decimal" maxlength="9"
+                                        placeholder="<?= $tipo === 'fixo' ? '1,00' : '3,5' ?>" data-taxa-valor<?= $erroTaxa ? ' aria-invalid="true" aria-describedby="' . $e($idBase) . '-msg"' : '' ?>>
+                                </span>
+                                <?php if ($erroTaxa): ?><p class="field-msg taxa-erro" id="<?= $e($idBase) ?>-msg" role="alert"><?= $e($erroTaxa) ?></p><?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <p class="taxas-vazio" data-taxas-vazio hidden>Marque cartão ou Pix acima para escolher uma taxa.</p>
+                </details>
+            <?php endif; ?>
         </section>
 
         <div class="form-acoes">
