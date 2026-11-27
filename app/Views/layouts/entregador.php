@@ -2,6 +2,7 @@
 /**
  * Layout do painel do entregador (celular primeiro). Mesmo topo das areas logadas + tempo real (canal entregas).
  * Espera: $content, $usuario, $csrf, $restaurante, $tempoReal (url do ticket ou null).
+ * trocar-forma.js e o QR (qrcode-generator): popup "Trocar forma de pagamento" e o Pix por QR Code na entrega.
  * @var \Cardapim\Services\Auth\UsuarioLogado $usuario
  */
 use Cardapim\Core\Icon;
@@ -13,8 +14,8 @@ $favicon = Configuracoes::logoOuPadrao('icone');
 $logoBranca = Configuracoes::logoOuPadrao('logo_branca');
 $title = $e((string) ($pageTitle ?? 'Entregas | ' . marca()));
 $description = $e((string) ($pageDescription ?? 'Painel do entregador.'));
-$styles = ['css/pages.css', 'css/app.css', 'css/painel.css', 'css/entregador.css'];
-$scripts = [...($tempoReal !== null ? ['js/tempo-real.js'] : []), 'js/confirmar.js', 'js/entregador.js'];
+$styles = ['css/pages.css', 'css/app.css', 'css/painel.css', 'css/entregador.css', 'css/trocar-forma.css'];
+$scripts = [...($tempoReal !== null ? ['js/tempo-real.js'] : []), 'js/confirmar.js', 'vendor/qrcode-generator/qrcode.js', 'js/entregador.js', 'js/trocar-forma.js'];
 $iniciais = mb_strtoupper(mb_substr($usuario->nome, 0, 1) . mb_substr($usuario->sobrenome, 0, 1));
 ?>
 <!doctype html>

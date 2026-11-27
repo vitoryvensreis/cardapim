@@ -98,6 +98,9 @@ de `tests/http/caixa.sh`.
 
 Verificacao: `php database/verify-caixa.php --verify`.
 
+Delivery: `POST /{slug}/caixa/delivery/{id}/forma` = "Trocar forma de pagamento" (mesmo popup do motoboy, sem QR; ver
+`entregas.md`). `POST /{slug}/caixa/delivery/{id}/confirmar-pix` = "Confirmei o Pix, aceitar" do Pix pela chave.
+
 Varias comandas por mesa (migration `20261113100000_pedidos_varias_comandas.php`): `pedidos.comanda_nome` e o indice
 de `mesa_aberta` deixa de ser unico (`idx_pedidos_mesa_aberta`). Verificacao: `php database/verify-comandas.php --verify`.
 

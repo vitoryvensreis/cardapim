@@ -193,6 +193,145 @@ final class PixPedido
         ) ? 'cancelado' : 'ignorado';
     }
 
+    /** Prazo do QR gerado pelo motoboy na entrega (o pedido nunca e cancelado por isso: ja esta em rota). */
+    public const PRAZO_ENTREGA_MINUTOS = 30;
+
+    /**
+     * Pix por QR Code na entrega (motoboy, "Trocar forma de pagamento"): cobranca na conta Asaas do restaurante com o
+     * total do pedido (ja com a taxa do Pix pelo app), referencia "entrega:{id}". Mesmo valor e QR ainda valendo:
+     * devolve o mesmo QR. O pedido ja deve estar com a forma pix_online (TrocarFormaPagamento).
+     * @param array<string,mixed> $pedido
+     * @throws IntegracaoErro
+     * @return array{copia_cola:string,expira_em:string,total:int}
+     */
+    public function gerarNaEntrega(array $pedido, string $cpfDigitado = ''): array
+    {
+        $idRest = (int) $pedido['id_restaurante'];
+        $idPedido = (int) $pedido['id'];
+        $total = Numero::centavos((string) $pedido['total']);
+        if (!empty($pedido['pix_cobranca_id']) && !empty($pedido['pix_copia_cola']) && !empty($pedido['pix_expira_em'])
+            && strtotime((string) $pedido['pix_expira_em']) > time() + 60) {
+            return ['copia_cola' => (string) $pedido['pix_copia_cola'], 'expira_em' => (string) $pedido['pix_expira_em'], 'total' => $total];
+        }
+        [$chave, $ambiente] = $this->acesso($idRest);
+        $customer = $this->clienteAsaas($pedido, $cpfDigitado, $chave, $ambiente);
+        if (!empty($pedido['pix_cobranca_id'])) {
+            $this->removerCobranca($idRest, (string) $pedido['pix_cobranca_id']); // valor mudou ou QR vencido
+        }
+        $q = $this->db->prepare('SELECT nome FROM restaurantes WHERE id = ?');
+        $q->execute([$idRest]);
+        $nome = (string) ($q->fetchColumn() ?: '');
+        $idCobranca = $this->api->criarCobrancaPix($chave, $ambiente, $customer, (string) $pedido['total'], date('Y-m-d'),
+            'Pedido #' . (int) $pedido['numero'] . ' - ' . $nome, 'entrega:' . $idPedido);
+        try {
+            $qr = $this->api->qrCodePix($chave, $ambiente, $idCobranca);
+        } catch (IntegracaoErro $erro) {
+            $this->removerCobranca($idRest, $idCobranca);
+            throw $erro;
+        }
+        $expira = date('Y-m-d H:i:s', time() + self::PRAZO_ENTREGA_MINUTOS * 60);
+        $u = $this->db->prepare("UPDATE pedidos SET pix_cobranca_id = ?, pix_copia_cola = ?, pix_expira_em = ?, atualizado_em = ?
+            WHERE id = ? AND id_restaurante = ? AND pagamento_status = 'pendente' AND forma_pagamento = 'pix_online' AND status = 'saiu_entrega'");
+        $u->execute([$idCobranca, $qr['payload'], $expira, date('Y-m-d H:i:s'), $idPedido, $idRest]);
+        if ($u->rowCount() !== 1) {
+            $this->removerCobranca($idRest, $idCobranca);
+            throw new IntegracaoErro('A entrega mudou enquanto o Pix era gerado.');
+        }
+        return ['copia_cola' => (string) $qr['payload'], 'expira_em' => $expira, 'total' => $total];
+    }
+
+    /**
+     * Pix da entrega pago (aviso do Asaas com "entrega:{id}" ou consulta): o pagamento fica "pago" e o motoboy so
+     * confirma a entrega. Repetido nao faz nada. @return string confirmado | repetido | valor_diferente | pago_apos_cancelar | nao_encontrado
+     */
+    public function confirmarEntrega(int $idRestaurante, string $idCobranca, string $valor, string $origem): string
+    {
+        $repo = new PedidoRepository($this->db);
+        $pedido = $repo->porCobranca($idRestaurante, $idCobranca);
+        if ($pedido === null) {
+            return 'nao_encontrado';
+        }
+        if (Numero::centavos($valor) !== Numero::centavos((string) $pedido['total'])) {
+            error_log('[Cardapim] Pix da entrega com valor diferente do pedido ' . $pedido['id']);
+            return 'valor_diferente';
+        }
+        $idPedido = (int) $pedido['id'];
+        $agora = date('Y-m-d H:i:s');
+        $q = $this->db->prepare("UPDATE pedidos SET pagamento_status = 'pago', pago_em = ?, atualizado_em = ?
+            WHERE id = ? AND id_restaurante = ? AND pagamento_status <> 'pago'");
+        $q->execute([$agora, $agora, $idPedido, $idRestaurante]);
+        if ($q->rowCount() !== 1) {
+            return 'repetido';
+        }
+        if ($pedido['status'] === 'cancelado') {
+            $repo->registrarEvento($idRestaurante, $idPedido, 'cancelado', 'Pix da entrega pago depois do cancelamento. Devolva o valor ao cliente pelo Asaas.');
+            TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.pix.apos.cancelar', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
+            return 'pago_apos_cancelar';
+        }
+        $repo->registrarEvento($idRestaurante, $idPedido, (string) $pedido['status'], 'Pix da entrega confirmado' . ($origem === 'webhook' ? ' pelo Asaas.' : '.'));
+        TempoReal::publicar($idRestaurante, 'entregas', 'entrega.atualizada', ['id' => $idPedido, 'pix' => 'pago']);
+        TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $idPedido, 'numero' => (int) $pedido['numero'], 'status' => (string) $pedido['status']]);
+        return 'confirmado';
+    }
+
+    /**
+     * Enquanto o QR da entrega esta na tela do motoboy: confere a cobranca (reserva do aviso). @param array<string,mixed> $pedido
+     * @return string pago | pendente | sem_qr
+     */
+    public function situacaoEntrega(array $pedido): string
+    {
+        if ($pedido['pagamento_status'] === 'pago') {
+            return 'pago';
+        }
+        if (empty($pedido['pix_cobranca_id']) || $pedido['forma_pagamento'] !== 'pix_online') {
+            return 'sem_qr';
+        }
+        $idRest = (int) $pedido['id_restaurante'];
+        if (RateLimiter::padrao(1, 5)->permitir('pix-entrega|' . (int) $pedido['id'])) {
+            try {
+                [$chave, $ambiente] = $this->acesso($idRest);
+                $cobranca = $this->api->cobranca($chave, $ambiente, (string) $pedido['pix_cobranca_id']);
+                if (in_array($cobranca['status'], ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true)
+                    && $this->confirmarEntrega($idRest, (string) $pedido['pix_cobranca_id'], $cobranca['valor'], 'consulta') === 'confirmado') {
+                    return 'pago';
+                }
+            } catch (Throwable) {
+                // O aviso do Asaas ou a proxima consulta confirma.
+            }
+        }
+        return 'pendente';
+    }
+
+    /** Cliente da cobranca no Asaas: o do cardapio (guardado) ou, no pedido feito no caixa, um cadastro so com nome e CPF. @param array<string,mixed> $pedido */
+    private function clienteAsaas(array $pedido, string $cpfDigitado, string $chave, string $ambiente): string
+    {
+        $idRest = (int) $pedido['id_restaurante'];
+        $idCliente = (int) ($pedido['id_cliente'] ?? 0);
+        $cpfSalvo = null;
+        if ($idCliente > 0) {
+            $q = $this->db->prepare('SELECT id_externo FROM asaas_clientes WHERE id_restaurante = ? AND id_cliente = ? AND ambiente = ?');
+            $q->execute([$idRest, $idCliente, $ambiente]);
+            $existente = $q->fetchColumn();
+            if (is_string($existente) && $existente !== '') {
+                return $existente;
+            }
+            $c = $this->db->prepare('SELECT cpf FROM clientes WHERE id = ?');
+            $c->execute([$idCliente]);
+            $cpfSalvo = $c->fetchColumn() ?: null;
+        }
+        $cpf = is_string($cpfSalvo) && $cpfSalvo !== '' ? $cpfSalvo : \Cardapim\Shared\Validation\Documento::normalizarCpf($cpfDigitado);
+        if ($cpf === null || !\Cardapim\Shared\Validation\Documento::cpfValido($cpf)) {
+            throw new IntegracaoErro('CPF_NECESSARIO');
+        }
+        $customer = $this->api->criarCliente($chave, $ambiente, mb_substr((string) ($pedido['cliente_nome'] ?: 'Cliente'), 0, 80), $cpf,
+            (string) ($pedido['cliente_whatsapp'] ?? ''), $idCliente > 0 ? 'cardapim-cliente:' . $idCliente : 'cardapim-entrega:' . (int) $pedido['id']);
+        if ($idCliente > 0) {
+            $this->db->prepare('INSERT INTO asaas_clientes (id_restaurante, id_cliente, ambiente, id_externo) VALUES (?, ?, ?, ?)')
+                ->execute([$idRest, $idCliente, $ambiente, $customer]);
+        }
+        return $customer;
+    }
+
     public function removerCobranca(int $idRestaurante, string $idCobranca): void
     {
         try {

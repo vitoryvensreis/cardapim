@@ -116,6 +116,26 @@ curl -s -b "$cj" -o "$tmp/rast.json" "$base/api/v1/pedidos/$pedido/rastreio"
 esperar "antes de sair, sem rastreio" "$(json "$tmp/rast.json" ativo)" "false"
 esperar "outro cliente nao ve o rastreio (404)" "$(curl -s -o /dev/null -b "$oc" -w '%{http_code}' "$base/api/v1/pedidos/$pedido/rastreio")" "404"
 esperar "sem login nao ve o rastreio (401)" "$(curl -s -o /dev/null -w '%{http_code}' "$base/api/v1/pedidos/$pedido/rastreio")" "401"
+echo "Trocar forma de pagamento no caixa (antes do despacho)"
+banco() { php -r 'require "bootstrap/app.php"; $d = \Cardapim\Core\Database::connect(); $q = $d->prepare($argv[1]); $q->execute(array_slice($argv, 2)); echo implode("|", (array) $q->fetch(PDO::FETCH_NUM));' "$@"; }
+dec() { php -r 'echo number_format($argv[1] / 100, 2, ".", "");' "$1"; }
+rs() { php -r 'echo "R$ " . number_format($argv[1] / 100, 2, ",", ".");' "$1"; }
+escolha_de() { php -r 'if (preg_match("~name=\"escolha\" value=\"(" . preg_quote($argv[2], "~") . "\|\d+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$1" "$2"; }
+rid="$(banco 'SELECT id FROM restaurantes WHERE slug = ?' "$slug")"
+php -r 'require "bootstrap/app.php"; $d = \Cardapim\Core\Database::connect(); $d->prepare("DELETE FROM restaurante_taxas_pagamento WHERE id_restaurante = ?")->execute([$argv[1]]); $d->prepare("INSERT INTO restaurante_taxas_pagamento (id_restaurante, forma, tipo, valor) VALUES (?, ?, ?, ?), (?, ?, ?, ?)")->execute([$argv[1], "credito", "percentual", "3.50", $argv[1], "debito", "fixo", "1.00"]);' "$rid"
+base_troca=$(( $(php -r 'echo (int) round((float) $argv[1] * 100);' "$(banco 'SELECT total FROM pedidos WHERE id = ?' "$pedido")") ))
+curl -s -b "$cx" -o "$tmp/d.html" "$c/delivery/$pedido"
+contem "caixa ve Trocar forma de pagamento" "$tmp/d.html" 'Trocar forma de pagamento'
+esperar "caixa: debito com a taxa fixa no popup" "$(escolha_de "$tmp/d.html" debito)" "debito|100"
+nao_contem "caixa nao gera QR (Pix so registra)" "$tmp/d.html" 'value="pix_online|'
+enviar "$cx" "$c/delivery/$pedido/forma" "$c/historico" "escolha=debito|100" >/dev/null
+esperar "caixa troca para debito" "$(aviso "$cx" "$c/delivery/$pedido")" "Forma trocada para Cartão de débito. Taxa do débito (R\$ 1,00): + R\$ 1,00. Receber $(rs $((base_troca + 100)))."
+esperar "pedido com a taxa do debito" "$(banco 'SELECT forma_pagamento, taxa_pagamento, total, troco_para IS NULL FROM pedidos WHERE id = ?' "$pedido")" "debito|1.00|$(dec $((base_troca + 100)))|1"
+enviar "$cx" "$c/delivery/$pedido/forma" "$c/historico" "escolha=dinheiro|0" "troco_para=50,00" >/dev/null
+esperar "caixa volta para dinheiro com troco" "$(aviso "$cx" "$c/delivery/$pedido")" "Forma trocada para Dinheiro. A taxa de R\$ 1,00 saiu. Receber $(rs "$base_troca")."
+esperar "pedido de novo em dinheiro, sem taxa" "$(banco 'SELECT forma_pagamento, taxa_pagamento, total, troco_para FROM pedidos WHERE id = ?' "$pedido")" "dinheiro|0.00|$(dec "$base_troca")|50.00"
+esperar "linha do tempo registra a troca" "$(banco "SELECT COUNT(*) FROM pedido_eventos WHERE id_pedido = ? AND descricao LIKE 'Forma trocada de %'" "$pedido")" "2"
+
 curl -s -b "$cx" -o "$tmp/d.html" "$c/delivery/$pedido"
 entregador="$(php -r 'if (preg_match("~name=\"entregador\" value=\"(\d+)\"~", file_get_contents($argv[1]), $m)) echo $m[1];' "$tmp/d.html")"
 enviar "$cx" "$c/delivery/$pedido/despachar" "$c/historico" entregador="$entregador" >/dev/null
@@ -149,6 +169,56 @@ contem "pagina do pedido carrega o mapa proprio" "$tmp/pp.html" '/assets/vendor/
 contem "pagina do pedido escolhe a camada do mapa" "$tmp/pp.html" '/assets/js/mapa-base.js'
 nao_contem "sem arquivo do mapa, nao aponta para ele (usa o OpenStreetMap)" "$tmp/pp.html" 'data-mapa-arquivo'
 
+echo "Trocar forma de pagamento pelo motoboy (sem pergunta no Entreguei)"
+curl -s -b "$mj" -o "$tmp/p.html" "$e"
+contem "botao Trocar forma de pagamento na entrega" "$tmp/p.html" "data-trocar-forma-abrir=\"troca-$pedido\""
+tx_cred=$(( (base_troca * 350 + 5000) / 10000 ))
+esperar "credito com a taxa calculada pelo servidor" "$(escolha_de "$tmp/p.html" credito)" "credito|$tx_cred"
+nao_contem "sem Asaas, sem QR na troca" "$tmp/p.html" 'value="pix_online|'
+enviar "$mj" "$e/$pedido/forma" "$e" "escolha=credito|1" >/dev/null
+case "$(aviso "$mj" "$e")" in "A taxa mudou: "*) ok "taxa diferente da tela recusada";; *) falha "taxa diferente da tela aceita";; esac
+esperar "nada mudou com a taxa errada" "$(banco 'SELECT forma_pagamento FROM pedidos WHERE id = ?' "$pedido")" "dinheiro"
+enviar "$mj" "$e/$pedido/forma" "$e" "escolha=credito|$tx_cred" >/dev/null
+esperar "motoboy troca para credito" "$(aviso "$mj" "$e")" "Forma trocada para Cartão de crédito. Taxa do crédito (3,5%): + $(rs "$tx_cred"). Receber $(rs $((base_troca + tx_cred)))."
+contem "card mostra o novo valor a receber" "$tmp/aviso.html" "Receber <strong>$(rs $((base_troca + tx_cred)))</strong>"
+contem "card mostra a taxa incluida" "$tmp/aviso.html" 'Inclui Taxa do crédito (3,5%)'
+esperar "outro usuario nao troca a entrega do motoboy (403)" "$(curl -s -o /dev/null -b "$cx" -w '%{http_code}' -X POST "$e/$pedido/forma")" "403"
+enviar "$mj" "$e/$pedido/forma" "$e" "escolha=dinheiro|0" "troco_para=50,00" >/dev/null
+esperar "motoboy volta para dinheiro (a taxa sai)" "$(aviso "$mj" "$e")" "Forma trocada para Dinheiro. A taxa de $(rs "$tx_cred") saiu. Receber $(rs "$base_troca")."
+php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("DELETE FROM restaurante_taxas_pagamento WHERE id_restaurante = ?")->execute([$argv[1]]);' "$rid"
+
+echo "Pix por QR Code na entrega (motoboy com o Asaas do restaurante)"
+esperar "conectar Asaas (fake)" "$(enviar "$gj" "$g/integracoes/asaas" "$g/integracoes/asaas" ambiente=sandbox chave='$aact_ci_valida_1234567890abcdef' email_avisos=financeiro@example.test | cut -d' ' -f1)" "303"
+curl -s -b "$mj" -o "$tmp/p.html" "$e"
+esperar "com Asaas aparece o Pix por QR Code" "$(escolha_de "$tmp/p.html" pix_online)" "pix_online|0"
+contem "pede o CPF do cliente para o Pix" "$tmp/p.html" 'name="cpf"'
+enviar "$mj" "$e/$pedido/forma" "$e" "escolha=pix_online|0" >/dev/null
+esperar "sem CPF nao gera o Pix" "$(aviso "$mj" "$e")" "Digite o CPF do cliente para gerar o Pix (o banco pede)."
+esperar "sem CPF a forma continua" "$(banco 'SELECT forma_pagamento FROM pedidos WHERE id = ?' "$pedido")" "dinheiro"
+r="$(enviar "$mj" "$e/$pedido/forma" "$e" "escolha=pix_online|0" "cpf=529.982.247-25")"
+esperar "gerar o Pix leva ao QR Code" "$(echo "$r" | cut -d' ' -f2)" "$e/$pedido/pix"
+esperar "tela do QR da entrega" "$(curl -s -o "$tmp/pix.html" -b "$mj" -w '%{http_code}' "$e/$pedido/pix")" "200"
+contem "QR Code do Asaas" "$tmp/pix.html" 'data-qr="000201'
+esperar "pedido em Pix pelo app, ainda pendente" "$(banco 'SELECT forma_pagamento, pagamento_status, status FROM pedidos WHERE id = ?' "$pedido")" "pix_online|pendente|saiu_entrega"
+enviar "$mj" "$e/$pedido/entregue" "$e" >/dev/null
+esperar "Entreguei espera o Pix cair" "$(aviso "$mj" "$e")" "O Pix por QR Code ainda não caiu. Espere a confirmação na tela do Pix ou troque a forma de pagamento."
+contem "card mostra o botao do QR" "$tmp/aviso.html" "entregas/$pedido/pix"
+cobranca="$(curl -s "$fake/_teste/asaas-cobrancas" | php -r '$d = json_decode(stream_get_contents(STDIN), true); foreach ($d as $c) { if ($c["externalReference"] === "entrega:" . $argv[1] && $c["status"] !== "DELETED") { echo $c["id"]; } }' "$pedido")"
+[[ -n "$cobranca" ]] && ok "cobranca com a referencia entrega:{id}" || falha "cobranca da entrega nao criada"
+curl -s "$fake/_teste/asaas-pagar/$cobranca" > "$tmp/pago.json"
+curl -s "$fake/_teste/asaas-webhook" > "$tmp/wh.json"
+tk="$(json "$tmp/wh.json" authToken)"
+caminho_wh="$(json "$tmp/wh.json" url | sed 's~^https\?://[^/]*~~')"
+evento="{\"id\":\"evt_entrega_$pedido\",\"event\":\"PAYMENT_RECEIVED\",\"payment\":{\"id\":\"$cobranca\",\"value\":$(json "$tmp/pago.json" value),\"externalReference\":\"entrega:$pedido\",\"billingType\":\"PIX\"}}"
+esperar "aviso do Asaas da entrega aceito" "$(curl -s -o /dev/null -w '%{http_code}' -H "asaas-access-token: $tk" -H 'Content-Type: application/json' --data "$evento" "$base$caminho_wh")" "200"
+esperar "aviso repetido nao quebra" "$(curl -s -o /dev/null -w '%{http_code}' -H "asaas-access-token: $tk" -H 'Content-Type: application/json' --data "$evento" "$base$caminho_wh")" "200"
+esperar "Pix da entrega confirmado (pedido segue em rota)" "$(banco 'SELECT pagamento_status, status FROM pedidos WHERE id = ?' "$pedido")" "pago|saiu_entrega"
+esperar "tela do QR ve o Pix pago" "$(curl -s -b "$mj" -H 'Accept: application/json' "$e/$pedido/pix" | php -r 'echo json_decode(stream_get_contents(STDIN), true)["status"] ?? "";')" "pago"
+curl -s -b "$mj" -o "$tmp/p.html" "$e"
+contem "card mostra Pix recebido" "$tmp/p.html" 'Pix recebido.'
+nao_contem "pago nao troca mais a forma" "$tmp/p.html" "data-trocar-forma-abrir=\"troca-$pedido\""
+enviar "$gj" "$g/integracoes/asaas/desconectar" "$g/integracoes/asaas" >/dev/null
+
 echo "Confirmar entrega"
 enviar "$mj" "$e/999999/entregue" "$e" >/dev/null
 esperar "nao confirma entrega de outro" "$(aviso "$mj" "$e")" "Esta entrega não está com você."
@@ -161,6 +231,7 @@ if [[ "$m" == "O caixa do restaurante está fechado."* ]]; then
   m="$(aviso "$mj" "$e")"
 fi
 esperar "motoqueiro confirma a entrega" "$m" "Entrega do pedido #$numero confirmada. Bom trabalho!"
+esperar "Pix da entrega entra no caixa como Pix pelo app" "$(banco 'SELECT forma, valor FROM pedido_pagamentos WHERE id_pedido = ?' "$pedido")" "pix_online|$(dec "$base_troca")"
 contem "entrega vai para Feitas hoje" "$tmp/aviso.html" "<strong>#$numero</strong>"
 nao_contem "sai de Com voce agora" "$tmp/aviso.html" "Pedido #$numero</strong>"
 echo "Gerente decide se o entregador ve os valores das taxas"

@@ -84,12 +84,18 @@ $minutos = static function (?string $desde): string {
 
                         <div class="entrega-receber <?= $pago ? 'is-pago' : '' ?>">
                             <?php if ($pago): ?>
-                                <?= Icon::svg('circle-check', 'icon-sm') ?><span><strong>Já pago pelo app.</strong> Não cobre nada.</span>
+                                <?= Icon::svg('circle-check', 'icon-sm') ?><span><strong><?= $p['forma_pagamento'] === 'pix_online' && !empty($p['pix_cobranca_id']) ? 'Pix recebido.' : 'Já pago pelo app.' ?></strong> Não cobre nada.</span>
                             <?php else: ?>
                                 <?= Icon::svg('wallet', 'icon-sm') ?><span>Receber <strong><?= $e($r($total)) ?></strong> · <?= $e(StatusPedido::FORMAS[$p['forma_pagamento']] ?? '') ?>
-                                <?php if ($troco > 0): ?><br>Levar troco: <strong><?= $e($r($troco)) ?></strong> (para <?= $e(Numero::reais((string) $p['troco_para'])) ?>)<?php endif; ?></span>
+                                <?php if ($troco > 0): ?><br>Levar troco: <strong><?= $e($r($troco)) ?></strong> (para <?= $e(Numero::reais((string) $p['troco_para'])) ?>)<?php endif; ?>
+                                <?php if (Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')) > 0): ?><br><small>Inclui <?= $e((string) ($p['taxa_pagamento_rotulo'] ?: 'taxa da forma de pagamento')) ?>: <?= $e(Numero::reais((string) $p['taxa_pagamento'])) ?></small><?php endif; ?></span>
                             <?php endif; ?>
                         </div>
+                        <?php if (!$pago && $p['forma_pagamento'] === 'pix_online' && !empty($p['pix_cobranca_id'])): ?>
+                            <a class="btn btn-wine btn-block" href="/<?= $e(rawurlencode($slug)) ?>/entregas/<?= (int) $p['id'] ?>/pix"><?= Icon::svg('qr-code', 'icon-sm') ?>Mostrar o QR Code do Pix</a>
+                        <?php endif; ?>
+                        <?php if (!empty($p['troca'])): $troca = $p['troca']; $trocaAcao = '/' . rawurlencode($slug) . '/entregas/' . (int) $p['id'] . '/forma';
+                            $trocaId = 'troca-' . (int) $p['id']; $trocaPedeCpf = (bool) ($troca['pede_cpf'] ?? false); require __DIR__ . '/../partials/trocar-forma.php'; endif; ?>
 
                         <?php if (!empty($p['observacao'])): ?><p class="entrega-obs"><?= Icon::svg('pencil', 'icon-sm') ?><?= $e((string) $p['observacao']) ?></p><?php endif; ?>
                         <details class="entrega-itens">

@@ -12,6 +12,7 @@ use Cardapim\Services\Caixa\DeliveryService;
 use Cardapim\Services\Gerencia\Resultado;
 use Cardapim\Services\Ifood\DadosPedidoIfood;
 use Cardapim\Services\Ifood\IfoodConta;
+use Cardapim\Services\Pedidos\TrocarFormaPagamento;
 
 /** Pedidos do cardapio online no caixa: fila, ver o pedido, aceitar, pronto, despachar, entregue e cancelar. */
 final class DeliveryController extends BaseCaixa
@@ -54,6 +55,11 @@ final class DeliveryController extends BaseCaixa
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'gestor' => in_array($this->usuario->cargo, ['gerente', 'adm_master'], true),
             'impressoras' => $this->impressoras('caixa_delivery'),
+            // "Trocar forma de pagamento": so com o pagamento pendente e fora do iFood. No caixa o Pix so registra.
+            'troca' => TrocarFormaPagamento::motivoBloqueio($d['pedido']) === null
+                ? (new TrocarFormaPagamento($this->db, $this->restaurante['id'], $this->usuario))->opcoes($d['pedido']) : null,
+            'pageScripts' => ['js/trocar-forma.js'],
+            'pageStyles' => ['css/trocar-forma.css'],
             'ifood' => $d['pedido']['origem'] === 'ifood' ? [
                 'dados' => DadosPedidoIfood::ler($d['pedido']['ifood_dados'] ?? null),
                 'conectado' => (new IfoodConta($this->db, $this->restaurante['id']))->conectada(),
@@ -72,6 +78,9 @@ final class DeliveryController extends BaseCaixa
             $pedido === null => Resultado::falha('Pedido não encontrado.'),
             in_array($acao, ['aceitar', 'pronto'], true) => $s->avancar($pedido, $acao),
             $acao === 'confirmar-pix' => $s->confirmarPix($pedido),
+            // "Trocar forma de pagamento" (popup): escolha = "forma|taxa vista". No caixa o Pix so registra.
+            $acao === 'forma' => (new TrocarFormaPagamento($this->db, $this->restaurante['id'], $this->usuario))->trocar($pedido,
+                explode('|', $this->post('escolha') . '|')[0], explode('|', $this->post('escolha') . '|')[1], $this->post('troco_para')),
             $acao === 'despachar' => $s->despachar($pedido, self::id($this->post('entregador')) ?? 0),
             $acao === 'concluir' => $s->concluir($pedido),
             $acao === 'cancelar' => $s->cancelar($pedido, $this->post('motivo'), $this->post('motivo_ifood')),

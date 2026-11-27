@@ -1,6 +1,7 @@
 <?php
 /**
  * Pedido do delivery no caixa: o que fazer agora (aceitar, pronto, despachar para o motoqueiro, entregue) e os dados.
+ * $troca (opcional): opcoes do "Trocar forma de pagamento" (pagamento pendente, fora do iFood; no caixa o Pix so registra).
  * Espera: $d (DeliveryService::detalhes), $entregadores, $caixaAberto, $gestor, $base, $csrf, $restaurante,
  * $ifood (null ou ['dados' => ifood_dados, 'conectado' => bool] para pedido do iFood).
  */
@@ -186,6 +187,8 @@ if (!empty($notaFiscal)) {
                 <p><strong><?= $e($formaTexto) ?></strong>
                     <?php if ($p['pagamento_status'] === 'pago'): ?><span class="etiqueta etiqueta-ok"><?= Icon::svg('check') ?>Pago</span><?php endif; ?></p>
                 <p class="pagamento-total"><?= $e(Numero::reais((string) $p['total'])) ?></p>
+                <?php if (Numero::centavos((string) ($p['taxa_pagamento'] ?? '0')) > 0): ?><p class="texto-suave"><?= Icon::svg('percent', 'icon-sm') ?>Inclui <?= $e((string) ($p['taxa_pagamento_rotulo'] ?: 'taxa da forma de pagamento')) ?>: <?= $e(Numero::reais((string) $p['taxa_pagamento'])) ?></p><?php endif; ?>
+                <?php if (!empty($troca)): $trocaAcao = $url . '/forma'; $trocaId = 'troca-forma'; $trocaPedeCpf = false; require __DIR__ . '/../partials/trocar-forma.php'; endif; ?>
                 <?php foreach ($doIfood ? $ifoodDados['cupons'] : [] as $cupom): if (!is_array($cupom)) { continue; } ?>
                     <p class="texto-suave"><?= Icon::svg('ticket-percent', 'icon-sm') ?><?= $e((string) ($cupom['descricao'] ?? 'Cupom')) ?>: <?= $e(Numero::reais(PedidoIfood::decimal((int) ($cupom['valor'] ?? 0)))) ?><?= !empty($cupom['pago_por']) ? ' (pago pelo ' . $e((string) $cupom['pago_por']) . ')' : '' ?></p>
                 <?php endforeach; ?>

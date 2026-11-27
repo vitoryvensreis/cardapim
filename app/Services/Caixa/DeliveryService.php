@@ -236,6 +236,10 @@ final class DeliveryService
         if (self::pixParaConferir($p)) {
             return Resultado::falha('Confira o comprovante do Pix e toque em "Confirmei o Pix, aceitar" antes de concluir.');
         }
+        if ($p['forma_pagamento'] === 'pix_online' && $p['pagamento_status'] !== 'pago') {
+            // QR do Asaas gerado na entrega e ainda nao pago: nao entra no caixa como recebido.
+            return Resultado::falha('O Pix por QR Code ainda não caiu. Espere a confirmação na tela do Pix ou troque a forma de pagamento.');
+        }
         $forma = (string) $p['forma_pagamento'];
         $jaPago = $p['pagamento_status'] === 'pago';
         $caixa = (new CaixaRepository($this->db))->aberto($this->idRestaurante);

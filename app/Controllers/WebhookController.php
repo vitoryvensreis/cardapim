@@ -77,15 +77,18 @@ final class WebhookController
         $pagamento = is_array($dados['payment'] ?? null) ? $dados['payment'] : [];
         $referencia = (string) ($pagamento['externalReference'] ?? '');
         $idCobranca = (string) ($pagamento['id'] ?? '');
-        if (preg_match('/\A(pedido|comanda):\d{1,18}\z/', $referencia) !== 1 || preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $idCobranca) !== 1) {
+        if (preg_match('/\A(pedido|comanda|entrega):\d{1,18}\z/', $referencia) !== 1 || preg_match('/\A[A-Za-z0-9_-]{3,60}\z/', $idCobranca) !== 1) {
             return;
         }
         $valor = number_format((float) ($pagamento['value'] ?? 0), 2, '.', '');
         try {
-            // "comanda:{id}" = Pix com QR Code na mesa (painel do garcom); "pedido:{id}" = Pix do cardapio online.
-            $resultado = str_starts_with($referencia, 'comanda:')
-                ? (new \Cardapim\Services\Garcom\ComandaPix(Database::connect(), $idRestaurante))->confirmar($idCobranca, $valor, 'webhook')
-                : (new \Cardapim\Services\Pedidos\PixPedido(Database::connect()))->confirmar($idRestaurante, $idCobranca, $valor, 'webhook');
+            // "comanda:{id}" = Pix com QR Code na mesa (painel do garcom); "pedido:{id}" = Pix do cardapio online;
+            // "entrega:{id}" = QR gerado pelo motoboy na entrega (o pedido ja esta em rota).
+            $resultado = match (true) {
+                str_starts_with($referencia, 'comanda:') => (new \Cardapim\Services\Garcom\ComandaPix(Database::connect(), $idRestaurante))->confirmar($idCobranca, $valor, 'webhook'),
+                str_starts_with($referencia, 'entrega:') => (new \Cardapim\Services\Pedidos\PixPedido(Database::connect()))->confirmarEntrega($idRestaurante, $idCobranca, $valor, 'webhook'),
+                default => (new \Cardapim\Services\Pedidos\PixPedido(Database::connect()))->confirmar($idRestaurante, $idCobranca, $valor, 'webhook'),
+            };
             if ($resultado !== 'nao_encontrado' && $idExterno !== null) {
                 (new IntegracaoRepository(Database::connect()))->marcarProcessado('asaas', $idExterno);
             }
