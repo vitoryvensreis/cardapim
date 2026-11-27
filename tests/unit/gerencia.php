@@ -89,6 +89,17 @@ $ok(HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11
 $ok(HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11-14 01:30')), 'aberto sabado 01:30 (turno de sexta)');
 $ok(!HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11-14 02:00')), 'fechado sabado 02:00');
 $ok(!HorarioFuncionamento::abertoEm(false, $sexta, new DateTimeImmutable('2026-11-13 17:59')), 'fechado sexta 17:59');
+
+// Numero do dia do pedido: zera quando a loja fecha (fim do expediente), nao a meia-noite.
+$diaOp = static fn (array $t, string $quando, bool $sempre = false): string => HorarioFuncionamento::diaOperacional($sempre, $t, new DateTimeImmutable($quando));
+$ok($diaOp($sexta, '2026-11-13 19:00') === '2026-11-13', 'dia do pedido: sexta 19h e sexta');
+$ok($diaOp($sexta, '2026-11-14 01:30') === '2026-11-13', 'dia do pedido: sabado 01:30 ainda e o expediente de sexta');
+$ok($diaOp($sexta, '2026-11-14 02:00') === '2026-11-14', 'dia do pedido: loja fechou as 02:00, sabado comeca do 1');
+$ok($diaOp($sexta, '2026-11-14 01:30', true) === '2026-11-14', 'dia do pedido: sempre aberto vira a meia-noite');
+$ok($diaOp([], '2026-11-14 00:10') === '2026-11-14', 'dia do pedido: sem horario vira a meia-noite');
+$almocoJantar = [['dia_semana' => 5, 'turno' => 1, 'abre' => '11:00', 'fecha' => '15:00'], ['dia_semana' => 5, 'turno' => 2, 'abre' => '18:00', 'fecha' => '23:00']];
+$ok($diaOp($almocoJantar, '2026-11-13 20:00') === '2026-11-13', 'dia do pedido: almoco e jantar no mesmo dia');
+$ok($diaOp($almocoJantar, '2026-11-14 00:30') === '2026-11-14', 'dia do pedido: turno que fecha antes da meia-noite vira a meia-noite');
 $ok(HorarioFuncionamento::abertoEm(true, [], new DateTimeImmutable('2026-11-13 04:00')), 'sempre aberto');
 $ok(HorarioFuncionamento::resumo(false, $sexta) === 'Dom: fechado; Seg: fechado; Ter: fechado; Qua: fechado; Qui: fechado; Sex: 18:00-02:00; Sáb: fechado', 'resumo');
 

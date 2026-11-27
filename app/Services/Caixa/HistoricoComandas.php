@@ -48,7 +48,8 @@ final class HistoricoComandas
             'canceladas' => " AND p.status = 'cancelado'",
             default => '',
         };
-        $q = $this->db->prepare("SELECT p.id, p.numero, p.tipo, p.status, p.total, p.criado_em, p.concluido_em, p.cancelado_em,
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, 'p');
+        $q = $this->db->prepare("SELECT p.id, $nd AS numero, p.tipo, p.status, p.total, p.criado_em, p.concluido_em, p.cancelado_em,
                 p.comanda_nome, p.cliente_nome, m.numero AS mesa_numero, m.apelido AS mesa_apelido, ua.nome AS aberta_por,
                 (SELECT uf.nome FROM pedido_eventos e JOIN `user` uf ON uf.id = e.id_user
                  WHERE e.id_pedido = p.id AND e.id_restaurante = p.id_restaurante AND e.status IN ('concluido', 'cancelado')

@@ -81,7 +81,8 @@ final class AvisosWhatsApp
             return false;
         }
         try {
-            $q = $db->prepare("SELECT p.id, p.numero, p.tipo, p.status, p.cliente_nome, p.cliente_whatsapp, p.forma_pagamento, p.pagamento_status,
+            $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($db, 'p');
+            $q = $db->prepare("SELECT p.id, $nd AS numero, p.tipo, p.status, p.cliente_nome, p.cliente_whatsapp, p.forma_pagamento, p.pagamento_status,
                     p.total, p.troco_para, p.motivo_cancelamento, r.nome AS restaurante_nome, r.slug AS restaurante_slug, u.nome AS entregador_nome
                 FROM pedidos p JOIN restaurantes r ON r.id = p.id_restaurante LEFT JOIN `user` u ON u.id = p.id_entregador
                 WHERE p.id = ? AND p.id_restaurante = ?");
@@ -128,7 +129,7 @@ final class AvisosWhatsApp
     public static function mensagem(array $p, string $evento, string $link): string
     {
         $loja = '*' . trim((string) $p['restaurante_nome']) . '*';
-        $n = '*#' . (int) $p['numero'] . '*';
+        $n = '*#' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . '*';
         $nome = trim(explode(' ', trim((string) ($p['cliente_nome'] ?? '')))[0] ?? '');
         $retirada = ($p['tipo'] ?? '') === 'retirada';
         switch ($evento) {
@@ -247,7 +248,8 @@ final class AvisosWhatsApp
     public static function recentes(PDO $db, int $idRestaurante, int $limite = 10): array
     {
         try {
-            $q = $db->prepare('SELECT a.evento, a.status, a.tentativas, a.ultimo_erro, a.criado_em, a.enviado_em, p.numero
+            $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($db, 'p');
+            $q = $db->prepare('SELECT a.evento, a.status, a.tentativas, a.ultimo_erro, a.criado_em, a.enviado_em, ' . $nd . ' AS numero
                 FROM pedido_avisos a JOIN pedidos p ON p.id = a.id_pedido AND p.id_restaurante = a.id_restaurante
                 WHERE a.id_restaurante = ? ORDER BY a.id DESC LIMIT ' . max(1, min(50, $limite)));
             $q->execute([$idRestaurante]);

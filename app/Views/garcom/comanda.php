@@ -32,7 +32,7 @@ $desde = $min < 60 ? $min . ' min' : intdiv($min, 60) . 'h' . str_pad((string) (
         <ul class="comanda-resumo-dados">
             <li><?= Icon::svg('utensils', 'icon-sm') ?><?= $qtd ?> <?= $qtd === 1 ? 'item' : 'itens' ?></li>
             <li><?= Icon::svg('clock', 'icon-sm') ?><?= $e($desde) ?></li>
-            <li><?= Icon::svg('hash', 'icon-sm') ?><?= (int) $p['numero'] ?></li>
+            <li><?= Icon::svg('hash', 'icon-sm') ?><?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?></li>
         </ul>
     </section>
 

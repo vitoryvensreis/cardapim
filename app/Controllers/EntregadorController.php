@@ -138,11 +138,11 @@ final class EntregadorController
         }
         if ($situacao !== 'pendente') {
             Session::set('flash', ['tipo' => $situacao === 'pago' ? 'sucesso' : 'erro', 'mensagem' => $situacao === 'pago'
-                ? 'Pix do pedido #' . (int) $p['numero'] . ' recebido. Toque em "Entreguei" quando entregar.' : 'Este Pix não vale mais. Troque a forma de pagamento.']);
+                ? 'Pix do pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' recebido. Toque em "Entreguei" quando entregar.' : 'Este Pix não vale mais. Troque a forma de pagamento.']);
             return Response::redirect($volta, 303);
         }
         return Guard::semCache(Response::html(View::render('entregador/pix', [
-            'pageTitle' => 'Pix do pedido #' . (int) $p['numero'] . ' | ' . marca(),
+            'pageTitle' => 'Pix do pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' | ' . marca(),
             'noIndex' => true,
             'usuario' => $usuario,
             'csrf' => Session::tokenCsrf(),

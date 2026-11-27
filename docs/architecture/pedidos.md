@@ -21,6 +21,27 @@ escolhe a forma de pagamento e acompanha o pedido. O restaurante configura tudo 
 Migrations: `20261110120000_create_entrega_pagamento.php`, `20261110120100_create_pedidos.php`.
 Verificacao: `php database/verify-pedidos.php --verify`.
 
+## Numero do dia do pedido (so visual)
+
+Todo pedido (delivery, retirada, balcao, mesa e iFood, uma sequencia so por restaurante) recebe um numero do dia:
+#1, #2, #3... que **zera quando a loja fecha**. E esse numero que aparece em todas as telas (caixa, fila, cozinha,
+garcom, entregador, gerencia, relatorios), nos cupons impressos, nos avisos de WhatsApp, no tempo real e no
+acompanhamento do cliente. Pedido do iFood mostra o numero do dia e o numero do iFood juntos ("#5 iFood #1234").
+
+- Colunas (migration `20261206100000_numero_do_dia.php`, aplicada com `[cardapim-numero-do-dia]` +
+  `deploy/scripts/apply-numero-do-dia.sh`, conferida por `database/verify-numero-do-dia.php`):
+  `pedidos.dia_operacional` (DATE) e `pedidos.numero_dia` (INT), indice unico
+  `uq_pedidos_numero_dia (id_restaurante, dia_operacional, numero_dia)`. Recurso `Esquema::tem('numero_dia')`.
+- `pedidos.numero` (numero corrido) continua igual por tras: id, links, buscas, fiscal e o identificador do Pix pela
+  chave (`CARDAPIM<numero>`) seguem usando ele. A busca por pedido nos relatorios aceita os dois numeros.
+- Dia do expediente: `HorarioFuncionamento::diaOperacional`. Turno que vira a noite (ex.: sexta 18:00 as 02:00):
+  ate as 02:00 de sabado ainda e sexta; depois que a loja fecha, o proximo pedido e #1. Almoco e jantar no mesmo dia
+  seguem a mesma sequencia. Sem horario cadastrado ou "Sempre aberto": vira a meia-noite.
+- Gravacao: `NumeroDoDia::atribuir` logo depois do INSERT, na mesma transacao e com a linha do restaurante travada
+  (`CriarPedido`, `ComandaService::abrir`, `ImportarPedidoIfood`).
+- Exibicao: `NumeroDoDia::de($pedido)` (linha completa) ou `NumeroDoDia::sql($db, 'p') AS numero` nas consultas com
+  colunas escolhidas. Pedido antigo, sem numero do dia, mostra o numero corrido.
+
 ## Formas de pagamento
 
 - **Pix pelo app** (`pix_online`): so com o Asaas do restaurante conectado. Cobranca Pix na conta do

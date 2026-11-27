@@ -33,7 +33,7 @@ $e = static fn (string $valor): string => htmlspecialchars($valor, ENT_QUOTES | 
             <article aria-labelledby="pedido-<?= (int) $pedido['id'] ?>">
                 <div class="kds-card-topo">
                     <div>
-                        <p class="kds-numero" id="pedido-<?= (int) $pedido['id'] ?>">#<?= (int) $pedido['numero'] ?></p>
+                        <p class="kds-numero" id="pedido-<?= (int) $pedido['id'] ?>">#<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido) ?></p>
                         <p class="kds-local"><?= $e($local) ?><?php if ($mesa && trim((string) ($pedido['comanda_nome'] ?? '')) !== ''): ?> · <?= $e((string) $pedido['comanda_nome']) ?><?php endif; ?></p>
                     </div>
                     <span class="kds-etapa <?= $status === 'recebido' ? 'is-novo' : '' ?>"><?= $e($etapa) ?></span>

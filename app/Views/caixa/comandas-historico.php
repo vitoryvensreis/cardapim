@@ -52,7 +52,7 @@ $r = $lista['resumo'];
                 <li class="lista-item">
                     <span class="lista-principal">
                         <span class="lista-icone" aria-hidden="true"><?= Icon::svg($c['tipo'] === 'mesa' ? 'armchair' : 'store', 'icon-sm') ?></span>
-                        <span class="lista-titulo"><strong><?= $e((string) $c['rotulo']) ?></strong><small>Pedido #<?= (int) $c['numero'] ?> · <?= (int) $c['itens'] ?> <?= (int) $c['itens'] === 1 ? 'item' : 'itens' ?></small></span>
+                        <span class="lista-titulo"><strong><?= $e((string) $c['rotulo']) ?></strong><small>Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($c) ?> · <?= (int) $c['itens'] ?> <?= (int) $c['itens'] === 1 ? 'item' : 'itens' ?></small></span>
                     </span>
                     <span class="lista-dado" data-rotulo="Situação"><span class="etiqueta <?= $classe ?>"><?= Icon::svg($icone) ?><?= $e($texto) ?></span></span>
                     <span class="lista-dado" data-rotulo="Abriu"><?= $e($hora((string) $c['criado_em'])) ?><?= $c['aberta_por'] ? '<small> · ' . $e((string) $c['aberta_por']) . '</small>' : '' ?></span>

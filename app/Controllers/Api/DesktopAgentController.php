@@ -126,7 +126,7 @@ final class DesktopAgentController
                 $resposta[] = [
                     'evento_id' => $cursor, 'id' => (int) $p['id'],
                     ...($porImpressora ? ['impressoras' => []] : []),
-                    'numero' => (int) $p['numero'], 'tipo' => (string) $p['tipo'],
+                    'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'tipo' => (string) $p['tipo'],
                     'status' => (string) $p['status'], 'origem' => (string) $p['origem'],
                     // "Ver no sistema" do aviso: caminho relativo, o agente junta com o endereco oficial.
                     'url' => '/' . rawurlencode((string) $dispositivo['restaurante_slug']) . '/caixa/delivery/' . (int) $p['id'],
@@ -533,7 +533,7 @@ final class DesktopAgentController
                 return Response::json(['erro' => $resultado->mensagem, 'status' => (string) ($atual['status'] ?? '')], 409);
             }
             Auditoria::registrar($autor, 'Pedido aceito pelo Agent', sprintf(
-                'Pedido #%d aceito no Deliveryzim Agent (%s).', (int) $pedido['numero'], (string) $d['nome']
+                'Pedido #%d aceito no Deliveryzim Agent (%s).', \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido), (string) $d['nome']
             ));
             AvisosWhatsApp::agendarEnvio($idRestaurante);
             return Response::json(['ok' => true, 'status' => 'em_preparo', 'mensagem' => $resultado->mensagem]);

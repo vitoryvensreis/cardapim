@@ -123,7 +123,7 @@ if ($v['produto']!=='') {
                         <?php if($detalhe&&!empty($l['combo_nome'])): ?><small>Combo: <?= $e($l['combo_nome']) ?></small><?php endif; ?>
                     </td>
                     <?php if($detalhe): ?>
-                    <td data-label="Pedido / comanda">#<?= $e($l['numero']) ?><small><?= $e(S::comanda($l)) ?> · <?= $e($l['origem']) ?></small></td>
+                    <td data-label="Pedido / comanda">#<?= $e((string) \Cardapim\Services\Pedidos\NumeroDoDia::de($l)) ?><small><?= $e(S::comanda($l)) ?> · <?= $e($l['origem']) ?></small></td>
                     <td data-label="Horário"><?= $e(date('d/m/Y H:i',strtotime($l['momento']))) ?></td>
                     <td data-label="Funcionário"><?= $e($l['funcionario']??'—') ?></td>
                     <?php endif; ?>

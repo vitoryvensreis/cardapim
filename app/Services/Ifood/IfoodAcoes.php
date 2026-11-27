@@ -91,7 +91,8 @@ final class IfoodAcoes
     /** Envia as acoes pendentes do restaurante. @return int quantas foram aceitas pelo iFood */
     public function enviar(PDO $db, IfoodConta $conta, int $limite = 30): int
     {
-        $q = $db->prepare("SELECT a.id, a.id_pedido, a.acao, a.dados, a.tentativas, a.proxima_em, p.ifood_id, p.numero
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($db, 'p');
+        $q = $db->prepare("SELECT a.id, a.id_pedido, a.acao, a.dados, a.tentativas, a.proxima_em, p.ifood_id, $nd AS numero
             FROM ifood_acoes a JOIN pedidos p ON p.id = a.id_pedido AND p.id_restaurante = a.id_restaurante
             WHERE a.id_restaurante = ? AND a.status = 'pendente' ORDER BY a.id LIMIT " . max(1, min(100, $limite)));
         $q->execute([$conta->idRestaurante]);

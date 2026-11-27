@@ -81,7 +81,7 @@ final class ComandaPix
             [$chave, $ambiente] = $this->acesso();
             $cliente = $this->clienteSalao($chave, $ambiente, $nomeRestaurante);
             $idCobranca = $this->api->criarCobrancaPix($chave, $ambiente, $cliente, $valor, date('Y-m-d'),
-                $c['rotulo'] . ' - pedido #' . (int) $c['pedido']['numero'] . ' - ' . $nomeRestaurante, 'comanda:' . $idPedido);
+                $c['rotulo'] . ' - pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($c['pedido']) . ' - ' . $nomeRestaurante, 'comanda:' . $idPedido);
             try {
                 $qr = $this->api->qrCodePix($chave, $ambiente, $idCobranca);
             } catch (IntegracaoErro $erro) {

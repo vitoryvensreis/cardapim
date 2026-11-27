@@ -62,7 +62,7 @@ final class CupomImpressao
         if ($nome !== '') {
             $blocos[] = ['t' => 'centro', 'texto' => ($mesa ? 'Comanda: ' : 'Cliente: ') . $nome];
         }
-        $blocos[] = ['t' => 'destaque', 'texto' => $titulo . ' · Pedido #' . (int) $p['numero']];
+        $blocos[] = ['t' => 'destaque', 'texto' => $titulo . ' · Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p)];
         $blocos[] = ['t' => 'texto', 'texto' => date('d/m/Y H:i') . ($quem !== '' ? ' · ' . $quem : '')];
         $blocos[] = ['t' => 'linha'];
         $blocos = [...$blocos, ...($modo === 'itens_novos' ? array_map([self::class, 'item'], $lista) : self::itensAgrupados($lista))];
@@ -128,7 +128,7 @@ final class CupomImpressao
         $blocos = [
             ['t' => 'centro', 'texto' => $restaurante],
             ['t' => 'linha'],
-            ['t' => 'titulo', 'texto' => 'PEDIDO #' . (int) $p['numero']],
+            ['t' => 'titulo', 'texto' => 'PEDIDO #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p)],
             ['t' => 'centro', 'texto' => ($entrega ? 'ENTREGA' : 'RETIRADA') . (($p['origem'] ?? '') === 'ifood' ? ' · iFood' . (!empty($p['ifood_display_id']) ? ' #' . $p['ifood_display_id'] : '') : '')],
             ['t' => 'texto', 'texto' => 'Feito em ' . date('d/m/Y H:i', (int) strtotime((string) $p['criado_em']))],
             ['t' => 'linha'],
@@ -150,7 +150,7 @@ final class CupomImpressao
             $blocos[] = ['t' => 'linha'];
         }
         $blocos = [...$blocos, ...self::resumoPedido($p)];
-        return ['titulo' => 'Pedido #' . (int) $p['numero'], 'blocos' => $blocos];
+        return ['titulo' => 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'blocos' => $blocos];
     }
 
     /**
@@ -379,7 +379,7 @@ final class CupomImpressao
         return [
             'titulo' => $mesa ? mb_strtoupper((string) $c['rotulo_mesa']) : 'BALCÃO',
             'linha' => $nome !== '' ? ($mesa ? 'Comanda: ' : 'Cliente: ') . $nome : '',
-            'detalhe' => 'Pedido #' . (int) $p['numero'],
+            'detalhe' => 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p),
             'observacao' => (string) ($p['observacao'] ?? ''),
         ];
     }
@@ -393,7 +393,7 @@ final class CupomImpressao
     {
         $ifood = ($p['origem'] ?? '') === 'ifood';
         return [
-            'titulo' => 'PEDIDO #' . (int) $p['numero'],
+            'titulo' => 'PEDIDO #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p),
             'linha' => ($p['tipo'] === 'entrega' ? 'ENTREGA' : 'RETIRADA') . ($ifood ? ' · iFood' . (!empty($p['ifood_display_id']) ? ' #' . $p['ifood_display_id'] : '') : '')
                 . (StatusPedido::doCaixa($p) ? ' · FEITO NO CAIXA' : ''),
             'detalhe' => trim((string) ($p['cliente_nome'] ?? '')) !== '' ? 'Cliente: ' . trim((string) $p['cliente_nome']) : 'Delivery',

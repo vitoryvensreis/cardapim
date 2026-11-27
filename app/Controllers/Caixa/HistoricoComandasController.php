@@ -34,7 +34,7 @@ final class HistoricoComandasController extends BaseCaixa
         if ($d === null) {
             return $this->voltar($this->url('comandas'), 'erro', 'Comanda não encontrada.');
         }
-        return $this->tela('caixa/comandas-historico-ver', 'comandas', $d['rotulo'] . ' · Pedido #' . (int) $d['pedido']['numero'], ['d' => $d,
+        return $this->tela('caixa/comandas-historico-ver', 'comandas', $d['rotulo'] . ' · Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($d['pedido']), ['d' => $d,
             'notaFiscal' => \Cardapim\Services\Fiscal\FiscalEmissao::situacao($this->db, $this->restaurante['id'], (int) $d['pedido']['id'])]);
     }
 }

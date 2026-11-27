@@ -43,7 +43,7 @@ $tempo = static function (string $desde): string {
                         <ul class="delivery-cartoes">
                             <?php foreach ($porStatus[$status] as $p): ?>
                                 <li><a class="delivery-cartao" href="<?= $e($base . '/delivery/' . (int) $p['id']) ?>">
-                                    <span class="delivery-linha"><strong>#<?= (int) $p['numero'] ?><?php if (($p['origem'] ?? '') === 'ifood'): ?> <span class="selo-ifood">iFood<?= $p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '' ?></span><?php endif; ?><?php if (\Cardapim\Services\Pedidos\StatusPedido::doCaixa($p)): ?> <span class="selo-ifood selo-caixa">Caixa</span><?php endif; ?><?php if (\Cardapim\Services\Caixa\DeliveryService::pixParaConferir($p)): ?> <span class="selo-ifood selo-pix">Conferir Pix</span><?php endif; ?></strong><span><?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $p['criado_em'])) ?></span></span>
+                                    <span class="delivery-linha"><strong>#<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?><?php if (($p['origem'] ?? '') === 'ifood'): ?> <span class="selo-ifood">iFood<?= $p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '' ?></span><?php endif; ?><?php if (\Cardapim\Services\Pedidos\StatusPedido::doCaixa($p)): ?> <span class="selo-ifood selo-caixa">Caixa</span><?php endif; ?><?php if (\Cardapim\Services\Caixa\DeliveryService::pixParaConferir($p)): ?> <span class="selo-ifood selo-pix">Conferir Pix</span><?php endif; ?></strong><span><?= Icon::svg('clock', 'icon-sm') ?><?= $e($tempo((string) $p['criado_em'])) ?></span></span>
                                     <span class="delivery-linha"><span><?= $e((string) ($p['cliente_nome'] ?? 'Cliente')) ?></span><strong><?= $e(Numero::reais((string) $p['total'])) ?></strong></span>
                                     <span class="delivery-linha delivery-sub">
                                         <span><?= $p['tipo'] === 'entrega' ? Icon::svg('map-pin', 'icon-sm') . $e((string) ($p['entrega_bairro'] ?? 'Entrega')) : Icon::svg('store', 'icon-sm') . 'Retirada' ?></span>
@@ -64,7 +64,7 @@ $tempo = static function (string $desde): string {
             <div class="bloco-cabecalho"><h2 id="titulo-recentes"><?= Icon::svg('rotate-ccw-clock') ?>Concluídos e cancelados agora há pouco</h2></div>
             <ul class="caixa-linhas">
                 <?php foreach ($recentes as $p): ?>
-                    <li><span><a href="<?= $e($base . '/delivery/' . (int) $p['id']) ?>"><strong>#<?= (int) $p['numero'] ?></strong> <?= $e((string) ($p['cliente_nome'] ?? '')) ?></a>
+                    <li><span><a href="<?= $e($base . '/delivery/' . (int) $p['id']) ?>"><strong>#<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?></strong> <?= $e((string) ($p['cliente_nome'] ?? '')) ?></a>
                         <small><?= $p['status'] === 'concluido' ? 'Concluído ' . $e(date('H:i', (int) strtotime((string) $p['concluido_em']))) . (trim((string) $p['entregador']) !== '' ? ' · ' . $e((string) $p['entregador']) : '') : 'Cancelado ' . $e(date('H:i', (int) strtotime((string) $p['cancelado_em']))) ?></small></span>
                         <span class="caixa-valor<?= $p['status'] === 'cancelado' ? ' texto-riscado' : '' ?>"><?= $e(Numero::reais((string) $p['total'])) ?></span></li>
                 <?php endforeach; ?>

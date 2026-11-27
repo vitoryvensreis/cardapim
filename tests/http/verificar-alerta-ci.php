@@ -18,7 +18,8 @@ if ($eventos === []) {
     fwrite(STDERR, "Nenhum evento pedido.novo na Outbox: o aviso de pedido novo nunca acenderia.\n");
     exit(1);
 }
-$confere = $db->prepare('SELECT numero FROM pedidos WHERE id = ? AND id_restaurante = ?');
+// O aviso mostra o numero do dia (so visual, zera quando a loja fecha).
+$confere = $db->prepare('SELECT COALESCE(numero_dia, numero) FROM pedidos WHERE id = ? AND id_restaurante = ?');
 foreach ($eventos as $e) {
     $d = json_decode((string) $e['dados'], true);
     if (!is_array($d) || !is_int($d['id'] ?? null) || !is_int($d['numero'] ?? null)) {

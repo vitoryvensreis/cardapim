@@ -67,7 +67,7 @@ final class PixChavePedido
             (new PedidoRepository($db))->registrarEvento($idRest, $idPedido, 'recebido',
                 'Cliente enviou o comprovante do Pix pelo WhatsApp. Confira no app do banco antes de aceitar.', null, (int) $pedido['id_cliente']);
             AvisosWhatsApp::enfileirar($db, $idRest, $idPedido, 'recebido');
-            TempoReal::registrar($db, $idRest, 'pedidos', 'pedido.novo', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
+            TempoReal::registrar($db, $idRest, 'pedidos', 'pedido.novo', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido)]);
             $db->commit();
             return 'enviado';
         } catch (Throwable $erro) {
@@ -108,7 +108,7 @@ final class PixChavePedido
         }
         $numero = strlen($numero) <= 11 ? '55' . $numero : $numero;
         $nome = trim((string) ($pedido['cliente_nome'] ?? ''));
-        $texto = sprintf('Olá! Segue o comprovante do Pix do pedido #%d, %s%s.', (int) $pedido['numero'], Numero::reais((string) $pedido['total']),
+        $texto = sprintf('Olá! Segue o comprovante do Pix do pedido #%d, %s%s.', \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido), Numero::reais((string) $pedido['total']),
             $nome !== '' ? ', em nome de ' . $nome : '');
         return 'https://wa.me/' . $numero . '?text=' . rawurlencode($texto);
     }

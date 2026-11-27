@@ -24,7 +24,8 @@ final class DadosPedidoIfood
     /** @param callable(array<string,mixed>):array<string,mixed> $mudar */
     public static function alterar(PDO $db, int $idRestaurante, int $idPedido, callable $mudar, bool $avisarTela = true): void
     {
-        $q = $db->prepare('SELECT numero, status, ifood_dados FROM pedidos WHERE id = ? AND id_restaurante = ?');
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($db, '');
+        $q = $db->prepare('SELECT ' . $nd . ' AS numero, status, ifood_dados FROM pedidos WHERE id = ? AND id_restaurante = ?');
         $q->execute([$idPedido, $idRestaurante]);
         $p = $q->fetch(PDO::FETCH_ASSOC);
         if ($p === false) {
@@ -35,7 +36,7 @@ final class DadosPedidoIfood
         $db->prepare('UPDATE pedidos SET ifood_dados = ?, atualizado_em = ? WHERE id = ? AND id_restaurante = ?')
             ->execute([json_encode($novo, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), date('Y-m-d H:i:s'), $idPedido, $idRestaurante]);
         if ($avisarTela) {
-            TempoReal::registrar($db, $idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $idPedido, 'numero' => (int) $p['numero'], 'status' => (string) $p['status']]);
+            TempoReal::registrar($db, $idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => (string) $p['status']]);
         }
     }
 

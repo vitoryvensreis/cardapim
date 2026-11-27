@@ -25,7 +25,7 @@ $taxas = is_array($c['taxas'] ?? null) ? $c['taxas'] : [];
     <header class="painel-cabecalho">
         <div>
             <h1>Receber · <?= $e($c['rotulo']) ?></h1>
-            <p>Pedido #<?= (int) $p['numero'] ?>. Pode receber em mais de uma forma (parte no cartão, parte no dinheiro).</p>
+            <p>Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?>. Pode receber em mais de uma forma (parte no cartão, parte no dinheiro).</p>
         </div>
         <a class="btn btn-outline btn-sm" href="<?= $e($url) ?>"><?= Icon::svg('arrow-left', 'icon-sm') ?>Voltar à conta</a>
     </header>

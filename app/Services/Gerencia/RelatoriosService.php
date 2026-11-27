@@ -61,7 +61,7 @@ final class RelatoriosService
             $row=[FiltrosRelatorios::csvSeguro((string)$l['rotulo']),self::situacao($l['situacao']),
                 Numero::decimalCampo((string)$l['quantidade']),$l['unidade'],Numero::dinheiroCampo((string)$l['total']),$l['pedidos']];
             if ($detalhe) {
-                foreach ([$l['numero'],self::comanda($l),$l['origem'],$l['momento'],$l['funcionario'],$l['combo_nome']] as $campo) {
+                foreach ([\Cardapim\Services\Pedidos\NumeroDoDia::de($l),self::comanda($l),$l['origem'],$l['momento'],$l['funcionario'],$l['combo_nome']] as $campo) {
                     $row[]=FiltrosRelatorios::csvSeguro((string)$campo);
                 }
             }

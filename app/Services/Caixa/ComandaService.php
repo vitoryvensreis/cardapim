@@ -147,7 +147,7 @@ final class ComandaService
             $this->db->rollBack();
             throw $erro;
         }
-        Auditoria::registrar($this->autor, 'Comanda renomeada', 'Pedido #' . $comanda['numero'] . ': "' . ($antes !== '' ? $antes : 'sem nome') . '" -> "' . ($nome !== '' ? $nome : 'sem nome') . '".');
+        Auditoria::registrar($this->autor, 'Comanda renomeada', 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($comanda) . ': "' . ($antes !== '' ? $antes : 'sem nome') . '" -> "' . ($nome !== '' ? $nome : 'sem nome') . '".');
         return Resultado::sucesso($nome !== '' ? 'Comanda agora é de ' . $nome . '.' : 'Nome removido da comanda.');
     }
 
@@ -195,7 +195,7 @@ final class ComandaService
         foreach ((new MesaRepository($this->db))->comandasAbertas($this->idRestaurante, $idMesa) as $i => $c) {
             $lista[] = [
                 'id' => (int) $c['id'],
-                'numero' => (int) $c['numero'],
+                'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($c),
                 'nome' => self::nomeComanda($c['comanda_nome'] ?? null, $i + 1),
                 'tem_nome' => trim((string) ($c['comanda_nome'] ?? '')) !== '',
                 'total' => Numero::centavos((string) $c['total']),
@@ -279,7 +279,8 @@ final class ComandaService
     /** Comandas de balcao abertas (para a tela de mesas). @return list<array<string,mixed>> */
     public function balcoesAbertos(): array
     {
-        $q = $this->db->prepare("SELECT id, numero, cliente_nome, total, criado_em FROM pedidos WHERE id_restaurante = ? AND tipo = 'balcao' AND status = 'aberto' ORDER BY id");
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, '');
+        $q = $this->db->prepare("SELECT id, $nd AS numero, cliente_nome, total, criado_em FROM pedidos WHERE id_restaurante = ? AND tipo = 'balcao' AND status = 'aberto' ORDER BY id");
         $q->execute([$this->idRestaurante]);
         return $q->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -570,7 +571,7 @@ final class ComandaService
             $this->db->rollBack();
             throw $erro;
         }
-        Auditoria::registrar($this->autor, 'Comanda transferida', 'Pedido #' . $comanda['numero'] . ': ' . $origem . ' -> ' . MesaService::rotulo($destino) . '.');
+        Auditoria::registrar($this->autor, 'Comanda transferida', 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($comanda) . ': ' . $origem . ' -> ' . MesaService::rotulo($destino) . '.');
         return Resultado::sucesso('Comanda levada para a ' . MesaService::rotulo($destino) . ($juntou ? ', junto com as outras comandas da mesa.' : '.'));
     }
 
@@ -672,7 +673,7 @@ final class ComandaService
             . ($troco > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco)) . '.' : '');
         if ($concluiu) {
             $fechada = $this->pedidos->buscar($this->idRestaurante, $id) ?? $comanda;
-            Auditoria::registrar($this->autor, 'Conta fechada', sprintf('%s: pedido #%d, total %s%s.', $this->rotulo($comanda), (int) $comanda['numero'],
+            Auditoria::registrar($this->autor, 'Conta fechada', sprintf('%s: pedido #%d, total %s%s.', $this->rotulo($comanda), \Cardapim\Services\Pedidos\NumeroDoDia::de($comanda),
                 Numero::reais((string) $fechada['total']), Numero::centavos((string) ($fechada['taxa_pagamento'] ?? '0')) > 0
                     ? ' (com ' . Numero::reais((string) $fechada['taxa_pagamento']) . ' de taxas de pagamento)' : ''));
             $outras = $comanda['tipo'] === 'mesa' ? count((new MesaRepository($this->db))->comandasAbertas($this->idRestaurante, (int) $comanda['id_mesa'])) : 0;
@@ -729,7 +730,7 @@ final class ComandaService
         (new CancelarPedido($this->db))->cancelar($this->idRestaurante, $id, $motivo, $this->autor->id);
         TempoReal::publicar($this->idRestaurante, 'mesas', 'comanda.fechada', ['id' => $id]);
         Auditoria::registrar($this->autor, 'Comanda cancelada', sprintf('%s: pedido #%d (%s). Motivo: %s. Estoque devolvido.',
-            $this->rotulo($comanda), (int) $comanda['numero'], Numero::reais((string) $comanda['total']), $motivo));
+            $this->rotulo($comanda), \Cardapim\Services\Pedidos\NumeroDoDia::de($comanda), Numero::reais((string) $comanda['total']), $motivo));
         // Ainda tem gente na mesa? Devolve a proxima comanda aberta dela para a tela ir direto para la.
         $proxima = $comanda['tipo'] === 'mesa' ? $this->abertaDaMesa((int) $comanda['id_mesa']) : null;
         return Resultado::sucesso('Comanda cancelada. O estoque dos itens foi devolvido.', $proxima);
@@ -782,6 +783,7 @@ final class ComandaService
                 VALUES (?, ?, NULL, ?, ?, ?, ?, 'aberto', NULL, 'pendente', '0.00', '0.00', ?, '0.00', '0.00', '0.00', ?, ?, ?, ?, ?)")
                 ->execute([$this->idRestaurante, $numero, $this->autor->id, $idMesa, $tipo, $tipo, $servico, $nome, $comandaNome, $chave, $agora, $agora]);
             $id = (int) $this->pedidos->porChave($this->idRestaurante, $chave)['id'];
+            \Cardapim\Services\Pedidos\NumeroDoDia::atribuir($this->db, $this->idRestaurante, $id, $numero);
             $this->pedidos->registrarEvento($this->idRestaurante, $id, 'aberto', ($tipo === 'mesa' ? 'Comanda aberta' . ($comandaNome !== null ? ' para ' . $comandaNome : '') : 'Venda no balcão aberta') . ' por ' . $this->autor->nome . '.', $this->autor->id);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.aberta', ['id' => $id]);
             if ($propria) {

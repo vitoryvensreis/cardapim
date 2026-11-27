@@ -154,7 +154,7 @@ final class TrocarFormaPagamento
             $texto = sprintf('Forma trocada de %s para %s%s, por %s.', $deRotulo, $paraRotulo,
                 $taxa > 0 ? ', taxa ' . Numero::reais(self::dec($taxa)) : '', trim($this->autor->nome . ' ' . $this->autor->sobrenome));
             (new PedidoRepository($this->db))->registrarEvento($this->idRestaurante, $id, (string) $p['status'], $texto, $this->autor->id);
-            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => (int) $p['numero'], 'status' => (string) $p['status']]);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => (string) $p['status']]);
             $this->db->commit();
         } catch (Throwable $erro) {
             if ($this->db->inTransaction()) {
@@ -166,7 +166,7 @@ final class TrocarFormaPagamento
             (new PixPedido($this->db))->removerCobranca($this->idRestaurante, $cobrancaAntiga);
         }
         TempoReal::publicar($this->idRestaurante, 'entregas', 'entrega.atualizada', ['id' => $id]);
-        Auditoria::registrar($this->autor, 'Forma de pagamento trocada', sprintf('Pedido #%d: %s Total %s.', (int) $p['numero'], $texto, Numero::reais(self::dec($total))));
+        Auditoria::registrar($this->autor, 'Forma de pagamento trocada', sprintf('Pedido #%d: %s Total %s.', \Cardapim\Services\Pedidos\NumeroDoDia::de($p), $texto, Numero::reais(self::dec($total))));
         $antes = Numero::centavos((string) ($p['taxa_pagamento'] ?? '0'));
         $msg = sprintf('Forma trocada para %s.', $paraRotulo);
         if ($taxa > 0) {

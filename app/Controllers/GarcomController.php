@@ -95,7 +95,7 @@ final class GarcomController
             'podeCancelarComanda' => $this->permissoes()->podeCancelarComanda($this->usuario),
             'podeFecharConta' => $this->permissoes()->podeFecharConta($this->usuario),
             'voltar' => $this->url(),
-            'subtitulo' => 'Pedido #' . (int) $c['pedido']['numero'],
+            'subtitulo' => 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($c['pedido']),
         ]);
     }
 
@@ -294,7 +294,7 @@ final class GarcomController
             'erros' => is_array($erros) ? $erros : [],
             'enviado' => is_array($enviado) ? $enviado : [],
             'voltar' => $c['aberta'] ? $this->url('comandas/' . (int) $c['pedido']['id']) : $this->url(),
-            'subtitulo' => $c['aberta'] ? 'Fechar conta' : 'Pedido #' . (int) $c['pedido']['numero'],
+            'subtitulo' => $c['aberta'] ? 'Fechar conta' : 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($c['pedido']),
         ]);
     }
 
