@@ -3,7 +3,7 @@
  * Pedido do delivery no caixa: o que fazer agora (aceitar, pronto, despachar para o motoqueiro, entregue) e os dados.
  * $troca (opcional): opcoes do "Trocar forma de pagamento" (pagamento pendente, fora do iFood; no caixa o Pix so registra).
  * Espera: $d (DeliveryService::detalhes), $entregadores, $caixaAberto, $gestor, $base, $csrf, $restaurante,
- * $voltar (DeliveryService::opcaoVoltar: "Voltar para ..." ou o motivo de nao poder voltar),
+ * $voltarEtapa (DeliveryService::opcaoVoltar: "Voltar para ..." ou o motivo de nao poder voltar),
  * $ifood (null ou ['dados' => ifood_dados, 'conectado' => bool] para pedido do iFood).
  */
 use Cardapim\Core\Icon;
@@ -72,20 +72,20 @@ if (!empty($notaFiscal)) {
         </ol>
     <?php endif; ?>
 
-    <?php if (!empty($voltar)): ?>
+    <?php if (!empty($voltarEtapa)): ?>
         <div class="etapa-voltar">
-            <?php if ($voltar['bloqueio'] === null): ?>
+            <?php if ($voltarEtapa['bloqueio'] === null): ?>
                 <form method="post" action="<?= $e($url . '/voltar') ?>" class="etapa-voltar-form"
-                      data-confirm="<?= $e((string) ($voltar['aviso'] ?? 'O pedido volta uma etapa. Você pode avançar de novo depois.')) ?>"
-                      data-confirm-titulo="Voltar o pedido #<?= (int) $p['numero'] ?> para <?= $e($voltar['rotulo']) ?>?"
+                      data-confirm="<?= $e((string) ($voltarEtapa['aviso'] ?? 'O pedido volta uma etapa. Você pode avançar de novo depois.')) ?>"
+                      data-confirm-titulo="Voltar o pedido #<?= (int) $p['numero'] ?> para <?= $e($voltarEtapa['rotulo']) ?>?"
                       data-confirm-acao="Voltar etapa"<?= $status === 'concluido' ? ' data-confirm-perigo="1"' : '' ?>>
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <label class="sr-only" for="motivo-voltar">Motivo para voltar (opcional, só a equipe vê)</label>
                     <input id="motivo-voltar" name="motivo" maxlength="140" autocomplete="off" placeholder="Motivo (opcional)">
-                    <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('undo-2', 'icon-sm') ?>Voltar para <?= $e($voltar['rotulo']) ?></button>
+                    <button class="btn btn-outline btn-sm" type="submit"><?= Icon::svg('undo-2', 'icon-sm') ?>Voltar para <?= $e($voltarEtapa['rotulo']) ?></button>
                 </form>
             <?php else: ?>
-                <p class="etapa-voltar-bloqueio texto-suave"><?= Icon::svg('lock', 'icon-sm') ?><?= $e($voltar['bloqueio']) ?></p>
+                <p class="etapa-voltar-bloqueio texto-suave"><?= Icon::svg('lock', 'icon-sm') ?><?= $e($voltarEtapa['bloqueio']) ?></p>
             <?php endif; ?>
         </div>
     <?php endif; ?>
