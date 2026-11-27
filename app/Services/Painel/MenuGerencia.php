@@ -76,6 +76,13 @@ final class MenuGerencia
             'descricao' => 'Cliente que volta ganha desconto.',
             'planejado' => ['Ligar e desligar o programa', 'Quantos pedidos para ganhar', 'Desconto em % ou valor fixo'],
         ],
+        'popup' => [
+            'titulo' => 'Popup do cardápio',
+            'rotulo' => 'Popup do cardápio',
+            'icone' => 'sparkles',
+            'descricao' => 'Banner ou aviso que abre quando o cliente entra no seu link de pedidos.',
+            'planejado' => [],
+        ],
         'perfil' => [
             'titulo' => 'Perfil do restaurante',
             'rotulo' => 'Perfil',
@@ -125,7 +132,7 @@ final class MenuGerencia
         '' => ['visao-geral'],
         'Operação' => ['@caixa', 'cozinha'],
         'Gestão' => ['estoque', 'equipe', 'financeiro', 'fiscal'],
-        'Clientes' => ['cupons', 'fidelidade'],
+        'Clientes' => ['cupons', 'fidelidade', 'popup'],
         'Restaurante' => ['perfil', 'entrega-pagamento', 'integracoes', 'assinatura'],
         'Conta' => ['minha-conta', 'suporte'],
     ];

@@ -68,6 +68,8 @@ final class RestauranteController
             'categorias' => $menu['categorias'],
             'totalProdutos' => $menu['total'],
             'info' => $info,
+            // Popup do cardapio (null = nao mostrar; nunca derruba a pagina).
+            'popup' => \Cardapim\Services\Gerencia\PopupService::paraCardapio(Database::connect(), (int) $restaurante['id']),
         ], 'layouts/cardapio'))->comCabecalhos(['Cache-Control' => 'no-cache']);
     }
 
