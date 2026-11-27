@@ -167,7 +167,7 @@ esperar "taxa invalida recusada (422)" "$(enviar "$gj" "$g/entrega-pagamento" ac
 contem "erro da taxa na tela" "$tmp/resp.html" 'A porcentagem precisa ser de 0,01% a 20%.'
 esperar "salvar 10% no credito e R\$ 1,50 no debito" "$(enviar "$gj" "$g/entrega-pagamento" aceita_entrega=1 aceita_retirada=1 pag_pix_entrega=1 pag_debito=1 pag_credito=1 pag_dinheiro=1 taxas_enviado=1 'taxa_tipo[credito]=percentual' 'taxa_valor[credito]=10' 'taxa_tipo[debito]=fixo' 'taxa_valor[debito]=1,50' 'taxa_tipo[dinheiro]=fixo' 'taxa_valor[dinheiro]=9' | cut -d' ' -f1)" "303"
 curl -s -b "$gj" "$g/entrega-pagamento" -o "$tmp/aba.html"
-contem "aba mostra a taxa salva" "$tmp/aba.html" 'name="taxa_valor[credito]" value="10"'
+contem "aba mostra a taxa salva" "$tmp/aba.html" 'id="taxa-credito-valor" name="taxa_valor.credito." value="10"'
 contem "dinheiro nao tem campo de taxa" "$tmp/aba.html" 'Dinheiro nunca tem taxa'
 curl -s "$base/$slug/finalizar" -o "$tmp/f.html"
 contem "checkout mostra a taxa do credito" "$tmp/f.html" '+ 10%'
