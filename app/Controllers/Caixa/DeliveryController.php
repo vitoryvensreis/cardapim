@@ -71,6 +71,7 @@ final class DeliveryController extends BaseCaixa
         $res = match (true) {
             $pedido === null => Resultado::falha('Pedido não encontrado.'),
             in_array($acao, ['aceitar', 'pronto'], true) => $s->avancar($pedido, $acao),
+            $acao === 'confirmar-pix' => $s->confirmarPix($pedido),
             $acao === 'despachar' => $s->despachar($pedido, self::id($this->post('entregador')) ?? 0),
             $acao === 'concluir' => $s->concluir($pedido),
             $acao === 'cancelar' => $s->cancelar($pedido, $this->post('motivo'), $this->post('motivo_ifood')),

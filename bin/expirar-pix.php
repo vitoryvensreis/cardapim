@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 // Cancela cobrancas Pix de pedidos online vencidas ha 60 minutos.
+// Pix pela chave do restaurante (pix_comprovante): sem comprovante enviado no prazo, cancela e devolve o estoque.
 // Cron (usuario do site): * * * * * php8.4 /home/<usuario>/apps/cardapim/current/bin/expirar-pix.php
 // Consulta o Asaas primeiro: se pago, confirma; se pendente, remove no Asaas e cancela localmente.
 // Uma falha de API deixa o pedido pendente para a proxima rodada, sem perder o controle financeiro.
@@ -13,6 +14,7 @@ if (PHP_SAPI !== 'cli') {
 require dirname(__DIR__) . '/bootstrap/app.php';
 
 use Cardapim\Core\Database;
+use Cardapim\Services\Pedidos\PixChavePedido;
 use Cardapim\Services\Pedidos\PixPedido;
 
 // Impede sobreposicao entre rodadas, inclusive se o Asaas estiver lento.
@@ -55,6 +57,20 @@ try {
                 $idRestaurante, $idPedido, get_class($erro)));
         }
     }
+    // Pix pela chave: nao ha cobranca externa, so o prazo para enviar o comprovante.
+    $chaves = $db->prepare("SELECT id, id_restaurante FROM pedidos
+        WHERE forma_pagamento = 'pix_comprovante' AND status = 'aguardando_pagamento' AND pix_expira_em IS NOT NULL AND pix_expira_em <= ?
+        ORDER BY id ASC LIMIT 200");
+    $chaves->execute([date('Y-m-d H:i:s')]);
+    foreach ($chaves->fetchAll(PDO::FETCH_ASSOC) as $pedido) {
+        try {
+            $contagem[PixChavePedido::expirar($db, (int) $pedido['id_restaurante'], (int) $pedido['id'])]++;
+        } catch (Throwable $erro) {
+            $erros++;
+            error_log(sprintf('[Cardapim] Expiracao do Pix pela chave falhou: restaurante %d pedido %d (%s).',
+                (int) $pedido['id_restaurante'], (int) $pedido['id'], get_class($erro)));
+        }
+    }
     // A pasta storage/cache e compartilhada entre releases na VPS.
     if (!is_dir(dirname($cursorArquivo))) {
         mkdir(dirname($cursorArquivo), 0700, true);
@@ -64,7 +80,7 @@ try {
     }
     if (array_sum($contagem) > 0 || $erros > 0) {
         echo date('Y-m-d H:i:s') . sprintf(
-            ' Pix online: %d cancelado(s), %d confirmado(s), %d ignorado(s), %d erro(s).' . "\n",
+            ' Pix: %d cancelado(s), %d confirmado(s), %d ignorado(s), %d erro(s).' . "\n",
             $contagem['cancelado'], $contagem['confirmado'], $contagem['ignorado'], $erros
         );
     }

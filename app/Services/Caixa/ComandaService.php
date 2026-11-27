@@ -581,7 +581,11 @@ final class ComandaService
      * trocada no meio), nada e gravado e a mensagem mostra a taxa certa para o caixa cobrar e confirmar.
      * Quando a conta fica paga, a comanda e concluida (a mesa fica livre se nao houver outra comanda nela).
      */
-    public function pagar(int $id, string $forma, string $valorTexto, string $recebidoTexto, string $taxaVistaTexto = ''): Resultado
+    /**
+     * Recebe um pagamento da conta. $regraTaxa = 'pix_chave' quando o garcom confirma o Pix pela chave do restaurante
+     * (o pagamento entra como Pix, mas a taxa e a do Pix pela chave).
+     */
+    public function pagar(int $id, string $forma, string $valorTexto, string $recebidoTexto, string $taxaVistaTexto = '', string $regraTaxa = ''): Resultado
     {
         $comanda = $this->aberta($id);
         if ($comanda instanceof Resultado) {
@@ -623,7 +627,8 @@ final class ComandaService
         if ($troco > 100_000) {
             return Resultado::falha('Troco muito alto. Confira o valor recebido.', ['recebido' => 'Confira o valor recebido.']);
         }
-        $taxa = $forma === 'dinheiro' ? ['centavos' => 0, 'rotulo' => null] : TaxaPagamento::daConta($this->regrasTaxa(), $forma, $centavos);
+        $taxa = $forma === 'dinheiro' ? ['centavos' => 0, 'rotulo' => null]
+            : TaxaPagamento::daConta($this->regrasTaxa(), $forma === 'pix' && $regraTaxa === 'pix_chave' ? 'pix_chave' : $forma, $centavos);
         $aviso = self::conferirTaxa($forma, $centavos, $taxa['centavos'], $taxaVistaTexto);
         if ($aviso !== null) {
             return $aviso;

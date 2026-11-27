@@ -30,7 +30,7 @@ use Throwable;
  */
 final class CriarPedido
 {
-    private const FORMAS = ['pix_online' => 'pag_pix_online', 'pix_entrega' => 'pag_pix_entrega', 'debito' => 'pag_debito', 'credito' => 'pag_credito', 'dinheiro' => 'pag_dinheiro'];
+    private const FORMAS = ['pix_online' => 'pag_pix_online', 'pix_comprovante' => 'pag_pix_comprovante', 'pix_entrega' => 'pag_pix_entrega', 'debito' => 'pag_debito', 'credito' => 'pag_credito', 'dinheiro' => 'pag_dinheiro'];
     private const MAX_LINHAS = 50;
 
     public function __construct(
@@ -72,8 +72,11 @@ final class CriarPedido
         }
         $forma = is_string($e['forma_pagamento'] ?? null) ? $e['forma_pagamento'] : '';
         $pixOnlineAtivo = $config['pag_pix_online'] === 1 && $this->pix->disponivel($idRest);
+        // Pix pela chave do restaurante (com comprovante): so com os dados completos e sem o Asaas ligado.
+        $pixChave = (new EntregaPagamentoRepository($this->db))->pixChave($idRest);
+        $pixChaveAtivo = !$pixOnlineAtivo && $pixChave['ligado'];
         if (!isset(self::FORMAS[$forma]) || $config[self::FORMAS[$forma]] !== 1 || ($forma === 'pix_online' && !$pixOnlineAtivo)
-            || ($forma === 'pix_entrega' && $pixOnlineAtivo)) {
+            || ($forma === 'pix_comprovante' && !$pixChaveAtivo) || ($forma === 'pix_entrega' && ($pixOnlineAtivo || $pixChaveAtivo))) {
             return self::erro(422, 'Escolha uma forma de pagamento.', 'forma_pagamento');
         }
         $info = (new CardapioPublico($this->db))->informacoes($idRest);
@@ -184,7 +187,7 @@ final class CriarPedido
         $limite->permitir('pedido-cliente|' . $idCliente);
         $limite->permitir('pedido-ip|' . $ip);
         $agora = date('Y-m-d H:i:s');
-        $status = $forma === 'pix_online' ? 'aguardando_pagamento' : 'recebido';
+        $status = in_array($forma, ['pix_online', 'pix_comprovante'], true) ? 'aguardando_pagamento' : 'recebido';
         $this->db->beginTransaction();
         try {
             if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
@@ -208,7 +211,8 @@ final class CriarPedido
             // A gerencia usa a mesma trava para salvar configuracao e taxas.
             $configAtual = (new EntregaPagamentoRepository($this->db))->config($idRest);
             if ($configAtual[self::FORMAS[$forma]] !== 1
-                || ($forma === 'pix_entrega' && $configAtual['pag_pix_online'] === 1 && $this->pix->disponivel($idRest))) {
+                || ($forma === 'pix_entrega' && (($configAtual['pag_pix_online'] === 1 && $this->pix->disponivel($idRest)) || $configAtual['pag_pix_comprovante'] === 1))
+                || ($forma === 'pix_comprovante' && !(new EntregaPagamentoRepository($this->db))->pixChave($idRest)['ligado'])) {
                 $this->db->rollBack();
                 return self::erro(409, 'A forma de pagamento mudou. Confira as opções e tente de novo.', 'forma_pagamento');
             }
@@ -298,6 +302,15 @@ final class CriarPedido
 
         $this->lembrarDados($idCliente, $endereco, $cpf, $cliente);
 
+        if ($forma === 'pix_comprovante') {
+            try {
+                PixChavePedido::gerar($this->db, $pedido + ['numero' => $numero], $pixChave);
+            } catch (Throwable $erro) {
+                error_log('[Cardapim] Pix pela chave do pedido ' . $idPedido . ' nao gerado: ' . get_class($erro));
+                (new CancelarPedido($this->db))->cancelar($idRest, $idPedido, 'Não foi possível gerar o Pix.', null, $idCliente);
+                return self::erro(502, 'Não conseguimos gerar o Pix agora. Escolha outra forma de pagamento ou fale com o restaurante.', 'forma_pagamento');
+            }
+        }
         if ($forma === 'pix_online') {
             try {
                 $this->pix->gerar($pedido + ['numero' => $numero], $cliente, (string) $cpf, (string) $restaurante['nome']);

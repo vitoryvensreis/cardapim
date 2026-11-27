@@ -29,7 +29,7 @@ $minutos = static function (string $quando): string {
                 <li>
                     <a class="fila-item <?= $e($classe) ?>" href="/<?= $e(rawurlencode($slug)) ?>/caixa/delivery/<?= (int) $p['id'] ?>" data-fila-id="<?= (int) $p['id'] ?>" data-fila-status="<?= $e((string) $p['status']) ?>">
                         <span class="fila-linha">
-                            <strong>#<?= (int) $p['numero'] ?><?php if (($p['origem'] ?? '') === 'ifood'): ?> <span class="selo-ifood">iFood</span><?php endif; ?><?php if (\Cardapim\Services\Pedidos\StatusPedido::doCaixa($p)): ?> <span class="selo-ifood selo-caixa">Caixa</span><?php endif; ?></strong>
+                            <strong>#<?= (int) $p['numero'] ?><?php if (($p['origem'] ?? '') === 'ifood'): ?> <span class="selo-ifood">iFood</span><?php endif; ?><?php if (\Cardapim\Services\Pedidos\StatusPedido::doCaixa($p)): ?> <span class="selo-ifood selo-caixa">Caixa</span><?php endif; ?><?php if (\Cardapim\Services\Caixa\DeliveryService::pixParaConferir($p)): ?> <span class="selo-ifood selo-pix">Conferir Pix</span><?php endif; ?></strong>
                             <span class="fila-etapa"><?= Icon::svg($icone, 'icon-sm') ?><?= $e($rotulo) ?></span>
                         </span>
                         <span class="fila-linha fila-sub">

@@ -40,6 +40,10 @@ if ($doCaixa && $p['pagamento_status'] === 'pago') {
     $formaTexto = 'Pago no caixa (' . (['pix_entrega' => 'Pix', 'dinheiro' => 'Dinheiro', 'debito' => 'Débito', 'credito' => 'Crédito'][(string) $p['forma_pagamento']] ?? 'pago') . ')';
 }
 $minutos = max(0, (int) floor((time() - (int) strtotime((string) $p['criado_em'])) / 60));
+// Pix pela chave do restaurante: o cliente mandou o comprovante pelo WhatsApp e o caixa confere antes de aceitar.
+$pixConferir = \Cardapim\Services\Caixa\DeliveryService::pixParaConferir($p);
+$whatsCliente = preg_replace('/\D/', '', (string) ($p['cliente_whatsapp'] ?? '')) ?? '';
+$whatsCliente = strlen($whatsCliente) >= 10 ? 'https://wa.me/' . (strlen($whatsCliente) <= 11 ? '55' : '') . $whatsCliente : '';
 if (!empty($notaFiscal)) {
     $pageStyles = [...($pageStyles ?? []), 'css/caixa-fiscal.css'];
     $pageScripts = [...($pageScripts ?? []), 'js/caixa-fiscal.js'];
@@ -78,13 +82,31 @@ if (!empty($notaFiscal)) {
                 <?php endif; ?>
             <?php endif; ?>
             <?php if ($status === 'aguardando_pagamento'): ?>
-                <div class="acao-info"><?= Icon::svg('clock', 'icon-lg') ?><div><strong>Esperando o cliente pagar o Pix</strong><p>Quando o pagamento cair, o pedido vira "Novo" sozinho.</p></div></div>
+                <div class="acao-info"><?= Icon::svg('clock', 'icon-lg') ?><div><strong>Esperando o cliente pagar o Pix</strong><p><?= $p['forma_pagamento'] === 'pix_comprovante'
+                    ? 'Quando o cliente enviar o comprovante, o pedido vira "Novo" para você conferir.' : 'Quando o pagamento cair, o pedido vira "Novo" sozinho.' ?></p></div></div>
             <?php elseif ($status === 'cancelado'): ?>
                 <div class="acao-info is-cancelado"><?= Icon::svg('circle-x', 'icon-lg') ?><div><strong>Pedido cancelado</strong><p><?= $e((string) ($p['motivo_cancelamento'] ?? '')) ?></p></div></div>
             <?php elseif ($status === 'concluido'): ?>
                 <div class="acao-info is-ok"><?= Icon::svg('circle-check', 'icon-lg') ?><div><strong><?= $entrega ? 'Entregue' : 'Retirado' ?> às <?= $e(date('H:i', (int) strtotime((string) $p['concluido_em']))) ?></strong><p><?= $d['entregador'] ? 'Levado por ' . $e($d['entregador']) . '. ' : '' ?>Pagamento registrado no caixa.</p></div></div>
             <?php elseif ($cancelando): ?>
                 <div class="acao-info"><?= Icon::svg('clock', 'icon-lg') ?><div><strong>Cancelamento pedido ao iFood</strong><p>Aguardando a confirmação do iFood. O pedido é cancelado aqui (e o estoque volta) quando o iFood confirmar.</p></div></div>
+            <?php elseif ($pixConferir && $status === 'recebido'): ?>
+                <div class="acao-info acao-pix-chave"><?= Icon::svg('receipt-text', 'icon-lg') ?><div><strong>Pix: conferir comprovante no WhatsApp</strong>
+                    <p>O cliente disse que pagou <?= $e(Numero::reais((string) $p['total'])) ?> pela chave Pix. Confira no app do banco se o valor caiu. O <?= marca_html() ?> não confirma este Pix sozinho.</p></div></div>
+                <form method="post" action="<?= $e($url . '/confirmar-pix') ?>"><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                    <button class="btn btn-primary btn-lg btn-block" type="submit"><?= Icon::svg('circle-check', 'icon-sm') ?>Confirmei o Pix, aceitar</button></form>
+                <?php if ($whatsCliente !== ''): ?>
+                    <a class="btn btn-outline btn-block" href="<?= $e($whatsCliente) ?>" target="_blank" rel="noopener"><?= Icon::svg('message-circle', 'icon-sm') ?>Abrir a conversa com o cliente</a>
+                <?php endif; ?>
+                <details class="conta-mais conta-perigo">
+                    <summary><?= Icon::svg('circle-x', 'icon-sm') ?>Recusar (o Pix não caiu)</summary>
+                    <form method="post" action="<?= $e($url . '/cancelar') ?>" class="conta-ajustes"
+                          data-confirm="O pedido é cancelado, o cliente vê o motivo e o estoque volta." data-confirm-titulo="Recusar o pedido #<?= (int) $p['numero'] ?>?" data-confirm-acao="Recusar pedido" data-confirm-perigo="1">
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <label class="campo-caixa"><span>Motivo (o cliente vê)</span><input name="motivo" required minlength="3" maxlength="140" value="O Pix não foi encontrado na nossa conta."></label>
+                        <button class="btn btn-ghost btn-sm area-remover" type="submit"><?= Icon::svg('circle-x', 'icon-sm') ?>Recusar pedido</button>
+                    </form>
+                </details>
             <?php else: ?>
                 <?php if ($status === 'recebido'): ?>
                     <form method="post" action="<?= $e($url . '/aceitar') ?>"><input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">

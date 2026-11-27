@@ -15,6 +15,7 @@ use Cardapim\Services\Geo\Geocodificador;
 use Cardapim\Services\Pedidos\CheckoutPublico;
 use Cardapim\Services\Pedidos\CriarPedido;
 use Cardapim\Services\Pedidos\Endereco;
+use Cardapim\Services\Pedidos\PixChavePedido;
 use Cardapim\Services\Pedidos\PixPedido;
 use Cardapim\Services\Pedidos\VerificadorEntrega;
 use Cardapim\Shared\Numero;
@@ -227,13 +228,64 @@ final class PedidoClienteController
             }
             $pedido = (new PixPedido($db))->acompanhar($pedido);
             $idRest = (int) $pedido['id_restaurante'];
+            if ($pedido['forma_pagamento'] === 'pix_comprovante' && $pedido['status'] === 'aguardando_pagamento'
+                && !empty($pedido['pix_expira_em']) && strtotime((string) $pedido['pix_expira_em']) <= time()) {
+                PixChavePedido::expirar($db, $idRest, (int) $pedido['id']);
+                $pedido = $repo->doCliente((int) $cliente['id'], (int) $id) ?? $pedido;
+            }
             $q = $db->prepare('SELECT slug FROM restaurantes WHERE id = ?');
             $q->execute([$idRest]);
-            return Response::json(CheckoutPublico::pedidoParaCliente($pedido, $repo->itens($idRest, (int) $pedido['id']), $repo->eventos($idRest, (int) $pedido['id']), (string) $q->fetchColumn()))
+            return Response::json(CheckoutPublico::pedidoParaCliente($pedido, $repo->itens($idRest, (int) $pedido['id']), $repo->eventos($idRest, (int) $pedido['id']), (string) $q->fetchColumn(),
+                $pedido['forma_pagamento'] === 'pix_comprovante' ? PixChavePedido::linkComprovante($db, $pedido) : null))
                 ->comCabecalhos(['Cache-Control' => 'no-store']);
         } catch (Throwable $erro) {
             error_log('[Cardapim] Pedido do cliente indisponivel: ' . get_class($erro));
             return Response::json(['erro' => 'Não foi possível carregar o pedido agora.'], 503);
+        }
+    }
+
+    /**
+     * "Enviar comprovante" do Pix pela chave: so o dono do pedido; repetir nao duplica nada. O pedido vai para o
+     * restaurante conferir. Devolve o link do WhatsApp com a mensagem pronta.
+     */
+    public function comprovante(string $id): Response
+    {
+        if (!Session::csrfValido($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)) {
+            return Response::json(['ok' => false, 'mensagem' => 'Sua sessão expirou. Recarregue a página e tente de novo.'], 419);
+        }
+        $cliente = ClienteSessao::atual();
+        if ($cliente === null) {
+            return Response::json(['ok' => false, 'mensagem' => 'Entre na sua conta para ver o pedido.', 'login' => true], 401);
+        }
+        if (!ctype_digit($id) || strlen($id) > 18) {
+            return Response::json(['ok' => false, 'mensagem' => 'Pedido não encontrado.'], 404);
+        }
+        $limite = \Cardapim\Core\RateLimiter::padrao(20, 3600);
+        if ($limite->excedido('pix-comprovante|' . (int) $cliente['id'])) {
+            return Response::json(['ok' => false, 'mensagem' => 'Muitas tentativas. Aguarde alguns minutos ou fale com o restaurante.'], 429);
+        }
+        $limite->permitir('pix-comprovante|' . (int) $cliente['id']);
+        try {
+            $db = Database::connect();
+            $repo = new PedidoRepository($db);
+            $pedido = $repo->doCliente((int) $cliente['id'], (int) $id);
+            if ($pedido === null) {
+                return Response::json(['ok' => false, 'mensagem' => 'Pedido não encontrado.'], 404);
+            }
+            $resultado = PixChavePedido::comprovante($db, $pedido);
+            if ($resultado === 'expirado') {
+                PixChavePedido::expirar($db, (int) $pedido['id_restaurante'], (int) $pedido['id']);
+                return Response::json(['ok' => false, 'mensagem' => 'O prazo do Pix terminou e o pedido foi cancelado. Faça um novo pedido.'], 409);
+            }
+            if ($resultado === 'invalido') {
+                return Response::json(['ok' => false, 'mensagem' => 'Este pedido não espera comprovante.'], 409);
+            }
+            $atual = $repo->doCliente((int) $cliente['id'], (int) $id) ?? $pedido;
+            return Response::json(['ok' => true, 'whatsapp' => PixChavePedido::linkComprovante($db, $atual),
+                'mensagem' => 'Comprovante enviado. Aguardando o restaurante confirmar.'])->comCabecalhos(['Cache-Control' => 'no-store']);
+        } catch (Throwable $erro) {
+            error_log('[Cardapim] Comprovante do Pix indisponivel: ' . get_class($erro));
+            return Response::json(['ok' => false, 'mensagem' => 'Não foi possível enviar agora. Tente de novo em instantes.'], 503);
         }
     }
 

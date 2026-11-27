@@ -23,13 +23,18 @@ final class CheckoutPublico
         $c = (new EntregaPagamentoRepository($this->db))->config($idRestaurante);
         $info = (new CardapioPublico($this->db))->informacoes($idRestaurante);
         $pixOnline = $c['pag_pix_online'] === 1 && (new PixPedido($this->db))->disponivel($idRestaurante);
+        // Um Pix por vez: Asaas OU chave do restaurante (com comprovante). Qualquer um substitui o Pix na entrega.
+        $pixChave = !$pixOnline && (new EntregaPagamentoRepository($this->db))->pixChave($idRestaurante)['ligado'];
         $formas = [];
         if ($pixOnline) {
             $formas[] = 'pix_online';
         }
+        if ($pixChave) {
+            $formas[] = 'pix_comprovante';
+        }
         foreach (['pix_entrega' => 'pag_pix_entrega', 'debito' => 'pag_debito', 'credito' => 'pag_credito', 'dinheiro' => 'pag_dinheiro'] as $forma => $campo) {
-            // Pix pelo app ligado substitui o Pix na entrega (o cliente nao ve os dois Pix).
-            if ($c[$campo] === 1 && !($forma === 'pix_entrega' && $pixOnline)) {
+            // Pix com QR Code ligado substitui o Pix na entrega (o cliente nao ve os dois Pix).
+            if ($c[$campo] === 1 && !($forma === 'pix_entrega' && ($pixOnline || $pixChave))) {
                 $formas[] = $forma;
             }
         }
@@ -67,8 +72,11 @@ final class CheckoutPublico
         return $max !== null && $max !== $min ? $min . '–' . $max . ' min' : $min . ' min';
     }
 
-    /** Pedido para a tela do cliente (sem dados internos). @param array<string,mixed> $p @param list<array<string,mixed>> $itens @param list<array<string,mixed>> $eventos @return array<string,mixed> */
-    public static function pedidoParaCliente(array $p, array $itens, array $eventos, string $slug): array
+    /**
+     * Pedido para a tela do cliente (sem dados internos). $linkComprovante: WhatsApp do restaurante (Pix pela chave).
+     * @param array<string,mixed> $p @param list<array<string,mixed>> $itens @param list<array<string,mixed>> $eventos @return array<string,mixed>
+     */
+    public static function pedidoParaCliente(array $p, array $itens, array $eventos, string $slug, ?string $linkComprovante = null): array
     {
         $tipo = (string) $p['tipo'];
         $endereco = $tipo === 'entrega' ? trim(implode(', ', array_filter([
@@ -108,6 +116,13 @@ final class CheckoutPublico
             'pix' => $p['status'] === 'aguardando_pagamento' && !empty($p['pix_copia_cola']) ? [
                 'copia_cola' => (string) $p['pix_copia_cola'],
                 'expira_em_segundos' => max(0, strtotime((string) $p['pix_expira_em']) - time()),
+                // app = Asaas (confirma sozinho); chave = Pix pela chave do restaurante (cliente envia o comprovante).
+                'modo' => $p['forma_pagamento'] === 'pix_comprovante' ? 'chave' : 'app',
+            ] : null,
+            'comprovante' => $p['forma_pagamento'] === 'pix_comprovante' && !in_array($p['status'], ['cancelado'], true) ? [
+                'enviado' => !empty($p['comprovante_enviado_em']),
+                'conferido' => $p['pagamento_status'] === 'pago',
+                'whatsapp' => $linkComprovante,
             ] : null,
             'itens' => array_map(static fn (array $i): array => [
                 'nome' => (string) $i['nome'],

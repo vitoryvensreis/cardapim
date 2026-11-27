@@ -15,6 +15,7 @@ use Cardapim\Services\Auditoria;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Geo\Geocodificador;
 use Cardapim\Shared\Numero;
+use Cardapim\Shared\PixCopiaECola;
 use PDO;
 
 /** Aba "Entrega e pagamento": como o restaurante recebe pedidos online, onde entrega e quanto cobra. */
@@ -30,7 +31,14 @@ final class EntregaPagamentoService
     private const ROTULOS = [
         'aceita_entrega' => 'Entrega', 'aceita_retirada' => 'Retirada', 'entrega_minutos_min' => 'Entrega (mín. minutos)',
         'entrega_minutos_max' => 'Entrega (máx. minutos)', 'retirada_minutos' => 'Retirada (minutos)', ...self::FORMAS,
+        'pag_pix_comprovante' => 'Pix pela chave', 'pix_chave_tipo' => 'Tipo da chave Pix', 'pix_chave' => 'Chave Pix',
+        'pix_recebedor' => 'Nome de quem recebe o Pix', 'pix_cidade' => 'Cidade do Pix', 'pix_whatsapp' => 'WhatsApp do comprovante',
     ];
+    /** Aviso fixo da configuracao: a conferencia do Pix pela chave e do restaurante. */
+    public static function avisoPixChave(): string
+    {
+        return 'O ' . marca() . ' não confirma pagamentos feitos pela chave. Confira no app do seu banco antes de aceitar o pedido ou fechar a conta.';
+    }
 
     private readonly EntregaPagamentoRepository $repo;
 
@@ -77,8 +85,21 @@ final class EntregaPagamentoService
         if ($c['entrega_minutos_min'] !== null && $c['entrega_minutos_max'] === null) {
             $c['entrega_minutos_max'] = $c['entrega_minutos_min'];
         }
+        // Pix pela chave (BR Code estatico): so existe depois da migration. Um Pix por vez.
+        $pixChave = null;
+        $comChave = $this->repo->pixChaveDisponivel();
+        $c['pag_pix_comprovante'] = $comChave ? $marcado('pag_pix_comprovante') : 0;
+        if ($comChave && ($e['pix_chave_enviado'] ?? '') === '1') {
+            $pixChave = $this->lerPixChave($e, $c['pag_pix_comprovante'] === 1, $erros);
+        }
+        if ($c['pag_pix_comprovante'] === 1 && $pixChave === null && !$this->repo->pixChave($this->idRestaurante)['pronto']) {
+            $erros['pix_chave'] = 'Preencha a chave Pix para ligar o Pix pela chave.';
+        }
+        if ($c['pag_pix_online'] === 1 && $c['pag_pix_comprovante'] === 1) {
+            $erros['formas'] = 'Você só pode usar um tipo de Pix por vez. Escolha o Pix pelo app (Asaas) ou o Pix pela chave.';
+        }
         $algumModo = $c['aceita_entrega'] === 1 || $c['aceita_retirada'] === 1;
-        $algumaForma = array_sum(array_intersect_key($c, self::FORMAS)) > 0;
+        $algumaForma = array_sum(array_intersect_key($c, self::FORMAS)) + $c['pag_pix_comprovante'] > 0;
         if ($algumModo && !$algumaForma) {
             $erros['formas'] = 'Escolha pelo menos uma forma de pagamento para receber pedidos.';
         }
@@ -100,10 +121,14 @@ final class EntregaPagamentoService
                 }
             }
         }
-        // Com Pix pelo app ligado, o Pix na entrega desliga: o cliente paga o Pix antes, pelo app.
-        $pixEntregaDesligado = $c['pag_pix_online'] === 1 && $c['pag_pix_entrega'] === 1;
-        if ($c['pag_pix_online'] === 1) {
+        // Com Pix por QR Code ligado (Asaas ou chave), o Pix na entrega desliga: o cliente paga o Pix antes, pelo app.
+        $pixQr = $c['pag_pix_online'] === 1 || $c['pag_pix_comprovante'] === 1;
+        $pixEntregaDesligado = $pixQr && $c['pag_pix_entrega'] === 1;
+        if ($pixQr) {
             $c['pag_pix_entrega'] = 0;
+        }
+        if ($pixChave !== null) {
+            $c += $pixChave;
         }
         if ($erros !== []) {
             return Resultado::falha('Confira os campos destacados.', $erros);
@@ -116,6 +141,11 @@ final class EntregaPagamentoService
                 $this->db->prepare('SELECT id FROM restaurantes WHERE id = ? FOR UPDATE')->execute([$this->idRestaurante]);
             }
             $antes = $this->repo->config($this->idRestaurante);
+            if ($pixChave !== null) {
+                $chaveAntes = $this->repo->pixChave($this->idRestaurante);
+                $antes += ['pix_chave_tipo' => $chaveAntes['tipo'] ?: null, 'pix_chave' => $chaveAntes['chave'] ?: null, 'pix_recebedor' => $chaveAntes['recebedor'] ?: null,
+                    'pix_cidade' => $chaveAntes['cidade'] ?: null, 'pix_whatsapp' => $chaveAntes['whatsapp'] ?: null];
+            }
             $taxasAntes = $taxasRepo->regras($this->idRestaurante);
             $this->repo->salvarConfig($this->idRestaurante, $c);
             if ($taxas !== null) {
@@ -153,7 +183,63 @@ final class EntregaPagamentoService
             return Resultado::sucesso('Salvo. Os pedidos pelo cardápio online estão desligados.');
         }
         return Resultado::sucesso('Pronto! Formas de pagamento e modos de pedido salvos.'
-            . ($pixEntregaDesligado ? ' O Pix na entrega foi desligado porque o Pix pelo app está ligado.' : ''));
+            . ($pixEntregaDesligado ? ' O Pix na entrega foi desligado porque o Pix com QR Code está ligado.' : ''));
+    }
+
+    /**
+     * Campos do Pix pela chave. Ligado: tudo obrigatorio. Desligado: guarda o que estiver certo (nada obrigatorio).
+     * @param array<string,mixed> $e @param array<string,string> $erros
+     * @return array<string,string|null>|null
+     */
+    private function lerPixChave(array $e, bool $ligado, array &$erros): ?array
+    {
+        $texto = static fn (string $c): string => is_string($e[$c] ?? null) ? trim($e[$c]) : '';
+        $tipo = $texto('pix_chave_tipo');
+        $chaveTexto = $texto('pix_chave');
+        $recebedor = PixCopiaECola::texto($texto('pix_recebedor'), PixCopiaECola::MAX_NOME);
+        $cidade = PixCopiaECola::texto($texto('pix_cidade'), PixCopiaECola::MAX_CIDADE);
+        $whats = preg_replace('/\D/', '', $texto('pix_whatsapp')) ?? '';
+        $antes = count($erros);
+        $chave = null;
+        if ($chaveTexto !== '' || $ligado) {
+            if (!isset(PixCopiaECola::TIPOS[$tipo])) {
+                $erros['pix_chave_tipo'] = 'Escolha o tipo da chave Pix.';
+            } else {
+                $lida = PixCopiaECola::normalizarChave($tipo, $chaveTexto);
+                $lida['erro'] !== null ? $erros['pix_chave'] = $lida['erro'] : $chave = $lida['chave'];
+            }
+        }
+        if ($ligado && $recebedor === '') {
+            $erros['pix_recebedor'] = 'Digite o nome de quem recebe, como aparece no banco.';
+        }
+        if ($ligado && $cidade === '') {
+            $erros['pix_cidade'] = 'Digite a cidade do restaurante.';
+        }
+        if ($whats !== '' && (strlen($whats) < 10 || strlen($whats) > 13)) {
+            $erros['pix_whatsapp'] = 'Digite o WhatsApp com DDD, como (85) 99999-9999.';
+        }
+        if (count($erros) > $antes) {
+            return null;
+        }
+        return [
+            'pix_chave_tipo' => $chave !== null ? $tipo : null, 'pix_chave' => $chave,
+            'pix_recebedor' => $recebedor !== '' ? $recebedor : null, 'pix_cidade' => $cidade !== '' ? $cidade : null,
+            'pix_whatsapp' => $whats !== '' ? $whats : null,
+        ];
+    }
+
+    /**
+     * "Ver como fica": codigo de R$ 1,00 com os dados digitados, para o dono testar no app do banco antes de ligar.
+     * @param array<string,mixed> $e @return array{codigo:?string,erros:array<string,string>}
+     */
+    public function testarPixChave(array $e): array
+    {
+        $erros = [];
+        $dados = $this->lerPixChave($e, true, $erros);
+        if ($dados === null) {
+            return ['codigo' => null, 'erros' => $erros];
+        }
+        return ['codigo' => PixCopiaECola::gerar((string) $dados['pix_chave'], (string) $dados['pix_recebedor'], (string) $dados['pix_cidade'], 100, 'CARDAPIMTESTE'), 'erros' => []];
     }
 
     /** @param array<string,mixed> $e */

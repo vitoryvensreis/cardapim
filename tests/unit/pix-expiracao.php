@@ -67,7 +67,10 @@ if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
     $ins->execute([3, 1, 'aguardando_pagamento', 'pendente', 'dinheiro', $antigo]);
     $ins->execute([4, 1, 'aguardando_pagamento', 'pendente', 'pix_online', $futuro]);
     $ins->execute([5, 2, 'aguardando_pagamento', 'pendente', 'pix_online', $antigo]);
-    foreach ([1,2,3,4,5] as $id) {
+    // Pix pela chave com o comprovante ja enviado (pedido "recebido"): o prazo nao cancela mais.
+    $ins->execute([6, 1, 'recebido', 'pendente', 'pix_comprovante', $antigo]);
+    $ins->execute([7, 1, 'aguardando_pagamento', 'pendente', 'pix_comprovante', $futuro]);
+    foreach ([1,2,3,4,5,6,7] as $id) {
         $ok(!(new CancelarPedido($db))->cancelar(1, $id, 'Prazo do Pix encerrado.', null, null, true),
             'nao cancela pedido protegido ' . $id);
     }

@@ -54,14 +54,26 @@ $whats = strlen((string) $tel) >= 10 ? 'https://wa.me/55' . $tel : '';
             <h2 id="ap-pix-titulo">Pague com Pix para confirmar</h2>
             <p class="ck-pix-tempo" data-ap-pix-tempo></p>
             <div class="ck-pix-qr" data-ap-pix-qr aria-label="QR Code do Pix" role="img"></div>
+            <p class="ck-pix-valor" data-ap-pix-valor></p>
             <ol class="ck-pix-passos">
                 <li>Abra o app do seu banco e escolha <strong>Pix</strong>.</li>
                 <li>Leia o QR Code ou use <strong>Pix Copia e Cola</strong>.</li>
-                <li>Pronto: a confirmação aparece aqui sozinha.</li>
+                <li data-ap-pix-passo-app>Pronto: a confirmação aparece aqui sozinha.</li>
+                <li data-ap-pix-passo-chave hidden>Depois de pagar, toque em <strong>Enviar comprovante</strong> e mande o comprovante no WhatsApp do restaurante.</li>
             </ol>
             <label class="sr-only" for="ap-pix-codigo">Código Pix copia e cola</label>
             <textarea id="ap-pix-codigo" class="ck-pix-codigo" rows="3" readonly data-ap-pix-codigo></textarea>
             <button class="btn btn-primary btn-block" type="button" data-ap-copiar><?= Icon::svg('copy', 'icon-sm') ?><span data-ap-copiar-texto>Copiar código Pix</span></button>
+            <a class="btn btn-wine btn-block" href="#" target="_blank" rel="noopener" data-ap-comprovante hidden><?= Icon::svg('send', 'icon-sm') ?>Já paguei: enviar comprovante</a>
+        </section>
+
+        <section class="ck-bloco ck-comprovante" data-ap-comprovante-bloco hidden aria-live="polite">
+            <span class="ck-comprovante-icone" aria-hidden="true"><?= Icon::svg('receipt-text') ?></span>
+            <div>
+                <strong>Comprovante enviado</strong>
+                <p>Aguardando o restaurante confirmar o Pix. Assim que confirmar, o preparo começa.</p>
+                <a class="link-acao" href="#" target="_blank" rel="noopener" data-ap-whats-de-novo hidden><?= Icon::svg('message-circle', 'icon-sm') ?>Abrir o WhatsApp de novo</a>
+            </div>
         </section>
 
         <section class="ck-bloco" data-ap-etapas-bloco aria-label="Andamento do pedido">

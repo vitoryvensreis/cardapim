@@ -20,6 +20,7 @@ final class StatusPedido
 
     public const FORMAS = [
         'pix_online' => 'Pix pelo app',
+        'pix_comprovante' => 'Pix pela chave',
         'pix_entrega' => 'Pix na entrega',
         'debito' => 'Cartão de débito',
         'credito' => 'Cartão de crédito',

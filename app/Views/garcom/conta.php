@@ -4,7 +4,8 @@
  * Pix com QR Code aparece quando o restaurante tem o Asaas conectado. Conta paga = "Pago, mesa liberada".
  * Taxa por forma de pagamento (se cadastrada): aparece ao lado da forma, no bloco "Cobrar do cliente" e no valor do QR.
  * So quem pode fechar a conta recebe; sem a permissao, a tela so mostra os valores (regra do gerente, sem mudanca).
- * Espera: $c, $caixaAberto, $pixDisponivel, $podeFecharConta, $troco (flash), $erros, $enviado, $base, $csrf.
+ * Pix pela chave (um Pix por vez): QR do BR Code com a chave do restaurante; o garcom confere no banco e toca em "Recebi o Pix".
+ * Espera: $c, $caixaAberto, $pixDisponivel, $pixChaveDisponivel, $podeFecharConta, $troco (flash), $erros, $enviado, $base, $csrf.
  */
 use Cardapim\Controllers\GarcomController;
 use Cardapim\Core\Icon;
@@ -17,9 +18,12 @@ $r = static fn (int $centavos): string => GarcomController::reais($centavos);
 $p = $c['pedido'];
 $url = $base . '/comandas/' . (int) $p['id'];
 $servicoLigado = $c['servico'] > 0 || (float) $p['servico_percentual'] > 0;
-$formaEscolhida = (string) ($enviado['forma'] ?? ($pixDisponivel ? 'pix_qr' : 'dinheiro'));
+$pixChaveDisponivel = (bool) ($pixChaveDisponivel ?? false);
+$formaEscolhida = (string) ($enviado['forma'] ?? ($pixDisponivel ? 'pix_qr' : ($pixChaveDisponivel ? 'pix_chave' : 'dinheiro')));
+$qrEscolhido = in_array($formaEscolhida, ['pix_qr', 'pix_chave'], true);
 $taxas = is_array($c['taxas'] ?? null) ? $c['taxas'] : [];
 $taxaPixQr = TaxaPagamento::calcularTela((int) $c['restante'], $taxas['pix_online'] ?? null);
+$taxaPixChave = TaxaPagamento::calcularTela((int) $c['restante'], $taxas['pix_chave'] ?? null);
 $formas = [
     'dinheiro' => ['Dinheiro', 'banknote', null],
     'debito' => ['Débito', 'credit-card', null],
@@ -112,6 +116,12 @@ $formas = [
                     <span><?= Icon::svg('qr-code') ?><b>QR Code Pix</b><small><?= isset($taxas['pix_online']) ? $e((string) $taxas['pix_online']['texto']) : 'na tela' ?></small></span>
                 </label>
             <?php endif; ?>
+            <?php if ($pixChaveDisponivel): ?>
+                <label class="gc-forma is-destaque">
+                    <input type="radio" name="forma_tela" value="pix_chave"<?= $formaEscolhida === 'pix_chave' ? ' checked' : '' ?> data-forma>
+                    <span><?= Icon::svg('qr-code') ?><b>Pix pela chave</b><small><?= isset($taxas['pix_chave']) ? $e((string) $taxas['pix_chave']['texto']) : 'QR Code na tela' ?></small></span>
+                </label>
+            <?php endif; ?>
             <?php foreach ($formas as $chave => [$rotulo, $icone, $dica]): ?>
                 <label class="gc-forma">
                     <input type="radio" name="forma_tela" value="<?= $e($chave) ?>"<?= $formaEscolhida === $chave ? ' checked' : '' ?> data-forma>
@@ -129,10 +139,18 @@ $formas = [
             </form>
         <?php endif; ?>
 
-        <form method="post" action="<?= $e($url . '/pagamentos') ?>" class="gc-pagar" novalidate data-pagar-garcom data-taxas="<?= $e((string) json_encode($taxas, JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT)) ?>" data-painel-forma="presencial"<?= $formaEscolhida === 'pix_qr' ? ' hidden' : '' ?>>
+        <?php if ($pixChaveDisponivel): ?>
+            <form method="get" action="<?= $e($url . '/pix-chave') ?>" class="gc-pagar" data-painel-forma="pix_chave"<?= $formaEscolhida === 'pix_chave' ? '' : ' hidden' ?>>
+                <p class="gc-dica"><?= Icon::svg('smartphone', 'icon-sm') ?>O cliente lê o QR Code no app do banco. Confira no app do banco do restaurante e toque em "Recebi o Pix".</p>
+                <?php if ($taxaPixChave > 0): ?><p class="gc-dica"><?= Icon::svg('percent', 'icon-sm') ?><?= $e((string) $taxas['pix_chave']['rotulo']) ?>: + <?= $e($r($taxaPixChave)) ?> (já no valor do QR Code)</p><?php endif; ?>
+                <button class="btn btn-primary btn-lg btn-block" type="submit"><?= Icon::svg('qr-code') ?>Mostrar QR Code · <?= $e($r($c['restante'] + $taxaPixChave)) ?></button>
+            </form>
+        <?php endif; ?>
+
+        <form method="post" action="<?= $e($url . '/pagamentos') ?>" class="gc-pagar" novalidate data-pagar-garcom data-taxas="<?= $e((string) json_encode($taxas, JSON_THROW_ON_ERROR | JSON_FORCE_OBJECT)) ?>" data-painel-forma="presencial"<?= $qrEscolhido ? ' hidden' : '' ?>>
             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
             <input type="hidden" name="taxa_vista" value="<?= $e((string) ($erros['taxa_vista'] ?? '')) ?>" data-taxa-vista>
-            <input type="hidden" name="forma" value="<?= $e($formaEscolhida === 'pix_qr' ? 'dinheiro' : $formaEscolhida) ?>" data-forma-campo>
+            <input type="hidden" name="forma" value="<?= $e($qrEscolhido ? 'dinheiro' : $formaEscolhida) ?>" data-forma-campo>
             <label class="campo-valor">
                 <span>Valor</span>
                 <input name="valor" inputmode="numeric" data-mask="money" value="<?= $e((string) ($enviado['valor'] ?? Numero::dinheiroCampo(CaixaService::dec($c['restante'])))) ?>" data-valor<?= isset($erros['valor']) ? ' aria-invalid="true"' : '' ?>>

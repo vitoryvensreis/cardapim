@@ -32,7 +32,7 @@ final class TaxaPagamento
      * Pix so registrado (maquininha ou chave, conferido por fora) usa a taxa do Pix na entrega ou no caixa;
      * o QR Code do Asaas na mesa usa a taxa do Pix pelo app. Dinheiro nunca tem taxa.
      */
-    public const FORMAS_CONTA = ['debito' => 'debito', 'credito' => 'credito', 'pix' => 'pix_entrega', 'pix_online' => 'pix_online'];
+    public const FORMAS_CONTA = ['debito' => 'debito', 'credito' => 'credito', 'pix' => 'pix_entrega', 'pix_online' => 'pix_online', 'pix_chave' => 'pix_comprovante'];
 
     /** Nome da linha quando a conta tem taxas de formas diferentes. */
     public const ROTULO_VARIAS = 'Taxas de pagamento';
