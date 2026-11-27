@@ -48,7 +48,7 @@ final class DeliveryController extends BaseCaixa
         if ($d === null) {
             return $this->voltar($this->url('delivery'), 'erro', 'Pedido não encontrado.');
         }
-        return $this->tela('caixa/delivery-ver', 'delivery', 'Pedido #' . $d['pedido']['numero'], [
+        return $this->tela('caixa/delivery-ver', 'delivery', 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($d['pedido']), [
             'd' => $d,
             'entregadores' => $s->entregadores(),
             'voltarEtapa' => $s->opcaoVoltar($d['pedido']),

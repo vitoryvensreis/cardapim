@@ -39,7 +39,7 @@ if (!empty($notaFiscal)) {
     <header class="painel-cabecalho comanda-cabecalho">
         <div>
             <h1><?= $e($c['rotulo']) ?></h1>
-            <p>Pedido #<?= (int) $p['numero'] ?> · aberta às <?= $e(date('H:i', $desde)) ?> (<?= $e($tempo) ?>)</p>
+            <p>Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?> · aberta às <?= $e(date('H:i', $desde)) ?> (<?= $e($tempo) ?>)</p>
         </div>
         <div class="painel-acoes">
             <?php if ($c['aberta']): ?>
@@ -362,7 +362,7 @@ if (!empty($notaFiscal)) {
 
     <div class="impressao" aria-hidden="true">
         <p class="impressao-titulo"><?= $e((string) $restaurante['nome']) ?></p>
-        <p><?= $e($c['rotulo']) ?> · Pedido #<?= (int) $p['numero'] ?> · <?= $e(date('d/m/Y H:i')) ?></p>
+        <p><?= $e($c['rotulo']) ?> · Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?> · <?= $e(date('d/m/Y H:i')) ?></p>
         <table>
             <?php foreach ($ativos as $i): ?><tr><td><?= $e($qtdTexto($i)) ?> <?= $e((string) $i['nome']) ?><?php if (QuantidadeVenda::porPeso((string) ($i['unidade'] ?? 'un'))): ?> (<?= $e(Numero::reais((string) $i['preco_unitario']) . QuantidadeVenda::sufixoPreco((string) $i['unidade'])) ?>)<?php endif; ?></td><td><?= $e(Numero::reais((string) $i['total'])) ?></td></tr><?php endforeach; ?>
             <tr class="impressao-linha"><td>Itens</td><td><?= $e($r($c['subtotal'])) ?></td></tr>

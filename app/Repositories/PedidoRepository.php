@@ -104,7 +104,8 @@ final class PedidoRepository
      */
     public function historicoDoCliente(int $idCliente, ?int $idRestaurante, ?int $antes, int $limite): array
     {
-        $sql = "SELECT p.id, p.numero, p.status, p.tipo, p.total, p.criado_em, p.id_restaurante, r.nome AS restaurante_nome, r.slug AS restaurante_slug
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, 'p');
+        $sql = "SELECT p.id, $nd AS numero, p.status, p.tipo, p.total, p.criado_em, p.id_restaurante, r.nome AS restaurante_nome, r.slug AS restaurante_slug
                 FROM pedidos p JOIN restaurantes r ON r.id = p.id_restaurante
                 WHERE p.id_cliente = ? AND p.status <> 'aberto'";
         $params = [$idCliente];
@@ -124,7 +125,8 @@ final class PedidoRepository
     /** Pedidos do cliente ainda em andamento neste restaurante (ultimas 24 h). @return list<array<string,mixed>> */
     public function emAndamentoDoCliente(int $idCliente, int $idRestaurante): array
     {
-        $q = $this->db->prepare("SELECT p.id, p.numero, p.status, p.tipo, p.total, p.criado_em, p.id_restaurante, r.nome AS restaurante_nome, r.slug AS restaurante_slug
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, 'p');
+        $q = $this->db->prepare("SELECT p.id, $nd AS numero, p.status, p.tipo, p.total, p.criado_em, p.id_restaurante, r.nome AS restaurante_nome, r.slug AS restaurante_slug
             FROM pedidos p JOIN restaurantes r ON r.id = p.id_restaurante
             WHERE p.id_cliente = ? AND p.id_restaurante = ? AND p.status NOT IN ('aberto', 'concluido', 'cancelado') AND p.criado_em >= ?
             ORDER BY p.id DESC LIMIT 3");

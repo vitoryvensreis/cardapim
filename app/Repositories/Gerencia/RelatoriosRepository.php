@@ -41,7 +41,13 @@ final class RelatoriosRepository
         if ($v['unidade']!=='') { $sql.=' AND i.unidade=?'; $params[]=$v['unidade']; }
         foreach (['produto'=>'i.id_produto','categoria'=>'pr.id_categoria','pedido'=>'p.numero',
                   'mesa'=>'p.id_mesa','origem'=>'p.origem','funcionario'=>'i.id_user'] as $k=>$col) {
-            if ($v[$k]!=='') { $sql.=" AND $col=?"; $params[]=$v[$k]; }
+            if ($v[$k]==='') { continue; }
+            if ($k==='pedido' && \Cardapim\Shared\Esquema::tem($this->db,'numero_dia')) {
+                // Busca pelo numero do dia (o do cupom) ou pelo numero corrido.
+                $sql.=' AND (p.numero=? OR p.numero_dia=?)'; $params[]=$v[$k]; $params[]=$v[$k];
+                continue;
+            }
+            $sql.=" AND $col=?"; $params[]=$v[$k];
         }
         if ($v['comanda']!=='') {
             $sql.=" AND p.tipo IN ('mesa','balcao') AND (p.comanda_nome LIKE ? ESCAPE '!' OR p.cliente_nome LIKE ? ESCAPE '!'";
@@ -83,13 +89,15 @@ final class RelatoriosRepository
         [$base,$params,$data,$situacao]=$this->base($f);
         $agregado="i.unidade, $situacao AS situacao, SUM(i.quantidade) AS quantidade,
                      SUM(i.total) AS total, COUNT(DISTINCT p.id) AS pedidos";
+        // Numero do dia (o mesmo do cupom e das telas); pedido antigo mostra o numero corrido.
+        $numeroPedido=\Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db,'p');
         $sql=match($f->f['visao']) {
             'hora'=>"SELECT DATE_FORMAT($data,'%H:00') AS rotulo, $agregado $base
                       GROUP BY rotulo,i.unidade,situacao ORDER BY rotulo,situacao,i.unidade",
             'dia'=>"SELECT DATE($data) AS rotulo, $agregado $base
                      GROUP BY rotulo,i.unidade,situacao ORDER BY rotulo DESC,situacao,i.unidade",
             'pedido'=>"SELECT i.nome AS rotulo,i.id_produto AS produto_id,i.unidade,$situacao AS situacao,
-                     i.quantidade,i.total,1 AS pedidos,p.numero,p.tipo,p.origem,p.comanda_nome,
+                     i.quantidade,i.total,1 AS pedidos,$numeroPedido AS numero,p.tipo,p.origem,p.comanda_nome,
                      CASE WHEN p.tipo='balcao' THEN p.cliente_nome ELSE NULL END AS balcao_nome,
                      m.numero AS mesa,u.nome AS funcionario,$data AS momento,i.combo_nome
                      $base ORDER BY $data DESC,i.id DESC",

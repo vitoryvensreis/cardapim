@@ -59,8 +59,9 @@ final class MesaRepository
      */
     public function comandasAbertas(int $idRestaurante, ?int $idMesa = null): array
     {
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, 'p');
         $q = $this->db->prepare(
-            "SELECT p.id, p.id_mesa, p.numero, p.comanda_nome, p.total, p.criado_em,
+            "SELECT p.id, p.id_mesa, $nd AS numero, p.comanda_nome, p.total, p.criado_em,
                     (SELECT COALESCE(SUM(CASE WHEN i.unidade = 'un' THEN i.quantidade ELSE 1 END), 0) FROM pedido_itens i WHERE i.id_pedido = p.id AND i.id_restaurante = p.id_restaurante AND i.cancelado_em IS NULL) AS itens
              FROM pedidos p
              WHERE p.id_restaurante = ? AND p.status = 'aberto' AND p.id_mesa IS NOT NULL" . ($idMesa !== null ? ' AND p.id_mesa = ?' : '') . "

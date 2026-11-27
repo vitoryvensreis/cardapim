@@ -75,7 +75,7 @@ $minutos = static function (?string $desde): string {
                     $tel = (string) ($p['cliente_whatsapp'] ?? ''); ?>
                     <li class="entrega">
                         <div class="entrega-topo">
-                            <strong>Pedido #<?= (int) $p['numero'] ?></strong>
+                            <strong>Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?></strong>
                             <span><?= Icon::svg('clock', 'icon-sm') ?>saiu há <?= $e($minutos((string) $p['despachado_em'])) ?></span>
                         </div>
                         <p class="entrega-cliente"><?= Icon::svg('user', 'icon-sm') ?><?= $e((string) ($p['cliente_nome'] ?? 'Cliente')) ?></p>
@@ -112,7 +112,7 @@ $minutos = static function (?string $desde): string {
                             <?php endif; ?>
                         </div>
                         <form method="post" action="/<?= $e(rawurlencode($slug)) ?>/entregas/<?= (int) $p['id'] ?>/entregue"
-                              data-confirm="<?= $pago ? 'Confirme que o cliente recebeu o pedido.' : 'Confirme que entregou e recebeu ' . $e($r($total)) . '.' ?>" data-confirm-titulo="Entregou o pedido #<?= (int) $p['numero'] ?>?" data-confirm-acao="Entreguei">
+                              data-confirm="<?= $pago ? 'Confirme que o cliente recebeu o pedido.' : 'Confirme que entregou e recebeu ' . $e($r($total)) . '.' ?>" data-confirm-titulo="Entregou o pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?>?" data-confirm-acao="Entreguei">
                             <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                             <button class="btn btn-primary btn-lg btn-block" type="submit"><?= Icon::svg('circle-check', 'icon-sm') ?>Entreguei</button>
                         </form>
@@ -130,7 +130,7 @@ $minutos = static function (?string $desde): string {
             <ul class="feitas">
                 <?php foreach ($hoje as $p): ?>
                     <li>
-                        <span><strong>#<?= (int) $p['numero'] ?></strong> <?= $e((string) ($p['cliente_nome'] ?? '')) ?><small><?= $e((string) ($p['entrega_bairro'] ?? '')) ?> · entregue às <?= $e(date('H:i', (int) strtotime((string) $p['concluido_em']))) ?></small></span>
+                        <span><strong>#<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?></strong> <?= $e((string) ($p['cliente_nome'] ?? '')) ?><small><?= $e((string) ($p['entrega_bairro'] ?? '')) ?> · entregue às <?= $e(date('H:i', (int) strtotime((string) $p['concluido_em']))) ?></small></span>
                         <?php if ($mostrarValores): ?><span class="feitas-valor"><?= $e(Numero::reais((string) $p['taxa_entrega'])) ?><small>taxa</small></span><?php endif; ?>
                     </li>
                 <?php endforeach; ?>

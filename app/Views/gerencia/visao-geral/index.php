@@ -122,7 +122,7 @@ $semVendasSemana = array_sum(array_column($vg['semana'], 'total')) === 0;
                     <?php foreach ($vg['fila'] as $p): [$etRotulo, $etIcone] = $etapas[$p['status']] ?? ['', 'circle']; ?>
                         <li>
                             <a href="<?= $e($slugUrl . '/caixa/delivery/' . (int) $p['id']) ?>">
-                                <strong>#<?= (int) $p['numero'] ?></strong>
+                                <strong>#<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?></strong>
                                 <span class="vg-pedido-info"><?= $e(mb_strimwidth((string) ($p['cliente_nome'] ?? 'Cliente'), 0, 26, '…')) ?><small><?= $p['tipo'] === 'entrega' ? 'Entrega' : 'Retirada' ?> · <?= $e($minutos((string) $p['criado_em'])) ?></small></span>
                                 <span class="etiqueta <?= $p['status'] === 'recebido' ? 'etiqueta-atencao' : 'etiqueta-neutra' ?>"><?= Icon::svg($etIcone) ?><?= $e($etRotulo) ?></span>
                                 <span class="vg-pedido-valor"><?= $e(Numero::reais((string) $p['total'])) ?></span>

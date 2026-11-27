@@ -246,7 +246,7 @@ final class EntregaBalcaoService
             $this->pedidos->registrarEvento($this->idRestaurante, $idPedido, 'em_preparo', 'Pedido de entrega feito no caixa por ' . $this->autor->nome
                 . ($pagoAgora ? ' (pago na hora: ' . self::FORMAS[$forma] . ').' : ' (pagamento na entrega: ' . self::FORMAS[$forma] . ').') . ' Em preparo.', $this->autor->id);
             AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, $idPedido, 'em_preparo');
-            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $idPedido, 'numero' => (int) $p['numero'], 'status' => 'em_preparo']);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => 'em_preparo']);
             TempoReal::registrar($this->db, $this->idRestaurante, 'mesas', 'comanda.fechada', ['id' => $idPedido]);
             if ($pagoAgora) {
                 TempoReal::registrar($this->db, $this->idRestaurante, 'caixa', 'caixa.pagamento', ['caixa' => (int) $caixa['id']]);
@@ -262,10 +262,10 @@ final class EntregaBalcaoService
         (new FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoEntregaBalcao($idPedido);
         $valor = Numero::reais(CaixaService::dec($total));
         $comTaxa = $taxaPag['centavos'] > 0 ? ' (inclui taxa de ' . Numero::reais(CaixaService::dec($taxaPag['centavos'])) . ')' : '';
-        Auditoria::registrar($this->autor, 'Entrega feita no caixa', sprintf('Pedido #%d para %s (%s, %s). Total %s' . $comTaxa . ', %s.', (int) $p['numero'], $nome,
+        Auditoria::registrar($this->autor, 'Entrega feita no caixa', sprintf('Pedido #%d para %s (%s, %s). Total %s' . $comTaxa . ', %s.', \Cardapim\Services\Pedidos\NumeroDoDia::de($p), $nome,
             $e['bairro'], $calc['taxa_centavos'] > 0 ? 'taxa ' . Numero::reais(CaixaService::dec((int) $calc['taxa_centavos'])) : 'entrega grátis',
             $valor, $pagoAgora ? 'pago agora em ' . self::FORMAS[$forma] : 'pagamento na entrega em ' . self::FORMAS[$forma]));
-        $msg = 'Pedido #' . (int) $p['numero'] . ' enviado para a cozinha e para o delivery. ' . ($pagoAgora
+        $msg = 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' enviado para a cozinha e para o delivery. ' . ($pagoAgora
             ? self::FORMAS[$forma] . ' ' . $valor . ' recebido' . $comTaxa . '.' . ($forma === 'dinheiro' && $troco['troco'] > 0 ? ' Troco: ' . Numero::reais(CaixaService::dec($troco['troco'])) . '.' : '')
             : 'O entregador recebe ' . $valor . $comTaxa . ' em ' . self::FORMAS[$forma] . ($trocoPara !== null ? ' (troco para ' . Numero::reais($trocoPara) . ')' : '') . '.');
         return Resultado::sucesso($msg, $idPedido);

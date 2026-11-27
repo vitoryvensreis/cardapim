@@ -28,7 +28,7 @@ if (!empty($notaFiscal)) {
     <header class="painel-cabecalho">
         <div>
             <h1><?= $e((string) $d['rotulo']) ?></h1>
-            <p>Pedido #<?= (int) $p['numero'] ?> · <span class="etiqueta <?= $classe ?>"><?= Icon::svg($icone) ?><?= $e($texto) ?></span></p>
+            <p>Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?> · <span class="etiqueta <?= $classe ?>"><?= Icon::svg($icone) ?><?= $e($texto) ?></span></p>
         </div>
         <div class="painel-acoes">
             <?php if ($d['aberta']): ?><a class="btn btn-primary btn-sm" href="<?= $e($base . '/comandas/' . (int) $p['id']) ?>"><?= Icon::svg('receipt', 'icon-sm') ?>Abrir comanda</a><?php endif; ?>

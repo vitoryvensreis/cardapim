@@ -44,7 +44,8 @@ final class EntregadorService
     /** Entregas feitas por ele desde uma data. @return list<array<string,mixed>> */
     public function feitas(string $desde, int $limite = 30): array
     {
-        $q = $this->db->prepare("SELECT id, numero, cliente_nome, entrega_bairro, total, taxa_entrega, forma_pagamento, despachado_em, concluido_em
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, '');
+        $q = $this->db->prepare("SELECT id, $nd AS numero, cliente_nome, entrega_bairro, total, taxa_entrega, forma_pagamento, despachado_em, concluido_em
             FROM pedidos WHERE id_restaurante = ? AND id_entregador = ? AND status = 'concluido' AND concluido_em >= ?
             ORDER BY concluido_em DESC, id DESC LIMIT " . max(1, min(100, $limite)));
         $q->execute([$this->idRestaurante, $this->autor->id, $desde]);
@@ -84,7 +85,7 @@ final class EntregadorService
         if ($r->ok && $this->emRota() === []) {
             $this->pararPosicao(); // sem entrega com ele: nao precisa mais da localizacao
         }
-        return $r->ok ? Resultado::sucesso('Entrega do pedido #' . $p['numero'] . ' confirmada. Bom trabalho!') : $r;
+        return $r->ok ? Resultado::sucesso('Entrega do pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' confirmada. Bom trabalho!') : $r;
     }
 
     /** Grava a ultima posicao (substitui a anterior). */

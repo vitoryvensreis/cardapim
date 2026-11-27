@@ -85,8 +85,9 @@ final class DeliveryService
     public function fila(): array
     {
         $marcadores = implode(',', array_fill(0, count(self::ATIVOS), '?'));
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, 'p');
         $q = $this->db->prepare(
-            "SELECT p.id, p.numero, p.tipo, p.status, p.forma_pagamento, p.pagamento_status, p.total, p.cliente_nome, p.entrega_bairro, p.criado_em,
+            "SELECT p.id, $nd AS numero, p.tipo, p.status, p.forma_pagamento, p.pagamento_status, p.total, p.cliente_nome, p.entrega_bairro, p.criado_em,
                     p.origem, p.ifood_display_id, p.ifood_entregue_por, p.despachado_em, p.id_entregador, CONCAT(u.nome, ' ', u.sobrenome) AS entregador,
                     (SELECT COUNT(*) FROM pedido_itens i WHERE i.id_pedido = p.id AND i.id_restaurante = p.id_restaurante) AS itens
              FROM pedidos p LEFT JOIN `user` u ON u.id = p.id_entregador
@@ -100,8 +101,9 @@ final class DeliveryService
     /** Ultimos concluidos/cancelados (para conferir). @return list<array<string,mixed>> */
     public function recentes(int $limite = 15): array
     {
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, 'p');
         $q = $this->db->prepare(
-            "SELECT p.id, p.numero, p.tipo, p.status, p.total, p.cliente_nome, p.concluido_em, p.cancelado_em, CONCAT(u.nome, ' ', u.sobrenome) AS entregador
+            "SELECT p.id, $nd AS numero, p.tipo, p.status, p.total, p.cliente_nome, p.concluido_em, p.cancelado_em, CONCAT(u.nome, ' ', u.sobrenome) AS entregador
              FROM pedidos p LEFT JOIN `user` u ON u.id = p.id_entregador
              WHERE p.id_restaurante = ? AND p.tipo IN ('entrega', 'retirada') AND p.status IN ('concluido', 'cancelado')
              ORDER BY p.atualizado_em DESC, p.id DESC LIMIT " . max(1, min(50, $limite))
@@ -178,7 +180,7 @@ final class DeliveryService
             // Vias de producao (Churrasqueira, Cozinha, Bar...) saem quando o pedido e aceito. Nunca impede o aceite.
             (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoPedido($id);
         }
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ': ' . mb_strtolower(rtrim($texto, '.')) . '.' . ($ifood ? ' O iFood foi avisado.' : ''));
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ': ' . mb_strtolower(rtrim($texto, '.')) . '.' . ($ifood ? ' O iFood foi avisado.' : ''));
     }
 
     /** "Confirmei o Pix, aceitar": o restaurante conferiu o Pix pela chave no banco. Marca pago e vai para o preparo. */
@@ -198,8 +200,8 @@ final class DeliveryService
             return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
         }
         (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoPedido($id);
-        Auditoria::registrar($this->autor, 'Pix pela chave conferido', sprintf('Pedido #%d: Pix de %s conferido no banco e pedido aceito.', (int) $p['numero'], Numero::reais((string) $p['total'])));
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ': Pix conferido e pedido aceito. Em preparo.');
+        Auditoria::registrar($this->autor, 'Pix pela chave conferido', sprintf('Pedido #%d: Pix de %s conferido no banco e pedido aceito.', \Cardapim\Services\Pedidos\NumeroDoDia::de($p), Numero::reais((string) $p['total'])));
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ': Pix conferido e pedido aceito. Em preparo.');
     }
 
     public function despachar(int $id, int $idEntregador): Resultado
@@ -243,8 +245,8 @@ final class DeliveryService
         TempoReal::publicar($this->idRestaurante, 'entregas', 'entrega.despachada', ['id' => $id, 'entregador' => $idEntregador]);
         // Casa do cliente no mapa: se o pedido veio sem coordenada (area por bairro), busca agora, uma vez so.
         \Cardapim\Services\Entregas\DestinoEntrega::garantir($this->db, $p);
-        Auditoria::registrar($this->autor, 'Pedido despachado', sprintf('Pedido #%d para %s com %s.', (int) $p['numero'], $p['entrega_bairro'] ?? 'entrega', $entregador['nome']));
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ' saiu com ' . $entregador['nome'] . '.');
+        Auditoria::registrar($this->autor, 'Pedido despachado', sprintf('Pedido #%d para %s com %s.', \Cardapim\Services\Pedidos\NumeroDoDia::de($p), $p['entrega_bairro'] ?? 'entrega', $entregador['nome']));
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' saiu com ' . $entregador['nome'] . '.');
     }
 
     /** Entregue (ou retirado): conclui e registra o pagamento no caixa aberto. */
@@ -304,7 +306,7 @@ final class DeliveryService
                 . ($registrou ? ' ' . self::MARCA_PAGO_NA_CONCLUSAO . ': ' . Numero::reais((string) $p['total']) . '.' : ($jaNoCaixa ? ' ' . self::MARCA_JA_NO_CAIXA : ''));
             $this->pedidos->registrarEvento($this->idRestaurante, $id, 'concluido', $texto, $this->autor->id);
             AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, $id, 'concluido');
-            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => (int) $p['numero'], 'status' => 'concluido']);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => 'concluido']);
             if ($caixa !== null) {
                 TempoReal::registrar($this->db, $this->idRestaurante, 'caixa', 'caixa.pagamento', ['caixa' => (int) $caixa['id']]);
             }
@@ -314,7 +316,7 @@ final class DeliveryService
             throw $erro;
         }
         \Cardapim\Services\Fiscal\FiscalEmissao::solicitar($this->db, $this->idRestaurante, $id);
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ' concluído.' . ($jaPago ? '' : ' Pagamento de ' . Numero::reais((string) $p['total']) . ' no caixa.'));
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' concluído.' . ($jaPago ? '' : ' Pagamento de ' . Numero::reais((string) $p['total']) . ' no caixa.'));
     }
 
     public function cancelar(int $id, string $motivo, string $codigoIfood = ''): Resultado
@@ -337,8 +339,8 @@ final class DeliveryService
             : ($p['pagamento_status'] === 'pago' ? (ComandaService::totalPago($this->db, $this->idRestaurante, $id) > 0
                 ? ' Ele já estava pago no caixa: devolva o valor ao cliente e registre a saída em Entradas e saídas.'
                 : ' Ele já estava pago: devolva o valor ao cliente pelo Asaas.') : '');
-        Auditoria::registrar($this->autor, 'Pedido cancelado', sprintf('Pedido #%d (%s). Motivo: %s. Estoque devolvido.%s', (int) $p['numero'], Numero::reais((string) $p['total']), $motivo, $aviso));
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ' cancelado. O estoque foi devolvido.' . $aviso);
+        Auditoria::registrar($this->autor, 'Pedido cancelado', sprintf('Pedido #%d (%s). Motivo: %s. Estoque devolvido.%s', \Cardapim\Services\Pedidos\NumeroDoDia::de($p), Numero::reais((string) $p['total']), $motivo, $aviso));
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' cancelado. O estoque foi devolvido.' . $aviso);
     }
 
     /**
@@ -395,9 +397,9 @@ final class DeliveryService
         if ($p['status'] === 'saiu_entrega' && $p['id_entregador'] !== null) {
             $this->liberarEntregador((int) $p['id_entregador'], $id);
         }
-        Auditoria::registrar($this->autor, 'Pedido voltou de etapa', sprintf('Pedido #%d: de %s para %s.%s', (int) $p['numero'],
+        Auditoria::registrar($this->autor, 'Pedido voltou de etapa', sprintf('Pedido #%d: de %s para %s.%s', \Cardapim\Services\Pedidos\NumeroDoDia::de($p),
             StatusPedido::rotulo((string) $p['status'], $tipo), $rotulo, $motivo !== '' ? ' Motivo: ' . $motivo : ''));
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ' voltou para ' . mb_strtolower($rotulo) . '.');
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' voltou para ' . mb_strtolower($rotulo) . '.');
     }
 
     /** Por que o pedido nao pode voltar de etapa (null: pode). @param array<string,mixed> $p */
@@ -501,7 +503,7 @@ final class DeliveryService
                 }
             }
             $this->pedidos->registrarEvento($this->idRestaurante, $id, $para, $texto, $this->autor->id);
-            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => (int) $p['numero'], 'status' => $para]);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $id, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => $para]);
             if ($idCaixa !== false) {
                 TempoReal::registrar($this->db, $this->idRestaurante, 'caixa', 'caixa.pagamento', ['caixa' => (int) $idCaixa]);
             }
@@ -518,11 +520,11 @@ final class DeliveryService
         }
         $valor = array_sum(array_map(static fn (array $pg): int => Numero::centavos((string) $pg['valor']), $pagamentos));
         $rotulo = StatusPedido::rotulo($para, $tipo);
-        Auditoria::registrar($this->autor, 'Pedido voltou de etapa', sprintf('Pedido #%d: de %s para %s. %s%s', (int) $p['numero'],
+        Auditoria::registrar($this->autor, 'Pedido voltou de etapa', sprintf('Pedido #%d: de %s para %s. %s%s', \Cardapim\Services\Pedidos\NumeroDoDia::de($p),
             StatusPedido::rotulo('concluido', $tipo), $rotulo,
             $valor > 0 ? 'Pagamento de ' . Numero::reais(CaixaService::dec($valor)) . ' removido do caixa.' : 'Nenhum pagamento removido do caixa.',
             $motivo !== '' ? ' Motivo: ' . $motivo : ''));
-        return Resultado::sucesso('Pedido #' . $p['numero'] . ' voltou para ' . mb_strtolower($rotulo) . '.'
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ' voltou para ' . mb_strtolower($rotulo) . '.'
             . ($valor > 0 ? ' O pagamento de ' . Numero::reais(CaixaService::dec($valor)) . ' saiu do caixa.' : ''));
     }
 
@@ -573,8 +575,8 @@ final class DeliveryService
             throw $erro;
         }
         IfoodAcoes::agendarEnvio($this->idRestaurante);
-        Auditoria::registrar($this->autor, 'Cancelamento pedido ao iFood', sprintf('Pedido #%d (%s). Motivo: %s.', (int) $p['numero'], Numero::reais((string) $p['total']), $motivo));
-        return Resultado::sucesso('Pedimos ao iFood para cancelar o pedido #' . $p['numero'] . '. Ele é cancelado aqui (e o estoque volta) quando o iFood confirmar, em poucos segundos.');
+        Auditoria::registrar($this->autor, 'Cancelamento pedido ao iFood', sprintf('Pedido #%d (%s). Motivo: %s.', \Cardapim\Services\Pedidos\NumeroDoDia::de($p), Numero::reais((string) $p['total']), $motivo));
+        return Resultado::sucesso('Pedimos ao iFood para cancelar o pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . '. Ele é cancelado aqui (e o estoque volta) quando o iFood confirmar, em poucos segundos.');
     }
 
     /** @return array<string,mixed>|Resultado */
@@ -623,7 +625,7 @@ final class DeliveryService
             if ($avisarCliente) {
                 AvisosWhatsApp::enfileirar($this->db, $this->idRestaurante, (int) $p['id'], $para);
             }
-            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => (int) $p['numero'], 'status' => $para]);
+            TempoReal::registrar($this->db, $this->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => $para]);
             $this->db->commit();
         } catch (Throwable $erro) {
             $this->db->rollBack();

@@ -57,7 +57,7 @@ final class CriarPedido
         $repetido = (new PedidoRepository($this->db))->porChave($idRest, $chave);
         if ($repetido !== null) {
             return (int) $repetido['id_cliente'] === $idCliente
-                ? ['status' => 200, 'ok' => true, 'mensagem' => 'Pedido já enviado.', 'pedido' => ['id' => (int) $repetido['id'], 'numero' => (int) $repetido['numero']]]
+                ? ['status' => 200, 'ok' => true, 'mensagem' => 'Pedido já enviado.', 'pedido' => ['id' => (int) $repetido['id'], 'numero' => NumeroDoDia::de($repetido)]]
                 : self::erro(409, 'Atualize a página e tente de novo.');
         }
         $limite = RateLimiter::padrao(15, 3600);
@@ -256,6 +256,10 @@ final class CriarPedido
                 throw new \RuntimeException('Pedido nao gravado.');
             }
             $idPedido = (int) $pedido['id'];
+            // Numero do dia (so visual, zera quando a loja fecha): e o que a equipe e o cliente veem.
+            $numeroCorrido = $numero;
+            $numero = NumeroDoDia::atribuir($this->db, $idRest, $idPedido, $numeroCorrido);
+            $pedido['numero_dia'] = $numero;
 
             $comComplementos = Esquema::tem($this->db, 'complementos');
             $insItem = $this->db->prepare($comComplementos

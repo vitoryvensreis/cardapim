@@ -50,7 +50,7 @@ final class HistoricoCliente
             $lista = $itens[(int) $l['id']] ?? [];
             return [
                 'id' => (int) $l['id'],
-                'numero' => (int) $l['numero'],
+                'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($l),
                 'status' => $status,
                 'status_rotulo' => StatusPedido::rotulo($status, $tipo),
                 'tipo' => $tipo,

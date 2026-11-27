@@ -56,7 +56,7 @@ final class CancelarPedido
             }
             (new PedidoRepository($this->db))->registrarEvento($idRestaurante, $idPedido, 'cancelado', $motivo, $idUser, $idCliente);
             AvisosWhatsApp::enfileirar($this->db, $idRestaurante, $idPedido, 'cancelado');
-            TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.cancelado', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
+            TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.cancelado', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido)]);
             $this->db->commit();
         } catch (Throwable $erro) {
             if ($this->db->inTransaction()) {

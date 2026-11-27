@@ -107,6 +107,7 @@ final class ImportarPedidoIfood
             if ($idPedido < 1) {
                 throw new \RuntimeException('Pedido do iFood nao gravado.');
             }
+            $numero = \Cardapim\Services\Pedidos\NumeroDoDia::atribuir($this->db, $this->idRestaurante, $idPedido, $numero);
             $ins = $this->db->prepare('INSERT INTO pedido_itens (id_pedido, id_restaurante, id_produto, nome, preco_unitario, quantidade, unidade, observacao, total, criado_em)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $baixar = [];
@@ -306,7 +307,7 @@ final class ImportarPedidoIfood
     /** @return array{id:int, numero:int}|null */
     private function existente(string $ifoodId): ?array
     {
-        $q = $this->db->prepare('SELECT id, numero FROM pedidos WHERE id_restaurante = ? AND ifood_id = ?');
+        $q = $this->db->prepare('SELECT id, ' . \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, '') . ' AS numero FROM pedidos WHERE id_restaurante = ? AND ifood_id = ?');
         $q->execute([$this->idRestaurante, $ifoodId]);
         $r = $q->fetch(PDO::FETCH_ASSOC);
         return $r === false ? null : ['id' => (int) $r['id'], 'numero' => (int) $r['numero']];

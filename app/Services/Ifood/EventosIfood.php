@@ -236,7 +236,7 @@ final class EventosIfood
             $u->execute([...$valores, (int) $p['id'], $this->conta->idRestaurante, ...$de]);
             if ($u->rowCount() === 1) {
                 $this->pedidos->registrarEvento($this->conta->idRestaurante, (int) $p['id'], $para, $texto);
-                TempoReal::registrar($this->db, $this->conta->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => (int) $p['numero'], 'status' => $para]);
+                TempoReal::registrar($this->db, $this->conta->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => $para]);
             }
             $this->db->commit();
         } catch (Throwable $erro) {
@@ -268,7 +268,7 @@ final class EventosIfood
                         ->execute([(int) $p['id'], $this->conta->idRestaurante, $caixa !== null ? (int) $caixa['id'] : null, $forma, (string) $p['total'], $agora]);
                 }
                 $this->pedidos->registrarEvento($this->conta->idRestaurante, (int) $p['id'], 'concluido', 'Pedido concluído no iFood.');
-                TempoReal::registrar($this->db, $this->conta->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => (int) $p['numero'], 'status' => 'concluido']);
+                TempoReal::registrar($this->db, $this->conta->idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => (int) $p['id'], 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p), 'status' => 'concluido']);
                 if ($caixa !== null) {
                     TempoReal::registrar($this->db, $this->conta->idRestaurante, 'caixa', 'caixa.pagamento', ['caixa' => (int) $caixa['id']]);
                 }

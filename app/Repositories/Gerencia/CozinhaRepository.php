@@ -21,8 +21,9 @@ final class CozinhaRepository
         // Somente pedidos aceitos para preparo entram no KDS.
         // Recebidos e comandas abertas ficam fora até mudarem para em_preparo;
         // pedidos prontos também saem da fila, sem ação nesta tela.
+        $nd = \Cardapim\Services\Pedidos\NumeroDoDia::sql($this->db, 'p');
         $consulta = $this->db->prepare(
-            "SELECT p.id, p.numero, p.origem, p.tipo, p.status, p.criado_em,
+            "SELECT p.id, $nd AS numero, p.origem, p.tipo, p.status, p.criado_em,
                     p.cliente_nome, p.comanda_nome, p.observacao, p.ifood_display_id,
                     m.numero AS mesa_numero
              FROM pedidos p

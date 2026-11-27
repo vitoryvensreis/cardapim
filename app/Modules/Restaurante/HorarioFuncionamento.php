@@ -94,6 +94,29 @@ final class HorarioFuncionamento
         return false;
     }
 
+    /**
+     * Dia do expediente de um momento (numero do dia do pedido: zera quando a loja fecha).
+     * Turno de ontem que vira a noite (ex.: 18:00 as 02:00): ate a hora em que ele fecha, ainda e o dia de ontem.
+     * Almoco e jantar no mesmo dia continuam no mesmo dia. Sem horario ou "sempre aberto": vira a meia-noite.
+     * @param list<array{dia_semana:int,turno:int,abre:string,fecha:string}> $turnos
+     */
+    public static function diaOperacional(bool $sempreAberto, array $turnos, DateTimeImmutable $agora): string
+    {
+        if (!$sempreAberto) {
+            $ontem = $agora->modify('-1 day');
+            $diaOntem = (int) $ontem->format('w');
+            $hora = $agora->format('H:i');
+            foreach ($turnos as $t) {
+                $abre = substr((string) $t['abre'], 0, 5);
+                $fecha = substr((string) $t['fecha'], 0, 5);
+                if ((int) $t['dia_semana'] === $diaOntem && $fecha < $abre && $hora < $fecha) {
+                    return $ontem->format('Y-m-d');
+                }
+            }
+        }
+        return $agora->format('Y-m-d');
+    }
+
     /** @return array<int,string> Proxima ocorrencia de cada dia, incluindo hoje. */
     public static function proximasDatas(DateTimeImmutable $agora): array
     {

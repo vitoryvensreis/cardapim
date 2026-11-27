@@ -393,7 +393,7 @@ pagina "$cx" "$c/delivery" >/dev/null
 contem "fila do delivery com selo Caixa" "$tmp/pagina.html" 'selo-caixa'
 enviar "$cx" "$c/delivery/$eb/despachar" entregador="$entregador" >/dev/null
 enviar "$cx" "$c/delivery/$eb/concluir" >/dev/null
-esperar "pago na hora: conclui sem cobrar de novo" "$(aviso "$cx" "$c/delivery/$eb")" "Pedido #$(banco 'SELECT numero FROM pedidos WHERE id = ?' "$eb") concluído."
+esperar "pago na hora: conclui sem cobrar de novo" "$(aviso "$cx" "$c/delivery/$eb")" "Pedido #$(banco 'SELECT COALESCE(numero_dia, numero) FROM pedidos WHERE id = ?' "$eb") concluído."
 esperar "pagamento continua uma vez so" "$(banco 'SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = ?' "$eb")" "1"
 
 r="$(enviar "$cx" "$c/balcao" nome=)"
@@ -448,10 +448,24 @@ esperar "avanca de novo e recebe no caixa" "$(aviso "$cx" "$c/delivery/$pedido")
 esperar "pagamento entra uma vez so de novo" "$(banco 'SELECT status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$pedido")" "concluido|1"
 esperar "WhatsApp nao repete as etapas ao avancar de novo" "$(banco 'SELECT COUNT(*) FROM pedido_avisos WHERE id_pedido = ?' "$pedido")" "$avisos_antes"
 enviar "$gj" "$c/delivery/$eb/voltar" >/dev/null
-esperar "pago na hora no balcao: gerente desfaz o entregue" "$(aviso "$gj" "$c/delivery/$eb")" "Pedido #$(banco 'SELECT numero FROM pedidos WHERE id = ?' "$eb") voltou para saiu para entrega."
+esperar "pago na hora no balcao: gerente desfaz o entregue" "$(aviso "$gj" "$c/delivery/$eb")" "Pedido #$(banco 'SELECT COALESCE(numero_dia, numero) FROM pedidos WHERE id = ?' "$eb") voltou para saiu para entrega."
 esperar "pago na hora: pagamento do balcao fica e continua pago" "$(banco 'SELECT status, pagamento_status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$eb")" "saiu_entrega|pago|1"
 enviar "$cx" "$c/delivery/$eb/concluir" >/dev/null
 esperar "pago na hora: conclui de novo sem cobrar" "$(banco 'SELECT status, (SELECT COUNT(*) FROM pedido_pagamentos WHERE id_pedido = pedidos.id) FROM pedidos WHERE id = ?' "$eb")" "concluido|1"
+
+echo "Numero do dia do pedido (so visual, zera quando a loja fecha)"
+esperar "pedido tem numero do dia e dia do expediente" "$(banco 'SELECT numero_dia > 0, dia_operacional IS NOT NULL FROM pedidos WHERE id = ?' "$pedido")" "1|1"
+esperar "cliente recebeu o numero do dia" "$numero" "$(banco 'SELECT numero_dia FROM pedidos WHERE id = ?' "$pedido")"
+curl -s -b "$cj" -o "$tmp/r.json" "$base/api/v1/pedidos/$pedido"
+esperar "acompanhamento mostra o numero do dia" "$(json "$tmp/r.json" numero)" "$numero"
+pagina "$cx" "$c/delivery/$pedido" >/dev/null
+contem "tela do pedido mostra o numero do dia" "$tmp/pagina.html" "<h1>Pedido #$numero</h1>"
+maior_dia="$(banco 'SELECT MAX(numero_dia) FROM pedidos WHERE id_restaurante = (SELECT id_restaurante FROM pedidos WHERE id = ?) AND dia_operacional = (SELECT dia_operacional FROM pedidos WHERE id = ?)' "$pedido" "$pedido")"
+r="$(enviar "$cx" "$c/balcao" nome=)"
+nb="$(echo "$r" | grep -o 'comandas/[0-9]*' | cut -d/ -f2)"
+esperar "balcao segue a mesma sequencia do dia" "$(banco 'SELECT numero_dia FROM pedidos WHERE id = ?' "$nb")" "$((maior_dia + 1))"
+esperar "numeros do dia sem repetir" "$(banco 'SELECT COUNT(*) - COUNT(DISTINCT numero_dia) FROM pedidos WHERE id_restaurante = (SELECT id_restaurante FROM pedidos WHERE id = ?) AND dia_operacional = (SELECT dia_operacional FROM pedidos WHERE id = ?)' "$pedido" "$pedido")" "0"
+enviar "$cx" "$c/comandas/$nb/cancelar" >/dev/null
 
 echo "Taxa por forma de pagamento nas contas (caixa, mesa e balcao que vira entrega)"
 # So cartao e Pix aqui: o dinheiro da gaveta e conferido logo abaixo, no fechamento.

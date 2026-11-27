@@ -88,7 +88,7 @@ final class CheckoutPublico
         $etapaAtual = array_search((string) $p['status'], $ordemEtapas, true);
         return [
             'id' => (int) $p['id'],
-            'numero' => (int) $p['numero'],
+            'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($p),
             'slug' => $slug,
             'tipo' => $tipo,
             'status' => (string) $p['status'],

@@ -49,6 +49,8 @@ final class Esquema
         'taxas_contas' => ['pedido_pagamentos', 'taxa_rotulo'],
         // Pix pela chave do restaurante (BR Code estatico), um Pix por vez (pix_whatsapp criada por ultimo).
         'pix_chave' => ['restaurante_entrega_pagamento', 'pix_whatsapp'],
+        // Numero do dia do pedido (so visual, zera quando a loja fecha); numero_dia criada por ultimo.
+        'numero_dia' => ['pedidos', 'numero_dia'],
         // Popup do cardapio online (banner 1:1 ou texto).
         'popup_cardapio' => ['restaurante_popup', 'versao'],
         // Produto especial Meio a Meio (sabores com fracao do estoque).

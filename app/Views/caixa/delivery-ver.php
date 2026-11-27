@@ -54,7 +54,7 @@ if (!empty($notaFiscal)) {
 <div class="painel-page delivery-pedido" data-regiao="pagina-pedido">
     <header class="painel-cabecalho">
         <div>
-            <h1>Pedido #<?= (int) $p['numero'] ?></h1>
+            <h1>Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?></h1>
             <p><?php if ($doIfood): ?><span class="etiqueta etiqueta-ifood"><?= Icon::svg('shopping-bag') ?>iFood<?= $p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '' ?></span> <?php endif; ?><?php if ($doCaixa): ?><span class="etiqueta etiqueta-ifood selo-caixa"><?= Icon::svg('monitor') ?>Feito no caixa</span> <?php endif; ?><?= $entrega ? ($entregaIfood ? 'Entrega pelo iFood' : 'Entrega') : 'Retirada no local' ?> · feito às <?= $e(date('H:i', (int) strtotime((string) $p['criado_em']))) ?><?= $emAndamento ? ' (' . ($minutos < 60 ? $minutos . ' min' : intdiv($minutos, 60) . 'h' . str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT)) . ')' : '' ?></p>
         </div>
         <div class="painel-acoes">
@@ -77,7 +77,7 @@ if (!empty($notaFiscal)) {
             <?php if ($voltarEtapa['bloqueio'] === null): ?>
                 <form method="post" action="<?= $e($url . '/voltar') ?>" class="etapa-voltar-form"
                       data-confirm="<?= $e((string) ($voltarEtapa['aviso'] ?? 'O pedido volta uma etapa. Você pode avançar de novo depois.')) ?>"
-                      data-confirm-titulo="Voltar o pedido #<?= (int) $p['numero'] ?> para <?= $e($voltarEtapa['rotulo']) ?>?"
+                      data-confirm-titulo="Voltar o pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?> para <?= $e($voltarEtapa['rotulo']) ?>?"
                       data-confirm-acao="Voltar etapa"<?= $status === 'concluido' ? ' data-confirm-perigo="1"' : '' ?>>
                     <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                     <label class="sr-only" for="motivo-voltar">Motivo para voltar (opcional, só a equipe vê)</label>
@@ -121,7 +121,7 @@ if (!empty($notaFiscal)) {
                 <details class="conta-mais conta-perigo">
                     <summary><?= Icon::svg('circle-x', 'icon-sm') ?>Recusar (o Pix não caiu)</summary>
                     <form method="post" action="<?= $e($url . '/cancelar') ?>" class="conta-ajustes"
-                          data-confirm="O pedido é cancelado, o cliente vê o motivo e o estoque volta." data-confirm-titulo="Recusar o pedido #<?= (int) $p['numero'] ?>?" data-confirm-acao="Recusar pedido" data-confirm-perigo="1">
+                          data-confirm="O pedido é cancelado, o cliente vê o motivo e o estoque volta." data-confirm-titulo="Recusar o pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?>?" data-confirm-acao="Recusar pedido" data-confirm-perigo="1">
                         <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                         <label class="campo-caixa"><span>Motivo (o cliente vê)</span><input name="motivo" required minlength="3" maxlength="140" value="O Pix não foi encontrado na nossa conta."></label>
                         <button class="btn btn-ghost btn-sm area-remover" type="submit"><?= Icon::svg('circle-x', 'icon-sm') ?>Recusar pedido</button>
@@ -180,7 +180,7 @@ if (!empty($notaFiscal)) {
                     <summary><?= Icon::svg('circle-x', 'icon-sm') ?>Cancelar pedido</summary>
                     <?php if ($doIfood && $ifood['conectado']): ?>
                     <form method="post" action="<?= $e($url . '/cancelar') ?>" class="conta-ajustes"
-                          data-confirm="O pedido é cancelado no iFood e o cliente é avisado pelo iFood. O estoque volta quando o iFood confirmar." data-confirm-titulo="Cancelar o pedido #<?= (int) $p['numero'] ?> no iFood?" data-confirm-acao="Pedir cancelamento" data-confirm-perigo="1">
+                          data-confirm="O pedido é cancelado no iFood e o cliente é avisado pelo iFood. O estoque volta quando o iFood confirmar." data-confirm-titulo="Cancelar o pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?> no iFood?" data-confirm-acao="Pedir cancelamento" data-confirm-perigo="1">
                         <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                         <label class="campo-caixa"><span>Motivo (o iFood pede um da lista)</span>
                             <select name="motivo_ifood" required>
@@ -192,7 +192,7 @@ if (!empty($notaFiscal)) {
                     </form>
                     <?php else: ?>
                     <form method="post" action="<?= $e($url . '/cancelar') ?>" class="conta-ajustes"
-                          data-confirm="O cliente vê o cancelamento e o estoque volta." data-confirm-titulo="Cancelar o pedido #<?= (int) $p['numero'] ?>?" data-confirm-acao="Cancelar pedido" data-confirm-perigo="1">
+                          data-confirm="O cliente vê o cancelamento e o estoque volta." data-confirm-titulo="Cancelar o pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?>?" data-confirm-acao="Cancelar pedido" data-confirm-perigo="1">
                         <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
                         <label class="campo-caixa"><span>Motivo (o cliente vê)</span><input name="motivo" required minlength="3" maxlength="140" placeholder="Ex.: acabou o produto, endereço fora da área"></label>
                         <button class="btn btn-ghost btn-sm area-remover" type="submit"><?= Icon::svg('circle-x', 'icon-sm') ?>Cancelar pedido</button>
@@ -262,7 +262,7 @@ if (!empty($notaFiscal)) {
     </div>
 
     <div class="impressao" aria-hidden="true">
-        <p class="impressao-titulo"><?= $e((string) $restaurante['nome']) ?> · Pedido #<?= (int) $p['numero'] ?></p>
+        <p class="impressao-titulo"><?= $e((string) $restaurante['nome']) ?> · Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($p) ?></p>
         <p><?= $entrega ? 'ENTREGA' : 'RETIRADA' ?><?= $doIfood ? ' · iFood' . ($p['ifood_display_id'] ? ' #' . $e((string) $p['ifood_display_id']) : '') . ($entregaIfood ? ' (entregador iFood)' : '') : '' ?> · <?= $e(date('d/m/Y H:i', (int) strtotime((string) $p['criado_em']))) ?></p>
         <p><?= $e((string) ($p['cliente_nome'] ?? '')) ?><?= $p['cliente_whatsapp'] ? ' · ' . $e(Documento::formatarTelefone((string) $p['cliente_whatsapp'])) : '' ?></p>
         <?php if ($entrega): ?><p><?= $e($endereco) ?><?= $p['entrega_referencia'] ? ' (' . $e((string) $p['entrega_referencia']) . ')' : '' ?></p><?php endif; ?>

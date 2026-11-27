@@ -52,7 +52,7 @@ final class PixPedido
                 ->execute([$idRest, $idCliente, $ambiente, $customer]);
         }
         $idCobranca = $this->api->criarCobrancaPix($chave, $ambiente, $customer, (string) $pedido['total'], date('Y-m-d'),
-            'Pedido #' . $pedido['numero'] . ' - ' . $nomeRestaurante, 'pedido:' . $pedido['id']);
+            'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido) . ' - ' . $nomeRestaurante, 'pedido:' . $pedido['id']);
         try {
             $qr = $this->api->qrCodePix($chave, $ambiente, $idCobranca);
         } catch (IntegracaoErro $erro) {
@@ -84,7 +84,7 @@ final class PixPedido
             $q->execute([date('Y-m-d H:i:s'), $idPedido, $idRestaurante]);
             if ($q->rowCount() === 1) {
                 $repo->registrarEvento($idRestaurante, $idPedido, 'cancelado', 'Pix pago depois do cancelamento. Devolva o valor ao cliente pelo Asaas.');
-                TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.pix.apos.cancelar', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
+                TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.pix.apos.cancelar', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido)]);
                 return 'pago_apos_cancelar';
             }
             return 'repetido';
@@ -101,7 +101,7 @@ final class PixPedido
             }
             $repo->registrarEvento($idRestaurante, $idPedido, 'recebido', 'Pix confirmado' . ($origem === 'webhook' ? ' pelo Asaas.' : '.'));
             AvisosWhatsApp::enfileirar($this->db, $idRestaurante, $idPedido, 'recebido');
-            TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.novo', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
+            TempoReal::registrar($this->db, $idRestaurante, 'pedidos', 'pedido.novo', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido)]);
             $this->db->commit();
             return 'confirmado';
         } catch (Throwable $erro) {
@@ -222,7 +222,7 @@ final class PixPedido
         $q->execute([$idRest]);
         $nome = (string) ($q->fetchColumn() ?: '');
         $idCobranca = $this->api->criarCobrancaPix($chave, $ambiente, $customer, (string) $pedido['total'], date('Y-m-d'),
-            'Pedido #' . (int) $pedido['numero'] . ' - ' . $nome, 'entrega:' . $idPedido);
+            'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido) . ' - ' . $nome, 'entrega:' . $idPedido);
         try {
             $qr = $this->api->qrCodePix($chave, $ambiente, $idCobranca);
         } catch (IntegracaoErro $erro) {
@@ -265,12 +265,12 @@ final class PixPedido
         }
         if ($pedido['status'] === 'cancelado') {
             $repo->registrarEvento($idRestaurante, $idPedido, 'cancelado', 'Pix da entrega pago depois do cancelamento. Devolva o valor ao cliente pelo Asaas.');
-            TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.pix.apos.cancelar', ['id' => $idPedido, 'numero' => (int) $pedido['numero']]);
+            TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.pix.apos.cancelar', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido)]);
             return 'pago_apos_cancelar';
         }
         $repo->registrarEvento($idRestaurante, $idPedido, (string) $pedido['status'], 'Pix da entrega confirmado' . ($origem === 'webhook' ? ' pelo Asaas.' : '.'));
         TempoReal::publicar($idRestaurante, 'entregas', 'entrega.atualizada', ['id' => $idPedido, 'pix' => 'pago']);
-        TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $idPedido, 'numero' => (int) $pedido['numero'], 'status' => (string) $pedido['status']]);
+        TempoReal::publicar($idRestaurante, 'pedidos', 'pedido.atualizado', ['id' => $idPedido, 'numero' => \Cardapim\Services\Pedidos\NumeroDoDia::de($pedido), 'status' => (string) $pedido['status']]);
         return 'confirmado';
     }
 

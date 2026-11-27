@@ -139,7 +139,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
                             default => ['etiqueta-alerta', 'circle-x', 'Não enviado'],
                         }; ?>
                         <li>
-                            <span class="avisos-pedido"><strong>Pedido #<?= (int) $a['numero'] ?></strong> · <?= $e(\Cardapim\Services\Pedidos\AvisosWhatsApp::EVENTOS[$a['evento']][0] ?? $a['evento']) ?></span>
+                            <span class="avisos-pedido"><strong>Pedido #<?= \Cardapim\Services\Pedidos\NumeroDoDia::de($a) ?></strong> · <?= $e(\Cardapim\Services\Pedidos\AvisosWhatsApp::EVENTOS[$a['evento']][0] ?? $a['evento']) ?></span>
                             <span class="etiqueta <?= $classe ?>"><?= Icon::svg($icone) ?><?= $texto ?></span>
                             <small><?= $e($data($a['enviado_em'] ?? $a['criado_em'])) ?><?= $a['status'] !== 'enviado' && !empty($a['ultimo_erro']) ? ' · ' . $e((string) $a['ultimo_erro']) : '' ?></small>
                         </li>

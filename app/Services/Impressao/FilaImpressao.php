@@ -248,7 +248,7 @@ final class FilaImpressao
                 return;
             }
             $resumo = $this->opcoesCupom()['delivery_com_preco'] ? CupomImpressao::resumoPedido($p) : [];
-            $res = $this->enviarProducao($idPedido, 'producao', $itens, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], null, false, $resumo, $this->contatoPedido($p));
+            $res = $this->enviarProducao($idPedido, 'producao', $itens, CupomImpressao::cabecaPedido($p), 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p), null, false, $resumo, $this->contatoPedido($p));
             if ($res instanceof Resultado) {
                 error_log('[Cardapim] Producao do pedido nao enviada: ' . $res->mensagem);
             }
@@ -284,7 +284,7 @@ final class FilaImpressao
             }
             $ateItem = max(array_map(static fn (array $i): int => (int) $i['id'], $ativos));
             $resumo = $this->opcoesCupom()['delivery_com_preco'] ? CupomImpressao::resumoPedido($p) : [];
-            $res = $this->enviarProducao($idPedido, 'producao', $novos, CupomImpressao::cabecaPedido($p), 'Pedido #' . (int) $p['numero'], $ateItem, false, $resumo, $this->contatoPedido($p));
+            $res = $this->enviarProducao($idPedido, 'producao', $novos, CupomImpressao::cabecaPedido($p), 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p), $ateItem, false, $resumo, $this->contatoPedido($p));
             if ($res instanceof Resultado) {
                 error_log('[Cardapim] Producao da entrega do balcao nao enviada: ' . $res->mensagem);
             }
@@ -338,7 +338,7 @@ final class FilaImpressao
                     $itens = array_values(array_filter($itens, static fn (array $i): bool => in_array((int) $i['id'], $idsItens, true)));
                 }
                 $cabeca = CupomImpressao::cabecaPedido($p);
-                $rotulo = 'Pedido #' . (int) $p['numero'];
+                $rotulo = 'Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p);
             }
             if ($itens === []) {
                 return;
