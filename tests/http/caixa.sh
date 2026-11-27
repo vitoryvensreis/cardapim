@@ -544,6 +544,8 @@ contem "filtro de canceladas marcado" "$tmp/hist.html" 'status=canceladas" aria-
 esperar "comanda de outro restaurante ou inexistente" "$(curl -s -o /dev/null -b "$cx" -w '%{http_code}' "$c/comandas/999999999/detalhes")" "303"
 
 echo "Limpeza"
+printf '  painel do WhatsApp: %s\n' "$(curl -s -o "$tmp/painel.html" -b "$aj" -w '%{http_code} %{redirect_url}' "$base/painel/integracoes/whatsapp")"
+grep -o '<title>[^<]*\|data-flash>[^<]*<p>[^<]*' "$tmp/painel.html" | head -3 || true
 t="$(token "$aj" "$base/painel/integracoes/whatsapp")"
 curl -s -o /dev/null -c "$aj" -b "$aj" --data-urlencode "_csrf=$t" "$base/painel/integracoes/whatsapp/desconectar"
 ok "WhatsApp de teste desligado"
