@@ -362,49 +362,56 @@ jobs:
           grep -q '/assets/css/pages.css' /tmp/cardapim-404.html
           test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/login)" = "419"
           test "$(curl --silent --show-error -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/sair)" = "404"
+          # Cada suite HTTP simula varios clientes no mesmo IP local. Isola apenas o
+          # contador de pedidos desse IP no runner descartavel, sem mudar o limite
+          # da aplicacao nem os contadores de login. Dentro da suite o limite continua ativo.
+          suite_http() {
+            php -r 'require "bootstrap/app.php"; \Cardapim\Core\RateLimiter::padrao(15, 3600)->limpar("pedido-ip|127.0.0.1");'
+            bash "$@"
+          }
           php tests/http/criar-contas-ci.php
-          bash tests/http/auth.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/auth.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-logs-ci.php
-          bash tests/http/gerencia.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/gerencia.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-gerencia-ci.php
-          bash tests/http/integracoes.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/plataforma.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/caixa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/entregas.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/pwa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/avisos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/garcom.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/equipe-no-painel.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/planos-cadastro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/financeiro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/visao-geral.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/cozinha.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/adm-gestao.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/alerta-pedido.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/suporte.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/recuperar-senha.sh http://127.0.0.1:18080
-          bash tests/http/painel-adm.sh http://127.0.0.1:18080
-          bash tests/http/legal-cookies.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/cupons.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/seo.sh http://127.0.0.1:18080
-          bash tests/http/peso.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/desktop-balanca.sh http://127.0.0.1:18080
-          bash tests/http/desktop-pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/impressao.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/fiscal-restaurante.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/fiscal-produtos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/impressoras.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/impressao-produto.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/popup-cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
-          bash tests/http/combos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/meio-a-meio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/complementos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
-          bash tests/http/importar-cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/integracoes.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/plataforma.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/caixa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/entregas.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/pwa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/avisos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/garcom.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/equipe-no-painel.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/planos-cadastro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/financeiro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/visao-geral.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/cozinha.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/adm-gestao.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/alerta-pedido.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/suporte.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/recuperar-senha.sh http://127.0.0.1:18080
+          suite_http tests/http/painel-adm.sh http://127.0.0.1:18080
+          suite_http tests/http/legal-cookies.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/cupons.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/seo.sh http://127.0.0.1:18080
+          suite_http tests/http/peso.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/desktop-balanca.sh http://127.0.0.1:18080
+          suite_http tests/http/desktop-pedidos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/impressao.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/fiscal-restaurante.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/fiscal-produtos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/impressoras.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/impressao-produto.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/popup-cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
+          suite_http tests/http/combos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/meio-a-meio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/complementos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          suite_http tests/http/importar-cardapio.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           php tests/http/verificar-alerta-ci.php
           IFOOD_BASE_URL=http://127.0.0.1:18099/ifood IFOOD_CLIENT_ID=ifood-ci IFOOD_CLIENT_SECRET=ifood-segredo-ci APP_URL=https://cardapim.test \
-            bash tests/http/ifood.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+            suite_http tests/http/ifood.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           php tests/http/verificar-ifood-ci.php
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/planos.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/plataforma-gestao.js >/dev/null
@@ -413,14 +420,14 @@ jobs:
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/integracoes.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/garcom.js >/dev/null
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/css/garcom.css >/dev/null
-          bash tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
+          suite_http tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
           grep -q 'Redis conectado' /tmp/cardapim-ws.log
           kill -TERM "$ws_pid"; wait "$ws_pid" || true
           grep -q 'Tempo real encerrado' /tmp/cardapim-ws.log
           APP_URL=https://cardapim.test WS_PORTA=18095 REDIS_PORT= php bin/tempo-real.php >>/tmp/cardapim-ws.log 2>&1 &
           ws_pid=$!
           sleep 2
-          bash tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
+          suite_http tests/http/tempo-real.sh http://127.0.0.1:18080 restaurante-modelo-cardapim ws://127.0.0.1:18095/ws https://cardapim.test
           curl --fail --silent --show-error http://127.0.0.1:18080/assets/js/tempo-real.js >/dev/null
           for path in /assets/js/estoque.js /assets/js/equipe.js /assets/js/perfil.js /assets/js/minha-conta.js /assets/js/confirmar.js /assets/vendor/qrcode-generator/qrcode.js /assets/vendor/leaflet/leaflet.js /assets/vendor/leaflet/leaflet.css /assets/vendor/protomaps-leaflet/protomaps-leaflet.js /assets/js/mapa-base.js; do
             curl --fail --silent --show-error "http://127.0.0.1:18080$path" >/dev/null
