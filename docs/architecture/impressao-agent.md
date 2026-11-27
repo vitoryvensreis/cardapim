@@ -38,6 +38,12 @@ Ele só converte em ESC/POS (GS v 0 em faixas de 128 linhas) e corta.
   (`CupomImpressao::resumoPedido`: itens, entrega, desconto, TOTAL, forma de pagamento e troco, o mesmo do cupom completo).
   Com o pedido dividido em várias impressoras, o resumo sai só na via da impressora padrão da produção (ou na primeira,
   se nenhum item saiu nela). O valor de cada item continua saindo como antes, ligado ou desligado.
+- **Mostrar o endereço no pedido do delivery** (`restaurante_impressao_config.delivery_com_endereco`, padrão **desligado**)
+  e **Mostrar o telefone no pedido do delivery** (`delivery_com_telefone`, padrão **desligado**), botões separados: no
+  mesmo aceite, a via de produção ganha o endereço com a referência (só pedidos de entrega) e/ou o telefone do cliente
+  (`CupomImpressao::contatoPedido`, o mesmo trecho do cupom completo), logo abaixo do nome do cliente. Mesma regra do
+  total: com o pedido dividido, saem só na via da impressora padrão. Vale para o aceite no caixa, iFood, aceite automático
+  e venda do balcão que vira entrega. O "Testar impressão" mostra um endereço e um telefone de exemplo quando ligados.
 - **Imprimir o nome de quem atendeu** (`restaurante_impressao_config.mostrar_atendente`, padrão **ligado**): desligado, o
   nome do garçom, do caixa ou de quem aceitou some de todos os cupons (vias de produção, cancelamento, itens novos,
   pré-conta e conta). Regra única em `FilaImpressao::quem()`; o "Testar impressão" segue as duas opções.
@@ -144,6 +150,9 @@ impressora desenhado como no papel e o motivo de cada item estar ali. Impressora
 - `20261129100000_impressao_opcoes_cupom.php` (`impressoras.margem_lateral_mm`, `restaurante_impressao_config.mostrar_atendente`
   e `delivery_com_preco`), `database/verify-opcoes-cupom.php`, `deploy/scripts/apply-impressao-opcoes-cupom.sh` (gatilho
   `[cardapim-impressao-opcoes-cupom]`; `Esquema::tem('cupom_opcoes')`).
+- `20261202100000_impressao_contato_delivery.php` (`restaurante_impressao_config.delivery_com_endereco` e
+  `delivery_com_telefone`), `database/verify-contato-delivery.php`, `deploy/scripts/apply-impressao-contato-delivery.sh`
+  (gatilho `[cardapim-impressao-contato-delivery]`; `Esquema::tem('cupom_contato')`).
 
 Testes: `tests/unit/impressao.php`, `tests/unit/cupom-imagem.php`, `tests/unit/aparencia-cupom.php`, `tests/unit/opcoes-cupom.php`, `tests/http/impressao.sh`, `tests/http/impressoras.sh`,
 `tests/http/impressao-produto.sh`, `desktop-agent/tests/test_printer_list.py`.

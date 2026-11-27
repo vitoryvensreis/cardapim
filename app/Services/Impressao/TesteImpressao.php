@@ -231,10 +231,13 @@ final class TesteImpressao
         $rota = RotaProducao::dividir($this->db, $this->idRestaurante, $itens, $padrao['id']);
         $porProduto = $rota['porProduto'];
         $grupos = $rota['grupos'];
+        $pedidoTeste = [
+            'numero' => 1, 'tipo' => 'entrega', 'origem' => 'cardapio', 'cliente_nome' => 'Cliente de teste', 'observacao' => '',
+            'cliente_whatsapp' => '85999990000', 'entrega_logradouro' => 'Rua de Teste', 'entrega_numero' => '100',
+            'entrega_complemento' => 'Apto 1', 'entrega_bairro' => 'Centro', 'entrega_cidade' => 'Fortaleza', 'entrega_referencia' => 'Perto da praça',
+        ];
         $cabeca = match ($situacao) {
-            'delivery' => CupomImpressao::cabecaPedido([
-                'numero' => 1, 'tipo' => 'entrega', 'origem' => 'cardapio', 'cliente_nome' => 'Cliente de teste', 'observacao' => '',
-            ]),
+            'delivery' => CupomImpressao::cabecaPedido($pedidoTeste),
             'garcom', 'cancelamento' => ['titulo' => 'MESA 18', 'linha' => 'Comanda: Teste', 'detalhe' => 'Pedido #1', 'observacao' => ''],
             default => ['titulo' => 'BALCÃO', 'linha' => 'Cliente: Teste', 'detalhe' => 'Pedido #1', 'observacao' => ''],
         };
@@ -252,15 +255,19 @@ final class TesteImpressao
         if ($semMarcacao !== []) {
             $avisos[] = 'Sem impressora marcada no produto (sai na padrão ' . $padrao['apelido'] . '): ' . implode(', ', array_unique($semMarcacao)) . '.';
         }
-        // Delivery com "Mostrar o total" ligado: o resumo sai so na via da padrao (ou na primeira com itens).
+        // Delivery com "Mostrar o total", o endereco ou o telefone ligados: saem so na via da padrao (ou na primeira com itens).
         $resumo = [];
+        $contato = [];
         $comResumo = null;
-        if ($situacao === 'delivery' && $this->fila->opcoesCupom()['delivery_com_preco'] && $grupos !== []) {
-            $subtotal = array_sum(array_map(static fn (array $i): int => Numero::centavos((string) $i['total']), $itens));
-            $resumo = CupomImpressao::resumoPedido([
-                'subtotal' => CaixaService::dec($subtotal), 'taxa_entrega' => '5.00', 'desconto' => '0.00',
-                'total' => CaixaService::dec($subtotal + 500), 'forma_pagamento' => 'pix', 'tipo' => 'entrega', 'troco_para' => null,
-            ]);
+        if ($situacao === 'delivery' && $grupos !== []) {
+            if ($this->fila->opcoesCupom()['delivery_com_preco']) {
+                $subtotal = array_sum(array_map(static fn (array $i): int => Numero::centavos((string) $i['total']), $itens));
+                $resumo = CupomImpressao::resumoPedido([
+                    'subtotal' => CaixaService::dec($subtotal), 'taxa_entrega' => '5.00', 'desconto' => '0.00',
+                    'total' => CaixaService::dec($subtotal + 500), 'forma_pagamento' => 'pix', 'tipo' => 'entrega', 'troco_para' => null,
+                ]);
+            }
+            $contato = $this->fila->contatoPedido($pedidoTeste);
             $comResumo = isset($grupos[$padrao['id']]) ? $padrao['id'] : array_key_first($grupos);
         }
         $cupons = [];
@@ -279,7 +286,7 @@ final class TesteImpressao
                 'id' => $imp['id'], 'apelido' => $imp['apelido'], 'ligada' => $imp['ligada'], 'padrao' => $imp['id'] === $padrao['id'],
                 'blocos' => $lista === [] ? null : ($situacao === 'cancelamento'
                     ? CupomImpressao::cancelamento($cabeca, $imp['apelido'], $lista, 'Cliente desistiu (teste)', false, $this->fila->quem())
-                    : CupomImpressao::producao($cabeca, $imp['apelido'], $lista, $this->fila->quem(), $imp['id'] === $comResumo ? $resumo : [])),
+                    : CupomImpressao::producao($cabeca, $imp['apelido'], $lista, $this->fila->quem(), $imp['id'] === $comResumo ? $resumo : [], $imp['id'] === $comResumo ? $contato : [])),
                 'motivos' => $motivos,
             ];
         }

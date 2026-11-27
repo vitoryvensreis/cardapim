@@ -128,21 +128,7 @@ final class CupomImpressao
         if (trim((string) ($p['cliente_nome'] ?? '')) !== '') {
             $blocos[] = ['t' => 'destaque', 'texto' => 'Cliente: ' . trim((string) $p['cliente_nome'])];
         }
-        $fone = preg_replace('/\D+/', '', (string) ($p['cliente_whatsapp'] ?? ''));
-        if (is_string($fone) && strlen($fone) >= 10) {
-            $blocos[] = ['t' => 'texto', 'texto' => 'Telefone: (' . substr($fone, 0, 2) . ') ' . substr($fone, 2, -4) . '-' . substr($fone, -4)];
-        }
-        if ($entrega) {
-            $rua = trim((string) ($p['entrega_logradouro'] ?? '') . (!empty($p['entrega_numero']) ? ', ' . $p['entrega_numero'] : ''));
-            foreach ([$rua, $p['entrega_complemento'] ?? '', $p['entrega_bairro'] ?? '', $p['entrega_cidade'] ?? ''] as $parte) {
-                if (trim((string) $parte) !== '') {
-                    $blocos[] = ['t' => 'texto', 'texto' => trim((string) $parte)];
-                }
-            }
-            if (trim((string) ($p['entrega_referencia'] ?? '')) !== '') {
-                $blocos[] = ['t' => 'texto', 'texto' => 'Referência: ' . trim((string) $p['entrega_referencia'])];
-            }
-        }
+        $blocos = [...$blocos, ...self::contatoPedido($p, true, true)];
         $blocos[] = ['t' => 'linha'];
         $ativos = array_values(array_filter($itens, static fn (array $i): bool => ($i['cancelado_em'] ?? null) === null));
         foreach ($ativos as $i) {
@@ -157,6 +143,33 @@ final class CupomImpressao
         }
         $blocos = [...$blocos, ...self::resumoPedido($p)];
         return ['titulo' => 'Pedido #' . (int) $p['numero'], 'blocos' => $blocos];
+    }
+
+    /**
+     * Contato do cliente do pedido: telefone (se houver um numero valido) e endereco com referencia (so entrega).
+     * Usado no cupom completo (os dois) e na via de producao do delivery aceito (cada um quando o restaurante liga).
+     * @param array<string,mixed> $p
+     * @return list<array<string,mixed>>
+     */
+    public static function contatoPedido(array $p, bool $endereco, bool $telefone): array
+    {
+        $blocos = [];
+        $fone = preg_replace('/\D+/', '', (string) ($p['cliente_whatsapp'] ?? ''));
+        if ($telefone && is_string($fone) && strlen($fone) >= 10) {
+            $blocos[] = ['t' => 'texto', 'texto' => 'Telefone: (' . substr($fone, 0, 2) . ') ' . substr($fone, 2, -4) . '-' . substr($fone, -4)];
+        }
+        if ($endereco && ($p['tipo'] ?? '') === 'entrega') {
+            $rua = trim((string) ($p['entrega_logradouro'] ?? '') . (!empty($p['entrega_numero']) ? ', ' . $p['entrega_numero'] : ''));
+            foreach ([$rua, $p['entrega_complemento'] ?? '', $p['entrega_bairro'] ?? '', $p['entrega_cidade'] ?? ''] as $parte) {
+                if (trim((string) $parte) !== '') {
+                    $blocos[] = ['t' => 'texto', 'texto' => trim((string) $parte)];
+                }
+            }
+            if (trim((string) ($p['entrega_referencia'] ?? '')) !== '') {
+                $blocos[] = ['t' => 'texto', 'texto' => 'Referência: ' . trim((string) $p['entrega_referencia'])];
+            }
+        }
+        return $blocos;
     }
 
     /**
@@ -268,12 +281,14 @@ final class CupomImpressao
      * Via de producao de uma estacao (Churrasqueira, Cozinha, Bar...): so os itens dela, com a mesa (ou o pedido)
      * em letra grande, hora, quem pediu, complementos e observacoes. Sem o total da conta, a nao ser que venha
      * $resumo (delivery aceito com "Mostrar o total" ligado: so na via da impressora padrao da producao).
+     * $contato (contatoPedido: telefone e endereco, quando o restaurante liga) sai logo abaixo do nome do cliente.
      * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
      * @param list<array<string,mixed>> $itens
      * @param list<array<string,mixed>> $resumo
+     * @param list<array<string,mixed>> $contato
      * @return list<array<string,mixed>>
      */
-    public static function producao(array $cabeca, string $estacao, array $itens, string $quem = '', array $resumo = []): array
+    public static function producao(array $cabeca, string $estacao, array $itens, string $quem = '', array $resumo = [], array $contato = []): array
     {
         $blocos = [
             ['t' => 'centro', 'texto' => 'PRODUÇÃO · ' . mb_strtoupper($estacao)],
@@ -284,6 +299,7 @@ final class CupomImpressao
             $blocos[] = ['t' => 'centro', 'texto' => $cabeca['linha']];
         }
         $blocos[] = ['t' => 'destaque', 'texto' => $cabeca['detalhe']];
+        $blocos = [...$blocos, ...$contato];
         $blocos[] = ['t' => 'texto', 'texto' => date('d/m/Y H:i') . ($quem !== '' ? ' · ' . $quem : '')];
         $blocos[] = ['t' => 'linha'];
         foreach ($itens as $i) {

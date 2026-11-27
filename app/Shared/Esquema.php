@@ -41,6 +41,8 @@ final class Esquema
         'cupom_aparencia' => ['restaurante_cupom_aparencia', 'tamanho'],
         // Margem lateral por impressora, nome de quem atendeu e resumo de valores no delivery aceito.
         'cupom_opcoes' => ['restaurante_impressao_config', 'delivery_com_preco'],
+        // Endereco e telefone do cliente na via do delivery aceito (telefone criado por ultimo).
+        'cupom_contato' => ['restaurante_impressao_config', 'delivery_com_telefone'],
         // Popup do cardapio online (banner 1:1 ou texto).
         'popup_cardapio' => ['restaurante_popup', 'versao'],
         // Produto especial Meio a Meio (sabores com fracao do estoque).

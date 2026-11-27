@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Opcoes do cupom (sem banco): total no delivery aceito, nome de quem atendeu e margem lateral por impressora.
+// Opcoes do cupom (sem banco): total, endereco e telefone no delivery aceito, nome de quem atendeu e margem lateral por impressora.
 // php tests/unit/opcoes-cupom.php
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
@@ -47,6 +47,30 @@ $ok((bool) preg_grep('~^\d\d/\d\d/\d{4} \d\d:\d\d · Carlos$~u', $textos($via)),
 $comTotal = CupomImpressao::producao($cabeca, 'Cozinha', $itens, '', $resumo);
 $ok(in_array('TOTAL', $rotulos($comTotal), true) && end($comTotal)['t'] === 'linha', 'via com resumo: TOTAL no fim, fechado por linha');
 $ok((bool) preg_grep('~^\d\d/\d\d/\d{4} \d\d:\d\d$~', $textos($comTotal)), 'sem nome: so a data e a hora');
+
+// Contato do cliente (endereco e telefone) na via do delivery aceito.
+$cliente = [
+    'cliente_whatsapp' => '85 99999-1234', 'entrega_complemento' => 'Apto 2', 'entrega_bairro' => 'Centro',
+    'entrega_cidade' => 'Fortaleza', 'entrega_referencia' => 'Perto da praça',
+] + $pedido;
+$endereco = ['Rua A, 10', 'Apto 2', 'Centro', 'Fortaleza', 'Referência: Perto da praça'];
+$ok(CupomImpressao::contatoPedido($cliente, false, false) === [], 'contato: tudo desligado = nada (padrao)');
+$ok($textos(CupomImpressao::contatoPedido($cliente, true, false)) === $endereco, 'contato: so o endereco, com a referencia');
+$ok($textos(CupomImpressao::contatoPedido($cliente, false, true)) === ['Telefone: (85) 99999-1234'], 'contato: so o telefone');
+$ok($textos(CupomImpressao::contatoPedido($cliente, true, true)) === ['Telefone: (85) 99999-1234', ...$endereco], 'contato: telefone e depois o endereco');
+$retirada = ['tipo' => 'retirada'] + $cliente;
+$ok($textos(CupomImpressao::contatoPedido($retirada, true, true)) === ['Telefone: (85) 99999-1234'], 'retirada: sem endereco, telefone continua');
+$ok(CupomImpressao::contatoPedido(['cliente_whatsapp' => '123'] + $cliente, false, true) === [], 'telefone invalido nao sai');
+$completoCliente = $textos(CupomImpressao::pedido($cliente, $itens, 'Loja')['blocos']);
+$ok(array_slice($completoCliente, array_search('Cliente: Bia', $completoCliente, true) + 1, 6) === ['Telefone: (85) 99999-1234', ...$endereco], 'cupom completo continua com telefone e endereco');
+$viaPadrao = $textos(CupomImpressao::producao(CupomImpressao::cabecaPedido($cliente), 'Cozinha', $itens));
+$ok(!in_array('Rua A, 10', $viaPadrao, true) && !preg_grep('~^Telefone~', $viaPadrao), 'via sem contato: sem endereco e sem telefone (como antes)');
+$viaContato = CupomImpressao::producao(CupomImpressao::cabecaPedido($cliente), 'Cozinha', $itens, '', [], CupomImpressao::contatoPedido($cliente, true, true));
+$tv = $textos($viaContato);
+$posCliente = array_search('Cliente: Bia', $tv, true);
+$ok($posCliente !== false && array_slice($tv, $posCliente + 1, 6) === ['Telefone: (85) 99999-1234', ...$endereco], 'via com contato: logo abaixo do nome do cliente');
+$primeiroItem = array_search('item', array_column($viaContato, 't'), true);
+$ok($primeiroItem > array_search('Referência: Perto da praça', array_column($viaContato, 'texto'), true), 'via com contato: endereco antes dos itens');
 
 // Margem lateral (mm) por impressora.
 $ok(ImpressoraRepository::lateral('3.5') === 3.5 && ImpressoraRepository::lateral('2,5') === 2.5 && ImpressoraRepository::lateral('0') === 0.0, 'margem aceita 0 a 8 de 0,5 em 0,5');

@@ -241,34 +241,56 @@ final class ImpressoraRepository
         }
     }
 
+    /** Padrao das opcoes do cupom: nome impresso e via do delivery sem total, endereco e telefone (como ja funcionava). */
+    public const OPCOES_CUPOM_PADRAO = [
+        'mostrar_atendente' => true,
+        'delivery_com_preco' => false,
+        'delivery_com_endereco' => false,
+        'delivery_com_telefone' => false,
+    ];
+
     /**
-     * Opcoes do cupom do restaurante. Sem configuracao (ou recurso ainda nao liberado): nome impresso e delivery
-     * sem o resumo de valores (como ja funcionava).
-     * @return array{mostrar_atendente:bool,delivery_com_preco:bool}
+     * Opcoes do cupom do restaurante. Sem configuracao (ou recurso ainda nao liberado): OPCOES_CUPOM_PADRAO.
+     * @return array{mostrar_atendente:bool,delivery_com_preco:bool,delivery_com_endereco:bool,delivery_com_telefone:bool}
      */
     public function opcoesCupom(int $idRestaurante): array
     {
-        $padrao = ['mostrar_atendente' => true, 'delivery_com_preco' => false];
+        $padrao = self::OPCOES_CUPOM_PADRAO;
         if (!\Cardapim\Shared\Esquema::tem($this->db, 'cupom_opcoes')) {
             return $padrao;
         }
-        $q = $this->db->prepare('SELECT mostrar_atendente, delivery_com_preco FROM restaurante_impressao_config WHERE id_restaurante = ?');
+        $contato = \Cardapim\Shared\Esquema::tem($this->db, 'cupom_contato');
+        $q = $this->db->prepare('SELECT mostrar_atendente, delivery_com_preco'
+            . ($contato ? ', delivery_com_endereco, delivery_com_telefone' : '')
+            . ' FROM restaurante_impressao_config WHERE id_restaurante = ?');
         $q->execute([$idRestaurante]);
         $r = $q->fetch(PDO::FETCH_ASSOC);
-        return $r === false ? $padrao : [
-            'mostrar_atendente' => (int) $r['mostrar_atendente'] === 1,
-            'delivery_com_preco' => (int) $r['delivery_com_preco'] === 1,
-        ];
+        if ($r === false) {
+            return $padrao;
+        }
+        $opcoes = $padrao;
+        foreach (array_keys($padrao) as $campo) {
+            if (array_key_exists($campo, $r)) {
+                $opcoes[$campo] = (int) $r[$campo] === 1;
+            }
+        }
+        return $opcoes;
     }
 
-    /** @param array{mostrar_atendente:bool,delivery_com_preco:bool} $opcoes */
+    /** @param array{mostrar_atendente:bool,delivery_com_preco:bool,delivery_com_endereco:bool,delivery_com_telefone:bool} $opcoes */
     public function salvarOpcoesCupom(int $idRestaurante, array $opcoes): void
     {
         if (!\Cardapim\Shared\Esquema::tem($this->db, 'cupom_opcoes')) {
             return;
         }
-        $this->db->prepare('INSERT INTO restaurante_impressao_config (id_restaurante, mostrar_atendente, delivery_com_preco) VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE mostrar_atendente = VALUES(mostrar_atendente), delivery_com_preco = VALUES(delivery_com_preco)')
-            ->execute([$idRestaurante, $opcoes['mostrar_atendente'] ? 1 : 0, $opcoes['delivery_com_preco'] ? 1 : 0]);
+        $campos = ['mostrar_atendente', 'delivery_com_preco'];
+        if (\Cardapim\Shared\Esquema::tem($this->db, 'cupom_contato')) {
+            $campos = [...$campos, 'delivery_com_endereco', 'delivery_com_telefone'];
+        }
+        $valores = array_map(static fn (string $c): int => ($opcoes[$c] ?? false) ? 1 : 0, $campos);
+        $this->db->prepare('INSERT INTO restaurante_impressao_config (id_restaurante, ' . implode(', ', $campos) . ')
+            VALUES (?' . str_repeat(', ?', count($campos)) . ')
+            ON DUPLICATE KEY UPDATE ' . implode(', ', array_map(static fn (string $c): string => "$c = VALUES($c)", $campos)))
+            ->execute([$idRestaurante, ...$valores]);
     }
 }
