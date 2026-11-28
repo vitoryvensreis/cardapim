@@ -99,7 +99,8 @@ de `tests/http/caixa.sh`.
 Verificacao: `php database/verify-caixa.php --verify`.
 
 Delivery: `POST /{slug}/caixa/delivery/{id}/forma` = "Trocar forma de pagamento" (mesmo popup do motoboy, sem QR; ver
-`entregas.md`). `POST /{slug}/caixa/delivery/{id}/confirmar-pix` = "Confirmei o Pix, aceitar" do Pix pela chave.
+`entregas.md`). `POST /{slug}/caixa/delivery/{id}/confirmar-pix` = "Recebi o comprovante, confirmar Pix" do Pix pela chave (popup
+"Confirmar pagamento Pix", aberto sozinho depois do aceite com `?confirmar-pix=1`).
 
 ### Voltar etapa (desfazer)
 

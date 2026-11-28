@@ -52,6 +52,8 @@ final class DeliveryController extends BaseCaixa
             'd' => $d,
             'entregadores' => $s->entregadores(),
             'voltarEtapa' => $s->opcaoVoltar($d['pedido']),
+            // Logo depois do "Aceitar" de um Pix pela chave: a tela abre sozinha a confirmacao do Pix.
+            'abrirConfirmarPix' => ($_GET['confirmar-pix'] ?? '') === '1' && DeliveryService::pixParaConferir($d['pedido']),
             'notaFiscal' => \Cardapim\Services\Fiscal\FiscalEmissao::situacao($this->db, $this->restaurante['id'], (int) $d['pedido']['id']),
             'caixaAberto' => (new CaixaRepository($this->db))->aberto($this->restaurante['id']) !== null,
             'gestor' => in_array($this->usuario->cargo, ['gerente', 'adm_master'], true),
@@ -59,7 +61,7 @@ final class DeliveryController extends BaseCaixa
             // "Trocar forma de pagamento": so com o pagamento pendente e fora do iFood. No caixa o Pix so registra.
             'troca' => TrocarFormaPagamento::motivoBloqueio($d['pedido']) === null
                 ? (new TrocarFormaPagamento($this->db, $this->restaurante['id'], $this->usuario))->opcoes($d['pedido']) : null,
-            'pageScripts' => ['js/trocar-forma.js'],
+            'pageScripts' => ['js/trocar-forma.js', 'js/confirmar-pix.js'],
             'pageStyles' => ['css/trocar-forma.css'],
             'ifood' => $d['pedido']['origem'] === 'ifood' ? [
                 'dados' => DadosPedidoIfood::ler($d['pedido']['ifood_dados'] ?? null),
@@ -89,7 +91,14 @@ final class DeliveryController extends BaseCaixa
             $acao === 'cancelar' => $s->cancelar($pedido, $this->post('motivo'), $this->post('motivo_ifood')),
             default => Resultado::falha('Ação desconhecida.'),
         };
-        return $this->responder($res, $this->url('delivery/' . (int) $pedido));
+        $destino = $this->url('delivery/' . (int) $pedido);
+        if ($acao === 'aceitar' && $res->ok && $pedido !== null) {
+            $atual = $s->detalhes($pedido);
+            if ($atual !== null && DeliveryService::pixParaConferir($atual['pedido'])) {
+                $destino .= '?confirmar-pix=1';
+            }
+        }
+        return $this->responder($res, $destino);
     }
 
     private function servico(): DeliveryService

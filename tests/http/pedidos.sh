@@ -272,37 +272,53 @@ esperar "Pix na entrega recusado com a chave ligada" "$(post "$cj3" "$csrf3" "/a
 esperar "pedido com Pix pela chave" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
 pc1="$(json "$tmp/r.json" pedido.id)"
 get "$cj3" "/api/v1/pedidos/$pc1" >/dev/null
-esperar "Pix pela chave espera o pagamento" "$(json "$tmp/r.json" status)" "aguardando_pagamento"
-esperar "modo chave na tela" "$(json "$tmp/r.json" pix.modo)" "chave"
+esperar "Pix pela chave vai na hora para o restaurante" "$(json "$tmp/r.json" status)|$(json "$tmp/r.json" pagamento_status)" "recebido|pendente"
+esperar "cliente fica na tela do QR (modo chave)" "$(json "$tmp/r.json" pix.modo)" "chave"
+esperar "Pix pela chave sem prazo" "$(json "$tmp/r.json" pix.expira_em_segundos)" "null"
 esperar "total com a taxa do Pix pela chave" "$(json "$tmp/r.json" total_centavos)" "$((preco + 100))"
 contem "copia e cola com a chave do restaurante" "$tmp/r.json" '0014br.gov.bcb.pix0120pix@restaurante.test'
 contem "link do WhatsApp do comprovante" "$tmp/r.json" 'wa.me.\{1,2\}5585988887777?text=Ol'
-esperar "restaurante ainda nao ve o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc1")" "aguardando_pagamento"
+esperar "restaurante ja ve o pedido" "$(banco 'SELECT status, pix_expira_em IS NULL FROM pedidos WHERE id = ?' "$pc1")" "recebido|1"
+esperar "linha do tempo pede o comprovante" "$(banco "SELECT COUNT(*) FROM pedido_eventos WHERE id_pedido = ? AND descricao LIKE '%solicitar o comprovante%'" "$pc1")" "1"
+curl -s -b "$gj" "$cx/delivery/$pc1" -o "$tmp/cx.html"
+contem "caixa ve Pix a confirmar" "$tmp/cx.html" 'Pix a confirmar'
+contem "caixa pode aceitar antes de confirmar o Pix" "$tmp/cx.html" 'Aceitar e preparar'
+contem "botao para confirmar o Pix" "$tmp/cx.html" 'Confirmar pagamento Pix'
 esperar "outro cliente nao envia comprovante do pedido (404)" "$(post "$cj2" "$(sessao "$cj2")" "/api/v1/pedidos/$pc1/comprovante" '{}')" "404"
 esperar "enviar comprovante" "$(post "$cj3" "$csrf3" "/api/v1/pedidos/$pc1/comprovante" '{}')" "200"
 contem "comprovante devolve o WhatsApp" "$tmp/r.json" 'wa.me'
 esperar "enviar de novo nao duplica" "$(post "$cj3" "$csrf3" "/api/v1/pedidos/$pc1/comprovante" '{}')" "200"
-esperar "um evento de comprovante so" "$(banco "SELECT COUNT(*) FROM pedido_eventos WHERE id_pedido = ? AND descricao LIKE 'Cliente enviou o comprovante%'" "$pc1")" "1"
+esperar "um aviso de comprovante so" "$(banco "SELECT COUNT(*) FROM pedido_eventos WHERE id_pedido = ? AND descricao LIKE 'Cliente avisou que mandou o comprovante%'" "$pc1")" "1"
 get "$cj3" "/api/v1/pedidos/$pc1" >/dev/null
-esperar "pedido vai para o restaurante conferir" "$(json "$tmp/r.json" status)|$(json "$tmp/r.json" pagamento_status)|$(json "$tmp/r.json" comprovante.enviado)" "recebido|pendente|true"
-curl -s -b "$gj" "$cx/delivery/$pc1" -o "$tmp/cx.html"
-contem "caixa ve conferir comprovante" "$tmp/cx.html" 'Pix: conferir comprovante no WhatsApp'
-contem "acao principal Confirmei o Pix" "$tmp/cx.html" 'Confirmei o Pix, aceitar'
-enviar "$gj" "$cx/delivery/$pc1/aceitar" >/dev/null
-esperar "aceitar sem conferir o Pix recusado" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc1")" "recebido"
+esperar "comprovante enviado, ainda na tela do QR" "$(json "$tmp/r.json" status)|$(json "$tmp/r.json" comprovante.enviado)|$(json "$tmp/r.json" pix.modo)" "recebido|true|chave"
+aceite="$(enviar "$gj" "$cx/delivery/$pc1/aceitar")"
+esperar "Aceitar com o Pix a confirmar: em preparo" "$(banco 'SELECT status, pagamento_status FROM pedidos WHERE id = ?' "$pc1")" "em_preparo|pendente"
+esperar "depois do aceite abre a confirmacao do Pix" "$(echo "$aceite" | grep -c 'confirmar-pix=1')" "1"
+curl -s -b "$gj" "$cx/delivery/$pc1?confirmar-pix=1" -o "$tmp/cx.html"
+contem "popup Confirmar pagamento Pix aberto" "$tmp/cx.html" 'data-confirmar-pix data-abrir'
+contem "popup com Pix nao recebido" "$tmp/cx.html" 'Pix não recebido'
+get "$cj3" "/api/v1/pedidos/$pc1" >/dev/null
+esperar "cliente continua no QR ate confirmar" "$(json "$tmp/r.json" pix.modo)" "chave"
+esperar "concluir sem confirmar o Pix recusado" "$(enviar "$gj" "$cx/delivery/$pc1/concluir" >/dev/null; banco 'SELECT status FROM pedidos WHERE id = ?' "$pc1")" "em_preparo"
 enviar "$gj" "$cx/delivery/$pc1/confirmar-pix" >/dev/null
-esperar "Confirmei o Pix: pago e em preparo" "$(banco 'SELECT status, pagamento_status FROM pedidos WHERE id = ?' "$pc1")" "em_preparo|pago"
+esperar "Recebi o comprovante: pago, continua em preparo" "$(banco 'SELECT status, pagamento_status FROM pedidos WHERE id = ?' "$pc1")" "em_preparo|pago"
+get "$cj3" "/api/v1/pedidos/$pc1" >/dev/null
+esperar "cliente vai para o acompanhamento" "$(json "$tmp/r.json" pix)|$(json "$tmp/r.json" status)" "null|em_preparo"
 esperar "confirmar de novo nao muda nada" "$(enviar "$gj" "$cx/delivery/$pc1/confirmar-pix" | cut -d' ' -f1)" "303"
-esperar "pedido recusado: outro Pix pela chave" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+esperar "pedido para o Pix nao recebido" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
 pc2="$(json "$tmp/r.json" pedido.id)"
-post "$cj3" "$csrf3" "/api/v1/pedidos/$pc2/comprovante" '{}' >/dev/null
-enviar "$gj" "$cx/delivery/$pc2/cancelar" "motivo=O Pix não foi encontrado na nossa conta." >/dev/null
-esperar "Recusar cancela o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc2")" "cancelado"
-esperar "Pix sem comprovante no prazo" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
+enviar "$gj" "$cx/delivery/$pc2/aceitar" >/dev/null
+enviar "$gj" "$cx/delivery/$pc2/cancelar" "motivo=Pix não recebido. Pagamento não confirmado." >/dev/null
+esperar "Pix nao recebido cancela o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc2")" "cancelado"
+get "$cj3" "/api/v1/pedidos/$pc2" >/dev/null
+esperar "cliente ve o cancelamento (sem o QR)" "$(json "$tmp/r.json" status)|$(json "$tmp/r.json" pix)" "cancelado|null"
+contem "cliente ve o motivo" "$tmp/r.json" 'Pix n'
+esperar "pedido antigo aguardando o Pix" "$(post "$cj3" "$csrf3" "/api/v1/restaurantes/$slug/pedidos" "{\"chave\":\"$(chave)\",\"tipo\":\"retirada\",\"forma_pagamento\":\"pix_comprovante\",\"taxa_pagamento_centavos\":100,\"itens\":[{\"id\":$produto,\"quantidade\":1}]}")" "201"
 pc3="$(json "$tmp/r.json" pedido.id)"
-php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE pedidos SET pix_expira_em = ? WHERE id = ?")->execute([date("Y-m-d H:i:s", time() - 60), $argv[1]]);' "$pc3"
+# Pedido de antes desta regra (nascia "aguardando pagamento" com prazo): o prazo vencido ainda cancela.
+php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE pedidos SET status = ?, pix_expira_em = ? WHERE id = ?")->execute(["aguardando_pagamento", date("Y-m-d H:i:s", time() - 60), $argv[1]]);' "$pc3"
 esperar "comprovante depois do prazo recusado (409)" "$(post "$cj3" "$csrf3" "/api/v1/pedidos/$pc3/comprovante" '{}')" "409"
-esperar "prazo vencido cancela o pedido" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc3")" "cancelado"
+esperar "prazo vencido cancela o pedido antigo" "$(banco 'SELECT status FROM pedidos WHERE id = ?' "$pc3")" "cancelado"
 
 echo "Limpeza"
 enviar "$gj" "$g/integracoes/asaas/desconectar" >/dev/null

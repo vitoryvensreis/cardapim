@@ -67,7 +67,7 @@ final class DeliveryService
         return self::ANTERIOR[$p['status'] ?? ''] ?? null;
     }
 
-    /** Pix pela chave do restaurante com o comprovante ainda nao conferido. @param array<string,mixed> $p */
+    /** Pix pela chave do restaurante ainda nao confirmado ("Pix a confirmar"). @param array<string,mixed> $p */
     public static function pixParaConferir(array $p): bool
     {
         return ($p['forma_pagamento'] ?? '') === 'pix_comprovante' && ($p['pagamento_status'] ?? '') === 'pendente'
@@ -161,9 +161,7 @@ final class DeliveryService
         if (!in_array($p['status'], $de, true)) {
             return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
         }
-        if (self::pixParaConferir($p)) {
-            return Resultado::falha('Confira o comprovante do Pix no WhatsApp e no app do banco. Depois toque em "Confirmei o Pix, aceitar".');
-        }
+        // Pix pela chave ainda nao confirmado: pode aceitar e preparar; a producao sai com "SOLICITAR COMPROVANTE".
         $ifood = $this->ifoodAtivo($p);
         $this->mudar($p, $de, $para, $texto, [], $ifood ? function () use ($p, $acao): void {
             if ($p['status'] === 'recebido') {
@@ -183,25 +181,38 @@ final class DeliveryService
         return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ': ' . mb_strtolower(rtrim($texto, '.')) . '.' . ($ifood ? ' O iFood foi avisado.' : ''));
     }
 
-    /** "Confirmei o Pix, aceitar": o restaurante conferiu o Pix pela chave no banco. Marca pago e vai para o preparo. */
+    /**
+     * "Recebi o comprovante, confirmar Pix": o restaurante conferiu o Pix pela chave no banco e o pedido fica pago.
+     * Ainda "recebido": tambem aceita (vai para o preparo e a producao imprime). Depois do aceite: so marca o pagamento.
+     */
     public function confirmarPix(int $id): Resultado
     {
         $p = $this->pedido($id);
         if ($p instanceof Resultado) {
             return $p;
         }
-        if (!self::pixParaConferir($p) || $p['status'] !== 'recebido') {
+        if (!self::pixParaConferir($p)) {
             return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
         }
         $agora = date('Y-m-d H:i:s');
+        $aceitar = $p['status'] === 'recebido';
         try {
-            $this->mudar($p, ['recebido'], 'em_preparo', 'Pix conferido pelo restaurante. Pedido aceito. Em preparo.', ['pagamento_status' => 'pago', 'pago_em' => $agora]);
+            if ($aceitar) {
+                $this->mudar($p, ['recebido'], 'em_preparo', 'Pix conferido pelo restaurante. Pedido aceito. Em preparo.', ['pagamento_status' => 'pago', 'pago_em' => $agora]);
+            } else {
+                // Mesma etapa: so o pagamento muda (o cliente nao recebe aviso de etapa no WhatsApp).
+                $this->mudar($p, [(string) $p['status']], (string) $p['status'], 'Pix conferido pelo restaurante. Pagamento confirmado.',
+                    ['pagamento_status' => 'pago', 'pago_em' => $agora], null, false);
+            }
         } catch (\RuntimeException) {
             return Resultado::falha('Este pedido já mudou de situação. Confira na tela.');
         }
-        (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoPedido($id);
-        Auditoria::registrar($this->autor, 'Pix pela chave conferido', sprintf('Pedido #%d: Pix de %s conferido no banco e pedido aceito.', \Cardapim\Services\Pedidos\NumeroDoDia::de($p), Numero::reais((string) $p['total'])));
-        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ': Pix conferido e pedido aceito. Em preparo.');
+        if ($aceitar) {
+            (new \Cardapim\Services\Impressao\FilaImpressao($this->db, $this->idRestaurante, (string) ($this->autor->restauranteNome ?? ''), $this->autor))->producaoPedido($id);
+        }
+        Auditoria::registrar($this->autor, 'Pix pela chave conferido', sprintf('Pedido #%d: Pix de %s conferido no banco%s.', \Cardapim\Services\Pedidos\NumeroDoDia::de($p),
+            Numero::reais((string) $p['total']), $aceitar ? ' e pedido aceito' : ''));
+        return Resultado::sucesso('Pedido #' . \Cardapim\Services\Pedidos\NumeroDoDia::de($p) . ': Pix confirmado.' . ($aceitar ? ' Pedido aceito. Em preparo.' : ''));
     }
 
     public function despachar(int $id, int $idEntregador): Resultado
@@ -261,7 +272,7 @@ final class DeliveryService
             return Resultado::falha($p['tipo'] === 'entrega' ? 'Despache o pedido para um entregador antes de marcar como entregue.' : 'Este pedido já mudou de situação.');
         }
         if (self::pixParaConferir($p)) {
-            return Resultado::falha('Confira o comprovante do Pix e toque em "Confirmei o Pix, aceitar" antes de concluir.');
+            return Resultado::falha('O Pix deste pedido ainda não foi confirmado. Confira o comprovante e toque em "Confirmar Pix" antes de concluir.');
         }
         if ($p['forma_pagamento'] === 'pix_online' && $p['pagamento_status'] !== 'pago') {
             // QR do Asaas gerado na entrega e ainda nao pago: nao entra no caixa como recebido.

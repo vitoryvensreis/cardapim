@@ -117,9 +117,10 @@ final class CheckoutPublico
             'criado_em' => substr((string) $p['criado_em'], 11, 5),
             'criado_data' => substr((string) $p['criado_em'], 0, 10),
             'cancelado_motivo' => $p['status'] === 'cancelado' ? (string) ($p['motivo_cancelamento'] ?? '') : '',
-            'pix' => $p['status'] === 'aguardando_pagamento' && !empty($p['pix_copia_cola']) ? [
+            // Pix pela chave: o QR fica na tela ate o restaurante confirmar o Pix (o pedido ja esta com ele, sem prazo).
+            'pix' => ($p['status'] === 'aguardando_pagamento' || PixChavePedido::esperandoConfirmacao($p)) && !empty($p['pix_copia_cola']) ? [
                 'copia_cola' => (string) $p['pix_copia_cola'],
-                'expira_em_segundos' => max(0, strtotime((string) $p['pix_expira_em']) - time()),
+                'expira_em_segundos' => !empty($p['pix_expira_em']) ? max(0, strtotime((string) $p['pix_expira_em']) - time()) : null,
                 // app = Asaas (confirma sozinho); chave = Pix pela chave do restaurante (cliente envia o comprovante).
                 'modo' => $p['forma_pagamento'] === 'pix_comprovante' ? 'chave' : 'app',
             ] : null,

@@ -119,6 +119,19 @@ $vb = $textos(CupomImpressao::producao(CupomImpressao::cabecaComanda($comanda('b
 $ok(str_contains($vb, 'BALCÃO') && str_contains($vb, 'Para viagem') && str_contains($vb, 'Obs.: sem coentro'), 'balcao com observacao na via');
 $cp = CupomImpressao::cabecaPedido(['numero' => 88, 'tipo' => 'entrega', 'origem' => 'ifood', 'ifood_display_id' => '1234', 'cliente_nome' => 'Rita', 'observacao' => '']);
 $ok($cp['titulo'] === 'PEDIDO #88' && $cp['linha'] === 'ENTREGA · iFood #1234' && $cp['detalhe'] === 'Cliente: Rita', 'cabecalho da via do delivery');
+$ok(($cp['aviso'] ?? '') === '', 'via do delivery sem aviso de Pix');
+
+// Pix pela chave ainda nao confirmado: a via e o cupom pedem o comprovante; depois de confirmado, nao.
+$pixChave = ['id' => 5, 'numero' => 21, 'tipo' => 'retirada', 'origem' => 'cardapio', 'cliente_nome' => 'Bia', 'observacao' => '', 'status' => 'em_preparo',
+    'forma_pagamento' => 'pix_comprovante', 'pagamento_status' => 'pendente', 'subtotal' => '30.00', 'taxa_entrega' => '0.00', 'desconto' => '0.00',
+    'total' => '30.00', 'troco_para' => null, 'criado_em' => '2026-11-27 20:00:00', 'cliente_whatsapp' => ''];
+$viaPix = CupomImpressao::producao(CupomImpressao::cabecaPedido($pixChave), 'Cozinha', [], '', CupomImpressao::resumoPedido($pixChave));
+$ok($viaPix[4] === ['t' => 'titulo', 'texto' => 'SOLICITAR COMPROVANTE'], 'via de producao: SOLICITAR COMPROVANTE logo abaixo do pedido');
+$ok(str_contains($textos($viaPix), 'Pix pela chave (a confirmar)'), 'resumo: Pix a confirmar');
+$ok(str_contains(json_encode(CupomImpressao::pedido($pixChave, [], 'Loja')['blocos'], JSON_UNESCAPED_UNICODE), 'SOLICITAR COMPROVANTE'), 'cupom completo pede o comprovante');
+$pago = ['pagamento_status' => 'pago'] + $pixChave;
+$ok(!str_contains($textos(CupomImpressao::producao(CupomImpressao::cabecaPedido($pago), 'Cozinha', [], '', CupomImpressao::resumoPedido($pago))), 'COMPROVANTE'),
+    'Pix confirmado: sem o aviso');
 
 // Aviso de cancelamento (na impressora do item).
 $canc = CupomImpressao::cancelamento(['titulo' => 'MESA 5', 'linha' => 'Comanda: Ana', 'detalhe' => 'Pedido #9', 'observacao' => ''], 'Cozinha',
