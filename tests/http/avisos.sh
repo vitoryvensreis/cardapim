@@ -122,6 +122,18 @@ contem "tela avisa webhook errado" "$tmp/wpp.html" 'não está avisando o sistem
 esperar "corrigir recebimento" "$(enviar "$gj" "$g/integracoes/whatsapp/saudacao/webhook" "$g/integracoes/whatsapp" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
 contem "webhook corrigido" "$tmp/wpp.html" 'Recebendo mensagens'
+# Webhook do WAHA: mesmo destino (saudacao), protegido pelo segredo da URL + assinatura HMAC-SHA512 com o token da loja.
+waha_cb="$base/webhooks/waha/$WAHA_WEBHOOK_TOKEN"
+waha() { printf '{"id":"evt_ci%s","event":"message","session":"%s","payload":{"id":"CI%s","from":"%s","fromMe":false,"timestamp":%s,"body":"oi"}}' "$RANDOM" "$loja" "$RANDOM" "$1" "$t_evento"; }
+assinar() { printf %s "$1" | openssl dgst -sha512 -hmac "$2" | sed 's/^.* //'; }
+esperar "WAHA: segredo incorreto bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary '{}' "$base/webhooks/waha/invalido")" "401"
+esperar "WAHA: evento que nao e mensagem ignorado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary "{\"event\":\"session.status\",\"session\":\"$loja\",\"payload\":{}}" "$waha_cb")" "200"
+corpo_waha="$(waha 5585999990001@c.us)"
+esperar "WAHA: sem assinatura bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary "$corpo_waha" "$waha_cb")" "401"
+esperar "WAHA: assinatura de outra loja bloqueada" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H "X-Webhook-Hmac: $(assinar "$corpo_waha" tok-outra)" --data-binary "$corpo_waha" "$waha_cb")" "401"
+esperar "WAHA: mensagem assinada recebida" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H "X-Webhook-Hmac: $(assinar "$corpo_waha" "tok-$loja")" -H 'X-Webhook-Hmac-Algorithm: sha512' --data-binary "$corpo_waha" "$waha_cb")" "200"
+sleep 1
+esperar "WAHA: saudacao enviada para o contato novo" "$(quantas 'Bem-vindo ao.* Cardápio')" "3"
 enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" 'saudacao_mensagem=Mensagem de teste' >/dev/null
 # Restaurar somente modo 24h; os turnos originais foram preservados.
 php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE restaurantes SET sempre_aberto=? WHERE slug=?")->execute([(int)$argv[1],$argv[2]]);' "$sempre_antes" "$slug"

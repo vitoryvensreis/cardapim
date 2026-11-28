@@ -1,5 +1,9 @@
 # WhatsApp pela Evolution API (VPS de mensageria do Deliveryzim)
 
+> **Em substituição pelo WAHA** (motor GOWS): veja [waha.md](waha.md). Conexões novas vão para o WAHA com
+> `WHATSAPP_PROVEDOR_PADRAO=waha`; as lojas antigas seguem na Evolution até reconectar. Motivo: em 27/11/2026 a
+> instância de uma loja parou de receber mensagens ("Bad MAC" do Baileys) e só voltou lendo o QR de novo.
+
 A Evolution API roda numa VPS separada, que pode atender outros projetos da Escotilha Produtora.
 O Deliveryzim fala com ela por HTTPS. Cada loja tem uma instância própria, criada pelo próprio sistema
 quando o gerente clica em **Conectar WhatsApp**.

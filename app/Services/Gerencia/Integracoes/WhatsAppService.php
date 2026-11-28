@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Cardapim\Services\Gerencia\Integracoes;
 
 use Cardapim\Core\RateLimiter;
-use Cardapim\Modules\Integracoes\EvolutionApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
+use Cardapim\Modules\Integracoes\WebhookDeMensagens;
 use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Services\Auth\UsuarioLogado;
 use Cardapim\Services\Gerencia\Resultado;
@@ -17,7 +17,8 @@ use PDO;
 /**
  * WhatsApp do restaurante: uma sessao por restaurante, conectada lendo o QR Code no celular
  * (como o WhatsApp Web). Permite mandar uma mensagem de teste.
- * Servidor: Evolution API (dados.provedor = evolution). $api injetado (testes) vale para tudo.
+ * Servidor: o gravado em dados.provedor (waha ou evolution; conexoes novas usam WhatsAppProvedores::padrao).
+ * $api injetado (testes) vale para tudo.
  */
 final class WhatsAppService extends BaseIntegracao
 {
@@ -96,9 +97,12 @@ final class WhatsAppService extends BaseIntegracao
                 ]);
                 if ($atual['status'] !== 'conectado') {
                     // Garante que as mensagens recebidas chegam ao sistema (boas-vindas), mesmo em instancia antiga.
-                    if ($api instanceof EvolutionApi && !$this->daPlataforma()) {
+                    // So grava de novo quando esta faltando (no WAHA, gravar reinicia a sessao).
+                    if ($api instanceof WebhookDeMensagens && $api->webhookConfigurado() && !$this->daPlataforma()) {
                         try {
-                            $api->configurarWebhook($sessao, (string) $cred['token']);
+                            if ($api->situacaoWebhook($sessao, (string) $cred['token']) === 'errado') {
+                                $api->configurarWebhook($sessao, (string) $cred['token']);
+                            }
                         } catch (IntegracaoErro) {
                             // a tela de WhatsApp mostra a situacao e o botao para corrigir
                         }
@@ -190,7 +194,7 @@ final class WhatsAppService extends BaseIntegracao
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
         $sessao = $atual['dados']['sessao'] ?? null;
         $api = $this->provedor($atual['dados']);
-        if (!$api instanceof EvolutionApi || !$api->configurado() || EvolutionApi::urlWebhook() === ''
+        if (!$api instanceof WebhookDeMensagens || !$api->configurado() || !$api->webhookConfigurado()
             || !in_array($atual['status'], ['conectado', 'erro'], true) || !is_string($sessao) || empty($cred['token'])) {
             return null;
         }
@@ -207,7 +211,7 @@ final class WhatsAppService extends BaseIntegracao
         if (!in_array($atual['status'], ['conectado', 'erro'], true) || !is_string($sessao) || empty($cred['token'])) {
             return Resultado::falha('Conecte o WhatsApp antes.');
         }
-        if (!$api instanceof EvolutionApi) {
+        if (!$api instanceof WebhookDeMensagens) {
             return Resultado::falha('Este servidor de WhatsApp não permite o ajuste pelo painel.');
         }
         try {
@@ -215,7 +219,7 @@ final class WhatsAppService extends BaseIntegracao
         } catch (IntegracaoErro $erro) {
             return Resultado::falha($erro->getMessage());
         }
-        $this->log('WhatsApp: recebimento de mensagens ajustado', 'Webhook da instância apontado para o sistema (boas-vindas).');
+        $this->log('WhatsApp: recebimento de mensagens ajustado', 'Webhook da sessão apontado para o sistema (boas-vindas).');
         return Resultado::sucesso('Recebimento de mensagens ajustado. Peça para alguém mandar uma mensagem para a loja e confira abaixo.');
     }
 

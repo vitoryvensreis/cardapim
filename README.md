@@ -1,6 +1,6 @@
 # Deliveryzim (Cardapim)
 
-SaaS multi-restaurante para bares, restaurantes, pizzarias e lanchonetes: cardápio online e pedidos, caixa (PDV), mesas e comandas, painel do garçom, cozinha (KDS), estoque com ficha técnica, delivery com entregador e rastreio, financeiro, cupons e fidelidade, impressão térmica e balança pelo Agent Windows, e integrações com iFood, WhatsApp (Evolution API), Asaas (Pix) e SMS.
+SaaS multi-restaurante para bares, restaurantes, pizzarias e lanchonetes: cardápio online e pedidos, caixa (PDV), mesas e comandas, painel do garçom, cozinha (KDS), estoque com ficha técnica, delivery com entregador e rastreio, financeiro, cupons e fidelidade, impressão térmica e balança pelo Agent Windows, e integrações com iFood, WhatsApp (WAHA, motor GOWS; Evolution API nas conexões antigas), Asaas (Pix) e SMS.
 
 Produção: https://deliveryzim.com.br · Código interno: `Cardapim` (namespace `Cardapim\`)
 
@@ -41,7 +41,7 @@ Ele mostra onde está cada pasta, classe, script e rota, o que cada um faz e o q
 | [docs/MAPA-DO-PROJETO.md](docs/MAPA-DO-PROJETO.md) | Estrutura, funcionamento e onde mexer |
 | [docs/ANALISE-DESEMPENHO.md](docs/ANALISE-DESEMPENHO.md) | Gargalos e plano para muitas lojas ao mesmo tempo |
 | [docs/architecture/](docs/architecture/) | Um documento por funcionalidade (caixa, garçom, pedidos, impressão, iFood, tempo real...) |
-| [docs/deploy/](docs/deploy/) | VPS/CloudPanel, tempo real, Evolution, SMS, e-mail, troca de domínio |
+| [docs/deploy/](docs/deploy/) | VPS/CloudPanel, tempo real, WAHA (WhatsApp), Evolution, SMS, e-mail, troca de domínio |
 | [docs/database/](docs/database/) | Desenho das tabelas |
 | [docs/api/v1.md](docs/api/v1.md) | API REST v1 |
 | [docs/brand/identidade-visual.md](docs/brand/identidade-visual.md) | Marca, cores e logos |

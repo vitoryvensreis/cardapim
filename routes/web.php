@@ -66,6 +66,7 @@ $router->get('/midia/cartao', [SeoController::class, 'cartao']);
 $router->get('/midia/cartao/{slug}', [SeoController::class, 'cartaoRestaurante']);
 $router->post('/webhooks/asaas/{id}', [WebhookController::class, 'asaas']);
 $router->post('/webhooks/evolution/{token}', [EvolutionWebhookController::class, 'mensagem']);
+$router->post('/webhooks/waha/{token}', [\Cardapim\Controllers\WahaWebhookController::class, 'mensagem']);
 (require __DIR__ . '/gerencia.php')($router);
 (require __DIR__ . '/caixa.php')($router);
 (require __DIR__ . '/garcom.php')($router);

@@ -50,6 +50,7 @@ jobs:
       DB_PASSWORD: cardapim_ci_only
       CARDAPIM_TEST_WHATSAPP: '85900000000'
       EVOLUTION_WEBHOOK_TOKEN: 'token-ci-evolution-saudacao-exclusivo-2026'
+      WAHA_WEBHOOK_TOKEN: 'token-ci-waha-saudacao-exclusivo-2026-28'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -118,6 +119,7 @@ jobs:
           php tests/unit/importar-cardapio.php
           php tests/unit/whatsapp-sessoes.php
           php tests/unit/whatsapp-evolution.php
+          php tests/unit/whatsapp-waha.php
           php tests/unit/sms.php
           php tests/unit/impressao.php
           php tests/unit/combos.php

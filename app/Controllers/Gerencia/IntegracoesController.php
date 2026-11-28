@@ -169,7 +169,7 @@ final class IntegracoesController extends BaseGerencia
         $id = (int) $this->restaurante['id'];
         $mensagem = (string) ($_POST['saudacao_mensagem'] ?? '');
         $ativo = isset($_POST['saudacao_ativo']);
-        if ($ativo && strlen(\Cardapim\Core\Config::get('EVOLUTION_WEBHOOK_TOKEN')) < 32) {
+        if ($ativo && !\Cardapim\Modules\Integracoes\WhatsAppProvedores::recebimentoConfigurado()) {
             return $this->voltar($this->url('integracoes/whatsapp') . '#saudacao', 'erro',
                 'O recebimento de mensagens ainda não foi configurado no servidor. Avise o suporte.');
         }
@@ -205,7 +205,7 @@ final class IntegracoesController extends BaseGerencia
             'avisosLigados' => AvisosWhatsApp::ligados($this->db, (int) $this->restaurante['id']),
             'avisosRecentes' => AvisosWhatsApp::recentes($this->db, (int) $this->restaurante['id']),
             'saudacao' => SaudacaoWhatsApp::configuracao($this->db, (int) $this->restaurante['id']),
-            'webhookConfigurado' => strlen(\Cardapim\Core\Config::get('EVOLUTION_WEBHOOK_TOKEN')) >= 32,
+            'webhookConfigurado' => \Cardapim\Modules\Integracoes\WhatsAppProvedores::recebimentoConfigurado(),
             // Diagnostico das boas-vindas: o que aconteceu com as ultimas mensagens e se a instancia recebe mensagens.
             'saudacaoEventos' => \Cardapim\Services\WhatsApp\DiagnosticoSaudacao::ultimos((int) $this->restaurante['id']),
             'saudacaoEnvios' => \Cardapim\Services\WhatsApp\DiagnosticoSaudacao::envios($this->db, (int) $this->restaurante['id']),

@@ -20,7 +20,7 @@ use Cardapim\Shared\Http\RespostaHttp;
  *   envio e logout daquela loja.
  * O webhook de cada instancia aponta para /webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}.
  */
-class EvolutionApi implements ProvedorWhatsApp
+class EvolutionApi implements ProvedorWhatsApp, WebhookDeMensagens
 {
     public function __construct(private readonly ClienteHttp $http = new ClienteHttp(20))
     {
@@ -46,6 +46,11 @@ class EvolutionApi implements ProvedorWhatsApp
     {
         $segredo = Config::get('EVOLUTION_WEBHOOK_TOKEN');
         return strlen($segredo) >= 32 ? BaseIntegracao::urlPublica('/webhooks/evolution/' . rawurlencode($segredo)) : '';
+    }
+
+    public function webhookConfigurado(): bool
+    {
+        return self::urlWebhook() !== '';
     }
 
     public function criarSessao(string $sessao): string
