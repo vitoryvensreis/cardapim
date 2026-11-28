@@ -75,7 +75,15 @@ final class VisaoGeralService
             'maisVendidos' => $this->maisVendidos($agora->modify('-6 days')->format('Y-m-d') . ' 00:00:00', $amanha . ' 00:00:00'),
             'estoque' => $this->estoque(),
             'contas' => (new FinanceiroService($this->db, $this->idRestaurante))->pendencias($hoje),
+            'whatsapp' => $this->alertaWhatsapp(),
         ];
+    }
+
+    /** Motivo do alerta quando o WhatsApp da loja precisa de alguem (marcado pelo vigia ou pela tela); null = tudo certo. */
+    private function alertaWhatsapp(): ?string
+    {
+        $w = (new \Cardapim\Repositories\Gerencia\IntegracaoRepository($this->db))->buscar($this->idRestaurante, 'whatsapp');
+        return $w['status'] === 'erro' ? ($w['ultimo_erro'] ?? 'O WhatsApp da loja está desconectado.') : null;
     }
 
     /** @return array{ativas:int, ocupadas:int, aberto:int} */

@@ -155,6 +155,10 @@ fi
 if [[ -f "$root/current/deploy/scripts/install-fiscal-fila-cron.sh" ]] && ! bash "$root/current/deploy/scripts/install-fiscal-fila-cron.sh" "$root"; then
   echo "ATENCAO: Cron da fila fiscal nao confirmado. Configure a execucao a cada minuto no CloudPanel."
 fi
+# Vigia do WhatsApp: reinicia sessao que caiu e tenta de novo as boas-vindas (sem WAHA configurado, nao faz nada).
+if [[ -f "$root/current/deploy/scripts/install-whatsapp-vigia-cron.sh" ]] && ! bash "$root/current/deploy/scripts/install-whatsapp-vigia-cron.sh" "$root"; then
+  echo "ATENCAO: Cron do vigia do WhatsApp nao confirmado. Configure a execucao a cada minuto no CloudPanel."
+fi
 # Conciliação seletiva da plataforma, independente do cron de Pix dos restaurantes.
 if ! bash "$root/current/deploy/scripts/install-conciliar-assinaturas-cron.sh" "$root"; then
   echo "ATENCAO: Cron de conciliacao nao confirmado. Configure a execucao a cada 15 minutos no CloudPanel."

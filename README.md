@@ -176,6 +176,8 @@ A taxa cadastrada em Gerência → Entrega e pagamento (débito, crédito e Pix;
 
 ## Pix pela chave do restaurante (um Pix por vez)
 
+O WhatsApp de cada loja conecta pelo QR Code ou, quando a câmera não lê, por um **código de 8 caracteres** digitado no celular. Um vigia (`bin/whatsapp-vigia.php`, a cada minuto, instalado pelo deploy) reinicia sozinho a sessão que cair no WAHA, avisa a loja (tela do WhatsApp e Visão geral) quando só alguém com o celular resolve, e tenta de novo as boas-vindas que falharam (até 3 vezes, dentro de 10 minutos). Detalhes em [docs/deploy/waha.md](docs/deploy/waha.md).
+
 Em Gerência → Entrega e pagamento, o restaurante escolhe **um** jeito de receber Pix com QR Code: pelo Asaas (confirma sozinho) ou pela **chave Pix** dele (o sistema monta o QR Code e o copia e cola pelo padrão do Banco Central, sem custo e sem confirmação automática). No cardápio, o pedido chega na hora ao restaurante e o cliente fica na tela do QR Code, com "Já paguei: enviar comprovante" (abre o WhatsApp do restaurante). O caixa aceita (a produção imprime com "SOLICITAR COMPROVANTE"), e o popup "Confirmar pagamento Pix" pede "Recebi o comprovante, confirmar Pix" ou "Pix não recebido" (cancela). Confirmado, a tela do cliente vira o acompanhamento. Na mesa, o garçom mostra o QR e toca em "Recebi o Pix". O caixa continua só registrando o Pix. Migration `20261205100000_pix_chave` (tag `[cardapim-pix-chave]`). Detalhes em [docs/architecture/pedidos.md](docs/architecture/pedidos.md).
 
 ## Trocar forma de pagamento na entrega

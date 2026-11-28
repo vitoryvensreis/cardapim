@@ -7,6 +7,7 @@ namespace Cardapim\Services\Gerencia\Integracoes;
 use Cardapim\Core\RateLimiter;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
+use Cardapim\Modules\Integracoes\RecuperacaoDeSessao;
 use Cardapim\Modules\Integracoes\WebhookDeMensagens;
 use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Services\Auth\UsuarioLogado;
@@ -23,6 +24,7 @@ use PDO;
 final class WhatsAppService extends BaseIntegracao
 {
     public const TESTES_POR_HORA = 10;
+    public const CODIGOS_POR_10_MIN = 5;
 
     public function __construct(PDO $db, UsuarioLogado $autor, ?int $idRestaurante, private readonly ?ProvedorWhatsApp $api = null)
     {
@@ -64,8 +66,9 @@ final class WhatsAppService extends BaseIntegracao
 
     /**
      * Situacao atual (consultada pela tela a cada poucos segundos).
-     * @return array{estado:string, qrcode:?string, numero:?string, mensagem:string}
-     *         estado: conectado | qrcode | iniciando | expirado | desconectado | indisponivel | erro
+     * @return array{estado:string, qrcode:?string, numero:?string, mensagem:string, codigo?:bool}
+     *         estado: conectado | qrcode | iniciando | passkey | expirado | desconectado | indisponivel | erro
+     *         codigo: no estado qrcode, se o servidor permite conectar digitando um codigo no celular
      */
     public function estado(): array
     {
@@ -114,7 +117,12 @@ final class WhatsAppService extends BaseIntegracao
             return ['estado' => 'conectado', 'qrcode' => null, 'numero' => $numero, 'mensagem' => 'WhatsApp conectado.'];
         }
         if ($e['status'] === 'QRCODE' && $e['qrcode'] !== null) {
-            return ['estado' => 'qrcode', 'qrcode' => $e['qrcode'], 'numero' => null, 'mensagem' => 'Leia o QR Code com o celular.'];
+            return ['estado' => 'qrcode', 'qrcode' => $e['qrcode'], 'numero' => null, 'mensagem' => 'Leia o QR Code com o celular.',
+                'codigo' => $api instanceof RecuperacaoDeSessao];
+        }
+        if ($e['status'] === 'PASSKEY') {
+            return ['estado' => 'passkey', 'qrcode' => null, 'numero' => $numero,
+                'mensagem' => 'O WhatsApp pediu uma confirmação no celular. Abra o WhatsApp no aparelho da loja e siga o aviso na tela (pode pedir a senha, a digital ou o rosto do aparelho).'];
         }
         if ($e['status'] === 'CLOSED') {
             if ($atual['status'] === 'conectado') {
@@ -123,9 +131,48 @@ final class WhatsAppService extends BaseIntegracao
                 $this->avisarTela('whatsapp', 'integracao.whatsapp.estado', ['estado' => 'erro']);
                 return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => 'O WhatsApp foi desconectado do celular. Conecte de novo.'];
             }
+            if ($atual['status'] === 'erro') { // o vigia ja marcou o problema; mostra o motivo e o botao de conectar de novo
+                return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => $atual['ultimo_erro'] ?? 'O WhatsApp foi desconectado do celular. Conecte de novo.'];
+            }
             return ['estado' => 'expirado', 'qrcode' => null, 'numero' => null, 'mensagem' => 'O QR Code venceu. Gere um novo.'];
         }
         return ['estado' => 'iniciando', 'qrcode' => null, 'numero' => null, 'mensagem' => 'Preparando o WhatsApp...'];
+    }
+
+    /**
+     * Codigo para conectar digitando no celular (WhatsApp > Aparelhos conectados > Conectar com numero de telefone),
+     * para quando a camera nao consegue ler o QR Code.
+     * @return array{ok:bool, mensagem:string, codigo?:string, erros?:array<string,string>}
+     */
+    public function pedirCodigo(string $telefone): array
+    {
+        $digitos = Documento::normalizarTelefone($telefone);
+        if ($digitos === null) {
+            return ['ok' => false, 'mensagem' => 'Confira o número.', 'erros' => ['telefone' => 'Digite o número do WhatsApp da loja com DDD. Exemplo: (85) 99999-0000']];
+        }
+        $atual = $this->integracoes->buscar($this->idRestaurante, 'whatsapp');
+        $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
+        $sessao = $atual['dados']['sessao'] ?? null;
+        if ($atual['status'] === 'desconectado' || !is_string($sessao) || empty($cred['token'])) {
+            return ['ok' => false, 'mensagem' => 'Clique em "Conectar WhatsApp" antes de pedir o código.'];
+        }
+        $api = $this->provedor($atual['dados']);
+        if (!$api instanceof RecuperacaoDeSessao || !$api->configurado()) {
+            return ['ok' => false, 'mensagem' => 'Este servidor de WhatsApp só conecta pelo QR Code.'];
+        }
+        $limite = RateLimiter::padrao(self::CODIGOS_POR_10_MIN, 600);
+        $chave = 'wpp-codigo|' . ($this->idRestaurante ?? 'plataforma');
+        if ($limite->excedido($chave)) {
+            return ['ok' => false, 'mensagem' => 'Você pediu muitos códigos seguidos. Espere 10 minutos e tente de novo.'];
+        }
+        $limite->permitir($chave);
+        try {
+            $codigo = $api->pedirCodigo($sessao, (string) $cred['token'], '55' . $digitos);
+        } catch (IntegracaoErro $erro) {
+            return ['ok' => false, 'mensagem' => $erro->getMessage()];
+        }
+        $this->log('WhatsApp: código de conexão gerado', 'Para o celular com final ' . substr((string) $digitos, -4) . '.');
+        return ['ok' => true, 'mensagem' => 'Digite este código no celular.', 'codigo' => $codigo];
     }
 
     public function enviarTeste(string $telefone, string $mensagem): Resultado

@@ -70,7 +70,9 @@ no WAHA. Conferir em seguida "Recebendo mensagens" e mandar um "Oi" de outro nú
 | Ação | Chamada |
 |---|---|
 | Criar sessão (parada, com webhook da loja) | `POST /api/sessions` |
-| Iniciar (gera o QR) | `POST /api/sessions/{s}/start` |
+| Iniciar (gera o QR) | `POST /api/sessions/{s}/start` (se já iniciada, `422` → `POST .../restart`) |
+| Reiniciar (vigia; o celular continua vinculado) | `POST /api/sessions/{s}/restart` |
+| Código de conexão (sem QR) | `POST /api/{s}/auth/request-code {phoneNumber}` → `{"code":"ABCD-EFGH"}` (só em `SCAN_QR_CODE`) |
 | Situação e número | `GET /api/sessions/{s}` (`WORKING`, `SCAN_QR_CODE`, `STARTING`, `PASSKEY_*`, `STOPPED`, `FAILED`) |
 | QR Code | `GET /api/{s}/auth/qr` (JSON base64) |
 | Conversa certa do número (9 extra) | `GET /api/contacts/check-exists?phone=&session=` |
@@ -87,10 +89,47 @@ no WAHA. Conferir em seguida "Recebendo mensagens" e mandar um "Oi" de outro nú
 - `EventoWaha` converte para o formato da `SaudacaoWhatsApp` (mesmo caminho da Evolution: diagnóstico, horário,
   uma boas-vindas por contato por dia). Contato com LID: usa o número alternativo quando vier; senão responde no @lid.
 
+## Conectar com código (sem ler o QR)
+
+Na tela de conexão, com o QR Code aberto: **"Não consegue ler o QR Code? Conectar com código"**. A pessoa digita o
+número do WhatsApp da loja e recebe um código de 8 caracteres; no celular: Aparelhos conectados → Conectar um
+aparelho → **Conectar com número de telefone** → digita o código. Só para servidor WAHA (a Evolution segue só com QR).
+Rotas JSON com CSRF: `POST /{slug}/gerencia/integracoes/whatsapp/codigo` e `POST /painel/integracoes/whatsapp/codigo`.
+Limite: 5 códigos por 10 minutos por loja.
+
+## Confirmação no celular (passkey)
+
+Status `PASSKEY_REQUIRED` / `PASSKEY_CONFIRMATION_REQUIRED` viram o estado `passkey`: a tela explica que é preciso
+confirmar no celular (senha, digital ou rosto do aparelho) e atualiza sozinha depois.
+
+## Vigia (`bin/whatsapp-vigia.php`, a cada minuto)
+
+Instalado no crontab da conta do site pelo deploy (`deploy/scripts/install-whatsapp-vigia-cron.sh`, marcador
+`# cardapim-whatsapp-vigia`, log em `shared/storage/logs/whatsapp-vigia.log`, só quando algo acontece).
+Para cada WhatsApp em uso (loja ou plataforma) no WAHA:
+
+| Situação no WAHA | O que o vigia faz |
+|---|---|
+| `WORKING` | Nada. Se estava com alerta, tira o alerta ("WhatsApp reconectado automaticamente") |
+| `STOPPED` / `FAILED` | Reinicia na hora; 3 rodadas seguidas sem voltar: alerta na loja. Depois reinicia de 10 em 10 min |
+| `STARTING` preso | Espera 1 rodada, depois reinicia; alerta na 3ª |
+| `SCAN_QR_CODE` | Celular desvinculado: alerta na hora (só alguém com o celular resolve) |
+| `PASSKEY_*` | Alerta: confirmar no celular |
+| Servidor do WAHA fora do ar | Nada (não é falha da loja) |
+
+Alerta = `integracoes.status = 'erro'` com o motivo em `ultimo_erro`: aparece na tela do WhatsApp e na Visão geral
+("WhatsApp precisa de atenção"), com registro no log de atividades. As boas-vindas continuam saindo enquanto o WhatsApp
+estiver de pé.
+
+## Fila das boas-vindas
+
+- Até 3 tentativas por contato/dia (espera de 1 e 3 minutos); as novas tentativas saem pelo vigia.
+- Número sem WhatsApp não repete. Boas-vindas que não saiu em 10 minutos é descartada (chegar atrasada atrapalha).
+- Envio interrompido no meio (processo caiu) não repete, para o cliente não receber duas vezes.
+
 ## Pendências conhecidas
 
-- Passkey: quando o WhatsApp pedir passkey, a tela mostra "Preparando o WhatsApp..." (status `PASSKEY_*`).
-  Concluir pelo painel do WAHA (`/dashboard`) até a tela do Deliveryzim ganhar essa etapa.
-- Monitoramento de ponta a ponta, reinício automático e "Reconectar com código": ver `PLANO-WHATSAPP-WUZAPI.md` (projeto).
+- Teste de ponta a ponta (a plataforma manda uma mensagem de teste para cada loja de tempos em tempos): não
+  implementado; aguardando decisão.
 
 Testes: `tests/unit/whatsapp-waha.php` e o bloco "Webhook do WAHA" de `tests/http/avisos.sh`.

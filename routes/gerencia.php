@@ -211,6 +211,7 @@ return static function (Router $router): void {
     $router->get($g . '/integracoes/whatsapp', [IntegracoesController::class, 'whatsapp']);
     $router->post($g . '/integracoes/whatsapp/conectar', [IntegracoesController::class, 'whatsappConectar']);
     $router->get($g . '/integracoes/whatsapp/estado', [IntegracoesController::class, 'whatsappEstado']);
+    $router->post($g . '/integracoes/whatsapp/codigo', [IntegracoesController::class, 'whatsappCodigo']);
     $router->post($g . '/integracoes/whatsapp/teste', [IntegracoesController::class, 'whatsappTeste']);
     $router->post($g . '/integracoes/whatsapp/avisos', [IntegracoesController::class, 'whatsappAvisos']);
     $router->post($g . '/integracoes/whatsapp/saudacao', [IntegracoesController::class, 'whatsappSaudacao']);

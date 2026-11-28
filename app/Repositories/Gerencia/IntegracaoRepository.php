@@ -121,6 +121,13 @@ final class IntegracaoRepository
             WHERE escopo = ? AND provedor = ?")->execute([self::escopo($idRestaurante), $provedor]);
     }
 
+    /** @return list<?int> WhatsApps em uso (conectado ou com alerta): id do restaurante ou null (plataforma) */
+    public function whatsappEmUso(): array
+    {
+        $q = $this->db->query("SELECT id_restaurante FROM integracoes WHERE provedor = 'whatsapp' AND status IN ('conectado', 'erro') ORDER BY escopo");
+        return array_map(static fn ($id): ?int => $id === null ? null : (int) $id, $q->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     /** Sessao do WhatsApp pertencente a uma unica loja conectada (nunca a plataforma). */
     /** Loja dona da sessao. "erro" conta: o painel pode ter visto uma queda rapida, mas a sessao segue mandando mensagens. */
     public function restaurantePorSessaoWhatsApp(string $sessao): ?int

@@ -52,8 +52,16 @@ $semVendasSemana = array_sum(array_column($vg['semana'], 'total')) === 0;
         </div>
     </header>
 
-    <?php if ($contas['vencidas'] > 0 || $estoque['emFalta'] !== []): ?>
+    <?php if ($contas['vencidas'] > 0 || $estoque['emFalta'] !== [] || ($vg['whatsapp'] ?? null) !== null): ?>
         <div class="vg-alertas">
+            <?php if (($vg['whatsapp'] ?? null) !== null): ?>
+                <a class="vg-alerta is-alerta" href="<?= $e($base . '/integracoes/whatsapp') ?>">
+                    <?= Icon::svg('message-circle') ?>
+                    <span><strong>WhatsApp precisa de atenção</strong>
+                        <small><?= $e((string) $vg['whatsapp']) ?></small></span>
+                    <?= Icon::svg('chevron-right', 'icon-sm') ?>
+                </a>
+            <?php endif; ?>
             <?php if ($estoque['emFalta'] !== []): ?>
                 <a class="vg-alerta is-alerta" href="<?= $e($base . '/estoque') ?>">
                     <?= Icon::svg('package-x') ?>

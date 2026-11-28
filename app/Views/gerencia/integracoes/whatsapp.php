@@ -1,6 +1,6 @@
 <?php
 /**
- * WhatsApp (Evolution API). Espera: $integracao, $disponivel, $erros, $valores, $base, $csrf.
+ * WhatsApp (WAHA ou Evolution API). Espera: $integracao, $disponivel, $erros, $valores, $base, $csrf.
  * Opcional: $plataforma (true = WhatsApp da administracao do Cardapim, separado dos restaurantes).
  */
 use Cardapim\Core\Icon;
@@ -68,6 +68,33 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
                     <li>Toque em <strong>Conectar um aparelho</strong> e aponte para este código.</li>
                 </ol>
                 <p class="texto-suave">O código muda sozinho de tempos em tempos. Deixe esta tela aberta.</p>
+
+                <div class="whatsapp-codigo" data-codigo-area hidden>
+                    <button class="btn btn-outline btn-sm" type="button" data-codigo-abrir aria-expanded="false" aria-controls="whatsapp-codigo-form">
+                        <?= Icon::svg('smartphone', 'icon-sm') ?>Não consegue ler o QR Code? Conectar com código
+                    </button>
+                    <form class="whatsapp-codigo-form" id="whatsapp-codigo-form" method="post" action="<?= $e($base . '/integracoes/whatsapp/codigo') ?>" data-codigo-form hidden novalidate>
+                        <input type="hidden" name="_csrf" value="<?= $e($csrf) ?>">
+                        <?= Campo::texto(['nome' => 'telefone', 'id' => 'whatsapp-codigo-telefone', 'rotulo' => 'Número do WhatsApp que vai conectar', 'icone' => 'phone',
+                            'dica' => 'O mesmo número do celular onde você vai digitar o código.',
+                            'attrs' => ['inputmode' => 'tel', 'data-mask' => 'phone', 'autocomplete' => 'off', 'placeholder' => '(00) 00000-0000']]) ?>
+                        <button class="btn btn-primary btn-sm" type="submit" data-codigo-enviar><?= Icon::svg('hash', 'icon-sm') ?>Gerar código</button>
+                    </form>
+                    <div class="whatsapp-codigo-resultado" data-codigo-resultado hidden>
+                        <p class="texto-suave">Digite este código no celular:</p>
+                        <strong class="codigo-grande" data-codigo-valor aria-live="assertive"></strong>
+                        <ol class="passos-2fa">
+                            <li>No WhatsApp do <?= $e($celular) ?>, vá em <strong>Aparelhos conectados</strong> &gt; <strong>Conectar um aparelho</strong>.</li>
+                            <li>Toque em <strong>Conectar com número de telefone</strong> (embaixo da câmera).</li>
+                            <li>Digite o código acima. Ele vale por poucos minutos.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <div class="whatsapp-painel" data-painel="passkey" hidden>
+                <div class="notice notice-info"><?= Icon::svg('shield-check') ?><div><p data-texto-estado>O WhatsApp pediu uma confirmação no celular.</p></div></div>
+                <p class="texto-suave">Depois de confirmar no celular, esta tela atualiza sozinha.</p>
             </div>
 
             <div class="whatsapp-painel" data-painel="expirado" hidden>

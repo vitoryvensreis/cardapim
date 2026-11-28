@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Controllers\Plataforma;
 
 use Cardapim\Core\Response;
+use Cardapim\Core\Session;
 use Cardapim\Modules\Integracoes\AplicativosParceiros;
 use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Repositories\Gerencia\IntegracaoRepository;
@@ -167,6 +168,16 @@ final class IntegracoesController extends BasePlataforma
             return Response::json(['estado' => 'sessao', 'mensagem' => 'Sua sessão expirou. Recarregue a página.'], 401);
         }
         return Guard::semCache(Response::json($this->whatsappServico()->estado()));
+    }
+
+    /** JSON: codigo para conectar digitando no celular (quando a camera nao le o QR Code). */
+    public function whatsappCodigo(): Response
+    {
+        if ($this->entrar() !== null || !Session::csrfValido($_POST['_csrf'] ?? null)) {
+            return Response::json(['ok' => false, 'mensagem' => 'Sua sessão expirou. Recarregue a página.'], 401);
+        }
+        $r = $this->whatsappServico()->pedirCodigo($this->post('telefone'));
+        return Guard::semCache(Response::json($r, $r['ok'] ? 200 : 422));
     }
 
     public function whatsappTeste(): Response

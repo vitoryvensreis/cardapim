@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Cardapim\Modules\Integracoes;
 
 /**
- * Contrato do servidor de WhatsApp do Deliveryzim (hoje a Evolution API).
+ * Contrato do servidor de WhatsApp do Deliveryzim (WAHA ou Evolution API).
  * Os servicos (conexao, avisos, saudacao, codigos da plataforma, limpeza) so conhecem este contrato.
  */
 interface ProvedorWhatsApp
 {
-    /** Identificador gravado em integracoes.dados.provedor (evolution). */
+    /** Identificador gravado em integracoes.dados.provedor (waha ou evolution). */
     public function id(): string;
 
     /** O servidor esta configurado no .env? */
@@ -24,7 +24,8 @@ interface ProvedorWhatsApp
 
     /**
      * Situacao no formato unico usado pelos servicos.
-     * @return array{status:string, qrcode:?string} status: CONNECTED, QRCODE, INITIALIZING ou CLOSED
+     * @return array{status:string, qrcode:?string} status: CONNECTED, QRCODE, INITIALIZING, PASSKEY
+     *         (o WhatsApp pediu confirmacao no celular) ou CLOSED
      */
     public function estado(string $sessao, string $token): array;
 

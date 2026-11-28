@@ -22,6 +22,7 @@ final class DiagnosticoSaudacao
         'enfileirada' => ['Boas-vindas a caminho', 'ok'],
         'enviada' => ['Boas-vindas enviada', 'ok'],
         'falhou_envio' => ['O WhatsApp não conseguiu enviar', 'alerta'],
+        'falhou_envio_tenta_de_novo' => ['Falhou o envio, tenta de novo em instantes', 'atencao'],
         'ja_registrada_hoje' => ['Já recebeu as boas-vindas hoje', 'neutra'],
         'fora_do_horario' => ['Fora do horário de funcionamento', 'atencao'],
         'automacao_desligada' => ['Boas-vindas desligada', 'atencao'],
