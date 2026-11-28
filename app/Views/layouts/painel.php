@@ -34,6 +34,11 @@ $botaoIfood = $painel['botao_ifood'] ?? null;
 if ($botaoIfood !== null) {
     $scripts[] = 'js/ifood-botao.js';
 }
+$avisoLoja = $painel['aviso_loja'] ?? null;
+if ($avisoLoja !== null) {
+    $styles[] = 'css/aviso-loja.css';
+    $scripts[] = 'js/aviso-loja.js';
+}
 $alertaPedido = $tempoReal !== null ? ($painel['alerta_pedido'] ?? null) : null;
 if ($alertaPedido !== null) {
     $styles[] = 'css/alerta-pedido.css';
@@ -159,6 +164,7 @@ if ($alertaPedido !== null) {
             </div>
         </section>
     <?php endif; ?>
+    <?php if ($avisoLoja !== null) { require __DIR__ . '/../partials/aviso-loja.php'; } ?>
     <dialog class="confirmar" data-confirmar-dialogo aria-labelledby="confirmar-titulo">
         <form method="dialog" class="confirmar-caixa">
             <span class="confirmar-icone" aria-hidden="true"><?= Icon::svg('info', 'icon-lg') ?></span>

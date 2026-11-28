@@ -32,6 +32,8 @@ final class VigiaWhatsApp
 
     private const ALERTA_DESVINCULADO = 'O celular desconectou o WhatsApp da loja. Abra esta tela e conecte de novo (QR Code ou código).';
     private const ALERTA_PASSKEY = 'O WhatsApp pediu uma confirmação no celular da loja. Abra o WhatsApp no aparelho e confirme.';
+    /** Gravado pelo teste de ponta a ponta (TesteWhatsApp): so ele tira, quando a mensagem de teste chega. */
+    public const ALERTA_NAO_RECEBE = 'O WhatsApp da loja aparece conectado, mas parou de receber mensagens (o teste automático não chegou). Abra esta tela e conecte de novo.';
     private const ALERTA_CAIU = 'O WhatsApp da loja caiu e não voltou sozinho. Confira se o celular está ligado e com internet; se continuar, conecte de novo.';
 
     private readonly IntegracaoRepository $integracoes;
@@ -62,7 +64,8 @@ final class VigiaWhatsApp
         }
         switch ($servidor) {
             case 'CONNECTED':
-                $r['recuperou'] = $integracao === 'erro';
+                // "Sem receber": a sessao diz que esta conectada, entao so o teste de ponta a ponta pode tirar o alerta.
+                $r['recuperou'] = $integracao === 'erro' && $alertaAtual !== self::ALERTA_NAO_RECEBE;
                 return $r;
             case 'QRCODE': // so pede QR Code quem foi desvinculado no celular: reiniciar nao resolve
                 return ['falhas' => $falhas + 1, 'reiniciar' => false, 'alerta' => self::ALERTA_DESVINCULADO, 'recuperou' => false];
@@ -85,10 +88,11 @@ final class VigiaWhatsApp
         return $falhas <= self::FALHAS_PARA_ALERTA + 2 || $falhas % 10 === 0;
     }
 
-    /** @return array{verificados:int, reiniciados:int, alertas:int, recuperados:int, boas_vindas:int} */
-    public function rodar(): array
+    /** @return array{verificados:int, reiniciados:int, alertas:int, recuperados:int, boas_vindas:int, testes:int, testes_falhos:int} */
+    public function rodar(?TesteWhatsApp $teste = null): array
     {
-        $total = ['verificados' => 0, 'reiniciados' => 0, 'alertas' => 0, 'recuperados' => 0, 'boas_vindas' => 0];
+        $teste ??= new TesteWhatsApp($this->db, $this->provedor);
+        $total = ['verificados' => 0, 'reiniciados' => 0, 'alertas' => 0, 'recuperados' => 0, 'boas_vindas' => 0, 'testes' => 0, 'testes_falhos' => 0];
         foreach ($this->integracoes->whatsappEmUso() as $id) {
             try {
                 $r = $this->verificar($id);
@@ -103,6 +107,16 @@ final class VigiaWhatsApp
             $total['reiniciados'] += $r['reiniciou'] ? 1 : 0;
             $total['alertas'] += $r['alertou'] ? 1 : 0;
             $total['recuperados'] += $r['recuperou'] ? 1 : 0;
+            if ($id !== null) {
+                try {
+                    $t = $teste->rodar($id);
+                    $total['testes'] += $t === 'enviado' ? 1 : 0;
+                    $total['testes_falhos'] += in_array($t, ['falhou', 'alerta'], true) ? 1 : 0;
+                    $total['alertas'] += $t === 'alerta' ? 1 : 0;
+                } catch (Throwable $e) {
+                    error_log('[Cardapim] Teste WhatsApp (' . $id . '): ' . get_class($e));
+                }
+            }
         }
         \Cardapim\Services\Pedidos\SaudacaoWhatsApp::expirar($this->db);
         foreach (\Cardapim\Services\Pedidos\SaudacaoWhatsApp::lojasComFila($this->db) as $loja) {

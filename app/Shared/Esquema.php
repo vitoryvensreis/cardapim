@@ -55,6 +55,8 @@ final class Esquema
         'popup_cardapio' => ['restaurante_popup', 'versao'],
         // Produto especial Meio a Meio (sabores com fracao do estoque).
         'meio_a_meio' => ['produto_meio_sabores', 'id_sabor'],
+        // Avisos da plataforma para as lojas (pop-up do gerente); exibicoes criada por ultimo.
+        'avisos_loja' => ['avisos_loja_exibicoes', 'clicou_em'],
         'fiscal_restaurante' => ['restaurante_fiscal', 'dados'],
         'fiscal_produtos' => ['fiscal_produtos', 'dados'],
         'fiscal_visibilidade' => ['fiscal_visibilidade', 'visivel'],

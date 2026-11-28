@@ -216,6 +216,32 @@ sleep 1
 esperar "sem WhatsApp conectado nada e enviado" "$(quantas "Recebemos seu pedido \*#$n3\*")" "0"
 esperar "pagina continua abrindo" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' "$g/integracoes/whatsapp")" "200"
 
+echo "Avisos da plataforma para as lojas (pop-up do gerente)"
+esperar "lista de avisos abre" "$(curl -s -o "$tmp/avisos.html" -b "$aj" -w '%{http_code}' "$base/painel/avisos")" "200"
+esperar "gerente nao acessa os avisos da plataforma" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' "$base/painel/avisos")" "403"
+hoje="$(date '+%Y-%m-%d')"
+amanha="$(date -d '+1 day' '+%Y-%m-%d')"
+esperar "aviso sem titulo recusado" "$(enviar "$aj" "$base/painel/avisos" "$base/painel/avisos/novo" titulo= "inicio=${hoje}T00:00" "fim=${amanha}T23:59" vezes_por_dia=1 | cut -d' ' -f1)" "422"
+r="$(enviar "$aj" "$base/painel/avisos" "$base/painel/avisos/novo" 'titulo=Reconecte o WhatsApp CI' 'texto=Toque no botão e leia o QR Code.' botao_destino=whatsapp 'botao_texto=Reconectar agora' "inicio=${hoje}T00:00" "fim=${amanha}T23:59" vezes_por_dia=1)"
+esperar "aviso criado" "$(cut -d' ' -f1 <<<"$r")" "303"
+curl -s -b "$aj" "$base/painel/avisos" -o "$tmp/avisos.html"
+aviso="$(grep -o 'id="aviso-[0-9]*"' "$tmp/avisos.html" | head -1 | grep -o '[0-9]*')"
+contem "aviso novo nasce pausado" "$tmp/avisos.html" 'Pausado'
+curl -s -b "$gj" "$g/estoque" -o "$tmp/g1.html"
+nao_contem "aviso pausado nao aparece" "$tmp/g1.html" 'Reconecte o WhatsApp CI'
+esperar "ativar aviso" "$(enviar "$aj" "$base/painel/avisos/$aviso/ativo" "$base/painel/avisos" | cut -d' ' -f1)" "303"
+curl -s -b "$gj" "$g/estoque" -o "$tmp/g2.html"
+contem "gerente ve o aviso em qualquer tela" "$tmp/g2.html" 'Reconecte o WhatsApp CI'
+contem "botao leva para o WhatsApp da propria loja" "$tmp/g2.html" "href=\"/$slug/gerencia/integracoes/whatsapp\""
+curl -s -b "$gj" "$g/financeiro" -o "$tmp/g3.html"
+nao_contem "1 vez por dia: nao repete no mesmo dia" "$tmp/g3.html" 'Reconecte o WhatsApp CI'
+curl -s -b "$cx" "$c" -o "$tmp/c1.html"
+nao_contem "caixa nao ve o aviso" "$tmp/c1.html" 'Reconecte o WhatsApp CI'
+esperar "clique no botao registrado" "$(enviar "$gj" "$g/avisos/$aviso/clique" "$g/estoque" | cut -d' ' -f1)" "200"
+curl -s -b "$aj" "$base/painel/avisos" -o "$tmp/avisos.html"
+contem "painel mostra que a loja viu e clicou" "$tmp/avisos.html" '1 clicou no botão'
+esperar "excluir aviso" "$(enviar "$aj" "$base/painel/avisos/$aviso/excluir" "$base/painel/avisos" | cut -d' ' -f1)" "303"
+
 echo "Limpeza"
 enviar "$gj" "$g/integracoes/whatsapp/avisos" "$g/integracoes/whatsapp" avisos[]=recebido avisos[]=em_preparo avisos[]=pronto avisos[]=saiu_entrega avisos[]=concluido avisos[]=cancelado >/dev/null
 if curl -s -b "$cx" "$c" | grep -q 'Caixa aberto'; then

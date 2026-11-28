@@ -79,6 +79,14 @@ final class MenuPlataforma
             'planejado' => [],
             'pronto' => true,
         ],
+        'avisos' => [
+            'titulo' => 'Avisos para as lojas',
+            'rotulo' => 'Avisos para as lojas',
+            'icone' => 'bell-ring',
+            'descricao' => 'Pop-up para os gerentes de todas as lojas, com botão de ação.',
+            'planejado' => [],
+            'pronto' => true,
+        ],
         'tags' => [
             'titulo' => 'Tags e rastreamento',
             'rotulo' => 'Tags e rastreamento',
@@ -117,7 +125,7 @@ final class MenuPlataforma
     public const GRUPOS = [
         '' => ['dashboard'],
         'Gestão' => ['restaurantes', 'planos', 'faturas', 'usuarios'],
-        'Plataforma' => ['fiscal', 'integracoes', 'tags', 'logs', 'configuracoes', 'suporte'],
+        'Plataforma' => ['fiscal', 'integracoes', 'avisos', 'tags', 'logs', 'configuracoes', 'suporte'],
         'Conta' => ['minha-conta'],
     ];
 

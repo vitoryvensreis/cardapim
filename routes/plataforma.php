@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Cardapim\Controllers\Plataforma\AvisosLojaController;
 use Cardapim\Controllers\Plataforma\ConfiguracoesController;
 use Cardapim\Controllers\Plataforma\IntegracoesController;
 use Cardapim\Controllers\Plataforma\FiscalController;
@@ -94,6 +95,15 @@ return static function (Router $router): void {
     $router->post('/painel/usuarios/{id}/acesso', [UsuariosController::class, 'acesso']);
     $router->post('/painel/usuarios/{id}/dois-fatores', [UsuariosController::class, 'doisFatores']);
     $router->post('/painel/usuarios/{id}/excluir', [UsuariosController::class, 'excluir']);
+
+    // Avisos para as lojas: pop-up para os gerentes (periodo, vezes por dia e botao de acao).
+    $router->get('/painel/avisos', [AvisosLojaController::class, 'lista']);
+    $router->get('/painel/avisos/novo', [AvisosLojaController::class, 'novo']);
+    $router->post('/painel/avisos', [AvisosLojaController::class, 'criar']);
+    $router->get('/painel/avisos/{id}', [AvisosLojaController::class, 'editar']);
+    $router->post('/painel/avisos/{id}', [AvisosLojaController::class, 'atualizar']);
+    $router->post('/painel/avisos/{id}/ativo', [AvisosLojaController::class, 'alternar']);
+    $router->post('/painel/avisos/{id}/excluir', [AvisosLojaController::class, 'excluir']);
 
     $router->get('/painel/tags', [TagsController::class, 'inicio']);
     $router->post('/painel/tags', [TagsController::class, 'salvar']);

@@ -15,6 +15,7 @@ use Cardapim\Modules\Integracoes\WhatsAppProvedores as P;
 use Cardapim\Services\Pedidos\SaudacaoWhatsApp;
 use Cardapim\Services\WhatsApp\EventoWaha as E;
 use Cardapim\Services\WhatsApp\VigiaWhatsApp as V;
+use Cardapim\Services\WhatsApp\TesteWhatsApp as T;
 use Cardapim\Shared\Http\ClienteHttp;
 use Cardapim\Shared\Http\RespostaHttp;
 
@@ -134,6 +135,19 @@ $ok(!$d['reiniciar'] && str_contains((string) $d['alerta'], 'conecte de novo'), 
 $ok(V::decidir('CLOSED', 'erro', 3, $d['alerta'])['alerta'] === $d['alerta'] && !V::decidir('CLOSED', 'erro', 3, $d['alerta'])['reiniciar'], 'desvinculado e depois parado: mantem o aviso de conectar de novo');
 $ok(str_contains((string) V::decidir('PASSKEY', 'conectado', 0)['alerta'], 'confirmação no celular') && !V::decidir('PASSKEY', 'conectado', 0)['reiniciar'], 'passkey: avisa para confirmar no celular');
 $ok(!V::decidir('INITIALIZING', 'conectado', 0)['reiniciar'] && V::decidir('INITIALIZING', 'conectado', 1)['reiniciar'], 'iniciando: espera uma rodada, depois reinicia');
+$ok(V::decidir('CONNECTED', 'erro', 0, V::ALERTA_NAO_RECEBE)['recuperou'] === false, 'conectado mas sem receber: so o teste automatico tira o alerta');
+
+/* ---------- Teste de ponta a ponta ---------- */
+$agora = 1_800_000_000;
+$ok(T::decidir([], $agora) === 'enviar', 'nunca testou: envia');
+$ok(T::decidir(['enviado_em' => $agora - 60, 'recebido_em' => null], $agora) === 'esperar', 'teste enviado ha 1 min: espera chegar');
+$ok(T::decidir(['enviado_em' => $agora - 120, 'recebido_em' => null], $agora) === 'falhou', 'nao chegou em 2 min: falhou');
+$ok(T::decidir(['enviado_em' => $agora - 600, 'recebido_em' => $agora - 590, 'proximo_em' => $agora + 1200], $agora) === 'esperar', 'chegou: proximo teste em 30 min');
+$ok(T::decidir(['enviado_em' => $agora - 1800, 'recebido_em' => $agora - 1790, 'proximo_em' => $agora], $agora) === 'enviar', '30 min depois: testa de novo');
+$ok(T::decidir(['falhas' => 1, 'proximo_em' => $agora + 10], $agora) === 'esperar' && T::decidir(['falhas' => 1, 'proximo_em' => $agora], $agora) === 'enviar', 'depois de falhar: testa de novo em 3 min');
+$ok(T::codigoNaMensagem(T::texto('A1B2C3')) === 'A1B2C3', 'codigo reconhecido na mensagem de teste');
+$ok(T::codigoNaMensagem('Oi, quero pedir uma pizza') === null && T::codigoNaMensagem(null) === null, 'mensagem de cliente nao e teste');
+$ok(!str_contains(T::texto('A1B2C3'), 'http'), 'mensagem de teste sem link');
 $ok($api(new RespostaHttp(200, '{"status":"FAILED"}'))->estado('x_sessao', $token)['status'] === 'CLOSED', 'FAILED = desconectado');
 $ok($api(new RespostaHttp(200, '{"status":"STOPPED"}'))->estado('x_sessao', $token)['status'] === 'CLOSED', 'STOPPED = desconectado');
 $ok($api(new RespostaHttp(404, '{}'))->estado('x_sessao', $token)['status'] === 'CLOSED', 'sessao apagada = desconectado');
@@ -191,7 +205,8 @@ $ok(!WahaApi::assinaturaValida($corpo, $token, null) && !WahaApi::assinaturaVali
 /* ---------- Conversao do webhook ---------- */
 $msg = static fn (array $payload, string $evento = 'message'): array => ['id' => 'evt_1', 'event' => $evento, 'session' => 'deliveryzim_r6_ab12cd34', 'payload' => $payload];
 $c = E::paraSaudacao($msg(['from' => '5585988811631@c.us', 'fromMe' => false, 'timestamp' => 1795864000]));
-$ok($c === ['event' => 'onmessage', 'session' => 'deliveryzim_r6_ab12cd34', 'from' => '5585988811631@c.us', 'fromMe' => false, 'isGroupMsg' => false, 'isStatus' => false, 't' => 1795864000], 'mensagem recebida convertida');
+$ok($c === ['event' => 'onmessage', 'session' => 'deliveryzim_r6_ab12cd34', 'from' => '5585988811631@c.us', 'fromMe' => false, 'isGroupMsg' => false, 'isStatus' => false, 't' => 1795864000, 'body' => null], 'mensagem recebida convertida');
+$ok(E::paraSaudacao($msg(['from' => '5585988811631@c.us', 'fromMe' => false, 'timestamp' => 1, 'body' => 'Oi']))['body'] === 'Oi', 'texto da mensagem disponivel para o teste automatico');
 $ok(SaudacaoWhatsApp::destinatarioDireto($c) === '5585988811631', 'saudacao aceita o numero do WAHA');
 $ok(E::paraSaudacao($msg(['from' => '5585988811631@c.us', 'fromMe' => false, 'timestamp' => 1795864000123]))['t'] === 1795864000, 'timestamp em milissegundos vira segundos');
 $ok(E::paraSaudacao($msg(['from' => '558588811631@s.whatsapp.net', 'fromMe' => false, 'timestamp' => 1]))['from'] === '558588811631@c.us', '@s.whatsapp.net vira @c.us');

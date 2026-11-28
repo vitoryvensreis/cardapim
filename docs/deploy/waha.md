@@ -127,9 +127,19 @@ estiver de pé.
 - Número sem WhatsApp não repete. Boas-vindas que não saiu em 10 minutos é descartada (chegar atrasada atrapalha).
 - Envio interrompido no meio (processo caiu) não repete, para o cliente não receber duas vezes.
 
-## Pendências conhecidas
+## Teste de ponta a ponta (a cada 30 minutos)
 
-- Teste de ponta a ponta (a plataforma manda uma mensagem de teste para cada loja de tempos em tempos): não
-  implementado; aguardando decisão.
+Feito pelo vigia (`TesteWhatsApp`), só no horário de funcionamento de cada loja e só com o WhatsApp da **plataforma**
+conectado:
+
+1. O WhatsApp da plataforma manda para o número da loja: "Teste automático do Deliveryzim: confere se o WhatsApp da
+   loja está recebendo mensagens. Pode ignorar. DZT-XXXXXX".
+2. O webhook da loja reconhece o código `DZT-...`: marca o teste como recebido e **não** manda boas-vindas.
+3. Não chegou em 2 minutos: reinicia a sessão da loja e testa de novo em 3 minutos. Segunda falha seguida: alerta
+   "aparece conectado, mas parou de receber mensagens" (tela do WhatsApp e Visão geral). Só o teste chegando (ou a
+   loja conectar de novo) tira esse alerta, porque a sessão continua dizendo que está conectada.
+4. Problema no WhatsApp da plataforma não conta como falha da loja.
+
+Estado em `integracoes.dados.teste` da loja (`codigo`, `enviado_em`, `recebido_em`, `proximo_em`, `falhas`).
 
 Testes: `tests/unit/whatsapp-waha.php` e o bloco "Webhook do WAHA" de `tests/http/avisos.sh`.
