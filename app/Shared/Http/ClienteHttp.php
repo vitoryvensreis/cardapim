@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Cardapim\Shared\Http;
 
 /**
- * Cliente HTTP minimo para as integracoes (iFood, Asaas, Evolution API), com tempo limite curto.
+ * Cliente HTTP minimo para as integracoes (iFood, Asaas, WAHA), com tempo limite curto.
  * Usa cURL; sem cURL, usa streams do PHP. Nunca registra cabecalhos (podem conter chaves).
  */
 class ClienteHttp

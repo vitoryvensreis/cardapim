@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Teste HTTP de ponta a ponta: aba Entrega e pagamento (gerente), finalizacao do pedido pelo cliente
 # (entrega por bairro/raio, retirada, dinheiro com troco, Pix pelo Asaas com aviso e consulta) e acompanhamento.
-# Usa o servidor FALSO tests/fakes/integracoes-fake.php (Asaas, Evolution API, CEP e mapa).
+# Usa o servidor FALSO tests/fakes/integracoes-fake.php (Asaas, WAHA, CEP e mapa).
 # Uso: bash tests/http/pedidos.sh <base> <slug> <base-do-fake>
 set -Eeuo pipefail
 base="$1"

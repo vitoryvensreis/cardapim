@@ -101,7 +101,7 @@ $ok((new AsaasApi($http))->criarWebhook('x', 'sandbox', 'https://c.test/webhooks
 $corpo = $http->pedidos[0]['corpo'];
 $ok(is_array($corpo) && $corpo['authToken'] === str_repeat('b', 48) && $corpo['sendType'] === 'SEQUENTIALLY' && in_array('PAYMENT_RECEIVED', $corpo['events'], true), 'corpo do webhook');
 
-/* WhatsApp (Evolution API): tests/unit/whatsapp-evolution.php */
+/* WhatsApp (WAHA): tests/unit/whatsapp-waha.php */
 
 /* ---------- iFood ---------- */
 putenv('IFOOD_CLIENT_ID=app-id');

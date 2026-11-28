@@ -44,7 +44,7 @@ $legalLead = 'Como o ' . marca() . ' e os restaurantes dividem as responsabilida
             <ul>
                 <li><strong>Hospedagem do servidor e e-mail do sistema:</strong> servidor contratado pela Escotilha Produtora.</li>
                 <li><strong>Asaas:</strong> pagamentos por Pix e cobrança das assinaturas.</li>
-                <li><strong>WhatsApp (servidor próprio com Evolution API):</strong> códigos de acesso e avisos de pedido.</li>
+                <li><strong>WhatsApp (servidor próprio com WAHA):</strong> códigos de acesso e avisos de pedido.</li>
                 <li><strong>iFood:</strong> pedidos recebidos pela integração, quando conectada pelo restaurante.</li>
                 <li><strong>OpenStreetMap, Nominatim, BrasilAPI e ViaCEP:</strong> mapa, localização de endereços e consulta de CEP e CNPJ.</li>
             </ul>

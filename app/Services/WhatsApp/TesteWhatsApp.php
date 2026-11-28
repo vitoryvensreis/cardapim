@@ -114,7 +114,8 @@ final class TesteWhatsApp
         $token = (string) ($this->integracoes->credenciais($idRestaurante, 'whatsapp')['token'] ?? '');
         $sessao = $atual['dados']['sessao'] ?? null;
         $numero = $atual['dados']['numero'] ?? null;
-        if (!in_array($atual['status'], ['conectado', 'erro'], true) || !is_string($sessao) || $token === '' || !is_string($numero)) {
+        if (!in_array($atual['status'], ['conectado', 'erro'], true) || !is_string($sessao) || $token === '' || !is_string($numero)
+            || WhatsAppProvedores::legado($atual['dados'])) {
             return null;
         }
         // So testa quem ja passou no vigia (conectado) ou esta com o alerta do proprio teste.
@@ -160,7 +161,8 @@ final class TesteWhatsApp
         $platToken = (string) ($this->integracoes->credenciais(null, 'whatsapp')['token'] ?? '');
         $platSessao = $plat['dados']['sessao'] ?? null;
         $platNumero = $plat['dados']['numero'] ?? null;
-        if ($plat['status'] !== 'conectado' || !is_string($platSessao) || $platToken === '' || $platNumero === $numero) {
+        if ($plat['status'] !== 'conectado' || !is_string($platSessao) || $platToken === '' || $platNumero === $numero
+            || WhatsAppProvedores::legado($plat['dados'])) {
             return null;
         }
         $codigo = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));

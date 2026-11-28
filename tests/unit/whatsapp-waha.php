@@ -6,7 +6,6 @@ declare(strict_types=1);
 // php tests/unit/whatsapp-waha.php
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
-use Cardapim\Modules\Integracoes\EvolutionApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Integracoes\RecuperacaoDeSessao;
 use Cardapim\Modules\Integracoes\WahaApi;
@@ -55,20 +54,17 @@ final class ClienteFalsoWaha extends ClienteHttp
 $falso = static fn (RespostaHttp ...$r): ClienteFalsoWaha => new ClienteFalsoWaha($r);
 
 putenv('APP_URL=https://deliveryzim.com.br');
-putenv('EVOLUTION_BASE_URL=https://wpp.exemplo/');
-putenv('EVOLUTION_API_KEY=chave-evolution');
 putenv('WAHA_URL=https://waha.exemplo/');
 putenv('WAHA_API_KEY=chave-waha');
 putenv('WAHA_WEBHOOK_TOKEN=' . str_repeat('b', 40));
 
 /* ---------- Escolha do servidor ---------- */
-putenv('WHATSAPP_PROVEDOR_PADRAO');
-$ok(P::padrao()->id() === 'evolution', 'sem WHATSAPP_PROVEDOR_PADRAO, conexoes novas continuam na Evolution');
-putenv('WHATSAPP_PROVEDOR_PADRAO=waha');
-$ok(P::padrao()->id() === 'waha', 'WHATSAPP_PROVEDOR_PADRAO=waha: conexoes novas no WAHA');
-$ok(P::daIntegracao(['provedor' => 'waha'])->id() === 'waha', 'loja conectada no WAHA usa o WAHA');
-$ok(P::daIntegracao(['provedor' => 'evolution'])->id() === 'evolution' && P::daIntegracao([])->id() === 'evolution', 'loja antiga (ou sem provedor) continua na Evolution');
-$ok(count(P::configurados()) === 2, 'os dois servidores configurados');
+$ok(P::padrao()->id() === 'waha', 'conexoes novas no WAHA');
+$ok(P::daIntegracao(['provedor' => 'waha'])->id() === 'waha' && P::daIntegracao([])->id() === 'waha', 'todo WhatsApp usa o WAHA');
+$ok(!P::legado(['provedor' => 'waha', 'sessao' => 'deliveryzim_r6_ab12cd34']), 'conexao no WAHA nao e legado');
+$ok(P::legado(['sessao' => 'deliveryzim_r6_ab12cd34']) && P::legado(['provedor' => 'evolution', 'sessao' => 'deliveryzim_r6_ab12cd34']), 'conexao da Evolution precisa conectar de novo');
+$ok(!P::legado([]), 'sem sessao nao e legado');
+$ok(count(P::configurados()) === 1, 'um servidor configurado');
 $ok(P::recebimentoConfigurado(), 'recebimento configurado pelo WAHA');
 $ok((new WahaApi()) instanceof WebhookDeMensagens, 'WAHA ajusta o recebimento pelo painel');
 
@@ -107,7 +103,6 @@ $ok(count($h->pedidos) === 2 && str_ends_with($h->pedidos[1]['url'], '/api/sessi
 
 /* ---------- Recuperacao: reiniciar e codigo de conexao ---------- */
 $ok((new WahaApi()) instanceof RecuperacaoDeSessao, 'WAHA permite reiniciar e conectar com codigo');
-$ok(!((new EvolutionApi()) instanceof RecuperacaoDeSessao), 'Evolution fica sem vigia e sem codigo');
 $h = $falso(new RespostaHttp(201, '{}'));
 (new WahaApi($h))->reiniciar('deliveryzim_r6_ab12cd34', $token);
 $ok($h->pedidos[0]['metodo'] === 'POST' && $h->pedidos[0]['url'] === 'https://waha.exemplo/api/sessions/deliveryzim_r6_ab12cd34/restart', 'reiniciar = restart');

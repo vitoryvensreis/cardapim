@@ -7,7 +7,7 @@ Aba `/{slug}/gerencia/integracoes` (só gerente do restaurante ou adm_master). C
 - Tabelas: `integracoes` (uma linha por restaurante e provedor) e `integracao_eventos` (avisos recebidos por webhook).
   Migration `20261110080000_create_integracoes.php`, verificação `database/verify-integracoes.php --verify`.
 - `credenciais`: JSON **cifrado** (AES-256-GCM, `Shared/Seguranca/Cripto`, chave fora do banco). `dados`: só o que pode aparecer na tela.
-- Clientes das APIs: `Modules/Integracoes/{AsaasApi, EvolutionApi, IfoodApi}` sobre `Shared/Http/ClienteHttp` (cURL, tempo limite curto, sem seguir redirecionamentos).
+- Clientes das APIs: `Modules/Integracoes/{AsaasApi, WahaApi, IfoodApi}` sobre `Shared/Http/ClienteHttp` (cURL, tempo limite curto, sem seguir redirecionamentos).
 - Regras: `Services/Gerencia/Integracoes/{AsaasService, WhatsAppService, IfoodService}`. Controller: `Gerencia/IntegracoesController`.
 - Configuração do servidor: `Core/Config` (variável de ambiente ou `shared/.env`).
 - Toda conexão, desconexão, teste e mensagem de teste gera log em `log_user` (sem chaves, tokens ou conteúdo sensível).
@@ -65,18 +65,21 @@ Em pedidos online, `PixPedido::PRAZO_MINUTOS` é 60. `bin/expirar-pix.php` roda 
 
 A tarefa é instalada pelo deploy com `deploy/scripts/install-expirar-pix-cron.sh` quando o crontab do usuário do site permite. Verificar na VPS após publicar. Ver `docs/architecture/pedidos.md`.
 
-## WhatsApp (Evolution API)
+## WhatsApp (WAHA)
 
-- Servidor: Evolution API (canal Baileys) na VPS de mensageria, por HTTPS ([passo a passo](../deploy/evolution.md)).
-  `shared/.env`: `EVOLUTION_BASE_URL`, `EVOLUTION_API_KEY` e `EVOLUTION_WEBHOOK_TOKEN`. Sem isso, a tela diz que ainda não foi liberado.
-- Código: contrato `Modules/Integracoes/ProvedorWhatsApp`, implementado por `EvolutionApi`; `WhatsAppProvedores` cria o cliente,
-  gera os nomes e reconhece as instâncias do Deliveryzim.
-- Conectar: cria a instância `deliveryzim_r{id}_{aleatório}` (`POST /instance/create`, já com webhook, sem grupos e sem histórico),
-  guarda o token da instância (cifrado) e pede o QR Code (`/instance/connect`). A tela consulta `GET .../integracoes/whatsapp/estado`
-  a cada 3 s; quando o estado vira `open`, grava o número e registra o log.
-- Mensagem de teste: número com DDD (vira `55` + DDD + número), até 1000 caracteres, no máximo 10 por hora por restaurante (`/message/sendText`).
-- Desconectar: `logout` e `delete` da instância; apaga o token.
-- Webhook: `POST /webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}` (`EvolutionWebhookController` + `Services/WhatsApp/EventoEvolution`).
+- Servidor: WAHA, motor GOWS, na VPS de mensageria, por HTTPS ([passo a passo](../deploy/waha.md)).
+  `shared/.env`: `WAHA_URL`, `WAHA_API_KEY` e `WAHA_WEBHOOK_TOKEN`. Sem isso, a tela diz que ainda não foi liberado.
+  A Evolution API foi removida em 28/11/2026: conexão gravada antes disso (sem `dados.provedor = waha`) aparece como
+  "Trocamos o servidor do WhatsApp" e a loja conecta de novo.
+- Código: contrato `Modules/Integracoes/ProvedorWhatsApp`, implementado por `WahaApi` (também `WebhookDeMensagens` e
+  `RecuperacaoDeSessao`); `WhatsAppProvedores` cria o cliente, gera os nomes e reconhece as sessões do Deliveryzim.
+- Conectar: cria a sessão `deliveryzim_r{id}_{aleatório}` (`POST /api/sessions`, já com webhook assinado), guarda o token
+  (chave HMAC, cifrado) e inicia (`/start`). A tela consulta `GET .../integracoes/whatsapp/estado` a cada 3 s; QR Code ou
+  "Conectar com código" (`POST .../whatsapp/codigo`). Conectado: grava o número e registra o log.
+- Mensagem de teste: número com DDD (vira `55` + DDD + número), até 1000 caracteres, no máximo 10 por hora por restaurante (`/api/sendText`).
+- Desconectar: `logout` e `DELETE` da sessão; apaga o token.
+- Webhook: `POST /webhooks/waha/{WAHA_WEBHOOK_TOKEN}` (`WahaWebhookController` + `Services/WhatsApp/EventoWaha`).
+- Vigia (`bin/whatsapp-vigia.php`) e teste de ponta a ponta a cada 30 min: [waha.md](../deploy/waha.md).
 - **Avisos automáticos do pedido** para o cliente (recebido, preparo, pronto, saiu com link do mapa, entregue, cancelado): [avisos-whatsapp.md](avisos-whatsapp.md).
 
 ## iFood (aplicativo distribuído)
@@ -94,8 +97,8 @@ A tarefa é instalada pelo deploy com `deploy/scripts/install-expirar-pix-cron.s
 
 ## Testes
 
-- `tests/unit/integracoes.php` (Asaas e iFood) e `tests/unit/whatsapp-evolution.php` (Evolution): clientes com respostas simuladas (sem rede).
-- `tests/fakes/integracoes-fake.php`: servidor **falso** de iFood, Asaas e Evolution API usado no CI.
+- `tests/unit/integracoes.php` (Asaas e iFood) e `tests/unit/whatsapp-waha.php` (WAHA, vigia e teste automático): clientes com respostas simuladas (sem rede).
+- `tests/fakes/integracoes-fake.php`: servidor **falso** de iFood, Asaas e WAHA usado no CI.
 - `tests/http/integracoes.sh`: fluxo completo pelo navegador simulado (chave errada/certa, webhook com token certo/errado/repetido,
   QR Code → conectado → mensagem de teste, código de vínculo → escolher loja → testar, isolamento e CSRF).
 

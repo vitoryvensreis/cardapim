@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Teste HTTP dos AVISOS DO PEDIDO pelo WhatsApp DO RESTAURANTE (fila no banco, envio depois da resposta, sem repetir)
 # e do menu do gerente sem Entregas/Mesas (ficam so no modo caixa).
-# Usa o servidor FALSO tests/fakes/integracoes-fake.php (Evolution API: WhatsApp da plataforma e do restaurante).
+# Usa o servidor FALSO tests/fakes/integracoes-fake.php (WAHA: WhatsApp da plataforma e do restaurante).
 # Uso: bash tests/http/avisos.sh <base> <slug> <base-do-fake>
 set -Eeuo pipefail
 base="$1"
@@ -73,8 +73,8 @@ curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
 contem "tela mostra os avisos automaticos" "$tmp/wpp.html" 'Avisos automáticos para os clientes'
 contem "todos os avisos ligados por padrao" "$tmp/wpp.html" 'value="saiu_entrega" checked'
 esperar "codigo de conexao exige a sessao (CSRF)" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' -d telefone=85988811631 "$g/integracoes/whatsapp/codigo")" "401"
-esperar "codigo de conexao: servidor so com QR Code recusa com aviso" "$(enviar "$gj" "$g/integracoes/whatsapp/codigo" "$g/integracoes/whatsapp" telefone=85988811631 | cut -d' ' -f1)" "422"
-contem "codigo de conexao: explica o motivo" "$tmp/resp.html" 'QR Code'
+esperar "codigo de conexao: sessao ja conectada recusa com aviso" "$(enviar "$gj" "$g/integracoes/whatsapp/codigo" "$g/integracoes/whatsapp" telefone=85988811631 | cut -d' ' -f1)" "422"
+contem "codigo de conexao: orienta gerar novo QR Code" "$tmp/resp.html" 'QR Code'
 curl -s -b "$gj" "$g" -o "$tmp/vg.html"
 nao_contem "visao geral sem alerta de WhatsApp com a loja conectada" "$tmp/vg.html" 'WhatsApp precisa de atenção'
 
@@ -85,60 +85,57 @@ sempre_antes="$(php -r 'require "bootstrap/app.php"; echo \Cardapim\Core\Databas
 esperar "horario de teste sempre aberto" "$(enviar "$gj" "$g/perfil/horarios" "$g/perfil" modo=sempre | cut -d' ' -f1)" "303"
 esperar "gerente ativa a saudacao" "$(enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" saudacao_ativo=1 'saudacao_mensagem=Bem-vindo ao {{restaurante}}! Cardápio {{cardapio}}' | cut -d' ' -f1)" "303"
 t_evento="$(date +%s)"
-wpp_callback="$base/webhooks/evolution/$EVOLUTION_WEBHOOK_TOKEN"
-# Formato do webhook da Evolution (messages.upsert); apikey = token da instancia da loja.
-evo() { printf '{"event":"messages.upsert","instance":"%s","apikey":"%s","data":{"key":{"remoteJid":"%s","fromMe":false,"id":"CI%s"},"messageTimestamp":%s,"message":{"conversation":"oi"}}}' "$loja" "${2:-tok-$loja}" "$1" "$RANDOM" "$t_evento"; }
-esperar "segredo incorreto bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{}' "$base/webhooks/evolution/invalido")" "401"
-esperar "token de outra instancia bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$(evo 5585999990000@s.whatsapp.net tok-outra)" "$wpp_callback")" "401"
-esperar "evento que nao e mensagem e ignorado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "{\"event\":\"connection.update\",\"instance\":\"$loja\"}" "$wpp_callback")" "200"
-evento="$(evo 5585999990000@s.whatsapp.net)"
-esperar "recebe mensagem" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento" "$wpp_callback")" "200"
+# Webhook do WAHA: protegido pelo segredo da URL + assinatura HMAC-SHA512 com o token da loja (gravado na sessao).
+wpp_callback="$base/webhooks/waha/$WAHA_WEBHOOK_TOKEN"
+tok_loja="$(curl -s "$fake/_teste/wpp-token/$loja" | php -r 'echo json_decode(stream_get_contents(STDIN), true)["token"] ?? "";')"
+[[ ${#tok_loja} -eq 64 ]] && ok "sessao da loja criada com webhook assinado" || falha "token do webhook ausente na sessao"
+waha() { printf '{"id":"evt_ci%s","event":"message","session":"%s","payload":{"id":"CI%s","from":"%s","fromMe":false,"timestamp":%s,"body":"%s"}}' "$RANDOM" "$loja" "$RANDOM" "$1" "$t_evento" "${2:-oi}"; }
+assinar() { printf %s "$1" | openssl dgst -sha512 -hmac "$2" | sed 's/^.* //'; }
+postar() { curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H "X-Webhook-Hmac: $(assinar "$1" "${2:-$tok_loja}")" -H 'X-Webhook-Hmac-Algorithm: sha512' --data-binary "$1" "$wpp_callback"; }
+esperar "segredo incorreto bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary '{}' "$base/webhooks/waha/invalido")" "401"
+cod_evo="$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary '{}' "$base/webhooks/evolution/qualquer")"
+[[ "$cod_evo" == 404 || "$cod_evo" == 405 ]] && ok "endereco antigo da Evolution nao existe mais" || falha "webhook da Evolution ainda responde ($cod_evo)"
+evento="$(waha 5585999990001@c.us)"
+esperar "sem assinatura bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary "$evento" "$wpp_callback")" "401"
+esperar "assinatura de outra loja bloqueada" "$(postar "$evento" tok-outra)" "401"
+esperar "evento que nao e mensagem e ignorado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary "{\"event\":\"session.status\",\"session\":\"$loja\",\"payload\":{}}" "$wpp_callback")" "200"
+esperar "recebe mensagem" "$(postar "$evento")" "200"
 sleep 1
 esperar "primeira saudacao enviada" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
 mensagens
 contem "saudacao contem link exclusivo da loja" "$tmp/msgs.txt" "/$slug"
-esperar "webhook duplicado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento" "$wpp_callback")" "200"
+esperar "webhook duplicado" "$(postar "$evento")" "200"
 sleep 1
 esperar "uma unica saudacao por dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "1"
 # Endereco LID e opaco: manter @lid e nao tentar converter para um telefone.
 lid='1234567890123456@lid'
-evento_lid="$(evo "$lid")"
-esperar "webhook recebe contato LID" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento_lid" "$wpp_callback")" "200"
+esperar "webhook recebe contato LID" "$(postar "$(waha "$lid")")" "200"
 sleep 1
 esperar "saudacao LID enviada" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
 mensagens
 contem "resposta enderecada ao LID original" "$tmp/msgs.txt" "$loja|$lid|"
-esperar "LID repetido responde HTTP 200" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d "$evento_lid" "$wpp_callback")" "200"
+esperar "LID repetido responde HTTP 200" "$(postar "$(waha "$lid")")" "200"
 sleep 1
 esperar "LID sem duplicacao no dia" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
-grupo="$(evo 120363000000000000@g.us)"
-curl -s -o /dev/null -H 'Content-Type: application/json' -d "$grupo" "$wpp_callback"
+postar "$(waha 120363000000000000@g.us)" >/dev/null
 esperar "grupo nao recebe saudacao" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
+# Teste automatico (WhatsApp da plataforma -> loja): reconhecido pelo codigo, nunca vira boas-vindas.
+esperar "mensagem de teste automatico aceita" "$(postar "$(waha 5585999990002@c.us 'Teste automático. Pode ignorar. DZT-ABC123')")" "200"
+sleep 1
+esperar "teste automatico nao recebe boas-vindas" "$(quantas 'Bem-vindo ao.* Cardápio')" "2"
 curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
 contem "diagnostico mostra a saudacao enviada" "$tmp/wpp.html" 'Boas-vindas enviada'
 contem "diagnostico mostra repetida no dia" "$tmp/wpp.html" 'Já recebeu as boas-vindas hoje'
 contem "diagnostico mostra o grupo ignorado" "$tmp/wpp.html" 'Grupo, status ou número de fora do Brasil'
-contem "webhook da instancia conferido" "$tmp/wpp.html" 'Recebendo mensagens'
-contem "envio mostra so o final do numero" "$tmp/wpp.html" 'Final 0000'
-# Instancia com o webhook apontando para outro lugar: a tela avisa e o botao corrige.
-curl -s -o /dev/null -H "apikey: tok-$loja" -H 'Content-Type: application/json' -d '{"webhook":{"enabled":true,"url":"https://outro.exemplo/x","events":["MESSAGES_UPSERT"]}}' "$fake/evo/webhook/set/$loja"
+contem "webhook da sessao conferido" "$tmp/wpp.html" 'Recebendo mensagens'
+contem "envio mostra so o final do numero" "$tmp/wpp.html" 'Final 0001'
+# Sessao com o webhook apontando para outro lugar: a tela avisa e o botao corrige.
+curl -s -o /dev/null -X PUT -H 'X-Api-Key: chave-waha-ci' -H 'Content-Type: application/json' --data "{\"name\":\"$loja\",\"config\":{\"webhooks\":[{\"url\":\"https://outro.exemplo/x\",\"events\":[\"message\"]}]}}" "$fake/waha/api/sessions/$loja"
 curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
 contem "tela avisa webhook errado" "$tmp/wpp.html" 'não está avisando o sistema'
 esperar "corrigir recebimento" "$(enviar "$gj" "$g/integracoes/whatsapp/saudacao/webhook" "$g/integracoes/whatsapp" | cut -d' ' -f1)" "303"
 curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
 contem "webhook corrigido" "$tmp/wpp.html" 'Recebendo mensagens'
-# Webhook do WAHA: mesmo destino (saudacao), protegido pelo segredo da URL + assinatura HMAC-SHA512 com o token da loja.
-waha_cb="$base/webhooks/waha/$WAHA_WEBHOOK_TOKEN"
-waha() { printf '{"id":"evt_ci%s","event":"message","session":"%s","payload":{"id":"CI%s","from":"%s","fromMe":false,"timestamp":%s,"body":"oi"}}' "$RANDOM" "$loja" "$RANDOM" "$1" "$t_evento"; }
-assinar() { printf %s "$1" | openssl dgst -sha512 -hmac "$2" | sed 's/^.* //'; }
-esperar "WAHA: segredo incorreto bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary '{}' "$base/webhooks/waha/invalido")" "401"
-esperar "WAHA: evento que nao e mensagem ignorado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary "{\"event\":\"session.status\",\"session\":\"$loja\",\"payload\":{}}" "$waha_cb")" "200"
-corpo_waha="$(waha 5585999990001@c.us)"
-esperar "WAHA: sem assinatura bloqueado" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary "$corpo_waha" "$waha_cb")" "401"
-esperar "WAHA: assinatura de outra loja bloqueada" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H "X-Webhook-Hmac: $(assinar "$corpo_waha" tok-outra)" --data-binary "$corpo_waha" "$waha_cb")" "401"
-esperar "WAHA: mensagem assinada recebida" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -H "X-Webhook-Hmac: $(assinar "$corpo_waha" "tok-$loja")" -H 'X-Webhook-Hmac-Algorithm: sha512' --data-binary "$corpo_waha" "$waha_cb")" "200"
-sleep 1
-esperar "WAHA: saudacao enviada para o contato novo" "$(quantas 'Bem-vindo ao.* Cardápio')" "3"
 enviar "$gj" "$g/integracoes/whatsapp/saudacao" "$g/integracoes/whatsapp" 'saudacao_mensagem=Mensagem de teste' >/dev/null
 # Restaurar somente modo 24h; os turnos originais foram preservados.
 php -r 'require "bootstrap/app.php"; \Cardapim\Core\Database::connect()->prepare("UPDATE restaurantes SET sempre_aberto=? WHERE slug=?")->execute([(int)$argv[1],$argv[2]]);' "$sempre_antes" "$slug"

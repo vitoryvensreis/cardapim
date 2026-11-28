@@ -5,12 +5,12 @@ O SMS sai pelo chip de um celular Android com o app **SMSGate** (SMS Gateway for
 Apache 2.0) conectado ao servidor privado na VPS de mensageria.
 
 ```
-Deliveryzim ─▶ WhatsApp da plataforma (Evolution) ─ falhou? ─▶ SMSGate (VPS) ─▶ celular Android ─▶ SMS
+Deliveryzim ─▶ WhatsApp da plataforma (WAHA) ─ falhou? ─▶ SMSGate (VPS) ─▶ celular Android ─▶ SMS
 ```
 
 | Item | Valor |
 |---|---|
-| Endereço | `https://sms.escotilhaprodutora.com` (HTTPS pelo Caddy da Evolution) |
+| Endereço | `https://sms.escotilhaprodutora.com` (HTTPS pelo Caddy em `/opt/evolution`, que ficou só com o Caddy) |
 | Servidor | VPS de mensageria (189.24.3.89), pasta `/opt/smsgate`: `backend`, `worker` (Docker, imagem `ghcr.io/android-sms-gateway/server`) e `db` (MariaDB) |
 | Modo | privado: só registra celular com o token privado (`PRIVATE_TOKEN` em `/opt/smsgate/.env`, permissão 600) |
 | Retenção | mensagens apagadas do banco depois de 72 h (`TASKS__MESSAGES_CLEANUP__MAX_AGE`) |

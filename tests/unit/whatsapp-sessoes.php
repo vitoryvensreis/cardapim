@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Teste sem servidor real da limpeza de sessoes abandonadas do WhatsApp: php tests/unit/whatsapp-sessoes.php
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
-use Cardapim\Modules\Integracoes\EvolutionApi;
+use Cardapim\Modules\Integracoes\WahaApi;
 use Cardapim\Services\WhatsApp\SessoesAbandonadas as S;
 
 $falhas = 0;
@@ -49,7 +49,7 @@ $db->exec("INSERT INTO integracoes (id_restaurante, provedor, status, dados) VAL
     (3, 'whatsapp', 'desconectado', NULL),
     (2, 'asaas', 'conectado', '{\"sessao\":\"deliveryzim_r2_50f28385\"}')");
 
-$api = new class extends EvolutionApi {
+$api = new class extends WahaApi {
     /** @var list<string> */
     public array $servidor = [];
     /** @var list<string> */

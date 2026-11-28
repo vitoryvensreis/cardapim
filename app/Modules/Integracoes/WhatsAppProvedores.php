@@ -7,43 +7,48 @@ namespace Cardapim\Modules\Integracoes;
 use Cardapim\Core\Config;
 
 /**
- * Servidores de WhatsApp do Deliveryzim (VPS de mensageria):
- * - WAHA, motor GOWS (docs/deploy/waha.md): padrao para conexoes novas quando WHATSAPP_PROVEDOR_PADRAO=waha.
- * - Evolution API (docs/deploy/evolution.md): conexoes antigas, ate cada loja reconectar.
- * Cada loja guarda o seu em integracoes.dados.provedor; sem o campo, e da Evolution (conexoes de antes do WAHA).
- * Os servicos dependem do contrato ProvedorWhatsApp, nao da classe concreta.
+ * Servidor de WhatsApp do Deliveryzim: WAHA, motor GOWS (docs/deploy/waha.md), na VPS de mensageria.
+ * A Evolution API foi removida: conexao gravada sem dados.provedor = "waha" e de antes da troca (legado) e precisa
+ * ser conectada de novo (a tela e o vigia avisam a loja).
+ * Os servicos dependem do contrato ProvedorWhatsApp (testes injetam um falso), nao da classe concreta.
  *
  * Nomes das sessoes (instancias): deliveryzim_r{id}_{8 hex} (lojas) e deliveryzim_plataforma_{8 hex}.
  */
 final class WhatsAppProvedores
 {
-    public const EVOLUTION = 'evolution';
     public const WAHA = 'waha';
 
     /** Sessoes do Deliveryzim. Grupo 1 = r{id} ou "plataforma". */
     public const PADRAO_SESSAO = '/\Adeliveryzim_(r[1-9][0-9]{0,17}|plataforma)_[a-f0-9]{8}\z/';
 
-    public static function criar(string $id = self::EVOLUTION): ProvedorWhatsApp
+    public static function criar(): ProvedorWhatsApp
     {
-        return $id === self::WAHA ? new WahaApi() : new EvolutionApi();
+        return new WahaApi();
     }
 
-    /** @param array<string,mixed> $dados integracoes.dados (provedor gravado na conexao; sem ele, Evolution) */
+    /** @param array<string,mixed> $dados integracoes.dados */
     public static function daIntegracao(array $dados): ProvedorWhatsApp
     {
-        return self::criar(($dados['provedor'] ?? null) === self::WAHA ? self::WAHA : self::EVOLUTION);
+        return self::criar();
     }
 
-    /** Servidor para uma conexao nova (WHATSAPP_PROVEDOR_PADRAO=waha ou evolution; sem valor, Evolution). */
+    /** Servidor para uma conexao nova. */
     public static function padrao(): ProvedorWhatsApp
     {
-        return self::criar(Config::get('WHATSAPP_PROVEDOR_PADRAO') === self::WAHA ? self::WAHA : self::EVOLUTION);
+        return self::criar();
+    }
+
+    /** Conexao feita na Evolution (antes da troca para o WAHA): a sessao nao existe mais, precisa conectar de novo. */
+    public static function legado(array $dados): bool
+    {
+        return is_string($dados['sessao'] ?? null) && ($dados['provedor'] ?? null) !== self::WAHA;
     }
 
     /** @return list<ProvedorWhatsApp> servidores configurados no .env */
     public static function configurados(): array
     {
-        return array_values(array_filter([self::criar(self::EVOLUTION), self::criar(self::WAHA)], static fn (ProvedorWhatsApp $p): bool => $p->configurado()));
+        $api = self::criar();
+        return $api->configurado() ? [$api] : [];
     }
 
     public static function algumDisponivel(): bool

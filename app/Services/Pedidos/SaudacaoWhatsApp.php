@@ -64,7 +64,7 @@ final class SaudacaoWhatsApp
 
     /**
      * Endereco de uma conversa individual: numero BR ou LID recebido do servidor de
-     * WhatsApp (eventos da Evolution chegam ja convertidos por EventoEvolution). LID nao e telefone; deve ser encaminhado SEM remover @lid.
+     * WhatsApp (eventos do WAHA chegam ja convertidos por EventoWaha). LID nao e telefone; deve ser encaminhado SEM remover @lid.
      * A idempotencia diaria usa exatamente o identificador da conversa.
      */
     public static function destinatarioDireto(array $evento): ?string
@@ -91,7 +91,7 @@ final class SaudacaoWhatsApp
     /** Nao aceitar mensagens antigas reemitidas pelo servidor ao reiniciar. */
     public static function instanteMensagem(array $evento, DateTimeImmutable $agora): ?DateTimeImmutable
     {
-        // t ou timestamp em segundos Unix (EventoEvolution entrega em t).
+        // t ou timestamp em segundos Unix (EventoWaha entrega em t).
         $segundos = $evento['t'] ?? $evento['timestamp'] ?? null;
         if (!is_int($segundos) && !(is_string($segundos) && ctype_digit($segundos))) {
             return null;
@@ -174,7 +174,7 @@ final class SaudacaoWhatsApp
 
     private static array $agendados = [];
 
-    /** Responde HTTP 200 antes de contatar a Evolution; evita a repeticao do webhook por timeout. */
+    /** Responde HTTP 200 antes de contatar o servidor do WhatsApp; evita a repeticao do webhook por timeout. */
     public static function agendarEnvio(int $id): void
     {
         if (isset(self::$agendados[$id])) return;
@@ -210,7 +210,7 @@ final class SaudacaoWhatsApp
         $api ??= WhatsAppProvedores::daIntegracao($integracao['dados']);
         // "erro" = o painel viu o WhatsApp cair por um instante; se a mensagem chegou, a conexao esta de pe.
         if (!$api->configurado() || !in_array($integracao['status'], ['conectado', 'erro'], true)
-            || !is_string($sessao) || !is_string($token) || $token === '') {
+            || !is_string($sessao) || !is_string($token) || $token === '' || WhatsAppProvedores::legado($integracao['dados'])) {
             if (is_string($sessao)) {
                 DiagnosticoSaudacao::registrar($sessao, 'envio_sem_conexao');
             }

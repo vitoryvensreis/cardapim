@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Cardapim\Modules\Integracoes;
 
 /**
- * Contrato do servidor de WhatsApp do Deliveryzim (WAHA ou Evolution API).
+ * Contrato do servidor de WhatsApp do Deliveryzim (WAHA).
  * Os servicos (conexao, avisos, saudacao, codigos da plataforma, limpeza) so conhecem este contrato.
  */
 interface ProvedorWhatsApp
 {
-    /** Identificador gravado em integracoes.dados.provedor (waha ou evolution). */
+    /** Identificador gravado em integracoes.dados.provedor (waha). */
     public function id(): string;
 
     /** O servidor esta configurado no .env? */

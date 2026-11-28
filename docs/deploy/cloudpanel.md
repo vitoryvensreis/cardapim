@@ -139,7 +139,7 @@ DDL no MySQL provoca commits implícitos: um rollback dos arquivos NÃO desfaz m
 | --- | --- | --- |
 | A cada minuto (`* * * * *`) | `php8.4 /home/<usuario>/apps/cardapim/current/bin/ifood.php >> /home/<usuario>/apps/cardapim/shared/storage/logs/ifood.log 2>&1` | Pedidos e avisos do iFood a cada 30 s, ações e disponibilidade ([ifood.md](../architecture/ifood.md)). Sai sem fazer nada enquanto `IFOOD_CLIENT_ID/SECRET` não estiverem no `shared/.env`. |
 | A cada minuto (`* * * * *`), instalado pelo deploy | `php8.4 /home/<usuario>/apps/cardapim/current/bin/whatsapp-vigia.php >> /home/<usuario>/apps/cardapim/shared/storage/logs/whatsapp-vigia.log 2>&1` | Vigia do WhatsApp (WAHA): reinicia sessão que caiu, avisa a loja quando precisa de alguém no celular e tenta de novo as boas-vindas ([waha.md](waha.md)). |
-| A cada 15 minutos (`*/15 * * * *`) | `php8.4 /home/<usuario>/apps/cardapim/current/bin/whatsapp-sessoes.php --limpar >> /home/<usuario>/apps/cardapim/shared/storage/logs/whatsapp-sessoes.log 2>&1` | Apaga na Evolution API as instâncias do Deliveryzim que nenhuma loja usa mais (espera 10 minutos antes). Nunca toca instâncias de outros projetos ([evolution.md](evolution.md)). |
+| A cada 15 minutos (`*/15 * * * *`) | `php8.4 /home/<usuario>/apps/cardapim/current/bin/whatsapp-sessoes.php --limpar >> /home/<usuario>/apps/cardapim/shared/storage/logs/whatsapp-sessoes.log 2>&1` | Apaga no WAHA as sessões do Deliveryzim que nenhuma loja usa mais (espera 10 minutos antes). Nunca toca sessões de outros projetos ([waha.md](waha.md)). |
 | Uma vez por dia | `php8.4 /home/<usuario>/apps/cardapim/current/bin/cobranca-diaria.php` | Bloqueio de restaurantes com fatura atrasada além da tolerância. |
 
 ## E-mail do sistema

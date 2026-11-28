@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Sessoes do WhatsApp (WAHA e Evolution API): lista e fecha as que nenhum restaurante usa mais.
+// Sessoes do WhatsApp (WAHA): lista e fecha as que nenhum restaurante usa mais.
 // Instancia abandonada ocupa o servidor a toa. Instancias de outros projetos nunca sao tocadas.
 //
 // Uso (usuario do site, na pasta current/):
@@ -24,7 +24,7 @@ use Cardapim\Services\WhatsApp\SessoesAbandonadas;
 
 $servidores = WhatsAppProvedores::configurados();
 if ($servidores === []) {
-    echo "WhatsApp nao configurado (WAHA_URL / WAHA_API_KEY ou EVOLUTION_BASE_URL / EVOLUTION_API_KEY no .env). Nada a fazer.\n";
+    echo "WhatsApp nao configurado (WAHA_URL / WAHA_API_KEY no .env). Nada a fazer.\n";
     exit(0);
 }
 

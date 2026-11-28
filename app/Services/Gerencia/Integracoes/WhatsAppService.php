@@ -18,7 +18,7 @@ use PDO;
 /**
  * WhatsApp do restaurante: uma sessao por restaurante, conectada lendo o QR Code no celular
  * (como o WhatsApp Web). Permite mandar uma mensagem de teste.
- * Servidor: o gravado em dados.provedor (waha ou evolution; conexoes novas usam WhatsAppProvedores::padrao).
+ * Servidor: WAHA. Conexao de antes da troca (Evolution, sem dados.provedor = waha) precisa conectar de novo.
  * $api injetado (testes) vale para tudo.
  */
 final class WhatsAppService extends BaseIntegracao
@@ -37,7 +37,7 @@ final class WhatsAppService extends BaseIntegracao
         $atual = $this->integracoes->buscar($this->idRestaurante, 'whatsapp');
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
         $sessao = is_string($atual['dados']['sessao'] ?? null) ? $atual['dados']['sessao'] : null;
-        $nova = $sessao === null || empty($cred['token']);
+        $nova = $sessao === null || empty($cred['token']) || WhatsAppProvedores::legado($atual['dados']);
         $api = $nova ? ($this->api ?? WhatsAppProvedores::padrao()) : $this->provedor($atual['dados']);
         if (!$api->configurado()) {
             return Resultado::falha('O WhatsApp ainda não está disponível neste servidor. Avise o suporte do ' . marca() . '.');
@@ -82,6 +82,9 @@ final class WhatsAppService extends BaseIntegracao
         $sessao = $atual['dados']['sessao'] ?? null;
         if ($atual['status'] === 'desconectado' || !is_string($sessao) || empty($cred['token'])) {
             return ['estado' => 'desconectado', 'qrcode' => null, 'numero' => null, 'mensagem' => 'WhatsApp não conectado.'];
+        }
+        if (WhatsAppProvedores::legado($atual['dados']) && $atual['status'] !== 'pendente') {
+            return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => \Cardapim\Services\WhatsApp\VigiaWhatsApp::ALERTA_TROCA];
         }
         try {
             $e = $api->estado($sessao, (string) $cred['token']);
@@ -196,7 +199,7 @@ final class WhatsAppService extends BaseIntegracao
         $atual = $this->integracoes->buscar($this->idRestaurante, 'whatsapp');
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
         $sessao = $atual['dados']['sessao'] ?? null;
-        if ($atual['status'] !== 'conectado' || !is_string($sessao) || empty($cred['token'])) {
+        if ($atual['status'] !== 'conectado' || !is_string($sessao) || empty($cred['token']) || WhatsAppProvedores::legado($atual['dados'])) {
             return Resultado::falha('Conecte o WhatsApp antes de enviar a mensagem de teste.');
         }
         $limite = RateLimiter::padrao(self::TESTES_POR_HORA, 3600);
@@ -245,7 +248,7 @@ final class WhatsAppService extends BaseIntegracao
         $cred = $this->integracoes->credenciais($this->idRestaurante, 'whatsapp');
         $sessao = $atual['dados']['sessao'] ?? null;
         $api = $this->provedor($atual['dados']);
-        if (!$api instanceof WebhookDeMensagens || !$api->configurado() || !$api->webhookConfigurado()
+        if (!$api instanceof WebhookDeMensagens || !$api->configurado() || !$api->webhookConfigurado() || WhatsAppProvedores::legado($atual['dados'])
             || !in_array($atual['status'], ['conectado', 'erro'], true) || !is_string($sessao) || empty($cred['token'])) {
             return null;
         }

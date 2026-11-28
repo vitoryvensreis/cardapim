@@ -68,7 +68,7 @@ POSTs do cliente exigem o cabecalho `X-CSRF-Token` (419 sem ele) e corpo JSON de
 - Codigo guardado so como HMAC (`Cripto::derivarChave('cliente-codigo-v1')`) na sessao PHP; 10 min; 5 tentativas; uso unico.
 - Limites: reenviar apos 60 s; 5 envios/hora por numero; 20/hora por IP; 30 verificacoes/15 min por IP.
 - Enviado pela integracao WhatsApp da **plataforma** (`id_restaurante` NULL). Se ela estiver desconectada ou o envio falhar
-  (numero sem WhatsApp, Evolution fora do ar), o **mesmo codigo** vai por **SMS** automaticamente (SMSGate,
+  (numero sem WhatsApp, WAHA fora do ar), o **mesmo codigo** vai por **SMS** automaticamente (SMSGate,
   [docs/deploy/sms.md](../deploy/sms.md)). A tela mostra por onde o codigo foi. Sem WhatsApp e sem SMS -> login indisponivel (503).
 - SMS: texto curto sem acentos; a ultima linha `@deliveryzim.com.br #123456` deixa o Chrome no Android preencher o codigo
   sozinho (WebOTP, `cliente.js`); no iPhone o campo usa `autocomplete="one-time-code"`.

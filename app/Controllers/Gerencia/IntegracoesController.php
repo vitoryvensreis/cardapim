@@ -25,7 +25,7 @@ use Cardapim\Services\Ifood\IfoodConta;
 use Cardapim\Services\Ifood\IfoodDiagnostico;
 use Cardapim\Shared\Seguranca\Cripto;
 
-/** Aba Integracoes: iFood, WhatsApp (Evolution API) e Asaas. Rotas em /{slug}/gerencia/integracoes/... */
+/** Aba Integracoes: iFood, WhatsApp (WAHA) e Asaas. Rotas em /{slug}/gerencia/integracoes/... */
 final class IntegracoesController extends BaseGerencia
 {
     public function inicio(string $slug): Response
