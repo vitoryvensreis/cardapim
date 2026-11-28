@@ -34,6 +34,8 @@ final class VigiaWhatsApp
     private const ALERTA_PASSKEY = 'O WhatsApp pediu uma confirmação no celular da loja. Abra o WhatsApp no aparelho e confirme.';
     /** Gravado pelo teste de ponta a ponta (TesteWhatsApp): so ele tira, quando a mensagem de teste chega. */
     public const ALERTA_NAO_RECEBE = 'O WhatsApp da loja aparece conectado, mas parou de receber mensagens (o teste automático não chegou). Abra esta tela e conecte de novo.';
+    /** Conexao feita na Evolution (removida): precisa conectar de novo no servidor novo. */
+    public const ALERTA_TROCA = 'Trocamos o servidor do WhatsApp. Toque em "Conectar de novo" e leia o QR Code com o celular da loja (leva 1 minuto).';
     private const ALERTA_CAIU = 'O WhatsApp da loja caiu e não voltou sozinho. Confira se o celular está ligado e com internet; se continuar, conecte de novo.';
 
     private readonly IntegracaoRepository $integracoes;
@@ -140,6 +142,16 @@ final class VigiaWhatsApp
         $sessao = $atual['dados']['sessao'] ?? null;
         if (!in_array($atual['status'], ['conectado', 'erro'], true) || !is_string($sessao) || $token === '') {
             return null;
+        }
+        if (WhatsAppProvedores::legado($atual['dados'])) {
+            // Sessao da Evolution (removida): so a loja conectando de novo resolve. Avisa uma vez.
+            $alertou = $atual['status'] !== 'erro' || $atual['ultimo_erro'] !== self::ALERTA_TROCA;
+            if ($alertou) {
+                $this->integracoes->salvar($id, 'whatsapp', ['status' => 'erro', 'ultimo_erro' => self::ALERTA_TROCA]);
+                $this->registrar($id, 'WhatsApp: precisa conectar de novo', 'A conexão era do servidor antigo (Evolution).');
+                $this->avisarTela($id, 'erro');
+            }
+            return ['reiniciou' => false, 'alertou' => $alertou, 'recuperou' => false];
         }
         $api = ($this->provedor)($atual['dados']);
         if (!$api instanceof RecuperacaoDeSessao || !$api->configurado()) {

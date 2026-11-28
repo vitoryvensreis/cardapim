@@ -34,7 +34,8 @@ final class WhatsAppPlataforma implements CanalCodigo
     {
         $integracao = (new IntegracaoRepository($this->db))->buscar(null, 'whatsapp');
         return ($this->api ?? WhatsAppProvedores::daIntegracao($integracao['dados']))->configurado()
-            && $integracao['status'] === 'conectado' && is_string($integracao['dados']['sessao'] ?? null);
+            && $integracao['status'] === 'conectado' && is_string($integracao['dados']['sessao'] ?? null)
+            && !WhatsAppProvedores::legado($integracao['dados']);
     }
 
     /** @param string $whatsapp DDD + numero (10 ou 11 digitos) */
@@ -45,7 +46,8 @@ final class WhatsAppPlataforma implements CanalCodigo
         $sessao = $integracao['dados']['sessao'] ?? null;
         $token = $repo->credenciais(null, 'whatsapp')['token'] ?? null;
         $api = $this->api ?? WhatsAppProvedores::daIntegracao($integracao['dados']);
-        if (!$api->configurado() || $integracao['status'] !== 'conectado' || !is_string($sessao) || !is_string($token) || $token === '') {
+        if (!$api->configurado() || $integracao['status'] !== 'conectado' || !is_string($sessao) || !is_string($token) || $token === ''
+            || WhatsAppProvedores::legado($integracao['dados'])) {
             throw new IntegracaoErro('O envio de códigos pelo WhatsApp está indisponível no momento. Tente de novo em alguns minutos.');
         }
         $api->enviarTexto($sessao, $token, '55' . $whatsapp, $mensagem);

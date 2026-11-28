@@ -1,8 +1,9 @@
 # WhatsApp pelo WAHA (motor GOWS) na VPS de mensageria
 
-O WAHA (WhatsApp HTTP API, https://waha.devlike.pro) roda na mesma VPS de mensageria da Evolution, em Docker,
-com o motor **GOWS** (biblioteca whatsmeow, em Go). Substitui a Evolution (Baileys) para as lojas: cada loja que
-reconectar o WhatsApp passa a usar o WAHA.
+O WAHA (WhatsApp HTTP API, https://waha.devlike.pro) roda na VPS de mensageria, em Docker, com o motor **GOWS**
+(biblioteca whatsmeow, em Go). É o único servidor de WhatsApp do Deliveryzim (lojas e plataforma). A Evolution API
+(Baileys) foi removida do código em 28/11/2026; conexões feitas nela aparecem como "Trocamos o servidor do WhatsApp"
+e a loja conecta de novo (o vigia marca o alerta e o aviso para as lojas pode levar o gerente direto à tela).
 
 | Item | Valor |
 |---|---|
@@ -42,8 +43,8 @@ rede externa `evolution_default` (a do Caddy), sem porta publicada (só pelo Cad
 Atualizar: trocar a tag fixa no `docker-compose.yml` depois de ler as notas da versão
 (https://github.com/devlikeapro/waha/releases) e rodar `docker compose pull && docker compose up -d`.
 
-**Antes de apagar a Evolution:** o Caddy (que atende o WAHA e o SMSGate) está no compose da Evolution. Mova o
-Caddy para uma pasta própria antes, senão o WAHA e o SMS saem do ar junto.
+**Caddy:** o Caddy que atende o WAHA e o SMSGate continua em `/opt/evolution` (rede `evolution_default`). Ao apagar
+a Evolution, remova só os serviços dela (API, Postgres e Redis próprios) e mantenha o Caddy e a rede.
 
 ## Variáveis no `shared/.env` do Deliveryzim
 
@@ -51,19 +52,19 @@ Caddy para uma pasta própria antes, senão o WAHA e o SMS saem do ar junto.
 WAHA_URL=https://waha.escotilhaprodutora.com
 WAHA_API_KEY=<"Chave da API" do /opt/waha/CREDENCIAIS.txt>
 WAHA_WEBHOOK_TOKEN=<openssl rand -hex 32>
-WHATSAPP_PROVEDOR_PADRAO=waha
 ```
 
 - `WAHA_API_KEY`: todas as chamadas, no cabeçalho `X-Api-Key`. Só no servidor; nunca no Git, no navegador ou em print.
 - `WAHA_WEBHOOK_TOKEN`: entra na URL que cada sessão de loja chama: `https://deliveryzim.com.br/webhooks/waha/{token}`.
   Trocar o valor exige "Corrigir recebimento" (ou reconectar) em cada loja.
-- `WHATSAPP_PROVEDOR_PADRAO=waha`: conexões **novas** nascem no WAHA. Lojas já conectadas seguem no servidor
-  gravado em `integracoes.dados.provedor` (`evolution` ou `waha`; sem o campo, Evolution).
+- As variáveis `EVOLUTION_*` e `WHATSAPP_PROVEDOR_PADRAO` não são mais usadas e podem sair do `shared/.env`.
 
-## Migrar uma loja
+## Loja que estava na Evolution
 
-Integrações → WhatsApp → **Desconectar** e depois **Conectar** (lê o QR com o celular da loja). A sessão nova nasce
-no WAHA. Conferir em seguida "Recebendo mensagens" e mandar um "Oi" de outro número (diagnóstico das boas-vindas).
+Integrações → WhatsApp mostra "Trocamos o servidor do WhatsApp" com o botão **Conectar de novo** (cria a sessão no
+WAHA e mostra o QR Code ou o código). Conferir em seguida "Recebendo mensagens" e mandar um "Oi" de outro número
+(diagnóstico das boas-vindas). Para avisar todas as lojas de uma vez: Plataforma → Avisos para as lojas, botão
+"WhatsApp da loja".
 
 ## O que o Deliveryzim chama no WAHA (`app/Modules/Integracoes/WahaApi.php`)
 

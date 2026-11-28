@@ -76,7 +76,7 @@ GET  /painel/integracoes/aplicativos/{ifood|99food}  POST (salvar)  POST .../rem
   e "Cobrança das assinaturas": formas (Pix, Boleto, Cartão), vencimento da 1ª cobrança, dias grátis, multa, juros,
   desconto para pagar antes, dias de atraso para suspender e fatura enviada pelo Asaas. O ciclo (mensal, semestral, anual)
   vem do plano.
-- **WhatsApp**: número da plataforma, separado dos restaurantes, na mesma Evolution API (instância `deliveryzim_plataforma_*`).
+- **WhatsApp**: número da plataforma, separado dos restaurantes, no mesmo WAHA (sessão `deliveryzim_plataforma_*`).
   Próximo uso: código de verificação do cliente final, que entra só com o número de telefone.
 - Detalhes técnicos: [integracoes.md](integracoes.md). Teste: `tests/http/plataforma.sh` (CI).
 

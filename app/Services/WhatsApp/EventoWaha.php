@@ -6,7 +6,7 @@ namespace Cardapim\Services\WhatsApp;
 
 /**
  * Converte o webhook "message" do WAHA para o formato de evento interno da SaudacaoWhatsApp
- * (event, session, from, fromMe, isGroupMsg, isStatus, t), o mesmo que o EventoEvolution entrega.
+ * (event, session, from, fromMe, isGroupMsg, isStatus, t).
  *
  * WAHA: {event: "message", session, payload: {from, fromMe, timestamp, ...}}
  * Saida: {event: onmessage, session, from, fromMe, isGroupMsg, isStatus, t, body}

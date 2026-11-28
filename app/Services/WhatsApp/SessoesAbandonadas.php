@@ -10,10 +10,10 @@ use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use PDO;
 
 /**
- * Fecha no servidor do WhatsApp (Evolution API) as instancias do Deliveryzim que nenhum restaurante usa mais.
+ * Fecha no servidor do WhatsApp (WAHA) as sessoes do Deliveryzim que nenhum restaurante usa mais.
  *
  * Por que existe: instancia que ficou para tras (QR Code que ninguem leu, desconectar com o servidor
- * fora do ar, reconexao com nome novo) continua guardada na Evolution e ocupa recursos a toa.
+ * fora do ar, reconexao com nome novo) continua guardada no servidor e ocupa recursos a toa.
  *
  * Regras de seguranca:
  * - So mexe em instancias com nome do Deliveryzim (deliveryzim_r{id}_... e deliveryzim_plataforma_...).

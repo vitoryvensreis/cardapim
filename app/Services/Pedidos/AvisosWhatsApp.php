@@ -207,7 +207,8 @@ final class AvisosWhatsApp
         $sessao = $integracao['dados']['sessao'] ?? null;
         $token = $repo->credenciais($idRestaurante, 'whatsapp')['token'] ?? null;
         $api ??= WhatsAppProvedores::daIntegracao($integracao['dados']);
-        $pronto = $api->configurado() && $integracao['status'] === 'conectado' && is_string($sessao) && is_string($token) && $token !== '';
+        $pronto = $api->configurado() && $integracao['status'] === 'conectado' && is_string($sessao) && is_string($token) && $token !== ''
+            && !WhatsAppProvedores::legado($integracao['dados']);
         $enviados = 0;
         foreach ($fila as $a) {
             $tentativa = (int) $a['tentativas'] + 1;

@@ -1,2 +1,2 @@
 <?php
-// Webhooks autenticados para Asaas, Evolution e iFood futuramente.
+// Webhooks autenticados para Asaas, WAHA e iFood futuramente.

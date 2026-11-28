@@ -22,7 +22,7 @@
 ## Servidor do WhatsApp para várias lojas
 
 - O WhatsApp das lojas e da plataforma roda na **Evolution API** (canal Baileys), numa VPS de mensageria separada (`https://wpp.escotilhaprodutora.com`), com uma instância por loja (`deliveryzim_r{id}_*`). Não abre um navegador por loja, então muitas lojas cabem no mesmo servidor.
-- A rotina `bin/whatsapp-sessoes.php` (cron a cada 15 min) apaga instâncias abandonadas do Deliveryzim, sem tocar nas de outros projetos. Ver [docs/deploy/evolution.md](docs/deploy/evolution.md).
+- A rotina `bin/whatsapp-sessoes.php` (cron a cada 15 min) apaga instâncias abandonadas do Deliveryzim, sem tocar nas de outros projetos. (Evolution removida em 28/11/2026; hoje o WhatsApp é o WAHA: [docs/deploy/waha.md](docs/deploy/waha.md).)
 - **SMS de reserva:** se o WhatsApp da plataforma falhar, o código de login do cliente vai por SMS automaticamente, pelo chip de um celular Android com o SMSGate (servidor próprio em `https://sms.escotilhaprodutora.com`). Ver [docs/deploy/sms.md](docs/deploy/sms.md).
 
 ## Importar cardápio por planilha
@@ -140,7 +140,7 @@
 - **Assinatura**: plano atual, faturas com botao "Pagar agora" (pagina do Asaas: Pix, boleto ou cartao), assinar, trocar, cancelar e desfazer, historico. Cobranca recorrente pelo Asaas da plataforma. [Detalhes](docs/architecture/assinaturas.md).
 - **Minha conta**: dados, troca de senha, **verificacao em duas etapas** (Google Authenticator ou codigo por e-mail, com codigos de recuperacao), aparelhos conectados e ultimos acessos.
 - Todo cadastro, edicao e exclusao gera log em `log_user` com o que mudou. [Detalhes das abas e rotas](docs/architecture/painel-gerente.md) · [Tabelas novas](docs/database/gerencia-abas.md) · [2FA](docs/architecture/autenticacao.md#verificacao-em-duas-etapas).
-- **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (Evolution API na VPS de mensageria, QR Code e mensagem de teste) e iFood (vinculo da loja, pedidos com entregador e codigo de coleta, aceitar/pronto/cancelar indo para o iFood e estoque sincronizado). [Detalhes](docs/architecture/integracoes.md) · [iFood](docs/architecture/ifood.md) · [Evolution API](docs/deploy/evolution.md).
+- **Integracoes**: Asaas (chave da conta do restaurante, avisos de pagamento por webhook configurados sozinhos), WhatsApp (Evolution API na VPS de mensageria, QR Code e mensagem de teste) e iFood (vinculo da loja, pedidos com entregador e codigo de coleta, aceitar/pronto/cancelar indo para o iFood e estoque sincronizado). [Detalhes](docs/architecture/integracoes.md) · [iFood](docs/architecture/ifood.md) · [WAHA](docs/deploy/waha.md) (a Evolution foi removida em 28/11/2026).
   Navegação da integração iFood: abas **Status** (`/integracoes/ifood/status`), **Loja** (`/integracoes/ifood/loja`), **Cardápio** (`/integracoes/ifood/cardapio`) e **Dados** (`/integracoes/ifood/dados`). O fuso das pausas é fixo em `America/Sao_Paulo`, sem seletor de alteração.
   A aba **Cardápio** consulta os itens atuais do iFood ao abrir e compara com os produtos ativos no Deliveryzim, separando vínculos ativos dos arquivados. Respostas remotas incompletas não alteram o cache e deixam a contagem marcada como **Não confirmado**. [Comportamento e testes](docs/architecture/ifood.md#contagem-atual-do-cardápio-em-cada-sistema).
 - **Suporte**: abrir chamado (assunto, sobre o que e, mensagem), conversa com a equipe da plataforma, selo "Resposta nova" no menu, resolver e reabrir respondendo. So o restaurante dono ve o chamado. [Detalhes](docs/architecture/suporte.md).
@@ -581,7 +581,7 @@ POST   /webhooks/asaas/{connectionKey}
 
 - [Evolution API — repositório oficial](https://github.com/evolution-foundation/evolution-api)
 - [Evolution API — documentação](https://docs.evolutionfoundation.com.br)
-- Instalação e operação no Deliveryzim: [docs/deploy/evolution.md](docs/deploy/evolution.md)
+- Removida do Deliveryzim em 28/11/2026 (substituída pelo WAHA: [docs/deploy/waha.md](docs/deploy/waha.md))
 
 Conexão por QR Code, avisos de pedido, saudação e códigos de verificação estão **implementados**. A central de atendimento (inbox), automações de menu e relatórios continuam **planejados**.
 
@@ -1007,7 +1007,7 @@ MAIL_PORT=587
 MAIL_ENCRYPTION=tls # tls (STARTTLS na 587), ssl (465) ou none
 MAIL_USERNAME=
 MAIL_PASSWORD=      # so no shared/.env da VPS
-EVOLUTION_BASE_URL=https://wpp.escotilhaprodutora.com   # Evolution API (docs/deploy/evolution.md)
+EVOLUTION_BASE_URL=https://wpp.escotilhaprodutora.com   # Evolution API (removida em 28/11/2026)
 EVOLUTION_API_KEY=          # chave global, so no shared/.env da VPS
 EVOLUTION_WEBHOOK_TOKEN=    # segredo da URL do webhook (openssl rand -hex 32)
 DB_HOST=127.0.0.1

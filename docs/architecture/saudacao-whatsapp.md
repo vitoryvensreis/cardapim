@@ -6,8 +6,8 @@ Cada gerente pode ativar e editar a mensagem; novas lojas comecam com a saudacao
 
 ## Regras
 
-- Somente mensagens recebidas (`messages.upsert` convertido para `onmessage`, com `fromMe=false`) de contatos individuais brasileiros `55DDDnumero@c.us` **ou** identificadores de chat diretos `NNNN@lid`. O LID nunca e interpretado como numero de telefone.
-- Nao responde grupos, broadcasts, status ou mensagens do proprio restaurante. Um LID sem numero real informado pela Evolution e respondido diretamente no mesmo chat, sem descobrir o numero.
+- Somente mensagens recebidas (evento `message` do WAHA convertido para `onmessage`, com `fromMe=false`) de contatos individuais brasileiros `55DDDnumero@c.us` **ou** identificadores de chat diretos `NNNN@lid`. O LID nunca e interpretado como numero de telefone.
+- Nao responde grupos, broadcasts, status ou mensagens do proprio restaurante. Um LID sem numero real informado pelo WAHA e respondido diretamente no mesmo chat, sem descobrir o numero.
 - Somente se a loja estiver ativa e o horario do Perfil permitir. Usa `HorarioFuncionamento::abertoEm` (inclusive apos meia-noite), horario `America/Fortaleza` da aplicacao.
 - Mensagens recebidas fora do horario nao contam; o primeiro contato **elegivel** do dia inicia a saudacao.
 - Mensagens antigas (mais de 5 min) ou com relogio adiantado mais de 2 min sao ignoradas, inclusive as reemitidas apos o servidor reiniciar.
@@ -15,21 +15,23 @@ Cada gerente pode ativar e editar a mensagem; novas lojas comecam com a saudacao
 - Texto com variaveis `{{restaurante}}` e `{{cardapio}}`. Link da loja e obrigatorio e inserido quando faltar.
 - Guarda apenas a mensagem de saida e o identificador de destino (telefone ou LID) no historico. Limpar registros com mais de 35 dias pelo script de manutencao.
 
-## Webhook (Evolution API)
+## Webhook (WAHA)
 
-Cada instancia da Evolution e criada pelo proprio Deliveryzim ja com o webhook
-`POST /webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}` e o evento `MESSAGES_UPSERT`
-([evolution.md](../deploy/evolution.md)). Nao ha configuracao manual por loja.
+Cada sessao do WAHA e criada pelo proprio Deliveryzim ja com o webhook
+`POST /webhooks/waha/{WAHA_WEBHOOK_TOKEN}` e o evento `message` ([waha.md](../deploy/waha.md)).
+Nao ha configuracao manual por loja.
 
-- A entrada e publica, protegida por um segredo aleatorio longo (>=32 caracteres) na URL e pelo
-  token da instancia enviado no corpo (`apikey`); nao usa sessao nem CSRF do navegador.
-- `Services/WhatsApp/EventoEvolution` converte `messages.upsert` para o formato interno
+- A entrada e publica, protegida por um segredo aleatorio longo (>=32 caracteres) na URL e pela
+  assinatura `X-Webhook-Hmac` (HMAC-SHA512 do corpo) com o token da sessao da loja; nao usa sessao nem CSRF.
+- `Services/WhatsApp/EventoWaha` converte o evento para o formato interno
   (`onmessage`, `from` em `55...@c.us` ou `...@lid`, `fromMe`, `t`). Contato com LID usa o numero
-  real quando a Evolution informa (`remoteJidAlt`/`senderPn`).
-- `EVOLUTION_WEBHOOK_TOKEN` fica so no `shared/.env` da VPS e precisa existir **antes** de a loja
-  conectar (o endereco fica gravado na instancia). Trocar o valor exige reconectar as lojas.
+  real quando o WAHA informa.
+- Mensagem do teste automatico (codigo `DZT-...`, enviada pelo WhatsApp da plataforma) e reconhecida
+  antes da saudacao e nunca recebe boas-vindas.
+- `WAHA_WEBHOOK_TOKEN` fica so no `shared/.env` da VPS e precisa existir **antes** de a loja
+  conectar (o endereco fica gravado na sessao). Trocar o valor exige "Corrigir recebimento" ou reconectar.
 
-**Atenção:** sem `EVOLUTION_WEBHOOK_TOKEN`, o painel nao deixa ativar a saudacao. Os avisos de pedido
+**Atencao:** sem `WAHA_WEBHOOK_TOKEN`, o painel nao deixa ativar a saudacao. Os avisos de pedido
 nao dependem do webhook.
 
 ## Diagnostico seguro de eventos recebidos
@@ -74,8 +76,8 @@ Nao aumentar o nivel de log global nem imprimir payloads de clientes.
 
 ## Compatibilidade de schema com LID
 
-O WhatsApp pode identificar remetentes de conversas privadas com `@lid`. A
-Evolution aceita o identificador `NNNN@lid` como destinatario em `sendText`.
+O WhatsApp pode identificar remetentes de conversas privadas com `@lid`. O
+WAHA aceita o identificador `NNNN@lid` como destinatario em `sendText`.
 O campo legado `telefone` de `whatsapp_saudacao_diaria` precisa comportar o
 identificador completo do destinatario, sem alterar a chave UNIQUE diaria.
 A migration versionada
@@ -97,9 +99,9 @@ evitando gravacoes truncadas. O sistema de avisos de pedidos e inalterado.
 O webhook confirma imediatamente e agenda envio apos a resposta HTTP.
 O envio utiliza o token cifrado e a sessao da propria loja. Cada registro passa por
 `pendente -> enviando -> enviado/falhou`.
-Nao ha repeticao automatica depois de falha **ambigua**: evita duas boas-vindas se a Evolution
-aceitou o envio, mas a resposta falhou. O restaurante pode consultar status no banco; futuras
-versoes poderao oferecer um painel de diagnostico sem exposicao de dados pessoais.
+Ate 3 tentativas (espera de 1 e 3 minutos, novas tentativas pelo vigia), dentro de 10 minutos da
+mensagem do cliente. Numero sem WhatsApp nao repete; envio interrompido no meio nao repete (para o
+cliente nao receber duas vezes). As ultimas boas-vindas aparecem na tela do WhatsApp, sem dados pessoais.
 
 Para limpar dados de mais de 35 dias, agendar o comando `php8.4 bin/limpar-saudacoes.php`
 no cron do usuario do site, uma vez ao dia. O comando nao envia mensagens.

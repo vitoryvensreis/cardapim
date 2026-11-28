@@ -142,7 +142,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | `EntregadorController` | `/{slug}/entregas` | Entregas, confirmar e localização |
 | `MidiaController`, `PwaController` | `/midia/...`, `/pwa/...` | Logos fora de `public/`, manifesto e service worker |
 | `WebhookController` | `/webhooks/asaas/{id}` | Pagamentos Asaas |
-| `EvolutionWebhookController` | `/webhooks/evolution/{token}` | Mensagens recebidas no WhatsApp (saudação) |
+| `WahaWebhookController` | `/webhooks/waha/{token}` | Mensagens recebidas no WhatsApp (saudação e teste automático) |
 | `AreaController` | áreas genéricas “em construção” | |
 | `Api/*` | `/api/v1/...` | Ver seção 5 |
 | `Caixa/*` | `/{slug}/caixa/...` | Caixa, comandas, mesas, delivery, iFood, impressão, histórico |
@@ -167,7 +167,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | `Ifood/` | Toda a integração iFood: rotina, eventos, importar pedido, ações, catálogo, publicação, estado da loja | `bin/ifood.php`, caixa, gerência |
 | `Plataforma/` | Restaurantes, usuários, planos, marca, cobrança das assinaturas (Asaas da plataforma), SMS, `GoogleMapsService` (chave única da Routes API, teste e alternância global Haversine/Google) | `/painel`, `/painel/integracoes/google-maps`, `bin/cobranca-diaria.php` |
 | `Cliente/` | Login do cliente final por código (WhatsApp da plataforma ou SMS) | Cardápio |
-| `WhatsApp/` | `EventoEvolution` (webhook → evento), `DiagnosticoSaudacao`, `SessoesAbandonadas` | Saudação, rotina de limpeza |
+| `WhatsApp/` | `EventoWaha` (webhook → evento), `DiagnosticoSaudacao`, `SessoesAbandonadas`, `VigiaWhatsApp`, `TesteWhatsApp` | Saudação, rotina de limpeza |
 | `Painel/Menu*` | **Fonte única dos menus** (gerência, caixa, plataforma) | Menu lateral/inferior |
 | `Email/`, `Geo/`, `Seo/`, `Suporte/` | E-mail SMTP, geocodificação e mapa base, SEO e cartão de link, chamados | |
 | `Auditoria.php` | Grava em `log_user` quem criou/editou/excluiu o quê | Logs da plataforma |
@@ -186,7 +186,7 @@ Controllers só orquestram: validam acesso e entrada, chamam o Service e escolhe
 | `Entrega/` | Área de entrega e taxa, distância, comparação de bairros | Checkout, verificador de entrega |
 | `Restaurante/` | Horário de funcionamento (puro), upload de logo | Aberto/fechado, perfil |
 | `Marca/MarcaUpload` | Logos da plataforma | `/painel/configuracoes` |
-| `Integracoes/` | Clientes HTTP: `IfoodApi`, `AsaasApi`, `EvolutionApi`, `SmsGateApi`, `GoogleRoutesApi` (somente distância pelas ruas), contrato `ProvedorWhatsApp` | Services de integração |
+| `Integracoes/` | Clientes HTTP: `IfoodApi`, `AsaasApi`, `WahaApi`, `SmsGateApi`, `GoogleRoutesApi` (somente distância pelas ruas), contrato `ProvedorWhatsApp` | Services de integração |
 
 ### 4.5 `app/Repositories/` — SQL
 
@@ -306,7 +306,7 @@ Versão do Agent: `desktop-agent/agent/__init__.py`. Mudanças no cupom (PHP) ch
 | Integração | Cliente HTTP | Regras | Entrada | Docs |
 | --- | --- | --- | --- | --- |
 | iFood | `Modules/Integracoes/IfoodApi.php` | `Services/Ifood/*`, `Services/Gerencia/Integracoes/Ifood*` | `bin/ifood.php` (cron, rodada a cada 30 s) | `docs/architecture/ifood.md` |
-| WhatsApp (Evolution API) | `EvolutionApi.php` (`ProvedorWhatsApp`) | `Services/Pedidos/AvisosWhatsApp`, `SaudacaoWhatsApp`, `Services/WhatsApp/*`, `Gerencia/Integracoes/WhatsAppService` | `/webhooks/evolution/{EVOLUTION_WEBHOOK_TOKEN}` | `docs/deploy/evolution.md`, `docs/architecture/saudacao-whatsapp.md` |
+| WhatsApp (WAHA) | `WahaApi.php` (`ProvedorWhatsApp`) | `Services/Pedidos/AvisosWhatsApp`, `SaudacaoWhatsApp`, `Services/WhatsApp/*`, `Gerencia/Integracoes/WhatsAppService` | `/webhooks/waha/{WAHA_WEBHOOK_TOKEN}` | `docs/deploy/waha.md`, `docs/architecture/saudacao-whatsapp.md` |
 | Asaas (Pix do restaurante) | `AsaasApi.php` | `Pedidos/PixPedido`, `Garcom/ComandaPix`, `Gerencia/Integracoes/AsaasService` | `/webhooks/asaas/{id}` + cron `bin/expirar-pix.php` (só pedidos online) | `docs/architecture/integracoes.md` |
 | Asaas (assinaturas da plataforma) | `AsaasApi.php` | `Plataforma/AssinaturaCobranca`, `CobrancaAssinaturas` | `bin/cobranca-diaria.php` | `docs/architecture/assinaturas.md` |
 | SMS (SMSGate) | `SmsGateApi.php` | `Cliente/SmsPlataforma`, `Plataforma/SmsGatewayService` | — | `docs/deploy/sms.md` |
@@ -335,7 +335,7 @@ Credenciais da plataforma ficam no `.env` ou no painel. As de cada restaurante f
 | `bin/ifood.php` | cron a cada minuto | Duas rodadas de 30 s: pedidos, eventos e ações do iFood |
 | `bin/cobranca-diaria.php` | cron diário | Faturas das assinaturas; bloqueia inadimplentes depois da tolerância |
 | `bin/expirar-pix.php` | cron a cada minuto | Confere Pix online vencido (60 min) no Asaas, exclui a cobrança pendente e cancela o pedido, com estoque/eventos |
-| `bin/whatsapp-sessoes.php --limpar` | cron a cada 15 min | Fecha instâncias do Evolution sem restaurante |
+| `bin/whatsapp-sessoes.php --limpar` | cron a cada 15 min | Fecha sessões do WAHA sem restaurante |
 | `bin/limpar-saudacoes.php` | cron diário | Apaga registros antigos de saudação |
 
 Os comandos rodam como o usuário do site, com `php8.4 /home/<usuario>/apps/cardapim/current/bin/...` e logs em `shared/storage/logs/`.
