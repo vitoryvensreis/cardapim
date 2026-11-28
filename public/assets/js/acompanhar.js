@@ -1,6 +1,7 @@
 /*
  * Cardapim - acompanhar pedido (/{slug}/pedido/{id}).
  * Busca o pedido na API e atualiza sozinho (a cada 5 s esperando o Pix, a cada 15 s depois) ate terminar.
+ * Pix pela chave: a tela do QR fica ate o restaurante confirmar o Pix; depois vira o acompanhamento (ou mostra o cancelamento).
  */
 (() => {
   "use strict";
@@ -48,6 +49,7 @@
   };
 
   let ultimoStatus = "";
+  let esperavaPix = false;
   let qrDesenhado = "";
   let relogio = null;
   let segundosPix = 0;
@@ -83,12 +85,18 @@
         $("[data-ap-pix-qr]").textContent = "Use o código abaixo no app do seu banco.";
       }
     }
-    segundosPix = pix.expira_em_segundos;
     window.clearInterval(relogio);
+    const tempo = $("[data-ap-pix-tempo]");
+    // Pix pela chave nao tem prazo: o pedido ja esta com o restaurante, que confirma o comprovante.
+    if (pix.expira_em_segundos === null || pix.expira_em_segundos === undefined) {
+      tempo.textContent = "Depois de pagar, envie o comprovante. O restaurante confirma o Pix e esta tela mostra o andamento.";
+      return;
+    }
+    segundosPix = pix.expira_em_segundos;
     const pintar = () => {
       const m = Math.floor(segundosPix / 60);
       const s = String(segundosPix % 60).padStart(2, "0");
-      $("[data-ap-pix-tempo]").textContent = segundosPix > 0 ? `Pague em até ${m}:${s} para garantir seu pedido.` : "O prazo do Pix terminou. Atualizando...";
+      tempo.textContent = segundosPix > 0 ? `Pague em até ${m}:${s} para garantir seu pedido.` : "O prazo do Pix terminou. Atualizando...";
     };
     pintar();
     relogio = window.setInterval(() => {
@@ -112,21 +120,29 @@
     document.title = `Pedido #${p.numero} · ${p.status_rotulo}`;
 
     desenharPix(p.pix, p);
-    // Comprovante enviado e ainda nao conferido pelo restaurante.
+    // Pix pela chave: o cliente fica na tela do QR ate o restaurante confirmar o Pix.
+    const pixChavePendente = !!(p.pix && p.pix.modo === "chave" && p.status !== "aguardando_pagamento");
     const comp = p.comprovante;
     const esperandoConferir = !!(comp && comp.enviado && !comp.conferido && !p.final);
     $("[data-ap-comprovante-bloco]").hidden = !esperandoConferir;
     const deNovo = $("[data-ap-whats-de-novo]");
     deNovo.hidden = !(esperandoConferir && comp.whatsapp);
     if (comp && comp.whatsapp) deNovo.setAttribute("href", comp.whatsapp);
-    if (esperandoConferir && p.status === "recebido") {
+    if (pixChavePendente) {
+      caixa.className = "ck-status is-aguardando_pagamento";
+      $("[data-ap-icone]").replaceChildren(icone(esperandoConferir ? "receipt-text" : "qr-code"));
+      $("[data-ap-titulo]").textContent = esperandoConferir ? "Comprovante enviado" : "Pague o Pix e envie o comprovante";
+      $("[data-ap-texto]").textContent = esperandoConferir
+        ? "Aguardando o restaurante confirmar o Pix. Esta tela atualiza sozinha."
+        : "Seu pedido já chegou ao restaurante. Assim que ele confirmar o Pix, você acompanha o preparo aqui.";
+    } else if (esperandoConferir && p.status === "recebido") {
       $("[data-ap-titulo]").textContent = "Comprovante enviado";
       $("[data-ap-texto]").textContent = "O restaurante vai conferir o Pix e começar a preparar.";
     }
 
     // Linha do tempo (some enquanto espera o Pix e quando cancelado).
     const etapas = $("[data-ap-etapas]");
-    $("[data-ap-etapas-bloco]").hidden = p.status === "aguardando_pagamento" || p.status === "cancelado";
+    $("[data-ap-etapas-bloco]").hidden = p.status === "aguardando_pagamento" || p.status === "cancelado" || pixChavePendente;
     etapas.replaceChildren();
     const ordem = p.etapas.map((e) => e.status);
     const atual = ordem.indexOf(p.status);
@@ -199,7 +215,12 @@
     $("[data-ap-linha-obs]").hidden = !p.observacao;
     $("[data-ap-obs]").textContent = p.observacao;
 
-    if (ultimoStatus && ultimoStatus !== p.status) {
+    if (esperavaPix && !pixChavePendente && p.status !== "cancelado") {
+      // O restaurante confirmou o Pix: a tela vira o acompanhamento do pedido.
+      avisar("Pix confirmado pelo restaurante!");
+      if (navigator.vibrate) navigator.vibrate(120);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (ultimoStatus && ultimoStatus !== p.status && (!pixChavePendente || p.status === "cancelado")) {
       const pixChave = p.forma === "pix_comprovante";
       avisar(p.status === "recebido" && ultimoStatus === "aguardando_pagamento"
         ? (pixChave ? "Comprovante enviado. Aguardando o restaurante confirmar." : "Pix confirmado! Pedido enviado ao restaurante.")
@@ -207,9 +228,10 @@
       if (navigator.vibrate) navigator.vibrate(120);
     }
     ultimoStatus = p.status;
+    esperavaPix = pixChavePendente;
     controlarRastreio(p);
     window.clearTimeout(proxima);
-    if (!p.final) proxima = window.setTimeout(carregar, p.status === "aguardando_pagamento" ? 5000 : 15000);
+    if (!p.final) proxima = window.setTimeout(carregar, p.status === "aguardando_pagamento" || pixChavePendente ? 5000 : 15000);
   };
 
   const carregar = async () => {

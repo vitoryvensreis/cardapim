@@ -101,15 +101,24 @@ acompanhamento do cliente. Pedido do iFood mostra o numero do dia e o numero do 
   `chk_pix_um_por_vez`). Qualquer Pix com QR Code ligado desliga o Pix na entrega.
 - `Shared/PixCopiaECola`: BR Code estatico do Banco Central (campos EMV 00, 26, 52, 53, 54, 58, 59, 60, 62/05 e CRC16
   no 63), sem biblioteca nem chamada externa. Valida e padroniza cada tipo de chave.
-- Cliente (`pix_comprovante`): o pedido nasce `aguardando_pagamento` com o copia e cola em `pix_copia_cola` e prazo
-  de 60 min (`PixChavePedido`). A tela mostra o QR, "Copiar codigo Pix" e "Ja paguei: enviar comprovante", que chama
-  `POST /api/v1/pedidos/{id}/comprovante` (so o dono, CSRF, limite de uso, repetir nao duplica) e abre o WhatsApp do
-  restaurante com a mensagem pronta. O pedido vai para `recebido` com o pagamento `pendente` e `comprovante_enviado_em`.
-  Sem comprovante no prazo: cancelado e estoque devolvido (`bin/expirar-pix.php` e a propria tela).
-- Caixa (Delivery): etiqueta "Conferir Pix" na fila; no pedido, "Pix: conferir comprovante no WhatsApp", a acao
-  principal **"Confirmei o Pix, aceitar"** (`POST /{slug}/caixa/delivery/{id}/confirmar-pix`: pago + em preparo +
-  vias de producao + auditoria), "Abrir a conversa com o cliente" e "Recusar" (cancela com motivo e devolve o estoque).
-  Aceitar, pronto e concluir ficam bloqueados ate conferir. Ao concluir entra no caixa como Pix.
+- Cliente (`pix_comprovante`): o pedido nasce **`recebido`** (pagamento `pendente`) com o copia e cola em
+  `pix_copia_cola`, sem prazo (`pix_expira_em` nulo). O restaurante e avisado na hora (`pedido.novo` + WhatsApp
+  "recebido"). O QR e gerado dentro da transacao: se falhar, nada e gravado. O cliente fica na tela do QR ("Copiar
+  codigo Pix" e "Ja paguei: enviar comprovante") ate o restaurante confirmar o Pix; a tela consulta a cada 5 s e,
+  confirmado, vira o acompanhamento ("Pix confirmado pelo restaurante!"). Cancelado: mostra o motivo.
+  "Enviar comprovante" (`POST /api/v1/pedidos/{id}/comprovante`: so o dono, CSRF, limite de uso, repetir nao duplica)
+  abre o WhatsApp do restaurante com a mensagem pronta e grava `comprovante_enviado_em` (o caixa ve "O cliente avisou
+  as HH:MM").
+- Caixa (Delivery): etiqueta **"Pix a confirmar"** na fila e no pedido. "Aceitar e preparar" funciona antes da
+  confirmacao: vai para `em_preparo` e as vias de producao saem com **"SOLICITAR COMPROVANTE"** (`CupomImpressao::avisoPix`,
+  tambem no cupom completo e no resumo: "Pix pela chave (a confirmar)"). Logo depois do aceite a tela abre o popup
+  **"Confirmar pagamento Pix"** (`?confirmar-pix=1`, `js/confirmar-pix.js`): "Recebi o comprovante, confirmar Pix"
+  (`POST /{slug}/caixa/delivery/{id}/confirmar-pix`: marca pago e audita; se o pedido ainda estiver `recebido`, tambem
+  aceita), "Pix nao recebido" (cancela com motivo, devolve o estoque; o cliente ve o cancelamento) e "Confirmar depois"
+  (o botao "Confirmar pagamento Pix" reabre). Concluir (caixa e "Entreguei" do motoboy) fica bloqueado ate confirmar;
+  o motoboy ve "Pix a confirmar". Ao concluir entra no caixa como Pix.
+- Pedidos de antes desta regra que ainda estejam `aguardando_pagamento`: o comprovante os manda para `recebido` e o
+  prazo de 60 min os cancela (`bin/expirar-pix.php`), como antes.
 - Taxa: regra `pix_comprovante` (opcional). NFC-e: `tPag` 20 como Pix (validar com o contador/NeXT).
 - Migration `20261205100000_pix_chave`, `database/verify-pix-chave.php`, `deploy/scripts/apply-pix-chave.sh`
   (gatilho `[cardapim-pix-chave]`; `Esquema::tem('pix_chave')`). Testes: `tests/unit/pix-copia-e-cola.php` (inclui o

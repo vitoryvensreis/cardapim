@@ -85,6 +85,8 @@ $minutos = static function (?string $desde): string {
                         <div class="entrega-receber <?= $pago ? 'is-pago' : '' ?>">
                             <?php if ($pago): ?>
                                 <?= Icon::svg('circle-check', 'icon-sm') ?><span><strong><?= $p['forma_pagamento'] === 'pix_online' && !empty($p['pix_cobranca_id']) ? 'Pix recebido.' : 'Já pago pelo app.' ?></strong> Não cobre nada.</span>
+                            <?php elseif ($p['forma_pagamento'] === 'pix_comprovante'): ?>
+                                <?= Icon::svg('receipt-text', 'icon-sm') ?><span><strong>Pix a confirmar (<?= $e($r($total)) ?>).</strong> O cliente pagou pela chave Pix e o restaurante ainda não confirmou. Peça para ver o comprovante e avise o caixa.</span>
                             <?php else: ?>
                                 <?= Icon::svg('wallet', 'icon-sm') ?><span>Receber <strong><?= $e($r($total)) ?></strong> · <?= $e(StatusPedido::FORMAS[$p['forma_pagamento']] ?? '') ?>
                                 <?php if ($troco > 0): ?><br>Levar troco: <strong><?= $e($r($troco)) ?></strong> (para <?= $e(Numero::reais((string) $p['troco_para'])) ?>)<?php endif; ?>

@@ -71,7 +71,7 @@ $whats = strlen((string) $tel) >= 10 ? 'https://wa.me/55' . $tel : '';
             <span class="ck-comprovante-icone" aria-hidden="true"><?= Icon::svg('receipt-text') ?></span>
             <div>
                 <strong>Comprovante enviado</strong>
-                <p>Aguardando o restaurante confirmar o Pix. Assim que confirmar, o preparo começa.</p>
+                <p>Aguardando o restaurante confirmar o Pix. Assim que ele confirmar, esta tela mostra o andamento do pedido.</p>
                 <a class="link-acao" href="#" target="_blank" rel="noopener" data-ap-whats-de-novo hidden><?= Icon::svg('message-circle', 'icon-sm') ?>Abrir o WhatsApp de novo</a>
             </div>
         </section>

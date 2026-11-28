@@ -133,6 +133,11 @@ final class CupomImpressao
             ['t' => 'texto', 'texto' => 'Feito em ' . date('d/m/Y H:i', (int) strtotime((string) $p['criado_em']))],
             ['t' => 'linha'],
         ];
+        if (self::avisoPix($p) !== '') {
+            $blocos[] = ['t' => 'titulo', 'texto' => self::avisoPix($p)];
+            $blocos[] = ['t' => 'centro', 'texto' => 'Pix ainda não confirmado'];
+            $blocos[] = ['t' => 'linha'];
+        }
         if (trim((string) ($p['cliente_nome'] ?? '')) !== '') {
             $blocos[] = ['t' => 'destaque', 'texto' => 'Cliente: ' . trim((string) $p['cliente_nome'])];
         }
@@ -200,7 +205,8 @@ final class CupomImpressao
             $blocos[] = ['t' => 'valor', 'rotulo' => $rotuloTaxa !== '' ? $rotuloTaxa : 'Taxa do pagamento', 'valor' => Numero::reais((string) $p['taxa_pagamento'])];
         }
         $blocos[] = ['t' => 'valor', 'rotulo' => 'TOTAL', 'valor' => Numero::reais((string) $p['total']), 'forte' => true];
-        $blocos[] = ['t' => 'texto', 'texto' => 'Pagamento: ' . StatusPedido::forma((string) $p['forma_pagamento'], (string) $p['tipo'])];
+        $blocos[] = ['t' => 'texto', 'texto' => 'Pagamento: ' . StatusPedido::forma((string) $p['forma_pagamento'], (string) $p['tipo'])
+            . (self::avisoPix($p) !== '' ? ' (a confirmar)' : '')];
         if (($p['forma_pagamento'] ?? '') === 'dinheiro' && ($p['troco_para'] ?? null) !== null) {
             $troco = Numero::centavos((string) $p['troco_para']) - Numero::centavos((string) $p['total']);
             if ($troco > 0) {
@@ -294,7 +300,7 @@ final class CupomImpressao
      * em letra grande, hora, quem pediu, complementos e observacoes. Sem o total da conta, a nao ser que venha
      * $resumo (delivery aceito com "Mostrar o total" ligado: so na via da impressora padrao da producao).
      * $contato (contatoPedido: telefone e endereco, quando o restaurante liga) sai logo abaixo do nome do cliente.
-     * @param array{titulo:string,linha:string,detalhe:string,observacao:string} $cabeca
+     * @param array{titulo:string,linha:string,detalhe:string,observacao:string,aviso?:string} $cabeca aviso: linha grande logo abaixo do titulo
      * @param list<array<string,mixed>> $itens
      * @param list<array<string,mixed>> $resumo
      * @param list<array<string,mixed>> $contato
@@ -309,6 +315,10 @@ final class CupomImpressao
         ];
         if ($cabeca['linha'] !== '') {
             $blocos[] = ['t' => 'centro', 'texto' => $cabeca['linha']];
+        }
+        if (($cabeca['aviso'] ?? '') !== '') {
+            $blocos[] = ['t' => 'titulo', 'texto' => $cabeca['aviso']];
+            $blocos[] = ['t' => 'centro', 'texto' => 'Pix ainda não confirmado'];
         }
         $blocos[] = ['t' => 'destaque', 'texto' => $cabeca['detalhe']];
         $blocos = [...$blocos, ...$contato];
@@ -346,6 +356,10 @@ final class CupomImpressao
         ];
         if ($cabeca['linha'] !== '') {
             $blocos[] = ['t' => 'centro', 'texto' => $cabeca['linha']];
+        }
+        if (($cabeca['aviso'] ?? '') !== '') {
+            $blocos[] = ['t' => 'titulo', 'texto' => $cabeca['aviso']];
+            $blocos[] = ['t' => 'centro', 'texto' => 'Pix ainda não confirmado'];
         }
         $blocos[] = ['t' => 'destaque', 'texto' => $cabeca['detalhe']];
         $blocos[] = ['t' => 'texto', 'texto' => date('d/m/Y H:i') . ($quem !== '' ? ' · ' . $quem : '')];
@@ -398,7 +412,14 @@ final class CupomImpressao
                 . (StatusPedido::doCaixa($p) ? ' · FEITO NO CAIXA' : ''),
             'detalhe' => trim((string) ($p['cliente_nome'] ?? '')) !== '' ? 'Cliente: ' . trim((string) $p['cliente_nome']) : 'Delivery',
             'observacao' => (string) ($p['observacao'] ?? ''),
+            'aviso' => self::avisoPix($p),
         ];
+    }
+
+    /** Pix pela chave ainda nao confirmado pelo restaurante: o papel avisa para pedir o comprovante. @param array<string,mixed> $p */
+    public static function avisoPix(array $p): string
+    {
+        return \Cardapim\Services\Pedidos\PixChavePedido::esperandoConfirmacao($p) ? 'SOLICITAR COMPROVANTE' : '';
     }
 
     /**

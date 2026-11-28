@@ -187,7 +187,8 @@ final class CriarPedido
         $limite->permitir('pedido-cliente|' . $idCliente);
         $limite->permitir('pedido-ip|' . $ip);
         $agora = date('Y-m-d H:i:s');
-        $status = in_array($forma, ['pix_online', 'pix_comprovante'], true) ? 'aguardando_pagamento' : 'recebido';
+        // Pix pelo Asaas espera o pagamento cair. Pix pela chave vai na hora para o restaurante (ele confirma o comprovante).
+        $status = $forma === 'pix_online' ? 'aguardando_pagamento' : 'recebido';
         $this->db->beginTransaction();
         try {
             if ($this->db->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
@@ -287,8 +288,22 @@ final class CriarPedido
                 $this->db->prepare('UPDATE pedidos SET consumo_estoque = ? WHERE id = ? AND id_restaurante = ?')
                     ->execute([json_encode($consumo, JSON_THROW_ON_ERROR), $idPedido, $idRest]);
             }
+            if ($forma === 'pix_comprovante') {
+                // O QR sai junto com o pedido: se nao der para gerar, nada e gravado e o restaurante nao e avisado.
+                try {
+                    PixChavePedido::gerar($this->db, $pedido + ['numero' => $numero], $pixChave);
+                } catch (Throwable $erro) {
+                    $this->db->rollBack();
+                    error_log('[Cardapim] Pix pela chave do pedido ' . $idPedido . ' nao gerado: ' . get_class($erro));
+                    return self::erro(502, 'Não conseguimos gerar o Pix agora. Escolha outra forma de pagamento ou fale com o restaurante.', 'forma_pagamento');
+                }
+            }
             $repo = new PedidoRepository($this->db);
-            $repo->registrarEvento($idRest, $idPedido, $status, $status === 'recebido' ? 'Pedido feito pelo cardápio online.' : 'Pedido feito. Aguardando o Pix.', null, $idCliente);
+            $repo->registrarEvento($idRest, $idPedido, $status, match (true) {
+                $forma === 'pix_comprovante' => 'Pedido feito pelo cardápio online. Pix pela chave: solicitar o comprovante ao cliente.',
+                $status === 'recebido' => 'Pedido feito pelo cardápio online.',
+                default => 'Pedido feito. Aguardando o Pix.',
+            }, null, $idCliente);
             if ($status === 'recebido') {
                 TempoReal::registrar($this->db, $idRest, 'pedidos', 'pedido.novo', ['id' => $idPedido, 'numero' => $numero]);
                 AvisosWhatsApp::enfileirar($this->db, $idRest, $idPedido, 'recebido');
@@ -306,15 +321,6 @@ final class CriarPedido
 
         $this->lembrarDados($idCliente, $endereco, $cpf, $cliente);
 
-        if ($forma === 'pix_comprovante') {
-            try {
-                PixChavePedido::gerar($this->db, $pedido + ['numero' => $numero], $pixChave);
-            } catch (Throwable $erro) {
-                error_log('[Cardapim] Pix pela chave do pedido ' . $idPedido . ' nao gerado: ' . get_class($erro));
-                (new CancelarPedido($this->db))->cancelar($idRest, $idPedido, 'Não foi possível gerar o Pix.', null, $idCliente);
-                return self::erro(502, 'Não conseguimos gerar o Pix agora. Escolha outra forma de pagamento ou fale com o restaurante.', 'forma_pagamento');
-            }
-        }
         if ($forma === 'pix_online') {
             try {
                 $this->pix->gerar($pedido + ['numero' => $numero], $cliente, (string) $cpf, (string) $restaurante['nome']);
