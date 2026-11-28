@@ -31,7 +31,7 @@ $celular = $plataforma ? 'celular da plataforma' : 'celular do restaurante';
             <div class="lista-vazia">
                 <?= Icon::svg('clock') ?>
                 <strong>O WhatsApp ainda não foi liberado neste servidor</strong>
-                <p><?= $plataforma ? 'Configure EVOLUTION_BASE_URL e EVOLUTION_API_KEY no .env do servidor (docs/deploy/evolution.md).' : 'A equipe do ' . marca() . ' está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
+                <p><?= $plataforma ? 'Configure WAHA_URL e WAHA_API_KEY (docs/deploy/waha.md) ou EVOLUTION_BASE_URL e EVOLUTION_API_KEY no .env do servidor.' : 'A equipe do ' . marca() . ' está preparando o servidor do WhatsApp. Assim que estiver pronto, o botão de conectar aparece aqui.' ?></p>
             </div>
         </section>
     <?php elseif ($statusIntegracao === 'desconectado'): ?>
