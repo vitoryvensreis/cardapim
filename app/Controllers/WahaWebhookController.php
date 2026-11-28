@@ -12,6 +12,7 @@ use Cardapim\Repositories\Gerencia\IntegracaoRepository;
 use Cardapim\Services\Pedidos\SaudacaoWhatsApp;
 use Cardapim\Services\WhatsApp\DiagnosticoSaudacao;
 use Cardapim\Services\WhatsApp\EventoWaha;
+use Cardapim\Services\WhatsApp\TesteWhatsApp;
 use Throwable;
 
 /**
@@ -54,6 +55,10 @@ final class WahaWebhookController
             if (!is_string($guardado) || !WahaApi::assinaturaValida($corpo, $guardado, $_SERVER['HTTP_X_WEBHOOK_HMAC'] ?? null)) {
                 DiagnosticoSaudacao::registrar($sessao, 'token_recusado');
                 return Response::json(['erro' => 'Não autorizado'], 401);
+            }
+            // Mensagem do teste automatico (WhatsApp da plataforma -> loja): confirma o recebimento, sem boas-vindas.
+            if (($evento['fromMe'] ?? null) === false && (new TesteWhatsApp($db))->recebido($id, $evento)) {
+                return Response::json(['ok' => true, 'teste' => true], 200);
             }
             SaudacaoWhatsApp::receber($db, $evento);
             return Response::json(['ok' => true], 200);

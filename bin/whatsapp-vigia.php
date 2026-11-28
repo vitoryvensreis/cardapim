@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-// Vigia do WhatsApp (WAHA): reinicia sessao que caiu, avisa a loja quando precisa de alguem no celular e tenta de
-// novo as boas-vindas que falharam. Instalado no crontab pelo deploy (deploy/scripts/install-whatsapp-vigia-cron.sh).
+// Vigia do WhatsApp (WAHA): reinicia sessao que caiu, avisa a loja quando precisa de alguem no celular, faz o teste
+// de ponta a ponta (a cada 30 min, a plataforma manda uma mensagem para cada loja) e tenta de novo as boas-vindas. Instalado no crontab pelo deploy (deploy/scripts/install-whatsapp-vigia-cron.sh).
 //
 // Uso (usuario do site, na pasta current/):
 //   php8.4 bin/whatsapp-vigia.php
@@ -35,7 +35,7 @@ try {
     exit(1);
 }
 // Log so quando algo aconteceu (rodada a cada minuto).
-if ($r['reiniciados'] + $r['alertas'] + $r['recuperados'] + $r['boas_vindas'] > 0) {
-    printf("%s verificados=%d reiniciados=%d alertas=%d recuperados=%d boas_vindas=%d\n",
-        date('Y-m-d H:i:s'), $r['verificados'], $r['reiniciados'], $r['alertas'], $r['recuperados'], $r['boas_vindas']);
+if ($r['reiniciados'] + $r['alertas'] + $r['recuperados'] + $r['boas_vindas'] + $r['testes_falhos'] > 0) {
+    printf("%s verificados=%d reiniciados=%d alertas=%d recuperados=%d boas_vindas=%d testes=%d testes_falhos=%d\n",
+        date('Y-m-d H:i:s'), $r['verificados'], $r['reiniciados'], $r['alertas'], $r['recuperados'], $r['boas_vindas'], $r['testes'], $r['testes_falhos']);
 }

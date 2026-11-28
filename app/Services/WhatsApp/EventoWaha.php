@@ -9,7 +9,7 @@ namespace Cardapim\Services\WhatsApp;
  * (event, session, from, fromMe, isGroupMsg, isStatus, t), o mesmo que o EventoEvolution entrega.
  *
  * WAHA: {event: "message", session, payload: {from, fromMe, timestamp, ...}}
- * Saida: {event: onmessage, session, from, fromMe, isGroupMsg, isStatus, t}
+ * Saida: {event: onmessage, session, from, fromMe, isGroupMsg, isStatus, t, body}
  *
  * Contato com LID: se o WAHA informar o numero real (campos alternativos do evento), usa o numero;
  * senao segue com o identificador @lid, que a saudacao ja aceita (e o WAHA envia para @lid).
@@ -40,6 +40,8 @@ final class EventoWaha
             'isGroupMsg' => str_ends_with($origem, '@g.us'),
             'isStatus' => $origem === 'status@broadcast',
             't' => self::instante($p['timestamp'] ?? null),
+            // Texto so para reconhecer o teste automatico (TesteWhatsApp); nunca e gravado.
+            'body' => is_string($p['body'] ?? null) ? mb_substr($p['body'], 0, 500) : null,
         ];
     }
 

@@ -51,5 +51,15 @@ $painel = [
         : null,
     'alerta_pedido' => '/' . rawurlencode($slug) . '/caixa/delivery',
 ];
+// Aviso da plataforma para o gerente (pop-up); qualquer erro = sem aviso.
+try {
+    $painel['aviso_loja'] = (new \Cardapim\Services\Plataforma\AvisosLojaService(Database::connect()))
+        ->paraExibir($usuario, (int) $restaurante['id'], $slug);
+    if ($painel['aviso_loja'] !== null) {
+        $painel['aviso_loja']['clique'] = MenuGerencia::url($slug, 'visao-geral') . '/avisos/' . $painel['aviso_loja']['id'] . '/clique';
+    }
+} catch (\Throwable) {
+    $painel['aviso_loja'] = null;
+}
 $pageTitle ??= 'Gerência | ' . marca();
 require __DIR__ . '/painel.php';

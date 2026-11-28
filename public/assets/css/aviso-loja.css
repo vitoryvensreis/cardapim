@@ -1,0 +1,41 @@
+/* Aviso da plataforma para o gerente (pop-up em qualquer tela da gerencia) e a previa no painel da plataforma. */
+.aviso-loja { width: min(100% - 2rem, 30rem); max-height: calc(100% - 2rem); padding: 0; border: 0; border-radius: var(--r-xl); background: var(--c-white); box-shadow: var(--sh-lg); }
+.aviso-loja::backdrop { background: rgb(36 6 13 / 60%); }
+.aviso-loja[open] { animation: aviso-loja-entra var(--t-med) var(--ease-out); }
+.aviso-loja-caixa { position: relative; display: grid; gap: .75rem; padding: 1.5rem; }
+.aviso-loja-fechar { position: absolute; top: .5rem; right: .5rem; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border: 0; border-radius: var(--r-md); background: rgb(255 255 255 / 90%); color: var(--c-ink); cursor: pointer; }
+.aviso-loja-fechar:hover, .aviso-loja-fechar:focus-visible { background: var(--c-cream); outline: 3px solid var(--c-orange); outline-offset: 0; }
+.aviso-loja-imagem { display: block; width: calc(100% + 3rem); max-width: none; height: auto; aspect-ratio: 1; margin: -1.5rem -1.5rem .25rem; border-radius: var(--r-xl) var(--r-xl) 0 0; object-fit: cover; }
+.aviso-loja-origem { display: inline-flex; align-items: center; gap: .35rem; color: var(--c-orange-700); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.aviso-loja-titulo { padding-right: 2rem; color: var(--c-wine); font: 700 1.35rem/1.25 var(--f-head); }
+.aviso-loja-imagem + .aviso-loja-origem + .aviso-loja-titulo { padding-right: 0; }
+.aviso-loja-texto { color: var(--c-ink); line-height: 1.55; overflow-wrap: anywhere; white-space: pre-line; }
+.aviso-loja-acoes { display: grid; gap: .5rem; margin-top: .5rem; }
+@keyframes aviso-loja-entra { from { opacity: 0; transform: translateY(1rem) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .aviso-loja[open] { animation: none; } }
+
+/* Painel da plataforma: lista e formulario com previa */
+.avisos-admin { display: grid; gap: 1rem; }
+.aviso-admin { display: grid; gap: .75rem; padding: 1.25rem; border: 1px solid var(--c-line); border-left: 4px solid var(--c-orange); border-radius: var(--r-lg); background: var(--c-white); }
+.aviso-admin.is-pausado { border-left-color: var(--c-line); }
+.aviso-admin-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.aviso-admin-topo h2 { color: var(--c-ink); font-size: 1.1rem; font-weight: 700; }
+.aviso-admin-texto { color: var(--c-muted); white-space: pre-line; overflow-wrap: anywhere; }
+.aviso-admin-info { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; color: var(--c-ink); font-size: .9rem; }
+.aviso-admin-info li { display: flex; align-items: center; gap: .45rem; }
+.aviso-admin-info .icon { flex: none; color: var(--c-muted); }
+.aviso-admin-acoes { display: flex; flex-wrap: wrap; gap: .5rem; }
+.aviso-form-grade { display: grid; gap: 1.25rem; }
+.aviso-form-grade [hidden] { display: none !important; }
+.aviso-form-grade .campo-erro { margin: .4rem 0 0; color: var(--c-danger); font-size: .85rem; }
+.aviso-remover-imagem { display: inline-flex; align-items: center; gap: .5rem; margin-top: .6rem; font-size: .9rem; }
+.aviso-previa-area { display: grid; gap: .5rem; align-content: start; }
+.aviso-previa-rotulo { display: inline-flex; align-items: center; gap: .4rem; color: var(--c-muted); font-size: .85rem; font-weight: 700; }
+.aviso-previa { max-width: 30rem; border: 1px solid var(--c-line); border-radius: var(--r-xl); background: var(--c-white); box-shadow: var(--sh-lg); overflow: hidden; }
+.aviso-previa .aviso-loja-titulo { padding-right: 0; }
+.aviso-previa .btn { pointer-events: none; }
+.aviso-previa .aviso-loja-imagem[hidden] { display: none; }
+@media (min-width: 64rem) {
+  .aviso-form-grade { grid-template-columns: minmax(0, 1fr) 22rem; align-items: start; }
+  .aviso-previa-area { position: sticky; top: 5rem; }
+}

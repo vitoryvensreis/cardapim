@@ -22,6 +22,7 @@ use Cardapim\Controllers\Gerencia\SuporteController;
 use Cardapim\Controllers\Gerencia\MinhaContaController;
 use Cardapim\Controllers\Gerencia\PerfilController;
 use Cardapim\Controllers\Gerencia\VisaoGeralController;
+use Cardapim\Controllers\Gerencia\AvisoLojaController;
 use Cardapim\Core\Router;
 
 /**
@@ -33,6 +34,7 @@ return static function (Router $router): void {
 
     // Visao geral (primeira tela)
     $router->get($g, [VisaoGeralController::class, 'mostrar']);
+    $router->post($g . '/avisos/{id}/clique', [AvisoLojaController::class, 'clique']);
 
     // Cozinha: apenas leitura, em layout de tela cheia.
     $router->get($g . '/cozinha', [CozinhaController::class, 'mostrar']);

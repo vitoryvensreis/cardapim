@@ -88,6 +88,10 @@ final class WhatsAppService extends BaseIntegracao
         } catch (IntegracaoErro $erro) {
             return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => $erro->getMessage()];
         }
+        if ($e['status'] === 'CONNECTED' && $atual['status'] === 'erro' && $atual['ultimo_erro'] === \Cardapim\Services\WhatsApp\VigiaWhatsApp::ALERTA_NAO_RECEBE) {
+            // Conectado no servidor, mas o teste automatico nao chegou: so o teste (ou conectar de novo) tira o alerta.
+            return ['estado' => 'erro', 'qrcode' => null, 'numero' => $numero, 'mensagem' => $atual['ultimo_erro']];
+        }
         if ($e['status'] === 'CONNECTED') {
             if ($atual['status'] !== 'conectado' || $numero === null) {
                 $numero = $api->numero($sessao, (string) $cred['token']) ?? $numero;
