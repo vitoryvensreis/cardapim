@@ -575,6 +575,12 @@
 .whatsapp-qr { grid-template-columns: 1fr; }
 .whatsapp-qr .qr-codigo { width: 15rem; height: 15rem; margin: 0; }
 .whatsapp-qr .qr-codigo img:not([src]) { visibility: hidden; }
+.whatsapp-codigo { display: grid; gap: .75rem; width: 100%; padding-top: .75rem; border-top: 1px solid var(--c-line); }
+.whatsapp-codigo > .btn { justify-self: start; white-space: normal; text-align: left; }
+.whatsapp-codigo-form { display: grid; gap: .25rem; max-width: 24rem; }
+.whatsapp-codigo-form .field { margin-bottom: .25rem; }
+.whatsapp-codigo-form > .btn { justify-self: start; }
+.whatsapp-codigo-resultado { display: grid; gap: .35rem; }
 @keyframes girar { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .whatsapp-carregando .icon { animation: none; } }
 
@@ -584,7 +590,7 @@
   .planos-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .funcoes-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .whatsapp-qr { grid-template-columns: 15rem minmax(0, 1fr); align-items: start; gap: 1.25rem; }
-  .whatsapp-qr > .texto-suave { grid-column: 1 / -1; }
+  .whatsapp-qr > .texto-suave, .whatsapp-qr > .whatsapp-codigo { grid-column: 1 / -1; }
   .opcao-2fa { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
   .opcao-2fa > .btn, .opcao-2fa > form, .opcao-2fa > .texto-suave { grid-column: 3; }
   .horario-dia { grid-template-columns: 13.5rem minmax(0, 1fr); align-items: start; }

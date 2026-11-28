@@ -72,6 +72,11 @@ esperar "WhatsApp do restaurante conectado" "$(json "$tmp/estado.json" estado)" 
 curl -s -b "$gj" "$g/integracoes/whatsapp" -o "$tmp/wpp.html"
 contem "tela mostra os avisos automaticos" "$tmp/wpp.html" 'Avisos automáticos para os clientes'
 contem "todos os avisos ligados por padrao" "$tmp/wpp.html" 'value="saiu_entrega" checked'
+esperar "codigo de conexao exige a sessao (CSRF)" "$(curl -s -o /dev/null -b "$gj" -w '%{http_code}' -d telefone=85988811631 "$g/integracoes/whatsapp/codigo")" "401"
+esperar "codigo de conexao: servidor so com QR Code recusa com aviso" "$(enviar "$gj" "$g/integracoes/whatsapp/codigo" "$g/integracoes/whatsapp" telefone=85988811631 | cut -d' ' -f1)" "422"
+contem "codigo de conexao: explica o motivo" "$tmp/resp.html" 'QR Code'
+curl -s -b "$gj" "$g" -o "$tmp/vg.html"
+nao_contem "visao geral sem alerta de WhatsApp com a loja conectada" "$tmp/vg.html" 'WhatsApp precisa de atenção'
 
 echo "Saudacao diaria pelo WhatsApp do restaurante"
 contem "configuracao de saudacao na tela" "$tmp/wpp.html" "Mensagem de boas-vindas"

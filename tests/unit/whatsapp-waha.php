@@ -6,12 +6,15 @@ declare(strict_types=1);
 // php tests/unit/whatsapp-waha.php
 require dirname(__DIR__, 2) . '/bootstrap/app.php';
 
+use Cardapim\Modules\Integracoes\EvolutionApi;
 use Cardapim\Modules\Integracoes\IntegracaoErro;
+use Cardapim\Modules\Integracoes\RecuperacaoDeSessao;
 use Cardapim\Modules\Integracoes\WahaApi;
 use Cardapim\Modules\Integracoes\WebhookDeMensagens;
 use Cardapim\Modules\Integracoes\WhatsAppProvedores as P;
 use Cardapim\Services\Pedidos\SaudacaoWhatsApp;
 use Cardapim\Services\WhatsApp\EventoWaha as E;
+use Cardapim\Services\WhatsApp\VigiaWhatsApp as V;
 use Cardapim\Shared\Http\ClienteHttp;
 use Cardapim\Shared\Http\RespostaHttp;
 
@@ -95,7 +98,42 @@ $e = $api(new RespostaHttp(200, '{"status":"SCAN_QR_CODE"}'), new RespostaHttp(2
 $ok($e === ['status' => 'QRCODE', 'qrcode' => 'data:image/png;base64,iVBORw0KGgo='], 'SCAN_QR_CODE devolve o QR em base64');
 $ok($api(new RespostaHttp(200, '{"status":"SCAN_QR_CODE"}'), new RespostaHttp(500, ''))->estado('x_sessao', $token)['status'] === 'INITIALIZING', 'QR ainda nao pronto = preparando');
 $ok($api(new RespostaHttp(200, '{"status":"STARTING"}'))->estado('x_sessao', $token)['status'] === 'INITIALIZING', 'STARTING = preparando');
-$ok($api(new RespostaHttp(200, '{"status":"PASSKEY_REQUIRED"}'))->estado('x_sessao', $token)['status'] === 'INITIALIZING', 'passkey pendente = preparando');
+$ok($api(new RespostaHttp(200, '{"status":"PASSKEY_REQUIRED"}'))->estado('x_sessao', $token)['status'] === 'PASSKEY', 'passkey pendente = confirmar no celular');
+$ok($api(new RespostaHttp(200, '{"status":"PASSKEY_CONFIRMATION_REQUIRED"}'))->estado('x_sessao', $token) === ['status' => 'PASSKEY', 'qrcode' => null], 'confirmacao de passkey = confirmar no celular');
+$h = $falso(new RespostaHttp(422, '{"error":"already started"}'), new RespostaHttp(201, '{}'));
+(new WahaApi($h))->iniciar('deliveryzim_r6_ab12cd34', $token);
+$ok(count($h->pedidos) === 2 && str_ends_with($h->pedidos[1]['url'], '/api/sessions/deliveryzim_r6_ab12cd34/restart'), 'sessao ja iniciada: reinicia para gerar QR novo');
+
+/* ---------- Recuperacao: reiniciar e codigo de conexao ---------- */
+$ok((new WahaApi()) instanceof RecuperacaoDeSessao, 'WAHA permite reiniciar e conectar com codigo');
+$ok(!((new EvolutionApi()) instanceof RecuperacaoDeSessao), 'Evolution fica sem vigia e sem codigo');
+$h = $falso(new RespostaHttp(201, '{}'));
+(new WahaApi($h))->reiniciar('deliveryzim_r6_ab12cd34', $token);
+$ok($h->pedidos[0]['metodo'] === 'POST' && $h->pedidos[0]['url'] === 'https://waha.exemplo/api/sessions/deliveryzim_r6_ab12cd34/restart', 'reiniciar = restart');
+$ok($erro(fn () => (new WahaApi($falso(new RespostaHttp(500, ''))))->reiniciar('x_sessao', $token)) !== null, 'restart recusado vira erro');
+$h = $falso(new RespostaHttp(200, '{"code":"abcd-efgh"}'));
+$codigo = (new WahaApi($h))->pedirCodigo('deliveryzim_r6_ab12cd34', $token, '5585988811631');
+$ok($codigo === 'ABCD-EFGH', 'codigo formatado (ABCD-EFGH)');
+$ok($h->pedidos[0]['url'] === 'https://waha.exemplo/api/deliveryzim_r6_ab12cd34/auth/request-code' && $h->pedidos[0]['corpo'] === ['phoneNumber' => '5585988811631'], 'pede o codigo com o numero (so digitos)');
+$ok(str_contains((string) $erro(fn () => (new WahaApi($falso(new RespostaHttp(422, '{}'))))->pedirCodigo('x_sessao', $token, '5585988811631')), 'Gerar novo QR Code'), 'sessao fora da espera: orienta gerar novo QR');
+$ok($erro(fn () => (new WahaApi($falso(new RespostaHttp(200, '{"code":"x"}'))))->pedirCodigo('x_sessao', $token, '5585988811631')) !== null, 'codigo estranho recusado');
+$ok($erro(fn () => (new WahaApi($falso()))->pedirCodigo('x_sessao', $token, '123')) !== null, 'numero invalido recusado antes de chamar');
+
+/* ---------- Vigia: o que fazer em cada situacao ---------- */
+$d = V::decidir('CONNECTED', 'conectado', 0);
+$ok($d === ['falhas' => 0, 'reiniciar' => false, 'alerta' => null, 'recuperou' => false], 'conectado: nada a fazer');
+$ok(V::decidir('CONNECTED', 'erro', 4)['recuperou'] === true && V::decidir('CONNECTED', 'erro', 4)['falhas'] === 0, 'voltou sozinho: tira o alerta e zera as falhas');
+$d = V::decidir('CLOSED', 'conectado', 0);
+$ok($d['reiniciar'] && $d['alerta'] === null && $d['falhas'] === 1, 'caiu: reinicia sem alarmar');
+$ok(V::decidir('CLOSED', 'conectado', 1)['alerta'] === null, 'segunda rodada caida: ainda sem alerta');
+$d = V::decidir('CLOSED', 'conectado', 2);
+$ok($d['reiniciar'] && $d['alerta'] !== null && $d['falhas'] === 3, 'terceira rodada caida: reinicia e avisa a loja');
+$ok(!V::decidir('CLOSED', 'erro', 7)['reiniciar'] && V::decidir('CLOSED', 'erro', 9)['reiniciar'], 'caida ha muito tempo: reinicia de 10 em 10 minutos');
+$d = V::decidir('QRCODE', 'conectado', 0);
+$ok(!$d['reiniciar'] && str_contains((string) $d['alerta'], 'conecte de novo'), 'celular desvinculado: avisa na hora, sem reiniciar');
+$ok(V::decidir('CLOSED', 'erro', 3, $d['alerta'])['alerta'] === $d['alerta'] && !V::decidir('CLOSED', 'erro', 3, $d['alerta'])['reiniciar'], 'desvinculado e depois parado: mantem o aviso de conectar de novo');
+$ok(str_contains((string) V::decidir('PASSKEY', 'conectado', 0)['alerta'], 'confirmação no celular') && !V::decidir('PASSKEY', 'conectado', 0)['reiniciar'], 'passkey: avisa para confirmar no celular');
+$ok(!V::decidir('INITIALIZING', 'conectado', 0)['reiniciar'] && V::decidir('INITIALIZING', 'conectado', 1)['reiniciar'], 'iniciando: espera uma rodada, depois reinicia');
 $ok($api(new RespostaHttp(200, '{"status":"FAILED"}'))->estado('x_sessao', $token)['status'] === 'CLOSED', 'FAILED = desconectado');
 $ok($api(new RespostaHttp(200, '{"status":"STOPPED"}'))->estado('x_sessao', $token)['status'] === 'CLOSED', 'STOPPED = desconectado');
 $ok($api(new RespostaHttp(404, '{}'))->estado('x_sessao', $token)['status'] === 'CLOSED', 'sessao apagada = desconectado');
@@ -108,6 +146,17 @@ $h = $falso(new RespostaHttp(200, '{"numberExists":true,"chatId":"558588811631@c
 $ok(str_starts_with($h->pedidos[0]['url'], 'https://waha.exemplo/api/contacts/check-exists?phone=5585988811631&session=deliveryzim_r6_ab12cd34'), 'confere a conversa certa do numero (9 extra)');
 $ok($h->pedidos[1]['url'] === 'https://waha.exemplo/api/sendText' && $h->pedidos[1]['corpo'] === ['session' => 'deliveryzim_r6_ab12cd34', 'chatId' => '558588811631@c.us', 'text' => 'Oi'], 'envia para a conversa devolvida pelo WhatsApp');
 $ok($erro(fn () => (new WahaApi($falso(new RespostaHttp(200, '{"numberExists":false}'))))->enviarTexto('x_sessao', $token, '5585999999999', 'Oi')) === 'Este número não tem WhatsApp.', 'numero sem WhatsApp vira erro');
+try {
+    (new WahaApi($falso(new RespostaHttp(200, '{"numberExists":false}'))))->enviarTexto('x_sessao', $token, '5585999999999', 'Oi');
+    $ok(false, 'numero sem WhatsApp deveria falhar');
+} catch (IntegracaoErro $e) {
+    $ok($e->destinoInvalido(), 'numero sem WhatsApp: erro definitivo (nao tenta de novo)');
+}
+try {
+    (new WahaApi($falso(new RespostaHttp(200, '{"numberExists":true,"chatId":"558588811631@c.us"}'), new RespostaHttp(500, ''))))->enviarTexto('x_sessao', $token, '5585988811631', 'Oi');
+} catch (IntegracaoErro $e) {
+    $ok(!$e->destinoInvalido(), 'falha do servidor: erro passageiro (tenta de novo)');
+}
 $h = $falso(new RespostaHttp(500, ''), new RespostaHttp(201, '{}'));
 (new WahaApi($h))->enviarTexto('x_sessao', $token, '5585988811631', 'Oi');
 $ok($h->pedidos[1]['corpo']['chatId'] === '5585988811631@c.us', 'consulta fora do ar: usa o numero como veio');
@@ -160,4 +209,4 @@ if ($falhas > 0) {
     fwrite(STDERR, "$falhas falha(s) no WAHA.\n");
     exit(1);
 }
-echo "OK: WAHA (servidor, sessao, envio, webhook assinado e conversao).\n";
+echo "OK: WAHA (servidor, sessao, envio, webhook assinado, conversao, codigo de conexao e vigia).\n";

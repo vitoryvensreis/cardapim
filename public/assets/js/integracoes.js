@@ -519,7 +519,12 @@
           break;
         case "qrcode":
           if (imagem && dados.qrcode && imagem.src !== dados.qrcode) imagem.src = dados.qrcode;
+          if (codigoArea) codigoArea.hidden = dados.codigo !== true;
           mostrar("qrcode");
+          espera = 3000;
+          break;
+        case "passkey":
+          mostrar("passkey", dados.mensagem);
           espera = 3000;
           break;
         case "expirado":
@@ -549,6 +554,67 @@
     }
     agendar(espera);
   };
+
+  /* Conectar com codigo: para quando a camera do celular nao le o QR Code. */
+  const codigoArea = bloco.querySelector("[data-codigo-area]");
+  if (codigoArea) {
+    const abrir = codigoArea.querySelector("[data-codigo-abrir]");
+    const form = codigoArea.querySelector("[data-codigo-form]");
+    const resultado = codigoArea.querySelector("[data-codigo-resultado]");
+    const valor = codigoArea.querySelector("[data-codigo-valor]");
+    const telefone = form.querySelector("input[name='telefone']");
+    const campo = telefone.closest("[data-field]");
+    const msg = campo ? campo.querySelector(".field-msg") : null;
+    const enviar = form.querySelector("[data-codigo-enviar]");
+    const rotulo = enviar.innerHTML;
+
+    const avisar = (texto, erro) => {
+      if (campo) campo.classList.toggle("is-invalid", erro);
+      telefone.toggleAttribute("aria-invalid", erro);
+      if (msg) msg.textContent = texto || msg.dataset.hint || "";
+    };
+
+    abrir.addEventListener("click", () => {
+      const aberto = form.hidden;
+      form.hidden = !aberto;
+      abrir.setAttribute("aria-expanded", String(aberto));
+      if (aberto) telefone.focus();
+    });
+
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      if (telefone.value.replace(/\D+/g, "").length < 10) {
+        avisar("Digite o número com DDD. Exemplo: (85) 99999-0000", true);
+        telefone.focus();
+        return;
+      }
+      avisar("", false);
+      enviar.disabled = true;
+      enviar.textContent = "Gerando...";
+      try {
+        const resposta = await fetch(form.action, {
+          method: "POST",
+          body: new FormData(form),
+          headers: { Accept: "application/json" },
+          credentials: "same-origin",
+        });
+        const dados = await resposta.json();
+        if (dados.ok && dados.codigo) {
+          valor.textContent = dados.codigo;
+          resultado.hidden = false;
+          form.hidden = true;
+          abrir.setAttribute("aria-expanded", "false");
+        } else {
+          avisar((dados.erros && dados.erros.telefone) || dados.mensagem || "Não foi possível gerar o código.", true);
+        }
+      } catch {
+        avisar("Sem resposta do servidor. Confira sua internet e tente de novo.", true);
+      } finally {
+        enviar.disabled = false;
+        enviar.innerHTML = rotulo;
+      }
+    });
+  }
 
   // Tempo real: o celular conectou ou caiu em outra aba/aparelho? Atualiza esta tela na hora.
   document.addEventListener("cardapim:tempo-real", (ev) => {

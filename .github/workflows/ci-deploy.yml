@@ -392,6 +392,8 @@ jobs:
           suite_http tests/http/entregas.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           suite_http tests/http/pwa.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           suite_http tests/http/avisos.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
+          # Vigia do WhatsApp: roda sem erro (lojas na Evolution sao ignoradas; exercita a fila das boas-vindas).
+          EVOLUTION_BASE_URL=http://127.0.0.1:18099/evo EVOLUTION_API_KEY=chave-global-ci php bin/whatsapp-vigia.php
           suite_http tests/http/garcom.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099
           suite_http tests/http/equipe-no-painel.sh http://127.0.0.1:18080 restaurante-modelo-cardapim
           suite_http tests/http/planos-cadastro.sh http://127.0.0.1:18080 restaurante-modelo-cardapim http://127.0.0.1:18099

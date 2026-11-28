@@ -21,15 +21,15 @@ use Cardapim\Shared\Http\RespostaHttp;
  * O webhook de cada sessao de loja aponta para /webhooks/waha/{WAHA_WEBHOOK_TOKEN} (evento "message":
  * so mensagens recebidas). A sessao da plataforma (codigos de acesso) nao tem webhook.
  */
-class WahaApi implements ProvedorWhatsApp, WebhookDeMensagens
+class WahaApi implements ProvedorWhatsApp, WebhookDeMensagens, RecuperacaoDeSessao
 {
-    /** Status do WAHA -> status unico dos servicos. PASSKEY_*: o WhatsApp pediu uma etapa a mais no celular. */
+    /** Status do WAHA -> status unico dos servicos. PASSKEY_*: o WhatsApp pediu uma confirmacao no celular. */
     private const STATUS = [
         'WORKING' => 'CONNECTED',
         'SCAN_QR_CODE' => 'QRCODE',
         'STARTING' => 'INITIALIZING',
-        'PASSKEY_REQUIRED' => 'INITIALIZING',
-        'PASSKEY_CONFIRMATION_REQUIRED' => 'INITIALIZING',
+        'PASSKEY_REQUIRED' => 'PASSKEY',
+        'PASSKEY_CONFIRMATION_REQUIRED' => 'PASSKEY',
     ];
 
     public function __construct(private readonly ClienteHttp $http = new ClienteHttp(20))
@@ -81,7 +81,11 @@ class WahaApi implements ProvedorWhatsApp, WebhookDeMensagens
 
     public function iniciar(string $sessao, string $token): void
     {
-        $r = $this->chamar('POST', '/api/sessions/' . WhatsAppProvedores::sessao($sessao) . '/start');
+        $nome = WhatsAppProvedores::sessao($sessao);
+        $r = $this->chamar('POST', '/api/sessions/' . $nome . '/start');
+        if (!$r->ok() && $r->status === 422) { // ja iniciada (ex.: aguardando QR Code ha tempo): reinicia para gerar um novo
+            $r = $this->chamar('POST', '/api/sessions/' . $nome . '/restart');
+        }
         if (!$r->ok()) {
             throw new IntegracaoErro('Não foi possível iniciar o WhatsApp agora (código ' . $r->status . '). Tente de novo em instantes.');
         }
@@ -104,6 +108,30 @@ class WahaApi implements ProvedorWhatsApp, WebhookDeMensagens
         return is_string($dados) && $dados !== '' && preg_match('~\A[A-Za-z0-9+/=]+\z~', $dados) === 1
             ? ['status' => 'QRCODE', 'qrcode' => 'data:' . (is_string($qr['mimetype'] ?? null) ? $qr['mimetype'] : 'image/png') . ';base64,' . $dados]
             : ['status' => 'INITIALIZING', 'qrcode' => null];
+    }
+
+    public function reiniciar(string $sessao, string $token): void
+    {
+        $r = $this->chamar('POST', '/api/sessions/' . WhatsAppProvedores::sessao($sessao) . '/restart');
+        if (!$r->ok()) {
+            throw new IntegracaoErro('O servidor do WhatsApp não reiniciou a conexão (código ' . $r->status . ').');
+        }
+    }
+
+    public function pedirCodigo(string $sessao, string $token, string $telefone): string
+    {
+        $digitos = preg_replace('/\D+/', '', $telefone) ?? '';
+        if (strlen($digitos) < 10 || strlen($digitos) > 15) {
+            throw new IntegracaoErro('Número de WhatsApp inválido.');
+        }
+        $r = $this->chamar('POST', '/api/' . WhatsAppProvedores::sessao($sessao) . '/auth/request-code', ['phoneNumber' => $digitos]);
+        $codigo = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', (string) ($r->json()['code'] ?? '')) ?? '');
+        if (!$r->ok() || preg_match('/\A[A-Z0-9]{8}\z/', $codigo) !== 1) {
+            throw new IntegracaoErro($r->status === 422 || $r->status === 400
+                ? 'O WhatsApp não está aguardando conexão agora. Clique em "Gerar novo QR Code" e tente de novo.'
+                : 'Não foi possível gerar o código agora (código ' . $r->status . '). Tente de novo em instantes.');
+        }
+        return substr($codigo, 0, 4) . '-' . substr($codigo, 4);
     }
 
     public function numero(string $sessao, string $token): ?string
@@ -136,7 +164,7 @@ class WahaApi implements ProvedorWhatsApp, WebhookDeMensagens
     {
         $digitos = preg_replace('/\D+/', '', $telefone) ?? '';
         if (strlen($digitos) < 10 || strlen($digitos) > 15) {
-            throw new IntegracaoErro('Número de WhatsApp inválido.');
+            throw new IntegracaoErro('Número de WhatsApp inválido.', IntegracaoErro::DESTINO_INVALIDO);
         }
         try {
             $r = $this->chamar('GET', '/api/contacts/check-exists?' . http_build_query(['phone' => $digitos, 'session' => $sessao]));
@@ -145,7 +173,7 @@ class WahaApi implements ProvedorWhatsApp, WebhookDeMensagens
         }
         $d = $r->json();
         if ($r->ok() && ($d['numberExists'] ?? null) === false) {
-            throw new IntegracaoErro('Este número não tem WhatsApp.');
+            throw new IntegracaoErro('Este número não tem WhatsApp.', IntegracaoErro::DESTINO_INVALIDO);
         }
         $chat = $d['chatId'] ?? null;
         return $r->ok() && is_string($chat) && preg_match('/\A[0-9]{6,24}@(c\.us|lid)\z/D', $chat) === 1 ? $chat : $digitos . '@c.us';

@@ -52,6 +52,7 @@ return static function (Router $router): void {
     $router->get('/painel/integracoes/whatsapp', [IntegracoesController::class, 'whatsapp']);
     $router->post('/painel/integracoes/whatsapp/conectar', [IntegracoesController::class, 'whatsappConectar']);
     $router->get('/painel/integracoes/whatsapp/estado', [IntegracoesController::class, 'whatsappEstado']);
+    $router->post('/painel/integracoes/whatsapp/codigo', [IntegracoesController::class, 'whatsappCodigo']);
     $router->post('/painel/integracoes/whatsapp/teste', [IntegracoesController::class, 'whatsappTeste']);
     $router->post('/painel/integracoes/whatsapp/desconectar', [IntegracoesController::class, 'whatsappDesconectar']);
     $router->get('/painel/integracoes/sms', [IntegracoesController::class, 'sms']);

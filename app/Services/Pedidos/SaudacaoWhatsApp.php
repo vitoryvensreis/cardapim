@@ -6,6 +6,7 @@ namespace Cardapim\Services\Pedidos;
 
 use Cardapim\Core\Config;
 use Cardapim\Core\Database;
+use Cardapim\Modules\Integracoes\IntegracaoErro;
 use Cardapim\Modules\Integracoes\ProvedorWhatsApp;
 use Cardapim\Modules\Integracoes\WhatsAppProvedores;
 use Cardapim\Modules\Restaurante\HorarioFuncionamento;
@@ -24,6 +25,14 @@ use Throwable;
  */
 final class SaudacaoWhatsApp
 {
+    /** Tentativas de envio por contato/dia e espera (segundos) antes da 2a e da 3a. */
+    public const TENTATIVAS = 3;
+    private const ESPERA = [1 => 60, 2 => 180];
+    /** Boas-vindas que nao saiu em 10 minutos e descartada: chegar muito depois atrapalha mais do que ajuda. */
+    public const VALIDADE_MINUTOS = 10;
+    /** Envio "em andamento" ha mais que isso foi interrompido (processo caiu no meio). */
+    private const LEASE_MINUTOS = 5;
+
     public const PADRAO = "Olá! Bem-vindo(a) à *{{restaurante}}*.\n\nVeja nosso cardápio e faça seu pedido:\n{{cardapio}}\n\nEstamos à disposição!";
 
     public static function configuracao(PDO $db, int $restaurante): array
@@ -155,6 +164,7 @@ final class SaudacaoWhatsApp
             VALUES (?, ?, ?, ?, 'pendente', 0, ?, ?)");
         $q->execute([$id, $telefone, $instante->format('Y-m-d'), $texto, $agora->format('Y-m-d H:i:s'), $agora->format('Y-m-d H:i:s')]);
         if ($q->rowCount() !== 1) {
+            self::agendarEnvio($id); // se a de hoje ainda esta na fila (aguardando nova tentativa), aproveita para tentar
             return self::ignorado('ja_registrada_hoje', $evento);
         }
         DiagnosticoSaudacao::registrar($sessao, 'enfileirada', $telefone);
@@ -185,9 +195,14 @@ final class SaudacaoWhatsApp
         });
     }
 
-    /** No maximo uma tentativa por contato/dia. Sem repetir se o servidor falhou apos aceitar a mensagem. */
+    /**
+     * Envia a fila da loja. Ate 3 tentativas por contato/dia (espera de 1 e 3 minutos), dentro de 10 minutos da
+     * mensagem do cliente; depois disso desiste (boas-vindas atrasada nao ajuda). Numero sem WhatsApp nao repete.
+     * Chamado logo apos o webhook e, a cada minuto, por bin/whatsapp-vigia.php (novas tentativas).
+     */
     public static function enviarPendentes(PDO $db, int $restaurante, ?ProvedorWhatsApp $api = null): int
     {
+        self::expirar($db, $restaurante);
         $repo = new IntegracaoRepository($db);
         $integracao = $repo->buscar($restaurante, 'whatsapp');
         $sessao = $integracao['dados']['sessao'] ?? null;
@@ -209,16 +224,19 @@ final class SaudacaoWhatsApp
             DiagnosticoSaudacao::registrar($sessao, 'envio_fora_do_horario');
             return 0;
         }
-        $q = $db->prepare("SELECT id, telefone, mensagem FROM whatsapp_saudacao_diaria
-            WHERE id_restaurante = ? AND status = 'pendente' AND dia_local = ? AND proxima_tentativa_em <= ?
+        $agora = time();
+        $q = $db->prepare("SELECT id, telefone, mensagem, tentativas FROM whatsapp_saudacao_diaria
+            WHERE id_restaurante = ? AND status = 'pendente' AND proxima_tentativa_em <= ? AND criado_em >= ?
             ORDER BY id LIMIT 5");
-        $q->execute([$restaurante, date('Y-m-d'), date('Y-m-d H:i:s')]);
+        $q->execute([$restaurante, date('Y-m-d H:i:s', $agora), date('Y-m-d H:i:s', $agora - self::VALIDADE_MINUTOS * 60)]);
         $total = 0;
         foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $a) {
-            $claim = $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'enviando', tentativas = tentativas + 1
+            // Reserva o envio (outro processo nao pega o mesmo); a reserva vence se este processo cair no meio.
+            $claim = $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'enviando', tentativas = tentativas + 1, proxima_tentativa_em = ?
                 WHERE id = ? AND id_restaurante = ? AND status = 'pendente'");
-            $claim->execute([(int) $a['id'], $restaurante]);
+            $claim->execute([date('Y-m-d H:i:s', time() + self::LEASE_MINUTOS * 60), (int) $a['id'], $restaurante]);
             if ($claim->rowCount() !== 1) continue;
+            $tentativa = (int) $a['tentativas'] + 1;
             try {
                 $api->enviarTexto($sessao, $token, (string) $a['telefone'], (string) $a['mensagem']);
                 $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'enviado', enviado_em = ?, ultimo_erro = NULL
@@ -227,13 +245,47 @@ final class SaudacaoWhatsApp
                 DiagnosticoSaudacao::registrar($sessao, 'enviada', (string) $a['telefone']);
                 $total++;
             } catch (Throwable $e) {
-                $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'falhou', ultimo_erro = ?
+                $definitivo = ($e instanceof IntegracaoErro && $e->destinoInvalido()) || $tentativa >= self::TENTATIVAS;
+                $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = ?, ultimo_erro = ?, proxima_tentativa_em = ?
                     WHERE id = ? AND id_restaurante = ? AND status = 'enviando'")
-                    ->execute([mb_substr($e->getMessage(), 0, 255), (int) $a['id'], $restaurante]);
-                DiagnosticoSaudacao::registrar($sessao, 'falhou_envio', (string) $a['telefone']);
+                    ->execute([
+                        $definitivo ? 'falhou' : 'pendente',
+                        mb_substr($e->getMessage(), 0, 255),
+                        date('Y-m-d H:i:s', time() + (self::ESPERA[$tentativa] ?? 0)),
+                        (int) $a['id'],
+                        $restaurante,
+                    ]);
+                DiagnosticoSaudacao::registrar($sessao, $definitivo ? 'falhou_envio' : 'falhou_envio_tenta_de_novo', (string) $a['telefone']);
             }
         }
         return $total;
+    }
+
+    /**
+     * Encerra o que nao vai mais sair: na fila ha mais de 10 minutos, ou envio interrompido (reserva vencida; nao
+     * repete porque o WhatsApp pode ter entregado antes da queda).
+     */
+    public static function expirar(PDO $db, ?int $restaurante = null): int
+    {
+        $filtro = $restaurante === null ? '' : ' AND id_restaurante = ' . (int) $restaurante;
+        $agora = time();
+        $velhas = $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'falhou', ultimo_erro = ?
+            WHERE status = 'pendente' AND criado_em < ?" . $filtro);
+        $velhas->execute(['Não saiu a tempo (mais de ' . self::VALIDADE_MINUTOS . ' minutos). O WhatsApp da loja estava fora do ar?',
+            date('Y-m-d H:i:s', $agora - self::VALIDADE_MINUTOS * 60)]);
+        $presas = $db->prepare("UPDATE whatsapp_saudacao_diaria SET status = 'falhou', ultimo_erro = ?
+            WHERE status = 'enviando' AND proxima_tentativa_em < ?" . $filtro);
+        $presas->execute(['Envio interrompido no meio. Não repetimos para o cliente não receber duas vezes.', date('Y-m-d H:i:s', $agora)]);
+        return $velhas->rowCount() + $presas->rowCount();
+    }
+
+    /** @return list<int> lojas com boas-vindas aguardando nova tentativa (para o vigia) */
+    public static function lojasComFila(PDO $db): array
+    {
+        $q = $db->prepare("SELECT DISTINCT id_restaurante FROM whatsapp_saudacao_diaria
+            WHERE status = 'pendente' AND proxima_tentativa_em <= ? AND criado_em >= ?");
+        $q->execute([date('Y-m-d H:i:s'), date('Y-m-d H:i:s', time() - self::VALIDADE_MINUTOS * 60)]);
+        return array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN));
     }
 
     /** Retencao limitada a 35 dias. Executar no cron de manutencao quando disponivel. */
